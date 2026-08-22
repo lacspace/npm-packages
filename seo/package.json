@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/seo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb) and a Next.js App Router Metadata helper. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",

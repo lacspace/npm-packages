@@ -1,21 +1,51 @@
-MIT License
+Lacspace Free Licence
+Version 1.0, August 2026
 
 Copyright (c) 2026 Lacspace
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+PREAMBLE
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This software is published by Lacspace under the Lacspace Free Licence — a free,
+permissive licence that lets you use this software for any purpose, including in
+commercial products and services, at no cost. It grants the same freedoms as
+common permissive open-source licences; the only condition is that this notice
+travels with the software. The canonical, always-current text of this licence is
+maintained at https://lacspace.com/licenses/lacspace-free-1.0
+
+GRANT OF RIGHTS
+
+Permission is hereby granted, free of charge, to any person or organisation
+obtaining a copy of this software and its associated documentation and data files
+(the "Software"), to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the conditions below. These rights are
+granted for any purpose, personal or commercial, and are perpetual, worldwide,
+non-exclusive, and royalty-free.
+
+CONDITIONS
+
+The above copyright notice, this permission notice, and the name of this licence
+("Lacspace Free Licence") shall be included in all copies or substantial portions
+of the Software.
+
+TRADEMARKS
+
+This licence does not grant permission to use the trade names, trademarks, service
+marks, logos, or product names of Lacspace, except as required to reproduce the
+notice above or to describe the origin of the Software in a truthful manner.
+
+DISCLAIMER OF WARRANTY AND LIMITATION OF LIABILITY
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+The Lacspace Free Licence is a source-available, permissive licence and is not (as
+of this version) an OSI-approved licence. In substance it grants the same freedoms
+as the MIT Licence. Learn more at https://lacspace.com/licenses

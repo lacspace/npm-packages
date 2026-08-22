@@ -4,9 +4,9 @@
 
 **Small, sharp, open-source TypeScript packages for building on Lacspace — and for building in Nepal.**
 
-Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual **ESM + CJS** · fully typed · MIT
+Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual **ESM + CJS** · fully typed · Lacspace Free Licence
 
-[![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![license](https://img.shields.io/badge/license-Lacspace%20Free-0b76ef)](./LICENSE)
 [![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/~thelacspace)
 [![npm org](https://img.shields.io/badge/npm-%40lacspace-%230b76ef)](https://www.npmjs.com/~thelacspace)
 
@@ -165,7 +165,7 @@ const ok = await verifyTotp(userCode, userSecret); // ±1 step drift; null = inv
 - **Isomorphic** — one codebase for server, browser, edge and native.
 - **Typed & dual-format** — full `.d.ts`, shipped as ESM and CJS with a proper `exports` map.
 - **No surprises** — configure in code, no config files written to disk, no import-time side effects.
-- **Free & MIT** — use them anywhere, commercial or not.
+- **Free & permissive** — published under the [Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0) (MIT-equivalent freedoms). Use them anywhere, commercial or not.
 
 ## 🛠️ Local development
 
@@ -189,6 +189,8 @@ npm run build:sec   # crypto, password, jwt, apikey, lock, headers, redact, mfa,
 - Website → **[lacspace.com/packages](https://lacspace.com/packages)**
 - npm → **[npmjs.com/~thelacspace](https://www.npmjs.com/~thelacspace)**
 
-## License
+## Licence
 
-MIT © [Lacspace](https://lacspace.com)
+Published under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** v1.0 — a free, permissive licence with MIT-equivalent freedoms. See [`LICENSE`](./LICENSE), or read it online at **[lacspace.com/licenses](https://lacspace.com/licenses)**.
+
+© 2026 [Lacspace](https://lacspace.com)

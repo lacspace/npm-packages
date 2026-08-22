@@ -94,4 +94,4 @@ You can also read/extend the exported sets: `DISPOSABLE_DOMAINS`, `FREE_PROVIDER
 | **`@lacspace/email-validate`** | Validate & normalize addresses (this package) |
 | [`@lacspace/email-verify`](https://www.npmjs.com/package/@lacspace/email-verify) | MX + SMTP deliverability checks |
 
-<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

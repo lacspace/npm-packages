@@ -95,4 +95,4 @@ Dates are handled by their **local** calendar parts. Build AD dates with `new Da
 | [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Full Lacspace platform SDK |
 | [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
 
-<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

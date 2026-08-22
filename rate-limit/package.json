@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/rate-limit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Framework-agnostic rate limiting — fixed-window, sliding-window and token-bucket over a pluggable store, with standard RateLimit-* headers. For API routes, middleware and edge. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",

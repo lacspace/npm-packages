@@ -33,7 +33,7 @@ import { llmsTxt } from "@lacspace/llms-txt";
 const txt = llmsTxt({
   title: "Lacspace",
   summary: "Open-source TypeScript packages and products.",
-  details: "Zero-dependency, isomorphic, MIT-licensed.",
+  details: "Zero-dependency, isomorphic, Lacspace-Free-Licensed.",
   sections: [
     {
       title: "Docs",
@@ -51,7 +51,7 @@ const txt = llmsTxt({
 
 > Open-source TypeScript packages and products.
 
-Zero-dependency, isomorphic, MIT-licensed.
+Zero-dependency, isomorphic, Lacspace-Free-Licensed.
 
 ## Docs
 
@@ -94,4 +94,4 @@ const doc = parseLlmsTxt(existing); // { title, summary, details, sections: [{ t
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
-<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

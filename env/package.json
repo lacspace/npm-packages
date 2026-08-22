@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/env",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Typed, validated environment variables — declare a schema, validate process.env at boot, get a typed frozen object or a clear fail-fast error. A zero-dependency t3-env / envalid alternative.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",

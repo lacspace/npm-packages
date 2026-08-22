@@ -55,4 +55,4 @@ slugify("C++ & C#", { replace: { "++": "pp", "#": "sharp" } }); // "cpp-csharp"
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | **`@lacspace/slugify`** | SEO URL slugs (this package) |
 
-<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

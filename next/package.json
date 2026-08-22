@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/next",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Next.js App Router integration for the Lacspace SDK — authenticated server client from cookies, Route Handler & Server Action wrappers, cookie helpers and a middleware auth guard.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -39,7 +39,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",

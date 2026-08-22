@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/api",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com",
   "repository": {
     "type": "git",

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/react",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React hooks and provider for the Lacspace SDK — useAuth, useQuery, useLacspace.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com",
   "repository": {
     "type": "git",

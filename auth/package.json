@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,7 @@
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com",
   "repository": {
     "type": "git",

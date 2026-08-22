@@ -47,6 +47,15 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 | [`@lacspace/market-clock`](./market-clock) | [![v](https://img.shields.io/npm/v/@lacspace/market-clock?label=%20)](https://www.npmjs.com/package/@lacspace/market-clock) | Holiday-aware NSE/BSE trading clock — is the market open? next open/close |
 | [`@lacspace/paper-trade`](./paper-trade) | [![v](https://img.shields.io/npm/v/@lacspace/paper-trade?label=%20)](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine — wallet, orders, positions, live P&L |
 
+### MailKit — email toolkit for backends
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@lacspace/mailer`](./mailer) | [![v](https://img.shields.io/npm/v/@lacspace/mailer?label=%20)](https://www.npmjs.com/package/@lacspace/mailer) | Zero-dependency SMTP client (Node) — send mail with Hostinger/Gmail/Outlook presets |
+| [`@lacspace/email-templates`](./email-templates) | [![v](https://img.shields.io/npm/v/@lacspace/email-templates?label=%20)](https://www.npmjs.com/package/@lacspace/email-templates) | Bulletproof responsive HTML emails from blocks + OTP/welcome/invoice templates |
+| [`@lacspace/email-validate`](./email-validate) | [![v](https://img.shields.io/npm/v/@lacspace/email-validate?label=%20)](https://www.npmjs.com/package/@lacspace/email-validate) | Validation with disposable detection, typo suggestions & normalization |
+| [`@lacspace/email-verify`](./email-verify) | [![v](https://img.shields.io/npm/v/@lacspace/email-verify?label=%20)](https://www.npmjs.com/package/@lacspace/email-verify) | MX lookup + SMTP deliverability probe (Node) |
+
 ## 🚀 30-second example
 
 ```bash
@@ -91,6 +100,16 @@ acct.mark({ RELIANCE: 2950 });
 acct.unrealizedPnl;                          // 500
 ```
 
+And sending email from a backend, in two lines:
+
+```ts
+import { createMailer, presets } from "@lacspace/mailer";
+import { otpEmail } from "@lacspace/email-templates";
+
+const mail = createMailer(presets.hostinger({ user: "no-reply@lacspace.com", pass: process.env.SMTP_PASS! }));
+await mail.send({ to: "user@x.com", subject: "Your code", html: otpEmail({ code: "482913", brandName: "Lacspace" }) });
+```
+
 ## ✨ Why these packages
 
 - **Zero runtime dependencies** in the core — built on the platform `fetch`. Tiny installs, clean supply chain.
@@ -110,6 +129,7 @@ npm install     # links the workspace packages
 npm run build   # core: api → auth → analytics → sdk
 npm run build:new   # nepali-date, nepali-utils, react
 npm run build:stock # indicators, market, market-clock, paper-trade
+npm run build:mail  # email-validate, email-templates, mailer, email-verify
 ```
 
 ## 🌐 Links

@@ -191,6 +191,14 @@ npm run build:sec   # crypto, password, jwt, apikey, lock, headers, redact, mfa,
 
 ## Licence
 
-Published under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** v1.0 — a free, permissive licence with MIT-equivalent freedoms. See [`LICENSE`](./LICENSE), or read it online at **[lacspace.com/licenses](https://lacspace.com/licenses)**.
+The packages in this repository are **free**, published under the
+**[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** v1.0 —
+a permissive licence with MIT-equivalent freedoms. See [`LICENSE`](./LICENSE), or
+read it online at **[lacspace.com/licenses](https://lacspace.com/licenses)**.
+
+Not every Lacspace package is free, though — we also offer **Commercial** (paid),
+**Client-specific** and **Private** (proprietary) packages under separate terms.
+See **[`LICENSING.md`](./LICENSING.md)** for the full picture, or the
+**[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 © 2026 [Lacspace](https://lacspace.com)

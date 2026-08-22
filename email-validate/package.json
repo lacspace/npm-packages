@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-validate",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Smart email validation — syntax, disposable/temp-mail detection, role & free-provider flags, Gmail normalization and 'did you mean?' typo suggestions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/indicators",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Streaming technical indicators (RSI, MACD, EMA, Bollinger, ATR, Supertrend, ADX, VWAP) with O(1) incremental updates for live price feeds. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -41,6 +41,18 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 | [`@lacspace/otp`](./otp) | [![v](https://img.shields.io/npm/v/@lacspace/otp?label=%20)](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA over Web Crypto — Authenticator-compatible, otpauth:// URIs |
 | [`@lacspace/next`](./next) | [![v](https://img.shields.io/npm/v/@lacspace/next?label=%20)](https://www.npmjs.com/package/@lacspace/next) | Next.js App Router SDK integration — server client, route/action wrappers, guard |
 
+### SEO Kit — everything search engines & AI crawlers read
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@lacspace/seo`](./seo) | [![v](https://img.shields.io/npm/v/@lacspace/seo?label=%20)](https://www.npmjs.com/package/@lacspace/seo) | Typed metadata + 16 schema.org JSON-LD builders + Next Metadata helper |
+| [`@lacspace/sitemap`](./sitemap) | [![v](https://img.shields.io/npm/v/@lacspace/sitemap?label=%20)](https://www.npmjs.com/package/@lacspace/sitemap) | sitemap.xml + index, image/video/news + hreflang, auto-split, Next sitemap.ts |
+| [`@lacspace/robots`](./robots) | [![v](https://img.shields.io/npm/v/@lacspace/robots?label=%20)](https://www.npmjs.com/package/@lacspace/robots) | robots.txt builder + parser, AI-crawler block presets, Next robots.ts |
+| [`@lacspace/llms-txt`](./llms-txt) | [![v](https://img.shields.io/npm/v/@lacspace/llms-txt?label=%20)](https://www.npmjs.com/package/@lacspace/llms-txt) | Generate + parse llms.txt & llms-full.txt (the llmstxt.org standard) |
+| [`@lacspace/site-verify`](./site-verify) | [![v](https://img.shields.io/npm/v/@lacspace/site-verify?label=%20)](https://www.npmjs.com/package/@lacspace/site-verify) | Verification for Google Search Console, Bing, Yandex, Baidu, Pinterest… |
+| [`@lacspace/rss`](./rss) | [![v](https://img.shields.io/npm/v/@lacspace/rss?label=%20)](https://www.npmjs.com/package/@lacspace/rss) | RSS 2.0 / Atom 1.0 / JSON Feed 1.1 generators |
+| [`@lacspace/slugify`](./slugify) | [![v](https://img.shields.io/npm/v/@lacspace/slugify?label=%20)](https://www.npmjs.com/package/@lacspace/slugify) | SEO-friendly URL slugs with diacritic transliteration |
+
 ### Nepal toolkit — useful to everyone, not just Lacspace
 
 | Package | Version | Description |
@@ -151,6 +163,7 @@ npm run build:new   # nepali-date, nepali-utils, react
 npm run build:stock # indicators, market, market-clock, paper-trade
 npm run build:mail  # email-validate, email-templates, mailer, email-verify
 npm run build:web   # seo, env, rate-limit, otp, next
+npm run build:seokit # sitemap, robots, llms-txt, site-verify, rss, slugify
 ```
 
 ## 🌐 Links

@@ -14,15 +14,21 @@
     "indicators",
     "market",
     "market-clock",
-    "paper-trade"
+    "paper-trade",
+    "email-validate",
+    "email-templates",
+    "mailer",
+    "email-verify"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
     "build:new": "npm -w @lacspace/nepali-date run build && npm -w @lacspace/nepali-utils run build && npm -w @lacspace/react run build",
     "build:stock": "npm -w @lacspace/indicators run build && npm -w @lacspace/market run build && npm -w @lacspace/market-clock run build && npm -w @lacspace/paper-trade run build",
+    "build:mail": "npm -w @lacspace/email-validate run build && npm -w @lacspace/email-templates run build && npm -w @lacspace/mailer run build && npm -w @lacspace/email-verify run build",
     "clean": "rm -rf */dist */*.tsbuildinfo",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
-    "publish:stock": "npm -w @lacspace/indicators publish --access public && npm -w @lacspace/market publish --access public && npm -w @lacspace/market-clock publish --access public && npm -w @lacspace/paper-trade publish --access public"
+    "publish:stock": "npm -w @lacspace/indicators publish --access public && npm -w @lacspace/market publish --access public && npm -w @lacspace/market-clock publish --access public && npm -w @lacspace/paper-trade publish --access public",
+    "publish:mail": "npm -w @lacspace/email-validate publish --access public && npm -w @lacspace/email-templates publish --access public && npm -w @lacspace/mailer publish --access public && npm -w @lacspace/email-verify publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

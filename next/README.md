@@ -110,6 +110,24 @@ export const config = { matcher: ["/((?!_next/static|favicon.ico).*)"] };
 | [`@lacspace/otp`](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA |
 | **`@lacspace/next`** | Next.js SDK integration (this package) |
 
+## New in 1.2 — CSRF & token validation
+
+```ts
+import { setCsrfCookie, withCsrf, withAuth } from "@lacspace/next";
+
+// Issue a CSRF token (readable cookie) in a GET/layout; client echoes it back
+export const GET = async () => Response.json({ csrf: await setCsrfCookie() });
+
+// Reject unsafe methods that fail the double-submit check
+export const POST = withCsrf(async (req) => doWrite(await req.json()));
+
+// withAuth now validates the token, not just its presence
+export const GET_me = withAuth(
+  (req, ctx, token) => getUser(token),
+  { verifyToken: async (t) => (await isValidJwt(t)) },  // reject expired/forged
+);
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -77,6 +77,23 @@ if (await verifyTotpFactor(code, userSecret)) session.markVerified("totp");
 | [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers) | Secure headers / CSP |
 | [`@lacspace/redact`](https://www.npmjs.com/package/@lacspace/redact) | Log redaction |
 
+## New in 1.1 — factor verifiers & persistable sessions
+
+```ts
+import { mfaSession, MfaSession, verifyPasswordFactor, verifyTotpFactor, verifyBackupCodeFactor } from "@lacspace/mfa";
+
+// Verify each factor with one call (wraps @lacspace/password + @lacspace/otp)
+if (await verifyPasswordFactor(password, user.hash)) session.markVerified("password");
+if (await verifyTotpFactor(code, user.totpSecret)) session.markVerified("totp");
+
+// Persist step-up state across requests (signed cookie / store)
+const saved = JSON.stringify(session.toJSON());
+const session2 = MfaSession.fromJSON(config, JSON.parse(saved));
+
+// Step-up windows: verified factors expire after factorTtlMs
+const s = mfaSession({ factors, policy: { minAAL: 2 }, factorTtlMs: 5 * 60_000 });
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

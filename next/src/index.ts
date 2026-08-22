@@ -104,13 +104,86 @@ export function routeHandler<T>(fn: Handler<T>) {
 /** Like {@link routeHandler}, but 401s unless a valid auth cookie is present; passes the token through. */
 export function withAuth<T>(
   fn: (req: NextRequest, ctx: RouteContext, token: string) => Promise<T> | T,
-  opts: { tokenCookie?: string } = {},
+  opts: {
+    tokenCookie?: string;
+    /** Validate the token (JWT exp, `auth.me()`, …). Return false to reject. */
+    verifyToken?: (token: string) => boolean | Promise<boolean>;
+  } = {},
 ) {
   const tokenCookie = opts.tokenCookie ?? DEFAULT_COOKIE;
   return routeHandler<T | Response>(async (req, ctx) => {
     const token = (await cookies()).get(tokenCookie)?.value;
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (opts.verifyToken && !(await opts.verifyToken(token)))
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     return fn(req, ctx, token);
+  });
+}
+
+/* ------------------------------ CSRF (double-submit cookie) ------------------------------ */
+
+const CSRF_COOKIE = "lacspace_csrf";
+const CSRF_HEADER = "x-csrf-token";
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function csrfRandom(bytes = 32): string {
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
+  let bin = "";
+  for (const b of buf) bin += String.fromCharCode(b);
+  const b64 = typeof btoa !== "undefined" ? btoa(bin) : Buffer.from(buf).toString("base64");
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function ctEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export interface CsrfOptions {
+  cookieName?: string;
+  headerName?: string;
+  maxAge?: number;
+  sameSite?: "lax" | "strict" | "none";
+  secure?: boolean;
+}
+
+/**
+ * Issue a CSRF token and set it as a readable (non-httpOnly) cookie. Call in a
+ * GET/layout; the client echoes it back in the `x-csrf-token` header on writes.
+ */
+export async function setCsrfCookie(token?: string, opts: CsrfOptions = {}): Promise<string> {
+  const t = token ?? csrfRandom();
+  (await cookies()).set(opts.cookieName ?? CSRF_COOKIE, t, {
+    httpOnly: false, // must be readable by client JS for double-submit
+    secure: opts.secure ?? true,
+    sameSite: opts.sameSite ?? "lax",
+    path: "/",
+    maxAge: opts.maxAge ?? 60 * 60 * 24,
+  });
+  return t;
+}
+
+/** Read the current CSRF cookie value, if any. */
+export async function getCsrfToken(cookieName = CSRF_COOKIE): Promise<string | undefined> {
+  return (await cookies()).get(cookieName)?.value;
+}
+
+/** True if the request's CSRF header matches its CSRF cookie (constant-time). */
+export function verifyCsrf(req: NextRequest, opts: CsrfOptions = {}): boolean {
+  const cookie = req.cookies.get(opts.cookieName ?? CSRF_COOKIE)?.value;
+  const header = req.headers.get(opts.headerName ?? CSRF_HEADER);
+  return !!cookie && !!header && ctEqual(cookie, header);
+}
+
+/** Wrap a Route Handler: reject unsafe methods (POST/PUT/PATCH/DELETE) that fail CSRF. */
+export function withCsrf<T>(fn: Handler<T>, opts: CsrfOptions = {}) {
+  return routeHandler<T | Response>(async (req, ctx) => {
+    if (!SAFE_METHODS.has(req.method) && !verifyCsrf(req, opts))
+      return NextResponse.json({ error: "Invalid CSRF token" }, { status: 403 });
+    return fn(req, ctx);
   });
 }
 

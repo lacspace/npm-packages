@@ -9,7 +9,8 @@
  * Zero dependencies (bar @lacspace/otp) · isomorphic · fully typed.
  */
 
-import { verifyTotp } from "@lacspace/otp";
+import { verifyTotp, verifyBackupCode } from "@lacspace/otp";
+import { verify as verifyPassword } from "@lacspace/password";
 
 /** The three NIST factor categories. */
 export type FactorType = "knowledge" | "possession" | "inherence";
@@ -50,6 +51,8 @@ export interface MfaConfig {
   /** Factors the user has registered. */
   factors: Factor[];
   policy?: MfaPolicy;
+  /** If set, a verified factor "expires" after this many ms (step-up windows). */
+  factorTtlMs?: number;
 }
 
 export interface MfaState {
@@ -62,10 +65,21 @@ export interface MfaState {
   needTypes: FactorType[];
 }
 
+interface VerifiedEntry {
+  type: FactorType;
+  at: number;
+}
+
+/** Serialized form of a session — persist across requests (signed cookie / store). */
+export interface MfaSessionData {
+  verified: { id: string; type: FactorType; at: number }[];
+}
+
 /** A step-up session tracking which factors a user has cleared. */
 export class MfaSession {
-  private verified = new Map<string, FactorType>();
+  private verified = new Map<string, VerifiedEntry>();
   private readonly policy: Required<MfaPolicy>;
+  private readonly ttl?: number;
 
   constructor(private config: MfaConfig) {
     this.policy = {
@@ -73,33 +87,48 @@ export class MfaSession {
       minAAL: config.policy?.minAAL ?? 1,
       requiredTypes: config.policy?.requiredTypes ?? [],
     };
+    this.ttl = config.factorTtlMs;
+  }
+
+  private now(): number {
+    return Date.now();
+  }
+
+  /** Live entries, dropping any that have passed the factor TTL. */
+  private live(): Map<string, VerifiedEntry> {
+    if (!this.ttl) return this.verified;
+    const cutoff = this.now() - this.ttl;
+    const out = new Map<string, VerifiedEntry>();
+    for (const [id, e] of this.verified) if (e.at >= cutoff) out.set(id, e);
+    return out;
   }
 
   /** Mark a registered factor as verified. Returns the updated state. */
   markVerified(factorId: string): MfaState {
     const factor = this.config.factors.find((f) => f.id === factorId);
     if (!factor) throw new Error(`unknown factor "${factorId}"`);
-    this.verified.set(factor.id, factor.type);
+    this.verified.set(factor.id, { type: factor.type, at: this.now() });
     return this.state();
   }
 
   get verifiedFactors(): string[] {
-    return [...this.verified.keys()];
+    return [...this.live().keys()];
   }
 
   get aal(): AalLevel {
-    return assuranceLevel([...this.verified.values()]);
+    return assuranceLevel([...this.live().values()].map((e) => e.type));
   }
 
   state(): MfaState {
-    const types = [...this.verified.values()];
+    const live = this.live();
+    const types = [...live.values()].map((e) => e.type);
     const presentTypes = new Set(types);
     const needTypes = this.policy.requiredTypes.filter((t) => !presentTypes.has(t));
-    const needFactors = Math.max(0, this.policy.minFactors - this.verified.size);
+    const needFactors = Math.max(0, this.policy.minFactors - live.size);
     const aal = assuranceLevel(types);
     return {
       satisfied: needFactors === 0 && needTypes.length === 0 && aal >= this.policy.minAAL,
-      verifiedFactors: this.verifiedFactors,
+      verifiedFactors: [...live.keys()],
       aal,
       needFactors,
       needTypes,
@@ -108,6 +137,18 @@ export class MfaSession {
 
   get satisfied(): boolean {
     return this.state().satisfied;
+  }
+
+  /** Serialize the verified factors (persist this between requests). */
+  toJSON(): MfaSessionData {
+    return { verified: [...this.verified].map(([id, e]) => ({ id, type: e.type, at: e.at })) };
+  }
+
+  /** Restore a session from {@link toJSON} output plus the user's factor config. */
+  static fromJSON(config: MfaConfig, data: MfaSessionData): MfaSession {
+    const s = new MfaSession(config);
+    for (const e of data.verified) s.verified.set(e.id, { type: e.type, at: e.at });
+    return s;
   }
 }
 
@@ -124,4 +165,27 @@ export async function verifyTotpFactor(
   opts?: { window?: number; digits?: number; period?: number },
 ): Promise<boolean> {
   return (await verifyTotp(token, secret, opts)) !== null;
+}
+
+/** Verify a knowledge factor: a password against its stored hash (@lacspace/password). */
+export async function verifyPasswordFactor(password: string, storedHash: string): Promise<boolean> {
+  return verifyPassword(password, storedHash);
+}
+
+/**
+ * Verify a recovery/backup code against stored hashes (@lacspace/otp).
+ * Returns the matched index (remove/mark it used) or -1. Treat as a possession factor.
+ */
+export async function verifyBackupCodeFactor(code: string, hashes: string[]): Promise<number> {
+  return verifyBackupCode(code, hashes);
+}
+
+/**
+ * Verify a passkey factor. Pass the boolean result of your
+ * `@lacspace/webauthn` `verifyAuthentication(...)` call — this normalizes it as
+ * an `inherence`/`possession` factor for the session. Kept decoupled so you own
+ * the WebAuthn ceremony (challenge store, credential lookup).
+ */
+export function verifyPasskeyFactor(webauthnVerified: boolean): boolean {
+  return webauthnVerified === true;
 }

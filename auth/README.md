@@ -109,6 +109,23 @@ try {
 | [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
 | [`@lacspace/nepali-utils`](https://www.npmjs.com/package/@lacspace/nepali-utils) | Nepal helpers |
 
+## New in 2.1 — auto-refresh, storage & auth events
+
+```ts
+import { createAuth, localStorageTokenStorage } from "@lacspace/auth";
+
+const auth = createAuth({
+  baseURL: "https://api.example.com",
+  storage: localStorageTokenStorage(),   // persist token across reloads
+  autoRefresh: true,                      // 401 → refresh() once → retry, deduped
+  onAuthChange: (user) => render(user),   // reactive UI
+});
+
+await auth.restore({ fetchUser: true });  // rehydrate session on startup
+await auth.login({ email, password });    // token persisted, listeners notified
+await auth.logout();                      // clears local token too
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

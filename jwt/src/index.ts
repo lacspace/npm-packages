@@ -11,12 +11,21 @@
 
 import { hmac, toBase64url, fromBase64url, constantTimeEqual, randomBytes, type HashAlgorithm } from "@lacspace/crypto";
 
-export type Algorithm = "HS256" | "HS384" | "HS512";
+export type Algorithm =
+  | "HS256" | "HS384" | "HS512"
+  | "RS256" | "RS384" | "RS512"
+  | "ES256" | "ES384" | "ES512";
+
 const ALG_HASH: Record<Algorithm, HashAlgorithm> = {
-  HS256: "SHA-256",
-  HS384: "SHA-384",
-  HS512: "SHA-512",
+  HS256: "SHA-256", HS384: "SHA-384", HS512: "SHA-512",
+  RS256: "SHA-256", RS384: "SHA-384", RS512: "SHA-512",
+  ES256: "SHA-256", ES384: "SHA-384", ES512: "SHA-512",
 };
+
+/** A signing/verification key: an HMAC secret, or a Web Crypto key for RS and ES. */
+export type SigningKey = string | Uint8Array | CryptoKey;
+/** Resolve a verification key from the token header (e.g. by `kid`). */
+export type KeyResolver = (header: { alg: Algorithm; kid?: string }) => SigningKey | Promise<SigningKey>;
 
 export class JwtError extends Error {
   constructor(
@@ -28,11 +37,40 @@ export class JwtError extends Error {
       | "not_active"
       | "issuer"
       | "audience"
-      | "algorithm",
+      | "algorithm"
+      | "reuse",
   ) {
     super(message);
     this.name = "JwtError";
   }
+}
+
+function getSubtle(): SubtleCrypto {
+  const c = (globalThis as { crypto?: Crypto }).crypto;
+  if (!c || !c.subtle) throw new JwtError("Web Crypto API unavailable for asymmetric JWT", "algorithm");
+  return c.subtle;
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  if (typeof atob !== "undefined") {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  return new Uint8Array(Buffer.from(b64, "base64"));
+}
+
+function subtleSignAlgo(alg: Algorithm): AlgorithmIdentifier | EcdsaParams {
+  if (alg.startsWith("RS")) return { name: "RSASSA-PKCS1-v1_5" };
+  if (alg.startsWith("ES")) return { name: "ECDSA", hash: ALG_HASH[alg] };
+  throw new JwtError(`not an asymmetric algorithm: ${alg}`, "algorithm");
+}
+
+function subtleImportAlgo(alg: Algorithm): RsaHashedImportParams | EcKeyImportParams {
+  if (alg.startsWith("RS")) return { name: "RSASSA-PKCS1-v1_5", hash: ALG_HASH[alg] };
+  const curve = alg === "ES256" ? "P-256" : alg === "ES384" ? "P-384" : "P-521";
+  return { name: "ECDSA", namedCurve: curve };
 }
 
 export interface JwtPayload {
@@ -53,6 +91,20 @@ export interface SignOptions {
   issuer?: string;
   audience?: string | string[];
   subject?: string;
+  /** `kid` header — which key signed this (for rotation / JWKS). */
+  keyId?: string;
+}
+
+async function signBytes(alg: Algorithm, key: SigningKey, input: string): Promise<Uint8Array> {
+  if (alg.startsWith("HS")) {
+    if (typeof key !== "string" && !(key instanceof Uint8Array))
+      throw new JwtError("HMAC algorithms need a string/bytes secret", "algorithm");
+    return hmac(key, input, ALG_HASH[alg]);
+  }
+  if (!(typeof CryptoKey !== "undefined" && key instanceof CryptoKey))
+    throw new JwtError(`${alg} needs a CryptoKey — use importPkcs8 / importJwk`, "algorithm");
+  const sig = await getSubtle().sign(subtleSignAlgo(alg), key, enc.encode(input) as unknown as BufferSource);
+  return new Uint8Array(sig);
 }
 
 const enc = new TextEncoder();
@@ -66,10 +118,10 @@ function nowSec(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** Sign a JWT. */
+/** Sign a JWT. Pass an HMAC secret (HS*) or a Web Crypto private key (RS and ES). */
 export async function sign(
   payload: JwtPayload,
-  secret: string | Uint8Array,
+  secret: SigningKey,
   opts: SignOptions = {},
 ): Promise<string> {
   const alg = opts.algorithm ?? "HS256";
@@ -80,15 +132,17 @@ export async function sign(
   if (opts.audience) body.aud = opts.audience;
   if (opts.subject) body.sub = opts.subject;
 
-  const signingInput = `${b64urlJson({ alg, typ: "JWT" })}.${b64urlJson(body)}`;
-  const sig = await hmac(secret, signingInput, ALG_HASH[alg]);
+  const header: Record<string, unknown> = { alg, typ: "JWT" };
+  if (opts.keyId) header.kid = opts.keyId;
+  const signingInput = `${b64urlJson(header)}.${b64urlJson(body)}`;
+  const sig = await signBytes(alg, secret, signingInput);
   return `${signingInput}.${toBase64url(sig)}`;
 }
 
 export interface VerifyOptions {
   algorithms?: Algorithm[];
   issuer?: string;
-  audience?: string;
+  audience?: string | string[];
   /** Allowed clock skew in seconds. Default 0. */
   clockTolerance?: number;
 }
@@ -103,17 +157,21 @@ export function decode(token: string): { header: Record<string, unknown>; payloa
   };
 }
 
-/** Verify a JWT's signature and claims. Throws {@link JwtError} on any failure. */
+/**
+ * Verify a JWT's signature and claims. Throws {@link JwtError} on any failure.
+ * `key` is an HMAC secret, a Web Crypto public key (RS and ES), or a resolver
+ * (e.g. from {@link createRemoteJWKS}) that returns the key for the token header.
+ */
 export async function verify<T extends JwtPayload = JwtPayload>(
   token: string,
-  secret: string | Uint8Array,
+  key: SigningKey | KeyResolver,
   opts: VerifyOptions = {},
 ): Promise<T> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new JwtError("malformed token", "malformed");
   const [h, p, s] = parts as [string, string, string];
 
-  let header: { alg?: Algorithm };
+  let header: { alg?: Algorithm; kid?: string };
   try {
     header = JSON.parse(dec.decode(fromBase64url(h)));
   } catch {
@@ -124,9 +182,26 @@ export async function verify<T extends JwtPayload = JwtPayload>(
   if (opts.algorithms && !opts.algorithms.includes(alg))
     throw new JwtError(`algorithm ${alg} not allowed`, "algorithm");
 
-  const expected = await hmac(secret, `${h}.${p}`, ALG_HASH[alg]);
-  if (!constantTimeEqual(expected, fromBase64url(s)))
-    throw new JwtError("signature verification failed", "signature");
+  const resolved = typeof key === "function" ? await key({ alg, kid: header.kid }) : key;
+
+  const signingInput = `${h}.${p}`;
+  const sig = fromBase64url(s);
+  let valid: boolean;
+  if (alg.startsWith("HS")) {
+    if (typeof resolved !== "string" && !(resolved instanceof Uint8Array))
+      throw new JwtError("HMAC algorithms need a string/bytes secret", "algorithm");
+    valid = constantTimeEqual(await hmac(resolved, signingInput, ALG_HASH[alg]), sig);
+  } else {
+    if (!(typeof CryptoKey !== "undefined" && resolved instanceof CryptoKey))
+      throw new JwtError(`${alg} needs a CryptoKey — use importSpki / importJwk / createRemoteJWKS`, "algorithm");
+    valid = await getSubtle().verify(
+      subtleSignAlgo(alg),
+      resolved,
+      sig as unknown as BufferSource,
+      enc.encode(signingInput) as unknown as BufferSource,
+    );
+  }
+  if (!valid) throw new JwtError("signature verification failed", "signature");
 
   let payload: T;
   try {
@@ -144,10 +219,151 @@ export async function verify<T extends JwtPayload = JwtPayload>(
   if (opts.issuer && payload.iss !== opts.issuer)
     throw new JwtError("issuer mismatch", "issuer");
   if (opts.audience) {
-    const aud = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
-    if (!aud.includes(opts.audience)) throw new JwtError("audience mismatch", "audience");
+    const want = Array.isArray(opts.audience) ? opts.audience : [opts.audience];
+    const have = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
+    if (!want.some((a) => have.includes(a))) throw new JwtError("audience mismatch", "audience");
   }
   return payload;
+}
+
+/* ------------------------------ asymmetric keys & JWKS ------------------------------ */
+
+function pemToDer(pem: string): Uint8Array {
+  const b64 = pem.replace(/-----BEGIN [^-]+-----/, "").replace(/-----END [^-]+-----/, "").replace(/\s+/g, "");
+  return b64ToBytes(b64);
+}
+
+/** Import a PKCS#8 PEM private key for signing (RS and ES). */
+export function importPkcs8(pem: string, alg: Algorithm): Promise<CryptoKey> {
+  return getSubtle().importKey("pkcs8", pemToDer(pem) as unknown as BufferSource, subtleImportAlgo(alg), false, ["sign"]);
+}
+
+/** Import an SPKI PEM public key for verification (RS and ES). */
+export function importSpki(pem: string, alg: Algorithm): Promise<CryptoKey> {
+  return getSubtle().importKey("spki", pemToDer(pem) as unknown as BufferSource, subtleImportAlgo(alg), false, ["verify"]);
+}
+
+/** Import a JWK (public or private) for verify/sign. */
+export function importJwk(jwk: JsonWebKey, alg: Algorithm): Promise<CryptoKey> {
+  const usage: KeyUsage[] = jwk.d ? ["sign"] : ["verify"];
+  return getSubtle().importKey("jwk", jwk, subtleImportAlgo(alg), false, usage);
+}
+
+export interface JwksOptions {
+  /** Cache the key set this long (ms). Default 600000 (10 min). */
+  cacheMaxAgeMs?: number;
+  /** Custom fetch (tests / edge). */
+  fetch?: typeof fetch;
+}
+
+/**
+ * A cached remote JWKS resolver for {@link verify}. Fetches the JSON Web Key
+ * Set once, caches it, and returns the right public key by the token's `kid`.
+ * @example const jwks = createRemoteJWKS("https://issuer/.well-known/jwks.json");
+ *          const payload = await verify(token, jwks, { algorithms: ["RS256"] });
+ */
+export function createRemoteJWKS(url: string, opts: JwksOptions = {}): KeyResolver {
+  const ttl = opts.cacheMaxAgeMs ?? 600000;
+  const f = opts.fetch ?? (typeof fetch !== "undefined" ? fetch.bind(globalThis) : undefined);
+  if (!f) throw new JwtError("no global fetch — pass opts.fetch", "signature");
+  let cache: { keys: JsonWebKey[]; at: number } | null = null;
+  const imported = new Map<string, CryptoKey>();
+
+  return async ({ alg, kid }) => {
+    if (!cache || Date.now() - cache.at > ttl) {
+      const res = await f(url);
+      if (!res.ok) throw new JwtError(`JWKS fetch failed: ${res.status}`, "signature");
+      const data = (await res.json()) as { keys?: JsonWebKey[] };
+      cache = { keys: data.keys ?? [], at: Date.now() };
+      imported.clear();
+    }
+    const jwk = kid ? cache.keys.find((k) => (k as { kid?: string }).kid === kid) : cache.keys[0];
+    if (!jwk) throw new JwtError(`no JWK found for kid "${kid}"`, "signature");
+    const keyAlg = ((jwk as { alg?: string }).alg as Algorithm) ?? alg;
+    const cacheKey = `${keyAlg}:${kid ?? ""}`;
+    let ck = imported.get(cacheKey);
+    if (!ck) {
+      ck = await importJwk(jwk, keyAlg);
+      imported.set(cacheKey, ck);
+    }
+    return ck;
+  };
+}
+
+/* ------------------------------ refresh-token flow ------------------------------ */
+
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+  /** The refresh token's `jti` — persist it to detect reuse on rotation. */
+  refreshJti: string;
+}
+
+export interface IssuePairOptions {
+  algorithm?: Algorithm;
+  /** Access-token lifetime in seconds. Default 900 (15 min). */
+  accessTtl?: number;
+  /** Refresh-token lifetime in seconds. Default 2592000 (30 days). */
+  refreshTtl?: number;
+  issuer?: string;
+  audience?: string | string[];
+  subject?: string;
+  keyId?: string;
+}
+
+/** Issue a short-lived access token + a long-lived refresh token (with a `jti`). */
+export async function issueTokenPair(
+  payload: JwtPayload,
+  secret: SigningKey,
+  opts: IssuePairOptions = {},
+): Promise<TokenPair> {
+  const subject = opts.subject ?? (payload.sub as string | undefined);
+  const common = { algorithm: opts.algorithm, issuer: opts.issuer, audience: opts.audience, subject, keyId: opts.keyId };
+  const accessToken = await sign(payload, secret, { ...common, expiresIn: opts.accessTtl ?? 900 });
+  const refreshJti = randomToken(16);
+  const refreshToken = await sign({ typ: "refresh", jti: refreshJti }, secret, {
+    ...common,
+    expiresIn: opts.refreshTtl ?? 2592000,
+  });
+  return { accessToken, refreshToken, refreshJti };
+}
+
+/** Verify a refresh token (must carry `typ: "refresh"`). */
+export async function verifyRefreshToken<T extends JwtPayload = JwtPayload>(
+  token: string,
+  key: SigningKey | KeyResolver,
+  opts: VerifyOptions = {},
+): Promise<T> {
+  const payload = await verify<T>(token, key, opts);
+  if (payload.typ !== "refresh") throw new JwtError("not a refresh token", "malformed");
+  return payload;
+}
+
+export interface RotateOptions extends IssuePairOptions, VerifyOptions {
+  /** New access-token payload. Defaults to `{ sub }` from the refresh token. */
+  payload?: JwtPayload;
+  /** Reuse detection: return true if this refresh `jti` was already used/revoked. */
+  isUsed?: (jti: string) => boolean | Promise<boolean>;
+}
+
+/**
+ * Rotate a refresh token: verify it, optionally detect reuse, and issue a fresh
+ * pair. Returns the new pair plus `usedJti` (persist it as spent).
+ */
+export async function rotateRefreshToken(
+  refreshToken: string,
+  secret: SigningKey,
+  opts: RotateOptions = {},
+): Promise<TokenPair & { usedJti?: string }> {
+  const claims = await verifyRefreshToken(refreshToken, secret, opts);
+  const jti = claims.jti;
+  if (jti && opts.isUsed && (await opts.isUsed(jti)))
+    throw new JwtError("refresh token reuse detected", "reuse");
+  const pair = await issueTokenPair(opts.payload ?? { sub: claims.sub }, secret, {
+    ...opts,
+    subject: opts.subject ?? (claims.sub as string | undefined),
+  });
+  return { ...pair, usedJti: jti };
 }
 
 /* ------------------------------ opaque tokens ------------------------------ */
@@ -200,7 +416,7 @@ export function extractBearer(src: HeadersLike, opts: { cookieName?: string } = 
 /** Read the bearer token from a request and verify it. Throws {@link JwtError}. */
 export async function authenticate<T extends JwtPayload = JwtPayload>(
   src: HeadersLike,
-  secret: string | Uint8Array,
+  secret: SigningKey | KeyResolver,
   opts: VerifyOptions & { cookieName?: string } = {},
 ): Promise<T> {
   const token = extractBearer(src, { cookieName: opts.cookieName });
@@ -239,7 +455,7 @@ export function clearAuthCookie(opts: Pick<AuthCookieOptions, "name" | "path" | 
 
 /** Minimal Express-style middleware: verifies the bearer token → `req.user`, else 401. */
 export function expressJwt<T extends JwtPayload = JwtPayload>(
-  secret: string | Uint8Array,
+  secret: SigningKey | KeyResolver,
   opts: VerifyOptions & { cookieName?: string; userKey?: string } = {},
 ) {
   const userKey = opts.userKey ?? "user";

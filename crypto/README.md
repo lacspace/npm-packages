@@ -93,6 +93,27 @@ randomBytes(16);                             // CSPRNG bytes
 | [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers) | Secure headers / CSP |
 | [`@lacspace/redact`](https://www.npmjs.com/package/@lacspace/redact) | Log redaction |
 
+## New in 1.1 — AAD, HKDF & key rotation
+
+```ts
+import { encrypt, decrypt, hkdf, Keyring } from "@lacspace/crypto";
+
+// Bind ciphertext to a context so it can't be relocated to another row
+const blob = await encrypt(secret, key, { aad: `user:${id}` });
+await decrypt(blob, key, { aad: `user:${id}` });   // must match
+
+// Derive many purpose-bound sub-keys from one master key
+const encKey = await hkdf(master, { info: "field-encryption", length: 32 });
+
+// Zero-downtime key rotation — new writes use the primary, old blobs still decrypt
+const ring = new Keyring([{ id: "2025", key: oldKey }, { id: "2026", key: newKey }]);
+const fresh = await ring.encrypt("secret");        // v2:2026:…
+const text = await ring.decrypt(oldBlob);          // finds the key by id
+const migrated = await ring.reEncrypt(oldBlob);    // re-key to primary
+```
+
+Also `decryptBytes()` for binary-safe payloads (files, protobufs).
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

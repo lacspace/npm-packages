@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",

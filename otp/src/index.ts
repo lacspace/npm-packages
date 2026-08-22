@@ -219,3 +219,123 @@ export function keyuri(o: KeyUriInput): string {
   if (type === "hotp") params.set("counter", String(o.counter ?? 0));
   return `otpauth://${type}/${encodeURIComponent(label)}?${params.toString()}`;
 }
+
+/* ------------------------------ replay guard ------------------------------ */
+
+/**
+ * Verify a TOTP token AND reject replays: pass the last accepted step
+ * (`lastStep`); a code at or before it is refused even if otherwise valid.
+ * @returns the matched step (persist it as the new `lastStep`), or null.
+ */
+export async function verifyTotpOnce(
+  token: string,
+  secret: string,
+  lastStep: number | null | undefined,
+  opts: TotpOptions & { window?: number } = {},
+): Promise<number | null> {
+  const period = opts.period ?? 30;
+  const now = opts.timestamp ?? Date.now();
+  const base = Math.floor(now / 1000 / period);
+  const offset = await verifyTotp(token, secret, opts);
+  if (offset === null) return null;
+  const step = base + offset;
+  if (lastStep != null && step <= lastStep) return null; // replay
+  return step;
+}
+
+/* ------------------------------ enrollment ------------------------------ */
+
+export interface SetupTotpInput {
+  /** Account label, e.g. the user's email. */
+  account: string;
+  /** Issuer / app name shown in the authenticator. */
+  issuer?: string;
+  /** Secret length in bytes (default 20). */
+  bytes?: number;
+  digits?: number;
+  period?: number;
+  algorithm?: OtpAlgorithm;
+}
+
+export interface TotpSetup {
+  /** Store this (encrypted) against the user. */
+  secret: string;
+  /** `otpauth://…` — render as a QR code (any QR lib) for the user to scan. */
+  uri: string;
+}
+
+/** One-call TOTP enrollment: a fresh secret + the `otpauth://` URI to show as a QR. */
+export function setupTotp(input: SetupTotpInput): TotpSetup {
+  const secret = generateSecret(input.bytes ?? 20);
+  const uri = keyuri({
+    secret,
+    label: input.account,
+    issuer: input.issuer,
+    digits: input.digits,
+    period: input.period,
+    algorithm: input.algorithm,
+  });
+  return { secret, uri };
+}
+
+/* ------------------------------ backup codes ------------------------------ */
+
+export interface BackupCodesResult {
+  /** Show these to the user ONCE. */
+  codes: string[];
+  /** Store THESE (SHA-256 hashes) — verify against them, mark used. */
+  hashes: string[];
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const c = getCrypto();
+  const buf = await c.subtle.digest("SHA-256", new TextEncoder().encode(input) as unknown as BufferSource);
+  const bytes = new Uint8Array(buf);
+  let out = "";
+  for (const b of bytes) out += b.toString(16).padStart(2, "0");
+  return out;
+}
+
+function randomCode(groups: number, groupLen: number): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
+  const bytes = new Uint8Array(groups * groupLen);
+  getCrypto().getRandomValues(bytes);
+  const parts: string[] = [];
+  let i = 0;
+  for (let g = 0; g < groups; g++) {
+    let s = "";
+    for (let j = 0; j < groupLen; j++) s += alphabet[bytes[i++]! % alphabet.length];
+    parts.push(s);
+  }
+  return parts.join("-");
+}
+
+/** Generate single-use recovery codes: show `codes` once, persist `hashes`. */
+export async function generateBackupCodes(
+  count = 10,
+  opts: { groups?: number; groupLength?: number } = {},
+): Promise<BackupCodesResult> {
+  const groups = opts.groups ?? 2;
+  const groupLen = opts.groupLength ?? 5;
+  const codes = Array.from({ length: count }, () => randomCode(groups, groupLen));
+  const hashes = await Promise.all(codes.map((c) => sha256Hex(normalizeCode(c))));
+  return { codes, hashes };
+}
+
+function normalizeCode(code: string): string {
+  return code.toUpperCase().replace(/[\s-]/g, "");
+}
+
+/**
+ * Verify a backup code against stored hashes (single-use). Returns the index of
+ * the matched hash (remove/mark it used), or -1 if none match.
+ */
+export async function verifyBackupCode(code: string, hashes: string[]): Promise<number> {
+  const target = await sha256Hex(normalizeCode(code));
+  let match = -1;
+  // constant-ish: scan all
+  for (let i = 0; i < hashes.length; i++) {
+    if (timingSafeEqual(hashes[i]!, target)) match = i;
+  }
+  return match;
+}

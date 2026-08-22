@@ -94,6 +94,27 @@ res.headers.set("Set-Cookie", clearAuthCookie({ name: "session" })); // logout
 app.use(expressJwt(secret));
 ```
 
+## New in 1.2 — RS256/ES256, JWKS & refresh tokens
+
+```ts
+import { sign, verify, importPkcs8, importSpki, createRemoteJWKS, issueTokenPair, rotateRefreshToken } from "@lacspace/jwt";
+
+// Asymmetric: sign with a private key, verify with the public key (clients can't forge)
+const priv = await importPkcs8(PRIVATE_PEM, "ES256");
+const token = await sign({ sub: "u1" }, priv, { algorithm: "ES256", keyId: "k1" });
+
+// Consume 3rd-party OIDC tokens (Auth0/Cognito/Google) via cached JWKS
+const jwks = createRemoteJWKS("https://issuer/.well-known/jwks.json");
+const claims = await verify(idToken, jwks, { algorithms: ["RS256"] });
+
+// Refresh-token flow with rotation + reuse detection
+const { accessToken, refreshToken, refreshJti } = await issueTokenPair({ sub: "u1" }, secret);
+const next = await rotateRefreshToken(refreshToken, secret, { isUsed: (jti) => store.has(jti) });
+store.add(next.usedJti); // mark the old one spent
+```
+
+Plus `audience: string[]` matching and `importJwk()`.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

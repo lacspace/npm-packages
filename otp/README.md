@@ -86,6 +86,24 @@ await verifyTotp(code, secret, { window: 2 });
 | **`@lacspace/otp`** | TOTP/HOTP 2FA (this package) |
 | [`@lacspace/next`](https://www.npmjs.com/package/@lacspace/next) | Next.js SDK integration |
 
+## New in 1.1 — enrollment, replay guard & backup codes
+
+```ts
+import { setupTotp, verifyTotpOnce, generateBackupCodes, verifyBackupCode } from "@lacspace/otp";
+
+// One-call enrollment: fresh secret + otpauth URI (render as a QR with any lib)
+const { secret, uri } = setupTotp({ account: "user@app.com", issuer: "Lacspace" });
+
+// Replay-safe verify — persist the returned step; a re-used code is rejected
+const step = await verifyTotpOnce(code, secret, user.lastTotpStep);
+if (step === null) throw new Error("invalid or replayed code");
+user.lastTotpStep = step;
+
+// Single-use recovery codes — show `codes` once, store `hashes`
+const { codes, hashes } = await generateBackupCodes(10);
+const i = await verifyBackupCode(entered, hashes);   // -1 = no match; else remove hashes[i]
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/jwt",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "JSON Web Tokens (HS256/384/512) with strict expiry/issuer/audience checks + secure random & CSRF tokens. Isomorphic over Web Crypto — Node, edge, browser.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,16 @@
     "csrf",
     "web-crypto",
     "edge",
-    "typescript"
+    "typescript",
+    "jose",
+    "rs256",
+    "es256",
+    "hs384",
+    "hs512",
+    "jwks",
+    "refresh-token",
+    "token-rotation",
+    "sign"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -53,5 +62,8 @@
   },
   "dependencies": {
     "@lacspace/crypto": "^1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

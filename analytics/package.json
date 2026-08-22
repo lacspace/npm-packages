@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/analytics",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Event tracking for Lacspace platforms — batching and an offline queue.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,11 +31,16 @@
     "analytics",
     "tracking",
     "events",
-    "typescript"
+    "typescript",
+    "web-analytics",
+    "event-tracking",
+    "offline-queue",
+    "batching",
+    "product-analytics"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -49,5 +54,8 @@
   },
   "dependencies": {
     "@lacspace/api": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -89,4 +89,14 @@ This package is **free** under the **[Lacspace Free Licence](https://lacspace.co
 
 Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
+---
+
+<div align="center">
+
+**Part of the Lacspace ecosystem — 35 zero-dependency, isomorphic TypeScript packages.**
+
+[All packages ↗](https://lacspace.com/packages) · [npm org ↗](https://www.npmjs.com/org/lacspace) · [Licence Centre ↗](https://lacspace.com/licenses) · [GitHub ↗](https://github.com/lacspace/npm-packages)
+
+</div>
+
 <div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/password",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Password hashing & verification — PBKDF2-HMAC-SHA256 (OWASP iterations) with a portable PHC string + a strength estimator. Isomorphic over Web Crypto.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,13 @@
     "phc",
     "auth",
     "security",
-    "typescript"
+    "typescript",
+    "argon2-alternative",
+    "bcrypt-alternative",
+    "password-verify",
+    "owasp",
+    "salt",
+    "secure-password"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -53,5 +59,8 @@
   },
   "dependencies": {
     "@lacspace/crypto": "^1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

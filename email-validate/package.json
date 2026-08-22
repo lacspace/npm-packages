@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-validate",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Smart email validation — syntax, disposable/temp-mail detection, role & free-provider flags, Gmail normalization and 'did you mean?' typo suggestions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,12 @@
     "did-you-mean",
     "normalize-email",
     "role-account",
-    "typescript"
+    "typescript",
+    "email-check",
+    "free-email",
+    "validate-email",
+    "email-normalize",
+    "mx"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -50,5 +55,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/api",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -32,11 +32,20 @@
     "http-client",
     "fetch",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "rest-client",
+    "http",
+    "request",
+    "retry",
+    "interceptors",
+    "pagination",
+    "axios-alternative",
+    "ky-alternative",
+    "fetch-wrapper"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -47,5 +56,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

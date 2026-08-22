@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/market",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Stock-market money math — P&L, returns, CAGR, XIRR, tick-size rounding, circuit limits, position sizing and an Indian brokerage & charges calculator (STT, GST, SEBI, stamp). Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,13 @@
     "circuit-limits",
     "nse",
     "bse",
-    "typescript"
+    "typescript",
+    "black-scholes",
+    "options-pricing",
+    "greeks",
+    "implied-volatility",
+    "sharpe-ratio",
+    "sortino"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -53,5 +59,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

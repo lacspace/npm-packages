@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/site-verify",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Search-engine site verification — meta tags, Next.js verification metadata and file tokens for Google Search Console, Bing, Yandex, Baidu, Pinterest, Ahrefs, Facebook & more. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,13 @@
     "seo",
     "meta-verification",
     "webmaster-tools",
-    "typescript"
+    "typescript",
+    "search-console",
+    "verification",
+    "dns-verification",
+    "pinterest",
+    "facebook-domain",
+    "webmaster"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -49,5 +55,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

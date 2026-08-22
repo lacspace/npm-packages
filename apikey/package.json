@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/apikey",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Issue & verify API keys the right way — prefixed high-entropy keys, store only the SHA-256 hash, constant-time verify, last-4 display. Isomorphic over Web Crypto.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,13 @@
     "auth",
     "hashing",
     "security",
-    "typescript"
+    "typescript",
+    "sha-256",
+    "api-key-generation",
+    "bearer",
+    "checksum",
+    "secret-key",
+    "prefixed-key"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -52,5 +58,8 @@
   },
   "dependencies": {
     "@lacspace/crypto": "^1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

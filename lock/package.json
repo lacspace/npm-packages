@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/lock",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Account lockout & brute-force protection (server lock) — N-strikes, exponential backoff, self-resetting window, pluggable store. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,12 @@
     "backoff",
     "auth",
     "security",
-    "typescript"
+    "typescript",
+    "throttle-login",
+    "failed-login",
+    "exponential-backoff",
+    "credential-stuffing",
+    "rate-limit"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -49,5 +54,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

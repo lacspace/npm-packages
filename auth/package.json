@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -32,11 +32,18 @@
     "authentication",
     "login",
     "jwt",
-    "typescript"
+    "typescript",
+    "authorization",
+    "token-refresh",
+    "session",
+    "access-token",
+    "refresh-token",
+    "auth-client",
+    "auto-refresh"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -50,5 +57,8 @@
   },
   "dependencies": {
     "@lacspace/api": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

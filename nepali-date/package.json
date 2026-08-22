@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/nepali-date",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Bikram Sambat (BS) ↔ Gregorian (AD) date conversion — zero-dependency, isomorphic, with Nepali formatting.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,11 +34,18 @@
     "bs-ad-converter",
     "nepal",
     "date",
-    "typescript"
+    "typescript",
+    "bs-calendar",
+    "nepali",
+    "ad-bs",
+    "date-converter",
+    "fiscal-year",
+    "bikram-sambat-date",
+    "dayjs-alternative"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -49,5 +56,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-verify",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Best-effort email deliverability checks for Node — syntax + disposable, MX record lookup and an optional SMTP RCPT probe (no mail sent). Zero npm dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,12 @@
     "deliverability",
     "mailbox-exists",
     "disposable-email",
-    "typescript"
+    "typescript",
+    "verify-email",
+    "email-exists",
+    "smtp-verify",
+    "catch-all",
+    "mailbox-verification"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -52,5 +57,8 @@
   },
   "dependencies": {
     "@lacspace/email-validate": "^1.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

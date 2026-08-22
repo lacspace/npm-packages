@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/webauthn",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Passkeys / biometric (FaceID, fingerprint, security keys) — browser ceremony helpers + server challenge, options and assertion verification (ES256/RS256) over Web Crypto. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -36,7 +36,14 @@
     "passwordless",
     "security-key",
     "security",
-    "typescript"
+    "typescript",
+    "passkeys",
+    "face-id",
+    "touch-id",
+    "fido",
+    "passwordless-login",
+    "conditional-ui",
+    "authentication"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -51,5 +58,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

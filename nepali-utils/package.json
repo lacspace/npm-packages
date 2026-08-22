@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/nepali-utils",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Everyday Nepal helpers — NPR currency formatting, Devanagari numerals, amount-in-words, validators, provinces. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,11 +34,19 @@
     "devanagari",
     "amount-in-words",
     "validator",
-    "typescript"
+    "typescript",
+    "nepali-number",
+    "land-measurement",
+    "ropani",
+    "bigha",
+    "districts",
+    "mobile-validation",
+    "npr-currency",
+    "nepali-rupees"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -49,5 +57,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

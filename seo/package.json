@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/seo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb) and a Next.js App Router Metadata helper. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,15 @@
     "opengraph",
     "meta-tags",
     "rich-results",
-    "typescript"
+    "typescript",
+    "metadata",
+    "nextjs-seo",
+    "organization-schema",
+    "article-schema",
+    "faq-schema",
+    "breadcrumb",
+    "sitemap",
+    "meta"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -50,5 +58,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

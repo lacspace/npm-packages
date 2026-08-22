@@ -1,0 +1,73 @@
+name: Publish (npm provenance)
+
+# Publishes every @lacspace workspace to npm WITH provenance,
+# giving each package the green "Provenance / Published via GitHub Actions"
+# verified badge on npmjs.com. Trigger manually from the Actions tab.
+#
+# One-time setup:
+#   1. Create an npm granular access token (Read+Write, "Bypass 2FA" enabled).
+#   2. Add it as a repo secret named NPM_TOKEN
+#      (Settings → Secrets and variables → Actions → New repository secret).
+# Then: Actions → "Publish (npm provenance)" → Run workflow.
+# Only versions not already on npm are published; re-runs safely skip the rest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (npm publish --dry-run, publishes nothing)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write   # REQUIRED for npm provenance (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: npm install
+
+      - name: Build all packages
+        run: |
+          npm run build
+          npm run build:stock
+          npm run build:mail
+          npm run build:web
+          npm run build:seokit
+          npm run build:sec
+
+      - name: Publish with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -e
+          WS=$(node -e "console.log(require('./package.json').workspaces.join(' '))")
+          FLAGS="--access public --provenance"
+          [ "$DRY_RUN" = "true" ] && FLAGS="$FLAGS --dry-run"
+          for w in $WS; do
+            name=$(node -e "console.log(require('./$w/package.json').name)")
+            ver=$(node -e "console.log(require('./$w/package.json').version)")
+            echo "::group::$name@$ver"
+            if npm publish -w "$name" $FLAGS 2>&1 | tee /tmp/pub.log; then
+              echo "published $name@$ver"
+            else
+              if grep -qiE "cannot publish over|previously published|EPUBLISHCONFLICT|403" /tmp/pub.log; then
+                echo "skip: $name@$ver already on npm"
+              else
+                echo "FAILED: $name@$ver"; exit 1
+              fi
+            fi
+            echo "::endgroup::"
+          done

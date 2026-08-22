@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/slugify",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Turn any text into a clean, SEO-friendly URL slug — transliterates diacritics, collapses separators, and guarantees uniqueness against an existing set. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,13 @@
     "transliterate",
     "permalink",
     "unique-slug",
-    "typescript"
+    "typescript",
+    "url-friendly",
+    "slug-generator",
+    "seo-url",
+    "kebab-case",
+    "ascii",
+    "diacritics"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -49,5 +55,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

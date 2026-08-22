@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/rss",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Generate RSS 2.0, Atom 1.0 and JSON Feed 1.1 from one set of items — content syndication for blogs and news. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,12 @@
     "syndication",
     "podcast",
     "seo",
-    "typescript"
+    "typescript",
+    "atom-feed",
+    "feed-builder",
+    "rss-generator",
+    "content-feed",
+    "blog-feed"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -50,5 +55,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

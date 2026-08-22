@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/headers",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Secure HTTP headers & a typed Content-Security-Policy builder — HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,14 @@
     "http-headers",
     "next",
     "security",
-    "typescript"
+    "typescript",
+    "helmet-alternative",
+    "secure-headers",
+    "permissions-policy",
+    "x-frame-options",
+    "referrer-policy",
+    "nextjs",
+    "owasp"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -50,5 +57,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

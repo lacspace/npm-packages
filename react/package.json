@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/react",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "React hooks and provider for the Lacspace SDK — useAuth, useQuery, useLacspace.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -32,11 +32,17 @@
     "hooks",
     "sdk",
     "useauth",
-    "typescript"
+    "typescript",
+    "react-hooks",
+    "usemutation",
+    "usequery",
+    "react-auth",
+    "context-provider",
+    "tanstack-alternative"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com",
+  "homepage": "https://lacspace.com/packages",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
@@ -57,5 +63,8 @@
   "devDependencies": {
     "@types/react": "^18.3.12",
     "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

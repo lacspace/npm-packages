@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/otp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "TOTP & HOTP two-factor auth, Google Authenticator compatible — generate secrets, compute/verify codes and build otpauth:// QR URIs. Built on Web Crypto: runs on Node, edge and browser. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -37,7 +37,13 @@
     "mfa",
     "otpauth",
     "web-crypto",
-    "typescript"
+    "typescript",
+    "backup-codes",
+    "recovery-codes",
+    "totp-verify",
+    "speakeasy-alternative",
+    "time-based-otp",
+    "two-factor-authentication"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -52,5 +58,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

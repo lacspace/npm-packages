@@ -70,19 +70,56 @@ export function securityHeaders(opts: SecurityHeadersOptions = {}): Record<strin
 }
 
 /** A reasonable strict CSP baseline (adjust `scriptSrc`/`styleSrc` per app). */
-export function strictCsp(overrides: CspDirectives = {}): string {
+export function strictCsp(overrides: CspDirectives = {}, opts: { nonce?: string } = {}): string {
+  const nonceSrc = opts.nonce ? [`'nonce-${opts.nonce}'`] : [];
   return csp({
     defaultSrc: ["'self'"],
     baseUri: ["'self'"],
     fontSrc: ["'self'", "https:", "data:"],
     imgSrc: ["'self'", "data:", "https:"],
     objectSrc: ["'none'"],
-    scriptSrc: ["'self'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrc: ["'self'", ...nonceSrc],
+    styleSrc: opts.nonce ? ["'self'", ...nonceSrc] : ["'self'", "'unsafe-inline'"],
     frameAncestors: ["'none'"],
     upgradeInsecureRequests: true,
     ...overrides,
   });
+}
+
+/** A per-response CSP nonce (base64, 16 random bytes) via Web Crypto. */
+export function generateNonce(bytes = 16): string {
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
+  let bin = "";
+  for (const b of buf) bin += String.fromCharCode(b);
+  return typeof btoa !== "undefined" ? btoa(bin) : Buffer.from(buf).toString("base64");
+}
+
+/* ------------------------------ adapters ------------------------------ */
+
+/** Set security headers on a Fetch/edge `Response` (mutates and returns it). */
+export function applyHeaders(response: Response, opts: SecurityHeadersOptions = {}): Response {
+  for (const [k, v] of Object.entries(securityHeaders(opts))) {
+    try {
+      response.headers.set(k, v);
+    } catch {
+      /* immutable headers (rare) — ignore */
+    }
+  }
+  return response;
+}
+
+/** Minimal Express-style middleware that applies the security headers. */
+export function expressSecurityHeaders(opts: SecurityHeadersOptions = {}) {
+  const h = securityHeaders(opts);
+  return (
+    _req: unknown,
+    res: { setHeader: (k: string, v: string) => void },
+    next: (err?: unknown) => void,
+  ): void => {
+    for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    next();
+  };
 }
 
 /** Convert to the array Next.js `next.config` `headers()` expects. */

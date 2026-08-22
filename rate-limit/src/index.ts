@@ -163,3 +163,84 @@ export function rateLimitHeaders(r: RateLimitResult): Record<string, string> {
   if (!r.success) headers["Retry-After"] = String(r.retryAfter);
   return headers;
 }
+
+/* ------------------------------ adapters ------------------------------ */
+
+export type HeadersLike =
+  | Request
+  | Headers
+  | { headers: Headers | Record<string, string | string[] | undefined> }
+  | Record<string, string | string[] | undefined>;
+
+function readHeader(src: HeadersLike, name: string): string | undefined {
+  const h: unknown = (src as { headers?: unknown }).headers ?? src;
+  if (h && typeof (h as Headers).get === "function") return (h as Headers).get(name) ?? undefined;
+  const rec = h as Record<string, string | string[] | undefined>;
+  const v = rec[name] ?? rec[name.toLowerCase()];
+  return Array.isArray(v) ? v[0] : v ?? undefined;
+}
+
+/** Best-effort client IP from common proxy headers (falls back to "unknown"). */
+export function ipKeyFromRequest(src: HeadersLike): string {
+  const xff = readHeader(src, "x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return (
+    readHeader(src, "cf-connecting-ip") ??
+    readHeader(src, "x-real-ip") ??
+    readHeader(src, "fly-client-ip") ??
+    readHeader(src, "true-client-ip") ??
+    (src as { ip?: string }).ip ??
+    (src as { socket?: { remoteAddress?: string } }).socket?.remoteAddress ??
+    "unknown"
+  );
+}
+
+/** Check a request against a limiter using a key function (IP by default). */
+export function checkRequest(
+  limiter: RateLimiter,
+  src: HeadersLike,
+  keyFn: (src: HeadersLike) => string = ipKeyFromRequest,
+  cost = 1,
+): Promise<RateLimitResult> {
+  return limiter.check(keyFn(src), cost);
+}
+
+/** A ready 429 `Response` (Fetch/edge) with `RateLimit-*` + `Retry-After` headers. */
+export function rateLimitResponse(result: RateLimitResult, body?: BodyInit): Response {
+  return new Response(body ?? JSON.stringify({ error: "rate_limited", retryAfter: result.retryAfter }), {
+    status: 429,
+    headers: { "content-type": "application/json", ...rateLimitHeaders(result) },
+  });
+}
+
+/**
+ * Fetch/edge guard. Returns a 429 `Response` when blocked, otherwise `null`
+ * plus the headers to spread onto your successful response.
+ * @example const blocked = await withRateLimit(limiter, req); if (blocked) return blocked;
+ */
+export async function withRateLimit(
+  limiter: RateLimiter,
+  src: HeadersLike,
+  keyFn: (src: HeadersLike) => string = ipKeyFromRequest,
+): Promise<Response | null> {
+  const result = await checkRequest(limiter, src, keyFn);
+  return result.success ? null : rateLimitResponse(result);
+}
+
+/** Minimal Express-style middleware: 429s when over the limit, sets `RateLimit-*` headers. */
+export function expressRateLimit(
+  limiter: RateLimiter,
+  opts: { keyFn?: (src: HeadersLike) => string } = {},
+) {
+  const keyFn = opts.keyFn ?? ipKeyFromRequest;
+  return async (
+    req: { headers: Record<string, string | string[] | undefined>; [k: string]: unknown },
+    res: { setHeader: (k: string, v: string) => void; status: (n: number) => { json: (b: unknown) => unknown } },
+    next: (err?: unknown) => void,
+  ): Promise<void> => {
+    const result = await limiter.check(keyFn(req));
+    for (const [k, v] of Object.entries(rateLimitHeaders(result))) res.setHeader(k, v);
+    if (result.success) next();
+    else res.status(429).json({ error: "rate_limited", retryAfter: result.retryAfter });
+  };
+}

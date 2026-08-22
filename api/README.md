@@ -115,6 +115,35 @@ try {
 | [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
 | [`@lacspace/nepali-utils`](https://www.npmjs.com/package/@lacspace/nepali-utils) | Nepal helpers |
 
+## New in 2.1 — batteries included
+
+```ts
+import { createApi, isApiError } from "@lacspace/api";
+
+const api = createApi({
+  baseURL: "https://api.example.com",
+  timeoutMs: 8000,
+  retries: 3, // retries 408/425/429/5xx with backoff + honours Retry-After
+});
+
+// query params (arrays repeat the key; undefined/null dropped) + typed response
+const users = await api.get("/users", { params: { page: 1, tags: ["a", "b"] } });
+
+// interceptors — auth refresh, logging, tracing, all in one place
+api.interceptors.request((ctx) => { ctx.init.headers["x-trace"] = crypto.randomUUID(); return ctx; });
+api.interceptors.error((err) => { if (isApiError(err)) report(err.status); });
+
+// pagination — async-iterate or collect
+for await (const u of api.paginate("/users")) handle(u);
+const everyone = await api.getAll("/users");
+
+// non-JSON bodies & response types
+await api.post("/upload", formData);              // FormData passes through untouched
+const pdf = await api.get("/report.pdf", { responseType: "blob" });
+```
+
+Also: per-request `timeoutMs`/`AbortSignal`, in-flight de-duplication of concurrent GETs, opt-in `cacheTtlMs`, and `isApiError()` for clean `catch` blocks. Everything is additive — existing calls keep working.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

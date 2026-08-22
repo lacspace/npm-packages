@@ -120,3 +120,18 @@ export function verificationFile(
     }
   }
 }
+
+/* ------------------------------ adapters ------------------------------ */
+
+/** A verification file as a Fetch/edge `Response`, for a route that serves the token file. */
+export function verificationFileResponse(
+  provider: "google" | "bing" | "yandex",
+  token: string,
+  init: ResponseInit = {},
+): Response {
+  const file = verificationFile(provider, token);
+  return new Response(file.content, {
+    ...init,
+    headers: { "content-type": `${file.contentType}; charset=utf-8`, ...(init.headers ?? {}) },
+  });
+}

@@ -63,6 +63,26 @@ if (await verifyApiKey(presented, storedHash)) { /* authorized */ }
 | [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers) | Secure headers / CSP |
 | [`@lacspace/redact`](https://www.npmjs.com/package/@lacspace/redact) | Log redaction |
 
+## New in 1.1 — request adapters
+
+```ts
+import { extractApiKey, authenticateApiKey, expressApiKey, isValidKeyFormat } from "@lacspace/apikey";
+
+// Pull the key from x-api-key or Authorization: Bearer
+const key = extractApiKey(req);
+
+// Verify (constant-time) against your store, with expiry + scope checks
+const record = await authenticateApiKey(key ?? "", {
+  resolve: ({ prefix }) => db.apiKeys.findByPrefix(prefix), // returns { hash, scopes, expiresAt }
+  scopes: ["read"],
+});
+
+// Express: verifies → req.apiKey, else 401
+app.use("/api", expressApiKey({ resolve: ({ prefix }) => db.apiKeys.findByPrefix(prefix) }));
+
+isValidKeyFormat("lac_live_xxxxxxxxxxxxxxxx"); // cheap offline reject before hitting the DB
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

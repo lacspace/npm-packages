@@ -78,6 +78,23 @@ export default { async headers() { return toNextHeaders({ contentSecurityPolicy:
 | **`@lacspace/headers`** | Secure headers / CSP (this package) |
 | [`@lacspace/redact`](https://www.npmjs.com/package/@lacspace/redact) | Log redaction |
 
+## New in 1.1 — CSP nonces & adapters
+
+```ts
+import { generateNonce, strictCsp, applyHeaders, expressSecurityHeaders } from "@lacspace/headers";
+
+// Per-request nonce → drop 'unsafe-inline', allow only your own inline scripts/styles
+const nonce = generateNonce();
+const policy = strictCsp({}, { nonce });      // adds 'nonce-…' to script-src & style-src
+// …render <script nonce={nonce}> and set Content-Security-Policy: policy
+
+// Fetch / edge — set all security headers on a Response
+export function GET() { return applyHeaders(new Response("ok")); }
+
+// Express
+app.use(expressSecurityHeaders({ hstsPreload: true }));
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

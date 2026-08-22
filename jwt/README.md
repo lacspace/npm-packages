@@ -77,6 +77,23 @@ csrfToken();     // CSRF token
 | [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers) | Secure headers / CSP |
 | [`@lacspace/redact`](https://www.npmjs.com/package/@lacspace/redact) | Log redaction |
 
+## New in 1.1 — framework adapters & cookies
+
+```ts
+import { authenticate, extractBearer, toAuthCookie, clearAuthCookie, expressJwt } from "@lacspace/jwt";
+
+// Verify straight from a Fetch Request / Next route / Node req (Bearer or cookie)
+const payload = await authenticate(req, secret);                 // throws JwtError on failure
+const payload2 = await authenticate(req, secret, { cookieName: "session" });
+
+// Hardened auth cookie (HttpOnly + Secure + SameSite by default)
+res.headers.set("Set-Cookie", toAuthCookie(token, { name: "session", maxAge: 3600 }));
+res.headers.set("Set-Cookie", clearAuthCookie({ name: "session" })); // logout
+
+// Express: verifies the token → req.user, else 401
+app.use(expressJwt(secret));
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -193,3 +193,29 @@ export function jsonFeed(feed: FeedOptions, items: FeedItem[]): JsonFeed {
     })),
   };
 }
+
+/* ------------------------------ adapters ------------------------------ */
+
+/** RSS 2.0 as a Fetch/edge `Response` (application/rss+xml). */
+export function rssResponse(feed: FeedOptions, items: FeedItem[], init: ResponseInit = {}): Response {
+  return new Response(rss(feed, items), {
+    ...init,
+    headers: { "content-type": "application/rss+xml; charset=utf-8", ...(init.headers ?? {}) },
+  });
+}
+
+/** Atom 1.0 as a Fetch/edge `Response` (application/atom+xml). */
+export function atomResponse(feed: FeedOptions, items: FeedItem[], init: ResponseInit = {}): Response {
+  return new Response(atom(feed, items), {
+    ...init,
+    headers: { "content-type": "application/atom+xml; charset=utf-8", ...(init.headers ?? {}) },
+  });
+}
+
+/** JSON Feed 1.1 as a Fetch/edge `Response` (application/feed+json). */
+export function jsonFeedResponse(feed: FeedOptions, items: FeedItem[], init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(jsonFeed(feed, items)), {
+    ...init,
+    headers: { "content-type": "application/feed+json; charset=utf-8", ...(init.headers ?? {}) },
+  });
+}

@@ -161,3 +161,99 @@ export function randomToken(bytes = 32): string {
 export function csrfToken(): string {
   return randomToken(32);
 }
+
+/* ------------------------------ adapters ------------------------------ */
+
+/** Anything we can read a header off: a Fetch Request/Headers, or Node `req.headers`. */
+export type HeadersLike =
+  | Request
+  | Headers
+  | { headers: Headers | Record<string, string | string[] | undefined> }
+  | Record<string, string | string[] | undefined>;
+
+function readHeader(src: HeadersLike, name: string): string | undefined {
+  const lower = name.toLowerCase();
+  const h: unknown = (src as { headers?: unknown }).headers ?? src;
+  if (h && typeof (h as Headers).get === "function") return (h as Headers).get(name) ?? undefined;
+  const rec = h as Record<string, string | string[] | undefined>;
+  const v = rec[name] ?? rec[lower];
+  return Array.isArray(v) ? v[0] : v ?? undefined;
+}
+
+/** Extract a bearer token from an `Authorization` header (or a named cookie). */
+export function extractBearer(src: HeadersLike, opts: { cookieName?: string } = {}): string | undefined {
+  const auth = readHeader(src, "authorization");
+  if (auth) {
+    const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
+    if (m) return m[1];
+  }
+  if (opts.cookieName) {
+    const cookie = readHeader(src, "cookie");
+    if (cookie) {
+      const found = cookie.split(/;\s*/).find((c) => c.startsWith(`${opts.cookieName}=`));
+      if (found) return decodeURIComponent(found.slice(opts.cookieName.length + 1));
+    }
+  }
+  return undefined;
+}
+
+/** Read the bearer token from a request and verify it. Throws {@link JwtError}. */
+export async function authenticate<T extends JwtPayload = JwtPayload>(
+  src: HeadersLike,
+  secret: string | Uint8Array,
+  opts: VerifyOptions & { cookieName?: string } = {},
+): Promise<T> {
+  const token = extractBearer(src, { cookieName: opts.cookieName });
+  if (!token) throw new JwtError("no bearer token", "malformed");
+  return verify<T>(token, secret, opts);
+}
+
+export interface AuthCookieOptions {
+  name?: string;
+  maxAge?: number; // seconds
+  path?: string;
+  domain?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: "Strict" | "Lax" | "None";
+}
+
+/** Build a hardened `Set-Cookie` value carrying an auth token. */
+export function toAuthCookie(token: string, opts: AuthCookieOptions = {}): string {
+  const name = opts.name ?? "token";
+  const parts = [`${name}=${encodeURIComponent(token)}`, `Path=${opts.path ?? "/"}`, `SameSite=${opts.sameSite ?? "Lax"}`];
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
+  if (opts.httpOnly !== false) parts.push("HttpOnly");
+  if (opts.secure !== false) parts.push("Secure");
+  return parts.join("; ");
+}
+
+/** Build a `Set-Cookie` value that clears the auth cookie. */
+export function clearAuthCookie(opts: Pick<AuthCookieOptions, "name" | "path" | "domain"> = {}): string {
+  const name = opts.name ?? "token";
+  const parts = [`${name}=`, `Path=${opts.path ?? "/"}`, "Max-Age=0"];
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
+  return parts.join("; ");
+}
+
+/** Minimal Express-style middleware: verifies the bearer token → `req.user`, else 401. */
+export function expressJwt<T extends JwtPayload = JwtPayload>(
+  secret: string | Uint8Array,
+  opts: VerifyOptions & { cookieName?: string; userKey?: string } = {},
+) {
+  const userKey = opts.userKey ?? "user";
+  return async (
+    req: { headers: Record<string, string | string[] | undefined>; [k: string]: unknown },
+    res: { status: (n: number) => { json: (b: unknown) => unknown } },
+    next: (err?: unknown) => void,
+  ): Promise<void> => {
+    try {
+      req[userKey] = await authenticate<T>(req, secret, opts);
+      next();
+    } catch (err) {
+      const code = err instanceof JwtError ? err.code : "malformed";
+      res.status(401).json({ error: "unauthorized", code });
+    }
+  };
+}

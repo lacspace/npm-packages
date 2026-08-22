@@ -93,6 +93,26 @@ const limiter = rateLimit({ limit: 100, windowMs: 60_000, store: redisStore, pre
 | [`@lacspace/otp`](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA |
 | [`@lacspace/next`](https://www.npmjs.com/package/@lacspace/next) | Next.js SDK integration |
 
+## New in 1.1 — request adapters & middleware
+
+```ts
+import { rateLimit, ipKeyFromRequest, withRateLimit, rateLimitResponse, expressRateLimit } from "@lacspace/rate-limit";
+
+const limiter = rateLimit({ limit: 10, windowMs: 60_000, algorithm: "sliding" });
+
+// Fetch / Next route / edge — one line, returns a ready 429 or null
+export async function POST(req: Request) {
+  const blocked = await withRateLimit(limiter, req); // keys by client IP (X-Forwarded-For…)
+  if (blocked) return blocked;                        // 429 + RateLimit-* + Retry-After
+  // …handle request
+}
+
+// Express
+app.use(expressRateLimit(limiter, { keyFn: (req) => req.user?.id ?? ipKeyFromRequest(req) }));
+```
+
+`ipKeyFromRequest` reads `X-Forwarded-For`, `CF-Connecting-IP`, `X-Real-IP` and friends; `rateLimitResponse(result)` builds the 429 yourself if you prefer.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

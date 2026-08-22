@@ -107,3 +107,21 @@ export function parseLlmsTxt(txt: string): LlmsDoc {
   if (details) doc.details = details;
   return doc;
 }
+
+/* ------------------------------ adapters ------------------------------ */
+
+/** `llms.txt` as a Fetch/edge `Response` (text/plain) for app/llms.txt/route.ts. */
+export function llmsTxtResponse(doc: LlmsDoc, init: ResponseInit = {}): Response {
+  return new Response(llmsTxt(doc), {
+    ...init,
+    headers: { "content-type": "text/plain; charset=utf-8", ...(init.headers ?? {}) },
+  });
+}
+
+/** `llms-full.txt` as a Fetch/edge `Response` (text/plain). */
+export function llmsFullTxtResponse(doc: LlmsFullDoc, init: ResponseInit = {}): Response {
+  return new Response(llmsFullTxt(doc), {
+    ...init,
+    headers: { "content-type": "text/plain; charset=utf-8", ...(init.headers ?? {}) },
+  });
+}

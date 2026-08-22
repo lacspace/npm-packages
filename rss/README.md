@@ -85,6 +85,17 @@ export function GET() {
 | **`@lacspace/rss`** | RSS / Atom / JSON feeds (this package) |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
+## New in 1.1 — Response helpers
+
+```ts
+import { rssResponse, atomResponse, jsonFeedResponse } from "@lacspace/rss";
+
+// app/feed.xml/route.ts — correct content-type, zero boilerplate
+export function GET() {
+  return rssResponse({ title: "Blog", link: "https://x.com", description: "…" }, items);
+}
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

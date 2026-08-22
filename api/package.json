@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/api",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",

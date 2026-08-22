@@ -63,9 +63,38 @@ export interface PortfolioSummary {
   equity: number;
   unrealizedPnl: number;
   realizedPnl: number;
-  /** Total P&L vs the starting cash. */
+  /** Total transaction charges paid so far. */
+  charges: number;
+  /** Total P&L vs the starting cash (net of charges). */
   totalPnl: number;
   holdings: Holding[];
+}
+
+/** Passed to a charges function on every fill. */
+export interface FillInfo {
+  symbol: string;
+  side: OrderSide;
+  qty: number;
+  price: number;
+  /** price × qty. */
+  value: number;
+}
+
+export interface TradeStats {
+  trades: number;
+  closedTrades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  grossProfit: number;
+  grossLoss: number;
+  avgWin: number;
+  avgLoss: number;
+  largestWin: number;
+  largestLoss: number;
+  profitFactor: number;
+  realizedPnl: number;
+  totalCharges: number;
 }
 
 export interface PaperAccountOptions {
@@ -75,6 +104,8 @@ export interface PaperAccountOptions {
   allowShort?: boolean;
   /** Millis provider — override for deterministic tests. Default Date.now. */
   now?: () => number;
+  /** Charges per fill (e.g. from `@lacspace/market` `charges()`), deducted from cash. */
+  charges?: (info: FillInfo) => number;
 }
 
 export class PaperAccount {
@@ -88,6 +119,9 @@ export class PaperAccount {
   private _orders: Order[] = [];
   private _trades: Trade[] = [];
   private _realizedPnl = 0;
+  private _charges = 0;
+  private _closedPnls: number[] = [];
+  private readonly chargesFn?: (info: FillInfo) => number;
   private seq = 0;
 
   constructor(opts: PaperAccountOptions) {
@@ -95,6 +129,7 @@ export class PaperAccount {
     this.startCash = opts.cash;
     this.allowShort = opts.allowShort ?? false;
     this.now = opts.now ?? (() => Date.now());
+    this.chargesFn = opts.charges;
   }
 
   private id(prefix: string): string {
@@ -169,8 +204,40 @@ export class PaperAccount {
       equity: round2(this._cash + marketValue),
       unrealizedPnl: round2(unrealizedPnl),
       realizedPnl: round2(this._realizedPnl),
+      charges: round2(this._charges),
       totalPnl: round2(this._cash + marketValue - this.startCash),
       holdings,
+    };
+  }
+
+  /** Total transaction charges paid so far. */
+  get totalCharges(): number {
+    return round2(this._charges);
+  }
+
+  /** Closed-trade performance stats (win rate, profit factor, averages). */
+  stats(): TradeStats {
+    const c = this._closedPnls;
+    const wins = c.filter((x) => x > 0);
+    const losses = c.filter((x) => x < 0);
+    const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
+    const grossProfit = sum(wins);
+    const grossLoss = sum(losses);
+    return {
+      trades: this._trades.length,
+      closedTrades: c.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate: c.length ? round2((wins.length / c.length) * 100) : 0,
+      grossProfit: round2(grossProfit),
+      grossLoss: round2(grossLoss),
+      avgWin: wins.length ? round2(grossProfit / wins.length) : 0,
+      avgLoss: losses.length ? round2(grossLoss / losses.length) : 0,
+      largestWin: wins.length ? round2(Math.max(...wins)) : 0,
+      largestLoss: losses.length ? round2(Math.min(...losses)) : 0,
+      profitFactor: grossLoss !== 0 ? round2(grossProfit / Math.abs(grossLoss)) : 0,
+      realizedPnl: round2(this._realizedPnl),
+      totalCharges: round2(this._charges),
     };
   }
 
@@ -281,6 +348,13 @@ export class PaperAccount {
       this._cash += price * o.qty;
       this.applySell(o.symbol, o.qty, price);
     }
+    if (this.chargesFn) {
+      const charge = this.chargesFn({ symbol: o.symbol, side: o.side, qty: o.qty, price, value: price * o.qty });
+      if (charge > 0) {
+        this._cash -= charge;
+        this._charges += charge;
+      }
+    }
     o.status = "FILLED";
     o.filledPrice = price;
     o.updatedAt = this.now();
@@ -320,7 +394,9 @@ export class PaperAccount {
     }
     if (pos.qty > 0) {
       const closing = Math.min(qty, pos.qty);
-      this._realizedPnl += (price - pos.avgPrice) * closing;
+      const realized = (price - pos.avgPrice) * closing;
+      this._realizedPnl += realized;
+      this._closedPnls.push(realized);
       pos.qty -= closing;
       const remainder = qty - closing;
       if (pos.qty === 0 && remainder > 0) {
@@ -338,7 +414,9 @@ export class PaperAccount {
   private reduceShort(pos: Position, qty: number, price: number): void {
     const shortQty = -pos.qty;
     const closing = Math.min(qty, shortQty);
-    this._realizedPnl += (pos.avgPrice - price) * closing;
+    const realized = (pos.avgPrice - price) * closing;
+    this._realizedPnl += realized;
+    this._closedPnls.push(realized);
     pos.qty += closing;
     const remainder = qty - closing;
     if (pos.qty === 0 && remainder > 0) {
@@ -361,6 +439,8 @@ export class PaperAccount {
       startCash: this.startCash,
       allowShort: this.allowShort,
       realizedPnl: this._realizedPnl,
+      charges: this._charges,
+      closedPnls: this._closedPnls,
       positions: [...this.positions.values()],
       ltp: [...this.ltp.entries()],
       orders: this._orders,
@@ -375,6 +455,8 @@ export class PaperAccount {
       startCash: number;
       allowShort: boolean;
       realizedPnl: number;
+      charges?: number;
+      closedPnls?: number[];
       positions: Position[];
       ltp: [string, number][];
       orders: Order[];
@@ -384,6 +466,8 @@ export class PaperAccount {
     const acct = new PaperAccount({ cash: s.startCash, allowShort: s.allowShort, now });
     acct._cash = s.cash;
     acct._realizedPnl = s.realizedPnl;
+    acct._charges = s.charges ?? 0;
+    acct._closedPnls = s.closedPnls ?? [];
     acct.positions = new Map(s.positions.map((p) => [p.symbol, p]));
     acct.ltp = new Map(s.ltp);
     acct._orders = s.orders;

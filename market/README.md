@@ -108,6 +108,24 @@ formatINR(1234567.5);           // "₹12,34,567.50"
 | [`@lacspace/market-clock`](https://www.npmjs.com/package/@lacspace/market-clock) | Is the market open? holidays |
 | [`@lacspace/paper-trade`](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine |
 
+## New in 1.1 — options greeks & portfolio analytics
+
+```ts
+import { blackScholes, impliedVolatility, sharpe, sortino, maxDrawdown, volatility, formatCompactINR } from "@lacspace/market";
+
+// Black-Scholes price + greeks for a European option
+const g = blackScholes({ type: "call", spot: 100, strike: 100, timeYears: 30/365, rate: 0.07, volatility: 0.25 });
+// → { price, delta, gamma, theta, vega, rho }
+impliedVolatility(marketPrice, { type: "call", spot: 100, strike: 100, timeYears: 30/365, rate: 0.07 });
+
+// Portfolio stats from a returns / equity series
+sharpe(returns);            // annualized
+sortino(returns);           // downside-only
+maxDrawdown(equityCurve);   // { maxDrawdown: 0.25, peakIndex, troughIndex }
+
+formatCompactINR(12345678); // "₹1.23 Cr"
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

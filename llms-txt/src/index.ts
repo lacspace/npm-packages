@@ -108,6 +108,53 @@ export function parseLlmsTxt(txt: string): LlmsDoc {
   return doc;
 }
 
+/* ------------------------------ from sitemap ------------------------------ */
+
+/** A sitemap-ish entry — accepts `url` or `loc`, plus optional title/section. */
+export interface SitemapEntryLike {
+  url?: string;
+  loc?: string;
+  title?: string;
+  section?: string;
+}
+
+function titleFromUrl(url: string): string {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
+  const seg = path.split("/").filter(Boolean).pop();
+  if (!seg) return "Home";
+  return decodeURIComponent(seg).replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Build an `llms.txt` from a list of sitemap entries — group by `section`,
+ * derive titles from the URL when not given. Pairs with `@lacspace/sitemap`.
+ */
+export function llmsTxtFromSitemap(
+  entries: SitemapEntryLike[],
+  meta: { title: string; summary?: string; details?: string; defaultSection?: string },
+): string {
+  const bySection = new Map<string, LlmsLink[]>();
+  for (const e of entries) {
+    const url = e.url ?? e.loc;
+    if (!url) continue;
+    const section = e.section ?? meta.defaultSection ?? "Pages";
+    if (!bySection.has(section)) bySection.set(section, []);
+    bySection.get(section)!.push({ title: e.title ?? titleFromUrl(url), url });
+  }
+  const doc: LlmsDoc = {
+    title: meta.title,
+    summary: meta.summary,
+    details: meta.details,
+    sections: [...bySection].map(([title, links]) => ({ title, links })),
+  };
+  return llmsTxt(doc);
+}
+
 /* ------------------------------ adapters ------------------------------ */
 
 /** `llms.txt` as a Fetch/edge `Response` (text/plain) for app/llms.txt/route.ts. */

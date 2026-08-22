@@ -96,6 +96,30 @@ breadcrumb([
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
+## New in 1.2 — @graph, breadcrumbs-from-path, richer OG & linting
+
+```ts
+import { graph, organization, website, breadcrumbFromPath, seoMetadata, lintSeo, blogPosting, jsonLdScript } from "@lacspace/seo";
+
+// Compose many nodes into ONE @graph (shared @context, no duplication)
+const ld = graph(organization({ name: "Lacspace", url: "https://lacspace.com" }), website({ name: "Lacspace", url: "https://lacspace.com" }));
+
+// Breadcrumbs straight from the URL path — no manual wiring
+breadcrumbFromPath("/blog/my-post", { baseUrl: "https://x.com" });
+
+// Richer social cards + i18n in one call
+export const metadata = seoMetadata({
+  title, description, image, imageAlt, imageWidth: 1200,
+  type: "article", article: { publishedTime, authors: ["Lumi"] },
+  twitterSite: "@lacspace", languages: { en: "/en", ne: "/ne" },
+});
+
+// Catch SEO mistakes before deploy
+lintSeo({ title, description, canonical, image }).warnings; // ["description is 210 chars (>160…)"]
+```
+
+Also: `blogPosting`, `newsArticle`, `webPage` builders.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

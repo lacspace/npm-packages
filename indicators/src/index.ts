@@ -511,3 +511,128 @@ export function crossedBelow(
 ): boolean {
   return prev.a >= prev.b && curr.a < curr.b;
 }
+
+/* ------------------------------ tick → candle aggregation ------------------------------ */
+
+export interface Tick {
+  /** Epoch ms of the tick. */
+  time: number;
+  price: number;
+  volume?: number;
+}
+
+/**
+ * Aggregate a live tick/LTP stream into fixed-interval OHLC candles.
+ * `add()` returns a COMPLETED candle when the interval rolls over, else null.
+ * @example const agg = new CandleAggregator(60_000); // 1-minute candles
+ */
+export class CandleAggregator {
+  private current: Candle | null = null;
+  private bucketStart = 0;
+
+  constructor(public readonly intervalMs: number) {
+    if (!(intervalMs > 0)) throw new RangeError(`intervalMs must be > 0, got ${intervalMs}`);
+  }
+
+  private openCandle(tick: Tick, bucket: number): Candle {
+    return { time: bucket, open: tick.price, high: tick.price, low: tick.price, close: tick.price, volume: tick.volume ?? 0 };
+  }
+
+  /** Feed a tick. Returns the just-completed candle when the bucket advances, else null. */
+  add(tick: Tick): Candle | null {
+    const bucket = Math.floor(tick.time / this.intervalMs) * this.intervalMs;
+    if (this.current === null) {
+      this.bucketStart = bucket;
+      this.current = this.openCandle(tick, bucket);
+      return null;
+    }
+    if (bucket > this.bucketStart) {
+      const completed = this.current;
+      this.bucketStart = bucket;
+      this.current = this.openCandle(tick, bucket);
+      return completed;
+    }
+    this.current.high = Math.max(this.current.high, tick.price);
+    this.current.low = Math.min(this.current.low, tick.price);
+    this.current.close = tick.price;
+    if (tick.volume) this.current.volume = (this.current.volume ?? 0) + tick.volume;
+    return null;
+  }
+
+  /** The in-progress (not yet closed) candle, if any. */
+  get pending(): Candle | null {
+    return this.current ? { ...this.current } : null;
+  }
+
+  /** Close and return the current candle (e.g. at session end). */
+  flush(): Candle | null {
+    const c = this.current;
+    this.current = null;
+    return c;
+  }
+}
+
+/* ------------------------------ candlestick patterns ------------------------------ */
+
+export type CandlePattern =
+  | "doji"
+  | "hammer"
+  | "shootingStar"
+  | "marubozu"
+  | "bullishEngulfing"
+  | "bearishEngulfing"
+  | "bullishHarami"
+  | "bearishHarami";
+
+export interface PatternHit {
+  /** Index in the input array where the pattern completes. */
+  index: number;
+  pattern: CandlePattern;
+  bullish: boolean;
+}
+
+function body(c: Candle): number {
+  return Math.abs(c.close - c.open);
+}
+function upperWick(c: Candle): number {
+  return c.high - Math.max(c.open, c.close);
+}
+function lowerWick(c: Candle): number {
+  return Math.min(c.open, c.close) - c.low;
+}
+
+/** Detect common single- and two-candle patterns across a series. */
+export function detectPatterns(candles: Candle[]): PatternHit[] {
+  const hits: PatternHit[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i]!;
+    const range = c.high - c.low;
+    if (range <= 0) continue;
+    const b = body(c);
+    const up = upperWick(c);
+    const lo = lowerWick(c);
+    const bullish = c.close > c.open;
+
+    if (b <= range * 0.1) hits.push({ index: i, pattern: "doji", bullish });
+    else if (up <= range * 0.05 && lo <= range * 0.05) hits.push({ index: i, pattern: "marubozu", bullish });
+    else if (lo >= b * 2 && up <= b * 0.6) hits.push({ index: i, pattern: "hammer", bullish: true });
+    else if (up >= b * 2 && lo <= b * 0.6) hits.push({ index: i, pattern: "shootingStar", bullish: false });
+
+    if (i > 0) {
+      const p = candles[i - 1]!;
+      const pBull = p.close > p.open;
+      const pBody = body(p);
+      // engulfing: current real body fully engulfs the previous real body
+      if (!pBull && bullish && c.close >= p.open && c.open <= p.close && b > pBody)
+        hits.push({ index: i, pattern: "bullishEngulfing", bullish: true });
+      else if (pBull && !bullish && c.open >= p.close && c.close <= p.open && b > pBody)
+        hits.push({ index: i, pattern: "bearishEngulfing", bullish: false });
+      // harami: current small real body sits inside the previous real body
+      else if (!pBull && bullish && c.open >= p.close && c.close <= p.open && b < pBody)
+        hits.push({ index: i, pattern: "bullishHarami", bullish: true });
+      else if (pBull && !bullish && c.close >= p.open && c.open <= p.close && b < pBody)
+        hits.push({ index: i, pattern: "bearishHarami", bullish: false });
+    }
+  }
+  return hits;
+}

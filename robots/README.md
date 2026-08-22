@@ -90,6 +90,26 @@ const { groups, sitemaps, host } = parseRobots(txt);
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
+## New in 1.2 — stack presets & a crawlability matcher
+
+```ts
+import { nextjsRobots, blockAll, envRobots, allowSearchBlockTraining, isAllowed, parseRobots } from "@lacspace/robots";
+
+// Stack-aware defaults (Next.js/_next, WordPress, Shopify)
+export default () => nextjsRobots({ sitemap: "https://x.com/sitemap.xml" });
+
+// Block everything on preview/staging, index in production
+envRobots(process.env.VERCEL_ENV === "production", { sitemap });
+
+// Allow search + answer engines but block AI-training crawlers
+allowSearchBlockTraining({ sitemap });
+
+// Test whether a URL is crawlable (longest-match wins; ties favour Allow)
+const parsed = parseRobots(txt);
+isAllowed("/admin/secret", parsed);        // false
+isAllowed("/files/a.pdf", parseRobots("User-agent: *\nDisallow: /*.pdf$")); // false
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

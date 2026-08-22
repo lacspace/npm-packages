@@ -18,7 +18,13 @@ export interface OpenGraph {
   url?: string;
   siteName?: string;
   type?: "website" | "article" | "profile";
-  images?: { url: string }[];
+  locale?: string;
+  images?: { url: string; width?: number; height?: number; alt?: string }[];
+  publishedTime?: string;
+  modifiedTime?: string;
+  authors?: string[];
+  section?: string;
+  tags?: string[];
 }
 
 export interface TwitterMeta {
@@ -26,13 +32,15 @@ export interface TwitterMeta {
   title?: string;
   description?: string;
   images?: string[];
+  site?: string;
+  creator?: string;
 }
 
 export interface Metadata {
   title?: string;
   description?: string;
   keywords?: string[];
-  alternates?: { canonical?: string };
+  alternates?: { canonical?: string; languages?: Record<string, string> };
   openGraph?: OpenGraph;
   twitter?: TwitterMeta;
   robots?: { index: boolean; follow: boolean };
@@ -45,13 +53,29 @@ export interface SeoInput {
   canonical?: string;
   /** Social share image URL (absolute recommended). */
   image?: string;
+  imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   keywords?: string[];
   siteName?: string;
   type?: "website" | "article" | "profile";
+  locale?: string;
   twitterCard?: "summary" | "summary_large_image";
+  twitterSite?: string;
+  twitterCreator?: string;
   noindex?: boolean;
   /** Used to turn a relative `canonical` into an absolute OG url. */
   baseUrl?: string;
+  /** Extra Open Graph "article:*" fields (for `type: "article"`). */
+  article?: {
+    publishedTime?: string;
+    modifiedTime?: string;
+    authors?: string[];
+    section?: string;
+    tags?: string[];
+  };
+  /** i18n alternates → `alternates.languages`. */
+  languages?: Record<string, string>;
 }
 
 function absolute(path: string | undefined, baseUrl?: string): string | undefined {
@@ -67,28 +91,66 @@ function absolute(path: string | undefined, baseUrl?: string): string | undefine
  */
 export function seoMetadata(input: SeoInput): Metadata {
   const url = absolute(input.canonical, input.baseUrl);
+  const image = input.image
+    ? [{ url: input.image, width: input.imageWidth, height: input.imageHeight, alt: input.imageAlt }]
+    : undefined;
+  const alternates =
+    input.canonical || input.languages
+      ? { canonical: input.canonical, languages: input.languages }
+      : undefined;
   const meta: Metadata = {
     title: input.title,
     description: input.description,
     keywords: input.keywords,
-    alternates: input.canonical ? { canonical: input.canonical } : undefined,
+    alternates,
     openGraph: {
       title: input.title,
       description: input.description,
       url,
       siteName: input.siteName,
       type: input.type ?? "website",
-      images: input.image ? [{ url: input.image }] : undefined,
+      locale: input.locale,
+      images: image,
+      publishedTime: input.article?.publishedTime,
+      modifiedTime: input.article?.modifiedTime,
+      authors: input.article?.authors,
+      section: input.article?.section,
+      tags: input.article?.tags,
     },
     twitter: {
       card: input.twitterCard ?? (input.image ? "summary_large_image" : "summary"),
       title: input.title,
       description: input.description,
       images: input.image ? [input.image] : undefined,
+      site: input.twitterSite,
+      creator: input.twitterCreator,
     },
   };
   if (input.noindex) meta.robots = { index: false, follow: false };
   return meta;
+}
+
+export interface SeoLint {
+  ok: boolean;
+  warnings: string[];
+}
+
+/** Lint an SEO input for common issues (title/description length, missing canonical/image). */
+export function lintSeo(input: SeoInput): SeoLint {
+  const w: string[] = [];
+  if (!input.title) w.push("missing title");
+  else {
+    if (input.title.length > 60) w.push(`title is ${input.title.length} chars (>60 may be truncated in SERPs)`);
+    if (input.title.length < 10) w.push("title is very short (<10 chars)");
+  }
+  if (!input.description) w.push("missing description");
+  else {
+    if (input.description.length > 160) w.push(`description is ${input.description.length} chars (>160 may be truncated)`);
+    if (input.description.length < 50) w.push("description is short (<50 chars)");
+  }
+  if (!input.canonical) w.push("no canonical URL");
+  if (!input.image) w.push("no social share image (og:image)");
+  return { ok: w.length === 0, warnings: w };
 }
 
 /* ------------------------------------------------------------------ *
@@ -576,6 +638,80 @@ export function recipe(o: RecipeInput): Json {
  */
 export function hreflang(map: Record<string, string>): { languages: Record<string, string> } {
   return { languages: map };
+}
+
+/** A BlogPosting (Article subtype) — same input as {@link article}. */
+export function blogPosting(o: ArticleInput): Json {
+  return { ...article(o), "@type": "BlogPosting" };
+}
+
+/** A NewsArticle (Article subtype) — same input as {@link article}. */
+export function newsArticle(o: ArticleInput): Json {
+  return { ...article(o), "@type": "NewsArticle" };
+}
+
+export interface WebPageInput {
+  name: string;
+  description?: string;
+  url?: string;
+  image?: string;
+  datePublished?: string;
+  dateModified?: string;
+}
+
+export function webPage(o: WebPageInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: o.name,
+    description: o.description,
+    url: o.url,
+    image: o.image,
+    datePublished: o.datePublished,
+    dateModified: o.dateModified,
+  });
+}
+
+/**
+ * Compose several builder outputs into ONE `@graph` document with a shared
+ * `@context` (avoids repeating `@context` per node). Feed the result to
+ * {@link jsonLdScript}.
+ * @example graph(organization(...), website(...), breadcrumb(...))
+ */
+export function graph(...nodes: Json[]): Json {
+  return {
+    "@context": "https://schema.org",
+    "@graph": nodes.map((n) => {
+      const copy = { ...n };
+      delete copy["@context"];
+      return copy;
+    }),
+  };
+}
+
+function titleize(segment: string): string {
+  return decodeURIComponent(segment)
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Build a BreadcrumbList from a URL path — no manual item wiring.
+ * @example breadcrumbFromPath("/blog/my-post", { baseUrl: "https://x.com" })
+ */
+export function breadcrumbFromPath(
+  path: string,
+  opts: { baseUrl: string; labels?: Record<string, string>; homeLabel?: string },
+): Json {
+  const base = opts.baseUrl.replace(/\/$/, "");
+  const segments = path.split(/[?#]/)[0]!.split("/").filter(Boolean);
+  const items: { name: string; url: string }[] = [{ name: opts.homeLabel ?? "Home", url: base }];
+  let acc = "";
+  for (const seg of segments) {
+    acc += `/${seg}`;
+    items.push({ name: opts.labels?.[seg] ?? titleize(seg), url: base + acc });
+  }
+  return breadcrumb(items);
 }
 
 /* ------------------------------------------------------------------ *

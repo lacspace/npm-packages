@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/robots",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Build and parse robots.txt — typed per-user-agent rules, AI-crawler block presets (GPTBot, ClaudeBot, CCBot, Google-Extended), sitemap refs and Next.js robots.ts output. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

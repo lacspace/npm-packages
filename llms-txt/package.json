@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/llms-txt",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Generate and parse llms.txt and llms-full.txt (the llmstxt.org standard) — a Markdown map of your site for LLMs. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

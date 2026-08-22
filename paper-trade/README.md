@@ -106,6 +106,26 @@ Pair it with [`@lacspace/market`](https://www.npmjs.com/package/@lacspace/market
 | [`@lacspace/market-clock`](https://www.npmjs.com/package/@lacspace/market-clock) | Is the market open? holidays |
 | **`@lacspace/paper-trade`** | Paper-trading engine (this package) |
 
+## New in 1.1 — real charges & trade stats
+
+```ts
+import { PaperAccount } from "@lacspace/paper-trade";
+import { charges } from "@lacspace/market";
+
+// Deduct real Indian brokerage/STT/GST on every fill — net P&L, not optimistic
+const acct = new PaperAccount({
+  cash: 100_000,
+  charges: ({ side, qty, price }) =>
+    charges({ segment: "intraday", side, qty, price }).total,
+});
+
+// Backtest-style performance summary
+acct.stats();
+// → { trades, closedTrades, wins, losses, winRate, profitFactor, avgWin, avgLoss,
+//     largestWin, largestLoss, realizedPnl, totalCharges }
+acct.totalCharges; // total costs paid
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

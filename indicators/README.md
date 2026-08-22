@@ -103,6 +103,24 @@ Batch equivalents: `sma` `ema` `wma` `rsi` `macd` `bollinger` `atr` `supertrend`
 | [`@lacspace/market-clock`](https://www.npmjs.com/package/@lacspace/market-clock) | Is the market open? holidays |
 | [`@lacspace/paper-trade`](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine |
 
+## New in 1.1 — candle aggregation & pattern detection
+
+```ts
+import { CandleAggregator, detectPatterns } from "@lacspace/indicators";
+
+// Turn a live LTP/tick feed into fixed-interval OHLC candles
+const agg = new CandleAggregator(60_000); // 1-minute
+onTick(({ time, price, volume }) => {
+  const candle = agg.add({ time, price, volume });
+  if (candle) store.push(candle); // completed candle on each rollover
+});
+
+// Spot candlestick patterns across a series
+detectPatterns(candles);
+// → [{ index: 42, pattern: "bullishEngulfing", bullish: true }, …]
+// doji · hammer · shootingStar · marubozu · bullish/bearish engulfing · harami
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

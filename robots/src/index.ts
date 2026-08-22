@@ -144,6 +144,103 @@ export interface NextRobots {
   host?: string;
 }
 
+/* ------------------------------ presets ------------------------------ */
+
+interface PresetOptions {
+  sitemap?: string | string[];
+  host?: string;
+  /** Extra paths to disallow on top of the stack defaults. */
+  extraDisallow?: string[];
+}
+
+const STACK_DISALLOW: Record<string, string[]> = {
+  nextjs: ["/api/", "/_next/", "/admin"],
+  wordpress: ["/wp-admin/", "/wp-includes/", "/xmlrpc.php", "/?s=", "/search"],
+  shopify: ["/cart", "/checkout", "/account", "/orders", "/*?*preview_theme_id*"],
+  astro: ["/api/"],
+};
+
+/** robots.txt tuned for a stack's private/duplicate paths. */
+export function stackRobots(stack: keyof typeof STACK_DISALLOW, opts: PresetOptions = {}): string {
+  return robots({
+    groups: [{ userAgent: "*", disallow: [...STACK_DISALLOW[stack]!, ...(opts.extraDisallow ?? [])] }],
+    sitemap: opts.sitemap,
+    host: opts.host,
+  });
+}
+
+export const nextjsRobots = (o: PresetOptions = {}) => stackRobots("nextjs", o);
+export const wordpressRobots = (o: PresetOptions = {}) => stackRobots("wordpress", o);
+export const shopifyRobots = (o: PresetOptions = {}) => stackRobots("shopify", o);
+
+/** Block every crawler from everything — for staging / preview environments. */
+export function blockAll(): string {
+  return robots({ groups: [{ userAgent: "*", disallow: ["/"] }] });
+}
+
+/**
+ * Pick a production or a block-all robots.txt from an environment flag.
+ * @example envRobots(process.env.VERCEL_ENV === "production", { sitemap })
+ */
+export function envRobots(isProduction: boolean, prodOpts: RobotsOptions = {}): string {
+  return isProduction ? robots(prodOpts) : blockAll();
+}
+
+/** Allow search & answer engines but block AI-training crawlers. */
+export function allowSearchBlockTraining(opts: PresetOptions = {}): string {
+  const training = ["GPTBot", "CCBot", "Google-Extended", "anthropic-ai", "Applebot-Extended", "Bytespider", "cohere-ai"];
+  return robots({
+    groups: [
+      { userAgent: "*", disallow: opts.extraDisallow ?? [] },
+      { userAgent: training, disallow: ["/"] },
+    ],
+    sitemap: opts.sitemap,
+    host: opts.host,
+  });
+}
+
+/* ------------------------------ matcher ------------------------------ */
+
+function pathOf(urlOrPath: string): string {
+  try {
+    const u = new URL(urlOrPath);
+    return u.pathname + u.search;
+  } catch {
+    return urlOrPath;
+  }
+}
+
+function matchLength(pattern: string, path: string): number {
+  if (pattern === "") return -1; // "Disallow:" (empty) is not a rule
+  let anchorEnd = false;
+  let pat = pattern;
+  if (pat.endsWith("$")) {
+    anchorEnd = true;
+    pat = pat.slice(0, -1);
+  }
+  const re = new RegExp("^" + pat.replace(/[.+?^${}()|[\]\\*]/g, "\\$&").replace(/\\\*/g, ".*") + (anchorEnd ? "$" : ""));
+  return re.test(path) ? pattern.length : -1;
+}
+
+/**
+ * Test whether a URL/path is crawlable per parsed robots rules for a user-agent
+ * (longest-match wins; ties favour Allow, per Google's spec).
+ */
+export function isAllowed(urlOrPath: string, parsed: ParsedRobots, userAgent = "*"): boolean {
+  const path = pathOf(urlOrPath);
+  const ua = userAgent.toLowerCase();
+  let group =
+    parsed.groups.find((g) => g.userAgents.some((a) => a !== "*" && ua.includes(a.toLowerCase()))) ??
+    parsed.groups.find((g) => g.userAgents.includes("*"));
+  if (!group) return true;
+  let allow = -1;
+  let disallow = -1;
+  for (const p of group.allow) allow = Math.max(allow, matchLength(p, path));
+  for (const p of group.disallow) disallow = Math.max(disallow, matchLength(p, path));
+  if (disallow === -1) return true;
+  return allow >= disallow;
+}
+
 /** Convert to the shape Next.js `robots.ts` expects (`MetadataRoute.Robots`). */
 export function toNextRobots(opts: RobotsOptions): NextRobots {
   const groups = opts.groups?.length ? opts.groups : [{ userAgent: "*" }];

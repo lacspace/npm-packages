@@ -94,6 +94,21 @@ const doc = parseLlmsTxt(existing); // { title, summary, details, sections: [{ t
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
+## New in 1.2 — build from your sitemap
+
+```ts
+import { llmsTxtFromSitemap } from "@lacspace/llms-txt";
+
+// Feed the same URL list your sitemap uses; sections + titles are derived
+const txt = llmsTxtFromSitemap(
+  [
+    { url: "https://x.com/", section: "Main" },
+    { url: "https://x.com/docs/sdk", section: "Docs", title: "SDK" },
+  ],
+  { title: "Lacspace", summary: "Open-source packages & products." },
+);
+```
+
 ## New in 1.1 — Response helpers
 
 ```ts

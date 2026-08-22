@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Lacspace open-source TypeScript packages (api, auth, analytics, sdk).",
+  "workspaces": [
+    "api",
+    "auth",
+    "analytics",
+    "sdk"
+  ],
+  "scripts": {
+    "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
+    "clean": "rm -rf */dist */*.tsbuildinfo",
+    "typecheck": "tsc --noEmit -p tsconfig.base.json",
+    "publish:all": "npm -w @lacspace/api publish --access public && npm -w @lacspace/auth publish --access public && npm -w @lacspace/analytics publish --access public && npm -w @lacspace/sdk publish --access public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

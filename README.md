@@ -38,6 +38,15 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 | [`@lacspace/nepali-date`](./nepali-date) | [![v](https://img.shields.io/npm/v/@lacspace/nepali-date?label=%20)](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat ↔ Gregorian dates, Nepali formatting |
 | [`@lacspace/nepali-utils`](./nepali-utils) | [![v](https://img.shields.io/npm/v/@lacspace/nepali-utils?label=%20)](https://www.npmjs.com/package/@lacspace/nepali-utils) | NPR formatting, amount-in-words, validators, provinces |
 
+### StockKit — build stock-market software fast (powers [StockYatra](https://stockyatra.com))
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@lacspace/indicators`](./indicators) | [![v](https://img.shields.io/npm/v/@lacspace/indicators?label=%20)](https://www.npmjs.com/package/@lacspace/indicators) | Streaming technical indicators (RSI/MACD/Bollinger/Supertrend…) — O(1) per tick |
+| [`@lacspace/market`](./market) | [![v](https://img.shields.io/npm/v/@lacspace/market?label=%20)](https://www.npmjs.com/package/@lacspace/market) | P&L, CAGR, XIRR, position sizing + Indian brokerage & charges calculator |
+| [`@lacspace/market-clock`](./market-clock) | [![v](https://img.shields.io/npm/v/@lacspace/market-clock?label=%20)](https://www.npmjs.com/package/@lacspace/market-clock) | Holiday-aware NSE/BSE trading clock — is the market open? next open/close |
+| [`@lacspace/paper-trade`](./paper-trade) | [![v](https://img.shields.io/npm/v/@lacspace/paper-trade?label=%20)](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine — wallet, orders, positions, live P&L |
+
 ## 🚀 30-second example
 
 ```bash
@@ -64,6 +73,24 @@ new NepaliDate().formatNepali(); // "२०८३ भदौ ६, शनिबा
 formatNPR(1234567.5);            // "Rs. 12,34,567.50"
 ```
 
+And a taste of StockKit:
+
+```ts
+import { RSI } from "@lacspace/indicators";
+import { charges } from "@lacspace/market";
+import { PaperAccount } from "@lacspace/paper-trade";
+
+const rsi = new RSI(14);
+ticks.forEach((p) => rsi.next(p));           // O(1) per live tick
+charges({ segment: "intraday", buy: 100, sell: 102, qty: 500 }).netPnl; // 946.34
+
+const acct = new PaperAccount({ cash: 100000 });
+acct.mark({ RELIANCE: 2900 });
+acct.buy("RELIANCE", { qty: 10 });
+acct.mark({ RELIANCE: 2950 });
+acct.unrealizedPnl;                          // 500
+```
+
 ## ✨ Why these packages
 
 - **Zero runtime dependencies** in the core — built on the platform `fetch`. Tiny installs, clean supply chain.
@@ -82,6 +109,7 @@ cd npm-packages
 npm install     # links the workspace packages
 npm run build   # core: api → auth → analytics → sdk
 npm run build:new   # nepali-date, nepali-utils, react
+npm run build:stock # indicators, market, market-clock, paper-trade
 ```
 
 ## 🌐 Links

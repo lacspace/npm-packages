@@ -7,10 +7,14 @@
     "api",
     "auth",
     "analytics",
-    "sdk"
+    "sdk",
+    "nepali-date",
+    "nepali-utils",
+    "react"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
+    "build:new": "npm -w @lacspace/nepali-date run build && npm -w @lacspace/nepali-utils run build && npm -w @lacspace/react run build",
     "clean": "rm -rf */dist */*.tsbuildinfo",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "publish:all": "npm -w @lacspace/api publish --access public && npm -w @lacspace/auth publish --access public && npm -w @lacspace/analytics publish --access public && npm -w @lacspace/sdk publish --access public"

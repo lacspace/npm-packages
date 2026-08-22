@@ -1,15 +1,26 @@
+<div align="center">
+
 # @lacspace/analytics
 
-[![npm](https://img.shields.io/npm/v/@lacspace/analytics.svg)](https://www.npmjs.com/package/@lacspace/analytics) [![license](https://img.shields.io/npm/l/@lacspace/analytics.svg)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+**Event tracking for Lacspace platforms — fire instantly, or queue and flush in one batch.**
 
-Event tracking for Lacspace platforms. Send events one at a time, or **queue them and flush in a single batch** — handy for reducing requests and for offline-first apps. Built on [`@lacspace/api`](https://www.npmjs.com/package/@lacspace/api).
+[![npm version](https://img.shields.io/npm/v/@lacspace/analytics?color=%230b76ef&label=npm)](https://www.npmjs.com/package/@lacspace/analytics)
+[![install size](https://packagephobia.com/badge?p=@lacspace/analytics)](https://packagephobia.com/result?p=@lacspace/analytics)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/analytics?label=minzip)](https://bundlephobia.com/package/@lacspace/analytics)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/analytics)
+[![license](https://img.shields.io/npm/l/@lacspace/analytics?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
+</div>
+
+> Track one event at a time, or batch many into a single request — great for offline-first apps and cutting network chatter.
+
+- 📊 `track` · `queueEvent` · `flush` · `batch`
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
 ## Install
 
 ```bash
-npm install @lacspace/analytics
+npm install @lacspace/analytics      # or pnpm add / yarn add / bun add
 ```
 
 ## Quick start
@@ -19,32 +30,30 @@ import { LacspaceAnalytics } from "@lacspace/analytics";
 
 const analytics = new LacspaceAnalytics({ baseURL: "https://api.lacspace.com/api" });
 
-// Send one event right away
 await analytics.track("product_viewed", { id: "p_123", price: 499 });
 ```
 
-## Batching with the queue
+## Recipes
 
-Collect events cheaply (no network), then send them all at once:
+**Batch cheaply, send once**
 
 ```ts
 analytics.queueEvent("page_view", { path: "/tea" });
 analytics.queueEvent("scroll", { depth: 0.5 });
 analytics.queueEvent("add_to_cart", { id: "p_123" });
 
-console.log(analytics.pending); // 3
-
-await analytics.flush(); // one batched request; queue is cleared
+analytics.pending;   // 3
+await analytics.flush(); // one request, queue cleared
 ```
 
-A common pattern — flush periodically and before the page unloads:
+**Flush on a timer and before the page unloads**
 
 ```ts
 setInterval(() => analytics.flush(), 10_000);
 window.addEventListener("beforeunload", () => analytics.flush());
 ```
 
-## Send an explicit batch
+**Send an explicit batch**
 
 ```ts
 await analytics.batch([
@@ -53,43 +62,30 @@ await analytics.batch([
 ]);
 ```
 
-## Share one client (authenticated events)
-
-Reuse an authenticated `api` instance so events are tied to the logged-in user:
+**Tie events to the signed-in user** — reuse an authenticated client
 
 ```ts
 import { LacspaceApi } from "@lacspace/api";
-import { LacspaceAnalytics } from "@lacspace/analytics";
-
 const api = new LacspaceApi({ baseURL, apiKey: userToken });
 const analytics = new LacspaceAnalytics({ api });
 ```
 
-> Using [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk)? It exposes this as `sdk.analytics` with the shared client already wired up.
+> With [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) this is `sdk.analytics`, already wired to your session.
 
-## Custom endpoints
+## API
 
-```ts
-const analytics = new LacspaceAnalytics({
-  baseURL,
-  endpoints: { track: "v2/events", batch: "v2/events/batch" },
-});
-```
+`track(name, data?)` · `queueEvent(name, data?)` (chainable) · `flush()` · `batch(events)` · `pending` · `analytics.api`. Every event is stamped with a `ts` (epoch ms). Custom routes via `endpoints: { track, batch }`.
 
-Defaults: `analytics/events` (single) and `analytics/batch` (batch).
+## The Lacspace family
 
-## API reference
+| Package | For |
+| --- | --- |
+| [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Everything in one client |
+| [`@lacspace/api`](https://www.npmjs.com/package/@lacspace/api) | The core HTTP client |
+| [`@lacspace/auth`](https://www.npmjs.com/package/@lacspace/auth) | Login, register, tokens |
+| **`@lacspace/analytics`** | Event tracking (this package) |
+| [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
+| [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
+| [`@lacspace/nepali-utils`](https://www.npmjs.com/package/@lacspace/nepali-utils) | Nepal helpers |
 
-- `new LacspaceAnalytics(options?)` — accepts everything `LacspaceApi` does, plus `api?` and `endpoints?`
-- `track(name, data?)` → sends one event immediately
-- `queueEvent(name, data?)` → adds to the in-memory queue (chainable)
-- `flush()` → sends the whole queue as one batch, then clears it
-- `batch(events)` → sends an explicit array of events
-- `pending` → number of queued events
-- `analytics.api` — the underlying `LacspaceApi`
-
-Every event is stamped with a `ts` (epoch ms) automatically.
-
-## License
-
-MIT © [Lacspace](https://lacspace.com)
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

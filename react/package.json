@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React hooks and provider for the Lacspace SDK — useAuth, useQuery, useLacspace.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,13 +18,22 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["lacspace", "react", "hooks", "sdk", "useauth", "typescript"],
+  "keywords": [
+    "lacspace",
+    "react",
+    "hooks",
+    "sdk",
+    "useauth",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "MIT",
   "homepage": "https://lacspace.com",

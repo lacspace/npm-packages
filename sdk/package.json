@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sdk",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "High-level TypeScript SDK for Lacspace — api, auth, analytics and e-commerce in one client.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,13 +18,22 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["lacspace", "sdk", "ecommerce", "auth", "analytics", "typescript"],
+  "keywords": [
+    "lacspace",
+    "sdk",
+    "ecommerce",
+    "auth",
+    "analytics",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "MIT",
   "homepage": "https://lacspace.com",

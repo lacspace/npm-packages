@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,13 +18,22 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["lacspace", "auth", "authentication", "login", "jwt", "typescript"],
+  "keywords": [
+    "lacspace",
+    "auth",
+    "authentication",
+    "login",
+    "jwt",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "MIT",
   "homepage": "https://lacspace.com",

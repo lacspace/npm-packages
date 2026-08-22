@@ -1,13 +1,30 @@
+<div align="center">
+
 # @lacspace/nepali-utils
 
-[![npm](https://img.shields.io/npm/v/@lacspace/nepali-utils.svg)](https://www.npmjs.com/package/@lacspace/nepali-utils) [![license](https://img.shields.io/npm/l/@lacspace/nepali-utils.svg)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+**Everyday helpers for Nepal-facing apps — rupees, numerals, amount-in-words, validators, provinces.**
 
-Everyday helpers for building Nepal-facing apps: NPR currency formatting with the South-Asian (lakh/crore) grouping, Devanagari numerals, amount-in-words for invoices, common validators, and province data. Zero dependencies, isomorphic, fully typed.
+[![npm version](https://img.shields.io/npm/v/@lacspace/nepali-utils?color=%23f59e0b&label=npm)](https://www.npmjs.com/package/@lacspace/nepali-utils)
+[![install size](https://packagephobia.com/badge?p=@lacspace/nepali-utils)](https://packagephobia.com/result?p=@lacspace/nepali-utils)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/nepali-utils?label=minzip)](https://bundlephobia.com/package/@lacspace/nepali-utils)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/nepali-utils)
+[![license](https://img.shields.io/npm/l/@lacspace/nepali-utils?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> The little things every Nepali app re-implements — done once, done right.
+
+- 💰 NPR formatting with **lakh/crore** grouping
+- 🔢 Devanagari ↔ Arabic numerals
+- 🧾 Amount-in-words for invoices
+- ✅ Phone / PAN validators
+- 🗺️ The 7 federal provinces
+- ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
 ## Install
 
 ```bash
-npm install @lacspace/nepali-utils
+npm install @lacspace/nepali-utils      # or pnpm add / yarn add / bun add
 ```
 
 ## Currency & numbers
@@ -15,13 +32,13 @@ npm install @lacspace/nepali-utils
 ```ts
 import { formatNPR, groupNepali, toDevanagari, fromDevanagari } from "@lacspace/nepali-utils";
 
-formatNPR(1234567.5);                       // "Rs. 12,34,567.50"
-formatNPR(1234567.5, { symbol: "रू " , devanagari: true }); // "रू १२,३४,५६७.५०"
-formatNPR(50000, { decimals: 0, symbol: "" });             // "50,000"
+formatNPR(1234567.5);                                    // "Rs. 12,34,567.50"
+formatNPR(1234567.5, { symbol: "रू ", devanagari: true }); // "रू १२,३४,५६७.५०"
+formatNPR(50000, { decimals: 0, symbol: "" });           // "50,000"
 
-groupNepali(1234567);      // "12,34,567"  (South-Asian grouping)
-toDevanagari("2081");      // "२०८१"
-fromDevanagari("२०८१");    // "2081"
+groupNepali(1234567);   // "12,34,567"  (South-Asian grouping)
+toDevanagari("2081");   // "२०८१"
+fromDevanagari("२०८१"); // "2081"
 ```
 
 ## Amount in words (for invoices)
@@ -44,7 +61,6 @@ import { isValidNepaliMobile, isValidPAN } from "@lacspace/nepali-utils";
 isValidNepaliMobile("9812345678");     // true
 isValidNepaliMobile("+9779812345678"); // true
 isValidNepaliMobile("1234567890");     // false
-
 isValidPAN("123456789");               // true (9 digits)
 ```
 
@@ -61,14 +77,21 @@ PROVINCES[2];
 
 | Function | Description |
 | --- | --- |
-| `formatNPR(amount, opts?)` | NPR currency string; opts: `symbol`, `decimals`, `devanagari` |
+| `formatNPR(amount, opts?)` | NPR string · opts: `symbol`, `decimals`, `devanagari` |
 | `groupNepali(value)` | South-Asian digit grouping |
-| `toDevanagari(x)` / `fromDevanagari(x)` | numeral conversion |
-| `numberToWords(n)` | South-Asian words (Lakh/Crore/Arab) |
-| `amountInWords(n)` | "Rupees … only" wrapper |
-| `isValidNepaliMobile(s)` / `isValidPAN(s)` | validators |
+| `toDevanagari` / `fromDevanagari` | numeral conversion |
+| `numberToWords(n)` | words with Lakh / Crore / Arab |
+| `amountInWords(n)` | "Rupees … Only" wrapper |
+| `isValidNepaliMobile` / `isValidPAN` | validators |
 | `PROVINCES` | the 7 federal provinces |
 
-## License
+## The Lacspace family
 
-MIT © [Lacspace](https://lacspace.com)
+| Package | For |
+| --- | --- |
+| [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
+| **`@lacspace/nepali-utils`** | Nepal helpers (this package) |
+| [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Full Lacspace platform SDK |
+| [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
+
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/analytics",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Event tracking for Lacspace platforms — batching and an offline queue.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,13 +18,21 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["lacspace", "analytics", "tracking", "events", "typescript"],
+  "keywords": [
+    "lacspace",
+    "analytics",
+    "tracking",
+    "events",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "MIT",
   "homepage": "https://lacspace.com",

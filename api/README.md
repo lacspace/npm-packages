@@ -1,20 +1,32 @@
+<div align="center">
+
 # @lacspace/api
 
-[![npm](https://img.shields.io/npm/v/@lacspace/api.svg)](https://www.npmjs.com/package/@lacspace/api) [![license](https://img.shields.io/npm/l/@lacspace/api.svg)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+**The tiny, typed HTTP client for Lacspace APIs — built on `fetch`, runs everywhere.**
 
-The core HTTP client for Lacspace APIs — and the foundation the other `@lacspace` packages build on.
+[![npm version](https://img.shields.io/npm/v/@lacspace/api?color=%230b76ef&label=npm)](https://www.npmjs.com/package/@lacspace/api)
+[![install size](https://packagephobia.com/badge?p=@lacspace/api)](https://packagephobia.com/result?p=@lacspace/api)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/api?label=minzip)](https://bundlephobia.com/package/@lacspace/api)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/api)
+[![license](https://img.shields.io/npm/l/@lacspace/api?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
-- ⚡ **Zero dependencies** — built on the platform `fetch`
+</div>
+
+> The foundation the whole `@lacspace` family is built on. If you only need to call the API, this is all you need.
+
+- ⚡ **Zero dependencies** — nothing but the platform `fetch`
 - 🌍 **Isomorphic** — Node 18+, browsers, edge, React Native, any bundler
-- 📦 **Dual ESM + CJS** with full TypeScript types
-- 🎯 **Typed responses** — `get<Product[]>()` returns `Product[]`
-- 🧯 **Predictable errors** — non-2xx throws `LacspaceApiError`
+- 🧠 **Typed responses** — `api.get<Product[]>()` gives you back `Product[]`
+- 🧯 **Predictable errors** — every non-2xx throws a `LacspaceApiError`
+- 📦 **Dual ESM + CJS** with a proper `exports` map
 
 ## Install
 
 ```bash
-npm install @lacspace/api
-# pnpm add @lacspace/api · yarn add @lacspace/api · bun add @lacspace/api
+npm  install @lacspace/api      # npm
+pnpm add     @lacspace/api      # pnpm
+yarn add     @lacspace/api      # yarn
+bun  add     @lacspace/api      # bun
 ```
 
 ## Quick start
@@ -30,77 +42,44 @@ const api = new LacspaceApi({
 const products = await api.get<Product[]>("products");
 ```
 
-## Configuring
-
-Pass options directly:
+Prefer env vars? Set `LACSPACE_API_URL` / `LACSPACE_API_KEY` and construct with nothing:
 
 ```ts
-const api = new LacspaceApi({
-  baseURL: "https://api.lacspace.com/api", // required
-  apiKey: "your-token",                    // optional — sent as `Authorization: Bearer …`
-  headers: { "X-App": "storefront" },      // optional — merged into every request
-});
+const api = new LacspaceApi();
 ```
 
-…or set environment variables and construct with no arguments:
+## Recipes
 
-```bash
-LACSPACE_API_URL=https://api.lacspace.com/api
-LACSPACE_API_KEY=your-token
-```
+**All the verbs, fully typed**
 
 ```ts
-const api = new LacspaceApi(); // reads LACSPACE_API_URL / LACSPACE_API_KEY
-```
-
-| Option | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `baseURL` | `string` | `LACSPACE_API_URL` | **Required** (via option or env). |
-| `apiKey` | `string` | `LACSPACE_API_KEY` | Sent as a Bearer token when present. |
-| `headers` | `Record<string,string>` | `{}` | Merged into every request. |
-| `fetch` | `typeof fetch` | global `fetch` | Provide one for Node < 18 or tests. |
-
-## Making requests
-
-```ts
-// GET
-const user = await api.get<User>("users/me");
-
-// POST with a JSON body
-const order = await api.post<Order>("orders", { productId: "p_1", qty: 2 });
-
-// PUT / PATCH / DELETE
+const user   = await api.get<User>("users/me");
+const order  = await api.post<Order>("orders", { productId: "p_1", qty: 2 });
 await api.put<User>("users/me", { name: "Ada" });
 await api.patch<User>("users/me", { name: "Ada" });
 await api.delete<void>("orders/o_1");
+```
 
-// Per-request options (query string, signal, extra headers…)
+**Query strings, timeouts & signals** — the third arg is a standard `fetch` `RequestInit`
+
+```ts
 const results = await api.get<Product[]>("products?category=tea", {
   signal: AbortSignal.timeout(5000),
   headers: { "X-Trace": "abc" },
 });
-
-// Escape hatch for any method
-await api.request<Blob>("HEAD", "health");
 ```
 
-Every method returns the parsed JSON body, typed as whatever you pass in `<T>`.
-
-## Auth tokens at runtime
+**Set the token after login**
 
 ```ts
 const api = new LacspaceApi({ baseURL });
-
-api.setToken("token-from-login"); // apply a token later
-api.getToken();                   // read the current token
+api.setToken(tokenFromLogin); // every later request is now authenticated
 ```
 
-## Error handling
-
-Any non-2xx response throws a `LacspaceApiError`:
+**Handle errors precisely**
 
 ```ts
-import { LacspaceApi, LacspaceApiError } from "@lacspace/api";
+import { LacspaceApiError } from "@lacspace/api";
 
 try {
   await api.get("does-not-exist");
@@ -113,21 +92,27 @@ try {
 }
 ```
 
-## API reference
+## API
 
-- `new LacspaceApi(options?)`
-- `get<T>(path, init?)` · `post<T>(path, body?, init?)` · `put<T>(...)` · `patch<T>(...)` · `delete<T>(path, init?)`
-- `request<T>(method, path, body?, init?)` — low-level
-- `setToken(token)` · `getToken()`
-- `createApi(options?)` — factory equivalent to `new LacspaceApi(options)`
-- `LacspaceApiError` — `{ status, statusText, body }`
+| Member | Description |
+| --- | --- |
+| `new LacspaceApi(opts?)` | `{ baseURL?, apiKey?, headers?, fetch? }` |
+| `get/post/put/patch/delete<T>(path, …)` | typed requests |
+| `request<T>(method, path, body?, init?)` | low-level escape hatch |
+| `setToken(t)` · `getToken()` | manage the bearer token |
+| `createApi(opts?)` | factory for `new LacspaceApi(opts)` |
+| `LacspaceApiError` | `{ status, statusText, body }` |
 
-> `init` accepts anything the standard `fetch` `RequestInit` does (`signal`, `headers`, `cache`, …).
+## The Lacspace family
 
-## Related
+| Package | For |
+| --- | --- |
+| [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Everything below in one client |
+| **`@lacspace/api`** | The core HTTP client (this package) |
+| [`@lacspace/auth`](https://www.npmjs.com/package/@lacspace/auth) | Login, register, tokens |
+| [`@lacspace/analytics`](https://www.npmjs.com/package/@lacspace/analytics) | Event tracking |
+| [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
+| [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
+| [`@lacspace/nepali-utils`](https://www.npmjs.com/package/@lacspace/nepali-utils) | Nepal helpers |
 
-Part of the [Lacspace packages](https://github.com/lacspace/npm-packages) family — see [`@lacspace/auth`](https://www.npmjs.com/package/@lacspace/auth), [`@lacspace/analytics`](https://www.npmjs.com/package/@lacspace/analytics), and [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk).
-
-## License
-
-MIT © [Lacspace](https://lacspace.com)
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

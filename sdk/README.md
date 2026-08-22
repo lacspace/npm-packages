@@ -1,17 +1,26 @@
+<div align="center">
+
 # @lacspace/sdk
 
-[![npm](https://img.shields.io/npm/v/@lacspace/sdk.svg)](https://www.npmjs.com/package/@lacspace/sdk) [![license](https://img.shields.io/npm/l/@lacspace/sdk.svg)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+**One client for the whole Lacspace platform — auth, analytics, e-commerce and raw API, sharing a single connection.**
 
-The all-in-one TypeScript SDK for Lacspace. One client that bundles [`@lacspace/api`](https://www.npmjs.com/package/@lacspace/api), [`@lacspace/auth`](https://www.npmjs.com/package/@lacspace/auth), and [`@lacspace/analytics`](https://www.npmjs.com/package/@lacspace/analytics) — all sharing a single connection, so a login token instantly applies to every call — plus handy e-commerce helpers.
+[![npm version](https://img.shields.io/npm/v/@lacspace/sdk?color=%230b76ef&label=npm)](https://www.npmjs.com/package/@lacspace/sdk)
+[![install size](https://packagephobia.com/badge?p=@lacspace/sdk)](https://packagephobia.com/result?p=@lacspace/sdk)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/sdk?label=minzip)](https://bundlephobia.com/package/@lacspace/sdk)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/sdk)
+[![license](https://img.shields.io/npm/l/@lacspace/sdk?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
-**Start here if you're not sure which package to use.**
+</div>
 
+> **Not sure which package to use? Start here.** The SDK bundles `@lacspace/api`, `@lacspace/auth` and `@lacspace/analytics` behind one client — so a login token instantly applies to every call — and adds e-commerce helpers on top.
+
+- 🎯 **One instance, one token** — sign in once, everything's authenticated
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
 ## Install
 
 ```bash
-npm install @lacspace/sdk
+npm  install @lacspace/sdk      # or pnpm add / yarn add / bun add
 ```
 
 ## Quick start
@@ -21,58 +30,32 @@ import { LacspaceSDK } from "@lacspace/sdk";
 
 const lac = new LacspaceSDK({ baseURL: "https://api.lacspace.com/api" });
 
-// 1. Authenticate — the token is stored and reused everywhere
+// 1 · Authenticate — the token is stored and reused everywhere
 const { user } = await lac.auth.login({ email: "you@shop.com", password: "••••••••" });
 
-// 2. Use e-commerce helpers
+// 2 · E-commerce helpers
 const products = await lac.ecommerce.getProducts();
 await lac.ecommerce.addToCart({ productId: products[0]!.id, quantity: 1 });
 const { orderId } = await lac.ecommerce.checkout("cart_123");
 
-// 3. Track what happened
+// 3 · Track what happened
 await lac.analytics.track("checkout_completed", { orderId });
 ```
 
 ## What's on the client
 
 ```ts
-const lac = new LacspaceSDK({ baseURL });
-
-lac.auth        // → LacspaceAuth      (login, register, me, logout, refresh)
-lac.analytics   // → LacspaceAnalytics (track, queueEvent, flush, batch)
-lac.ecommerce   // → e-commerce helpers (below)
-lac.api         // → LacspaceApi       (raw client for any endpoint)
+lac.auth        // login, register, me, logout, refresh
+lac.analytics   // track, queueEvent, flush, batch
+lac.ecommerce   // getProducts, getProduct, addToCart, checkout
+lac.api         // the raw typed client for any endpoint
 ```
 
-Because they share one `api` instance, `lac.auth.login(...)` authenticates `lac.analytics` and `lac.ecommerce` too — automatically.
+Because they share one `api` instance, `lac.auth.login()` authenticates `analytics` and `ecommerce` too — automatically.
 
-### E-commerce helpers
+## Recipes
 
-```ts
-await lac.ecommerce.getProducts();          // Product[]
-await lac.ecommerce.getProduct("p_123");    // Product
-await lac.ecommerce.addToCart({ productId: "p_123", quantity: 2 });
-await lac.ecommerce.checkout("cart_123");   // { orderId }
-```
-
-### Anything else → drop to the raw client
-
-```ts
-const invoices = await lac.api.get("billing/invoices");
-await lac.api.post("support/tickets", { subject: "Help" });
-```
-
-## Configuration
-
-```ts
-const lac = new LacspaceSDK({
-  baseURL: "https://api.lacspace.com/api", // required (or LACSPACE_API_URL)
-  apiKey: "server-side-key",               // optional (or LACSPACE_API_KEY)
-  headers: { "X-App": "web" },             // optional
-});
-```
-
-## Example: a tiny React login hook
+**A tiny React login hook**
 
 ```tsx
 import { useState } from "react";
@@ -94,29 +77,40 @@ export function useLogin() {
 }
 ```
 
-## Error handling
+> Building in React? [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) gives you `useAuth`, `useQuery` and a provider out of the box.
 
-Any non-2xx response throws `LacspaceApiError` (re-exported here):
+**Anything the helpers don't cover → drop to the raw client**
 
 ```ts
-import { LacspaceApiError } from "@lacspace/sdk";
-
-try {
-  await lac.ecommerce.checkout("cart_123");
-} catch (e) {
-  if (e instanceof LacspaceApiError) console.error(e.status, e.body);
-}
+const invoices = await lac.api.get("billing/invoices");
+await lac.api.post("support/tickets", { subject: "Help" });
 ```
 
-## Re-exports
+**Server-side with an API key**
 
-Everything from `@lacspace/api`, `@lacspace/auth`, and `@lacspace/analytics` is re-exported from this package, so you can import types and classes from one place:
+```ts
+const lac = new LacspaceSDK({ baseURL, apiKey: process.env.LACSPACE_API_KEY });
+```
+
+## One import for everything
+
+Every type and class from `api`, `auth` and `analytics` is re-exported here:
 
 ```ts
 import { LacspaceSDK, LacspaceApi, LacspaceAuth, LacspaceAnalytics, LacspaceApiError } from "@lacspace/sdk";
 import type { Product, LacspaceUser, AnalyticsEvent } from "@lacspace/sdk";
 ```
 
-## License
+## The Lacspace family
 
-MIT © [Lacspace](https://lacspace.com)
+| Package | For |
+| --- | --- |
+| **`@lacspace/sdk`** | Everything in one client (this package) |
+| [`@lacspace/api`](https://www.npmjs.com/package/@lacspace/api) | The core HTTP client |
+| [`@lacspace/auth`](https://www.npmjs.com/package/@lacspace/auth) | Login, register, tokens |
+| [`@lacspace/analytics`](https://www.npmjs.com/package/@lacspace/analytics) | Event tracking |
+| [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
+| [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat dates |
+| [`@lacspace/nepali-utils`](https://www.npmjs.com/package/@lacspace/nepali-utils) | Nepal helpers |
+
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

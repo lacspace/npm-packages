@@ -29,7 +29,16 @@
     "llms-txt",
     "site-verify",
     "rss",
-    "slugify"
+    "slugify",
+    "crypto",
+    "password",
+    "jwt",
+    "apikey",
+    "lock",
+    "headers",
+    "redact",
+    "mfa",
+    "webauthn"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
@@ -38,12 +47,14 @@
     "build:mail": "npm -w @lacspace/email-validate run build && npm -w @lacspace/email-templates run build && npm -w @lacspace/mailer run build && npm -w @lacspace/email-verify run build",
     "build:web": "npm -w @lacspace/seo run build && npm -w @lacspace/env run build && npm -w @lacspace/rate-limit run build && npm -w @lacspace/otp run build && npm -w @lacspace/next run build",
     "build:seokit": "npm -w @lacspace/sitemap run build && npm -w @lacspace/robots run build && npm -w @lacspace/llms-txt run build && npm -w @lacspace/site-verify run build && npm -w @lacspace/rss run build && npm -w @lacspace/slugify run build",
+    "build:sec": "npm -w @lacspace/crypto run build && npm -w @lacspace/password run build && npm -w @lacspace/jwt run build && npm -w @lacspace/apikey run build && npm -w @lacspace/lock run build && npm -w @lacspace/headers run build && npm -w @lacspace/redact run build && npm -w @lacspace/mfa run build && npm -w @lacspace/webauthn run build",
     "clean": "rm -rf */dist */*.tsbuildinfo",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "publish:stock": "npm -w @lacspace/indicators publish --access public && npm -w @lacspace/market publish --access public && npm -w @lacspace/market-clock publish --access public && npm -w @lacspace/paper-trade publish --access public",
     "publish:mail": "npm -w @lacspace/email-validate publish --access public && npm -w @lacspace/email-templates publish --access public && npm -w @lacspace/mailer publish --access public && npm -w @lacspace/email-verify publish --access public",
     "publish:web": "npm -w @lacspace/seo publish --access public && npm -w @lacspace/env publish --access public && npm -w @lacspace/rate-limit publish --access public && npm -w @lacspace/otp publish --access public && npm -w @lacspace/next publish --access public",
-    "publish:seokit": "npm -w @lacspace/sitemap publish --access public && npm -w @lacspace/robots publish --access public && npm -w @lacspace/llms-txt publish --access public && npm -w @lacspace/site-verify publish --access public && npm -w @lacspace/rss publish --access public && npm -w @lacspace/slugify publish --access public"
+    "publish:seokit": "npm -w @lacspace/sitemap publish --access public && npm -w @lacspace/robots publish --access public && npm -w @lacspace/llms-txt publish --access public && npm -w @lacspace/site-verify publish --access public && npm -w @lacspace/rss publish --access public && npm -w @lacspace/slugify publish --access public",
+    "publish:sec": "npm -w @lacspace/crypto publish --access public && npm -w @lacspace/password publish --access public && npm -w @lacspace/jwt publish --access public && npm -w @lacspace/apikey publish --access public && npm -w @lacspace/lock publish --access public && npm -w @lacspace/headers publish --access public && npm -w @lacspace/redact publish --access public && npm -w @lacspace/mfa publish --access public && npm -w @lacspace/webauthn publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

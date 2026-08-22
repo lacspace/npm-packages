@@ -94,6 +94,36 @@ PROVINCES[2];
 | [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Full Lacspace platform SDK |
 | [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
 
+## New in 1.1 — land units, carriers, districts & Nepali words
+
+```ts
+import {
+  landToSqMeters, sqMetersToRopani, convertLand, formatRopani,
+  normalizeMobile, getCarrier, ungroupNepali, formatCompactNPR,
+  DISTRICTS, districtsByProvince, findDistrict,
+  numberToWordsNepali, amountInWordsNepali,
+} from "@lacspace/nepali-utils";
+
+// Land area — the thing nobody else packages (hilly ↔ terai ↔ metric)
+const m2 = landToSqMeters({ ropani: 2, aana: 3 });   // → 1078.9 m²
+sqMetersToRopani(m2);                                  // { ropani: 2, aana: 3, paisa: 0, daam: 0 }
+convertLand(1, "bigha", "kattha");                    // 20
+formatRopani(m2);                                      // "2-3-0-0"
+
+// Phones
+normalizeMobile("984-123 4567");                       // "+9779841234567"
+getCarrier("9801234567");                              // "Ncell"
+
+// Money & geography
+ungroupNepali("Rs. 12,34,567.50");                     // 1234567.5
+formatCompactNPR(1234567, { nepali: true });           // "Rs. 12.35 लाख"
+districtsByProvince(3);                                 // 13 Bagmati districts
+findDistrict("काठमाडौं")?.province;                    // 3
+
+// Invoices in Nepali
+amountInWordsNepali(1500.5);  // "रुपैयाँ एक हजार पाँच सय पचास पैसा मात्र"
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -95,6 +95,30 @@ Dates are handled by their **local** calendar parts. Build AD dates with `new Da
 | [`@lacspace/sdk`](https://www.npmjs.com/package/@lacspace/sdk) | Full Lacspace platform SDK |
 | [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) | React hooks |
 
+## New in 1.1 — a full date toolkit
+
+```ts
+import { NepaliDate } from "@lacspace/nepali-date";
+
+const d = NepaliDate.fromBS(2081, 3, 15);
+
+// arithmetic & comparison
+d.addDays(10); d.addMonths(1); d.addYears(-1);
+d.diff(other, "months");
+d.isBefore(other); d.isSame(other, "month"); d.isToday();
+
+// calendar grid for a month view (weeks of Sun–Sat, null padding)
+for (const week of d.getMonthMatrix())
+  for (const cell of week) if (cell) render(cell.day, cell.isToday);
+
+// parse, relative time, ranges, fiscal year
+NepaliDate.parse("2081-03-15");        // also accepts २०८१/०३/१५
+d.fromNow({ nepali: true });           // "३ दिन अघि"
+d.fiscalYearLabel();                    // "2080/81" (Shrawan→Ashadh)
+for (const day of NepaliDate.eachDay(start, end)) { /* … */ }
+NepaliDate.daysInMonth(2081, 3);       // 32
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -161,6 +161,194 @@ export class NepaliDate {
     return { ...this.bs };
   }
 
+  /* ------------------------------ queries ------------------------------ */
+
+  /** Number of days in this BS month (28–32). */
+  daysInMonth(): number {
+    return daysInBsMonth(this.bs.year, this.bs.month);
+  }
+
+  /** Days in a given BS month. */
+  static daysInMonth(year: number, month: number): number {
+    assertInRange(year);
+    if (month < 1 || month > 12) throw new RangeError(`Month must be 1–12; got ${month}.`);
+    return daysInBsMonth(year, month);
+  }
+
+  /** True if `(year, month, day)` is a valid, in-range BS date. */
+  static isValid(year: number, month: number, day: number): boolean {
+    try {
+      if (month < 1 || month > 12) return false;
+      if (day < 1 || day > NepaliDate.daysInMonth(year, month)) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** True on Saturday (Nepal's weekly holiday). */
+  isSaturday(): boolean {
+    return this.getDay() === 6;
+  }
+
+  /** True on the Nepali weekend (Saturday). */
+  isWeekend(): boolean {
+    return this.isSaturday();
+  }
+
+  /** True if this date is today. */
+  isToday(): boolean {
+    return this.isSame(new NepaliDate(), "day");
+  }
+
+  /* ------------------------------ arithmetic ------------------------------ */
+
+  /** A new date `n` days from this one (n may be negative). */
+  addDays(n: number): NepaliDate {
+    const d = new Date(this.ad);
+    d.setDate(d.getDate() + n);
+    return NepaliDate.fromAD(d);
+  }
+
+  /** A new date `n` BS months away, clamping the day to the target month length. */
+  addMonths(n: number): NepaliDate {
+    const total = this.bs.year * 12 + (this.bs.month - 1) + n;
+    const year = Math.floor(total / 12);
+    const month = (total % 12) + 1;
+    const day = Math.min(this.bs.day, NepaliDate.daysInMonth(year, month));
+    return NepaliDate.fromBS(year, month, day);
+  }
+
+  /** A new date `n` BS years away (day clamped). */
+  addYears(n: number): NepaliDate {
+    return this.addMonths(n * 12);
+  }
+
+  /* ------------------------------ comparison ------------------------------ */
+
+  /** -1 if before `other`, 0 if same day, 1 if after. */
+  compare(other: NepaliDate): -1 | 0 | 1 {
+    const a = adDayIndex(this.ad);
+    const b = adDayIndex(other.ad);
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+
+  isBefore(other: NepaliDate): boolean {
+    return this.compare(other) < 0;
+  }
+  isAfter(other: NepaliDate): boolean {
+    return this.compare(other) > 0;
+  }
+
+  /** Equality at day / month / year granularity (default "day"). */
+  isSame(other: NepaliDate, unit: "day" | "month" | "year" = "day"): boolean {
+    if (unit === "year") return this.bs.year === other.bs.year;
+    if (unit === "month") return this.bs.year === other.bs.year && this.bs.month === other.bs.month;
+    return this.compare(other) === 0;
+  }
+
+  /** Difference from `other` in the given unit (this − other), truncated. */
+  diff(other: NepaliDate, unit: "days" | "weeks" | "months" | "years" = "days"): number {
+    const days = adDayIndex(this.ad) - adDayIndex(other.ad);
+    if (unit === "days") return days;
+    if (unit === "weeks") return Math.trunc(days / 7);
+    let months = (this.bs.year - other.bs.year) * 12 + (this.bs.month - other.bs.month);
+    if (months > 0 && this.bs.day < other.bs.day) months -= 1;
+    else if (months < 0 && this.bs.day > other.bs.day) months += 1;
+    return unit === "months" ? months : Math.trunc(months / 12);
+  }
+
+  /* ------------------------------ fiscal year ------------------------------ */
+
+  /** Nepali fiscal year (Shrawan 1 → Ashadh end): `{ start, end }` BS years. */
+  fiscalYear(): { start: number; end: number } {
+    // months 4..12 (Shrawan..Chaitra) → FY start = this year; 1..3 → start = last year
+    return this.bs.month >= 4
+      ? { start: this.bs.year, end: this.bs.year + 1 }
+      : { start: this.bs.year - 1, end: this.bs.year };
+  }
+
+  /** Fiscal-year label, e.g. "2081/82". */
+  fiscalYearLabel(): string {
+    const { start, end } = this.fiscalYear();
+    return `${start}/${String(end).slice(-2)}`;
+  }
+
+  /* ------------------------------ relative time ------------------------------ */
+
+  /** Human "time from now", e.g. "3 दिन अघि" / "in 2 months". */
+  fromNow(opts: { nepali?: boolean; now?: NepaliDate } = {}): string {
+    const now = opts.now ?? new NepaliDate();
+    const days = this.diff(now, "days");
+    const np = opts.nepali ?? false;
+    if (days === 0) return np ? "आज" : "today";
+    if (days === -1) return np ? "हिजो" : "yesterday";
+    if (days === 1) return np ? "भोलि" : "tomorrow";
+    const abs = Math.abs(days);
+    const past = days < 0;
+    let n: number;
+    let unitEn: string;
+    let unitNp: string;
+    if (abs < 30) {
+      n = abs;
+      unitEn = "day";
+      unitNp = "दिन";
+    } else if (abs < 365) {
+      n = Math.round(abs / 30);
+      unitEn = "month";
+      unitNp = "महिना";
+    } else {
+      n = Math.round(abs / 365);
+      unitEn = "year";
+      unitNp = "वर्ष";
+    }
+    if (np) return `${toDevanagari(n)} ${unitNp} ${past ? "अघि" : "पछि"}`;
+    return past ? `${n} ${unitEn}${n > 1 ? "s" : ""} ago` : `in ${n} ${unitEn}${n > 1 ? "s" : ""}`;
+  }
+
+  /* ------------------------------ calendar grid ------------------------------ */
+
+  /**
+   * Weeks (Sun–Sat) for this BS month, for calendar UIs. Cells outside the
+   * month are `null`; in-month cells carry the day and its `NepaliDate`.
+   */
+  getMonthMatrix(): ({ day: number; date: NepaliDate; isToday: boolean } | null)[][] {
+    const first = NepaliDate.fromBS(this.bs.year, this.bs.month, 1);
+    const lead = first.getDay(); // 0 = Sunday
+    const total = this.daysInMonth();
+    const today = new NepaliDate();
+    const cells: ({ day: number; date: NepaliDate; isToday: boolean } | null)[] = [];
+    for (let i = 0; i < lead; i++) cells.push(null);
+    for (let d = 1; d <= total; d++) {
+      const date = NepaliDate.fromBS(this.bs.year, this.bs.month, d);
+      cells.push({ day: d, date, isToday: date.isSame(today, "day") });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks: ({ day: number; date: NepaliDate; isToday: boolean } | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+  }
+
+  /* ------------------------------ parsing & ranges ------------------------------ */
+
+  /** Parse a BS date string ("2081-01-15", "२०८१/०१/१५", "2081.1.15"). */
+  static parse(input: string): NepaliDate {
+    const nums = fromDevanagari(input).match(/\d+/g);
+    if (!nums || nums.length < 3) throw new Error(`cannot parse BS date "${input}"`);
+    return NepaliDate.fromBS(Number(nums[0]), Number(nums[1]), Number(nums[2]));
+  }
+
+  /** Iterate each day from `start` to `end` (inclusive). */
+  static *eachDay(start: NepaliDate, end: NepaliDate): Generator<NepaliDate, void, unknown> {
+    const step = start.isAfter(end) ? -1 : 1;
+    let cur = start;
+    while (true) {
+      yield cur;
+      if (cur.isSame(end, "day")) break;
+      cur = cur.addDays(step);
+    }
+  }
+
   /**
    * Format with tokens: `YYYY` `YY` `MM` `M` `DD` `D` `MMMM` (month name)
    * `ddd`/`dddd` (weekday). Default: `YYYY-MM-DD`.

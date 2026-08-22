@@ -31,6 +31,16 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 | --- | --- | --- |
 | [`@lacspace/react`](./react) | [![v](https://img.shields.io/npm/v/@lacspace/react?label=%20)](https://www.npmjs.com/package/@lacspace/react) | `useAuth`, `useQuery`, `useLacspace` hooks + provider |
 
+### WebKit — for web apps & backends
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@lacspace/seo`](./seo) | [![v](https://img.shields.io/npm/v/@lacspace/seo?label=%20)](https://www.npmjs.com/package/@lacspace/seo) | Typed metadata + schema.org JSON-LD builders + Next.js Metadata helper |
+| [`@lacspace/env`](./env) | [![v](https://img.shields.io/npm/v/@lacspace/env?label=%20)](https://www.npmjs.com/package/@lacspace/env) | Typed, validated env variables — fail fast at boot (t3-env/envalid alternative) |
+| [`@lacspace/rate-limit`](./rate-limit) | [![v](https://img.shields.io/npm/v/@lacspace/rate-limit?label=%20)](https://www.npmjs.com/package/@lacspace/rate-limit) | Fixed/sliding/token-bucket rate limiting over a pluggable store |
+| [`@lacspace/otp`](./otp) | [![v](https://img.shields.io/npm/v/@lacspace/otp?label=%20)](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA over Web Crypto — Authenticator-compatible, otpauth:// URIs |
+| [`@lacspace/next`](./next) | [![v](https://img.shields.io/npm/v/@lacspace/next?label=%20)](https://www.npmjs.com/package/@lacspace/next) | Next.js App Router SDK integration — server client, route/action wrappers, guard |
+
 ### Nepal toolkit — useful to everyone, not just Lacspace
 
 | Package | Version | Description |
@@ -110,6 +120,16 @@ const mail = createMailer(presets.hostinger({ user: "no-reply@lacspace.com", pas
 await mail.send({ to: "user@x.com", subject: "Your code", html: otpEmail({ code: "482913", brandName: "Lacspace" }) });
 ```
 
+Typed env + 2FA in a backend:
+
+```ts
+import { createEnv, port, url } from "@lacspace/env";
+import { generateSecret, verifyTotp } from "@lacspace/otp";
+
+export const env = createEnv({ PORT: port({ default: 3000 }), DATABASE_URL: url() }); // fails fast if misconfigured
+const ok = await verifyTotp(userCode, userSecret); // ±1 step drift; null = invalid
+```
+
 ## ✨ Why these packages
 
 - **Zero runtime dependencies** in the core — built on the platform `fetch`. Tiny installs, clean supply chain.
@@ -130,6 +150,7 @@ npm run build   # core: api → auth → analytics → sdk
 npm run build:new   # nepali-date, nepali-utils, react
 npm run build:stock # indicators, market, market-clock, paper-trade
 npm run build:mail  # email-validate, email-templates, mailer, email-verify
+npm run build:web   # seo, env, rate-limit, otp, next
 ```
 
 ## 🌐 Links

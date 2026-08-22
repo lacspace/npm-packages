@@ -15,7 +15,8 @@
 > Build valid **schema.org** JSON-LD and Next.js App Router **`Metadata`** objects with typed one-liners. Autocomplete instead of guesswork; no malformed rich-results markup.
 
 - 🏷️ `seoMetadata()` → a Next `Metadata` object (title, description, canonical, OG, Twitter)
-- 🧩 JSON-LD builders: `organization` · `website` · `article` · `product` · `breadcrumb` · `faqPage` · `softwareApp`
+- 🧩 16 JSON-LD builders: `organization` · `website` · `article` · `product` · `breadcrumb` · `faqPage` · `softwareApp` · `localBusiness` · `event` · `person` · `review` · `videoObject` · `howTo` · `jobPosting` · `course` · `recipe`
+- 🌐 `hreflang()` for multilingual `alternates`
 - 🛡️ `jsonLdScript()` renders a safe `<script>` (escapes `</script>`)
 - ⚡ Zero dependencies · 🌍 isomorphic (any framework) · 📦 ESM + CJS · fully typed
 
@@ -78,16 +79,21 @@ breadcrumb([
 | `breadcrumb(items)` | BreadcrumbList |
 | `faqPage(items)` | FAQPage |
 | `softwareApp(o)` | SoftwareApplication |
+| `localBusiness` `event` `person` `review` | LocalBusiness / Event / Person / Review |
+| `videoObject` `howTo` `jobPosting` `course` `recipe` | VideoObject / HowTo / JobPosting / Course / Recipe |
 | `seoMetadata(input)` | Next.js `Metadata` |
+| `hreflang(map)` | `alternates.languages` for Next |
 
-## The Lacspace WebKit
+## The Lacspace SEO Kit
 
 | Package | For |
 | --- | --- |
 | **`@lacspace/seo`** | Metadata & JSON-LD (this package) |
-| [`@lacspace/env`](https://www.npmjs.com/package/@lacspace/env) | Typed env variables |
-| [`@lacspace/rate-limit`](https://www.npmjs.com/package/@lacspace/rate-limit) | Rate limiting |
-| [`@lacspace/otp`](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA |
-| [`@lacspace/next`](https://www.npmjs.com/package/@lacspace/next) | Next.js SDK integration |
+| [`@lacspace/sitemap`](https://www.npmjs.com/package/@lacspace/sitemap) | sitemap.xml |
+| [`@lacspace/robots`](https://www.npmjs.com/package/@lacspace/robots) | robots.txt |
+| [`@lacspace/llms-txt`](https://www.npmjs.com/package/@lacspace/llms-txt) | llms.txt / llms-full.txt |
+| [`@lacspace/site-verify`](https://www.npmjs.com/package/@lacspace/site-verify) | Search-engine verification |
+| [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
+| [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
 <div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

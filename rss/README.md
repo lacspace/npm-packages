@@ -1,0 +1,88 @@
+<div align="center">
+
+# @lacspace/rss
+
+**RSS 2.0, Atom 1.0 & JSON Feed 1.1 — one item set, three formats.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/rss?color=%2322c55e&label=npm)](https://www.npmjs.com/package/@lacspace/rss)
+[![install size](https://packagephobia.com/badge?p=@lacspace/rss)](https://packagephobia.com/result?p=@lacspace/rss)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/rss?label=minzip)](https://bundlephobia.com/package/@lacspace/rss)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/rss)
+[![license](https://img.shields.io/npm/l/@lacspace/rss?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> Define your feed and items once; emit valid **RSS 2.0**, **Atom 1.0** or **JSON Feed 1.1**. Proper escaping, `CDATA` content, correct dates, enclosures for podcasts. Great for blogs, changelogs and news.
+
+- 📡 `rss()` · `atom()` · `jsonFeed()` from the same input
+- 🧱 Full-content (`content:encoded`), categories, authors, enclosures
+- 🗓️ Correct `pubDate` (RFC-822) / `updated` (ISO-8601) handling
+- ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+## Install
+
+```bash
+npm install @lacspace/rss      # or pnpm add / yarn add / bun add
+```
+
+## Usage
+
+```ts
+import { rss, atom, jsonFeed } from "@lacspace/rss";
+
+const feed = {
+  title: "Lacspace Blog",
+  link: "https://lacspace.com/blog",
+  description: "Product updates and engineering notes.",
+  feedUrl: "https://lacspace.com/rss.xml",
+  language: "en",
+};
+
+const items = [
+  {
+    title: "Launching the SEO Kit",
+    link: "https://lacspace.com/blog/seo-kit",
+    content: "<p>Six new packages…</p>",
+    author: "Lumi AI",
+    date: new Date("2026-08-22"),
+    categories: ["release"],
+  },
+];
+
+rss(feed, items);       // RSS 2.0 XML string
+atom(feed, items);      // Atom 1.0 XML string
+jsonFeed(feed, items);  // JSON Feed 1.1 object
+```
+
+## Serve it (Next.js Route Handler)
+
+```ts
+// app/rss.xml/route.ts
+import { rss } from "@lacspace/rss";
+
+export function GET() {
+  return new Response(rss(feed, items), {
+    headers: { "Content-Type": "application/rss+xml; charset=utf-8" },
+  });
+}
+```
+
+## Podcast enclosure
+
+```ts
+{ title: "Episode 1", link: "…", enclosure: { url: "https://…/ep1.mp3", type: "audio/mpeg", length: 12345678 } }
+```
+
+## The Lacspace SEO Kit
+
+| Package | For |
+| --- | --- |
+| [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) | Metadata & JSON-LD |
+| [`@lacspace/sitemap`](https://www.npmjs.com/package/@lacspace/sitemap) | sitemap.xml |
+| [`@lacspace/robots`](https://www.npmjs.com/package/@lacspace/robots) | robots.txt |
+| [`@lacspace/llms-txt`](https://www.npmjs.com/package/@lacspace/llms-txt) | llms.txt / llms-full.txt |
+| [`@lacspace/site-verify`](https://www.npmjs.com/package/@lacspace/site-verify) | Search-engine verification |
+| **`@lacspace/rss`** | RSS / Atom / JSON feeds (this package) |
+| [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
+
+<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · MIT licensed · <a href="https://github.com/lacspace/npm-packages">source</a></sub></div>

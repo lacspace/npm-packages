@@ -287,6 +287,297 @@ export function softwareApp(o: SoftwareAppInput): Json {
   });
 }
 
+export interface PostalAddress {
+  street?: string;
+  locality?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+function addressNode(a?: PostalAddress): Json | undefined {
+  if (!a) return undefined;
+  return clean({
+    "@type": "PostalAddress",
+    streetAddress: a.street,
+    addressLocality: a.locality,
+    addressRegion: a.region,
+    postalCode: a.postalCode,
+    addressCountry: a.country,
+  });
+}
+
+export interface LocalBusinessInput {
+  name: string;
+  url?: string;
+  image?: string;
+  telephone?: string;
+  priceRange?: string;
+  address?: PostalAddress;
+  geo?: { latitude: number; longitude: number };
+  openingHours?: string[];
+  rating?: { value: number; count: number };
+}
+
+export function localBusiness(o: LocalBusinessInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: o.name,
+    url: o.url,
+    image: o.image,
+    telephone: o.telephone,
+    priceRange: o.priceRange,
+    address: addressNode(o.address),
+    geo: o.geo
+      ? { "@type": "GeoCoordinates", latitude: o.geo.latitude, longitude: o.geo.longitude }
+      : undefined,
+    openingHours: o.openingHours,
+    aggregateRating: o.rating
+      ? { "@type": "AggregateRating", ratingValue: o.rating.value, reviewCount: o.rating.count }
+      : undefined,
+  });
+}
+
+export interface EventInput {
+  name: string;
+  startDate: string;
+  endDate?: string;
+  description?: string;
+  image?: string;
+  url?: string;
+  location?: { name?: string; address?: PostalAddress; url?: string };
+  online?: boolean;
+  offers?: { price: number | string; currency: string; url?: string };
+}
+
+export function event(o: EventInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: o.name,
+    startDate: o.startDate,
+    endDate: o.endDate,
+    description: o.description,
+    image: o.image,
+    url: o.url,
+    eventAttendanceMode: o.online
+      ? "https://schema.org/OnlineEventAttendanceMode"
+      : "https://schema.org/OfflineEventAttendanceMode",
+    location: o.location
+      ? o.online
+        ? clean({ "@type": "VirtualLocation", url: o.location.url })
+        : clean({ "@type": "Place", name: o.location.name, address: addressNode(o.location.address) })
+      : undefined,
+    offers: o.offers
+      ? clean({
+          "@type": "Offer",
+          price: String(o.offers.price),
+          priceCurrency: o.offers.currency,
+          url: o.offers.url,
+        })
+      : undefined,
+  });
+}
+
+export interface PersonInput {
+  name: string;
+  url?: string;
+  image?: string;
+  jobTitle?: string;
+  worksFor?: string;
+  sameAs?: string[];
+}
+
+export function person(o: PersonInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: o.name,
+    url: o.url,
+    image: o.image,
+    jobTitle: o.jobTitle,
+    worksFor: o.worksFor ? { "@type": "Organization", name: o.worksFor } : undefined,
+    sameAs: o.sameAs,
+  });
+}
+
+export interface ReviewInput {
+  itemName: string;
+  ratingValue: number;
+  bestRating?: number;
+  author: string;
+  body?: string;
+  datePublished?: string;
+}
+
+export function review(o: ReviewInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Review",
+    itemReviewed: { "@type": "Thing", name: o.itemName },
+    reviewRating: clean({
+      "@type": "Rating",
+      ratingValue: o.ratingValue,
+      bestRating: o.bestRating ?? 5,
+    }),
+    author: { "@type": "Person", name: o.author },
+    reviewBody: o.body,
+    datePublished: o.datePublished,
+  });
+}
+
+export interface VideoInput {
+  name: string;
+  description: string;
+  thumbnailUrl: string | string[];
+  uploadDate: string;
+  duration?: string;
+  contentUrl?: string;
+  embedUrl?: string;
+}
+
+export function videoObject(o: VideoInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: o.name,
+    description: o.description,
+    thumbnailUrl: o.thumbnailUrl,
+    uploadDate: o.uploadDate,
+    duration: o.duration,
+    contentUrl: o.contentUrl,
+    embedUrl: o.embedUrl,
+  });
+}
+
+export interface HowToInput {
+  name: string;
+  description?: string;
+  totalTime?: string;
+  steps: { name?: string; text: string; image?: string; url?: string }[];
+}
+
+export function howTo(o: HowToInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: o.name,
+    description: o.description,
+    totalTime: o.totalTime,
+    step: o.steps.map((s, i) =>
+      clean({
+        "@type": "HowToStep",
+        position: i + 1,
+        name: s.name,
+        text: s.text,
+        image: s.image,
+        url: s.url,
+      }),
+    ),
+  });
+}
+
+export interface JobPostingInput {
+  title: string;
+  description: string;
+  datePosted: string;
+  validThrough?: string;
+  employmentType?: string;
+  hiringOrganization: { name: string; url?: string; logo?: string };
+  location?: PostalAddress;
+  remote?: boolean;
+  salary?: { min: number; max?: number; currency: string; unit?: "HOUR" | "DAY" | "WEEK" | "MONTH" | "YEAR" };
+}
+
+export function jobPosting(o: JobPostingInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "JobPosting",
+    title: o.title,
+    description: o.description,
+    datePosted: o.datePosted,
+    validThrough: o.validThrough,
+    employmentType: o.employmentType,
+    hiringOrganization: clean({
+      "@type": "Organization",
+      name: o.hiringOrganization.name,
+      sameAs: o.hiringOrganization.url,
+      logo: o.hiringOrganization.logo,
+    }),
+    jobLocationType: o.remote ? "TELECOMMUTE" : undefined,
+    jobLocation: o.location
+      ? { "@type": "Place", address: addressNode(o.location) }
+      : undefined,
+    baseSalary: o.salary
+      ? {
+          "@type": "MonetaryAmount",
+          currency: o.salary.currency,
+          value: clean({
+            "@type": "QuantitativeValue",
+            minValue: o.salary.min,
+            maxValue: o.salary.max,
+            unitText: o.salary.unit ?? "YEAR",
+          }),
+        }
+      : undefined,
+  });
+}
+
+export interface CourseInput {
+  name: string;
+  description: string;
+  provider: { name: string; url?: string };
+  url?: string;
+}
+
+export function course(o: CourseInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Course",
+    name: o.name,
+    description: o.description,
+    url: o.url,
+    provider: clean({ "@type": "Organization", name: o.provider.name, sameAs: o.provider.url }),
+  });
+}
+
+export interface RecipeInput {
+  name: string;
+  description?: string;
+  image?: string | string[];
+  author?: string;
+  prepTime?: string;
+  cookTime?: string;
+  recipeYield?: string;
+  ingredients: string[];
+  instructions: string[];
+}
+
+export function recipe(o: RecipeInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Recipe",
+    name: o.name,
+    description: o.description,
+    image: o.image,
+    author: o.author ? { "@type": "Person", name: o.author } : undefined,
+    prepTime: o.prepTime,
+    cookTime: o.cookTime,
+    recipeYield: o.recipeYield,
+    recipeIngredient: o.ingredients,
+    recipeInstructions: o.instructions.map((text) => ({ "@type": "HowToStep", text })),
+  });
+}
+
+/**
+ * Build the `alternates.languages` map for a Next.js `Metadata` object.
+ * @example { alternates: hreflang({ en: "/en", ne: "/ne" }) }
+ */
+export function hreflang(map: Record<string, string>): { languages: Record<string, string> } {
+  return { languages: map };
+}
+
 /* ------------------------------------------------------------------ *
  * Rendering helpers
  * ------------------------------------------------------------------ */

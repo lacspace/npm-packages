@@ -53,6 +53,23 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 | [`@lacspace/rss`](./rss) | [![v](https://img.shields.io/npm/v/@lacspace/rss?label=%20)](https://www.npmjs.com/package/@lacspace/rss) | RSS 2.0 / Atom 1.0 / JSON Feed 1.1 generators |
 | [`@lacspace/slugify`](./slugify) | [![v](https://img.shields.io/npm/v/@lacspace/slugify?label=%20)](https://www.npmjs.com/package/@lacspace/slugify) | SEO-friendly URL slugs with diacritic transliteration |
 
+### Security Kit — the seven layers, as code
+
+Built on vetted primitives (Web Crypto — no hand-rolled crypto).
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@lacspace/crypto`](./crypto) | [![v](https://img.shields.io/npm/v/@lacspace/crypto?label=%20)](https://www.npmjs.com/package/@lacspace/crypto) | Authenticated AES-256-GCM, PBKDF2, SHA-2, HMAC, constant-time compare |
+| [`@lacspace/password`](./password) | [![v](https://img.shields.io/npm/v/@lacspace/password?label=%20)](https://www.npmjs.com/package/@lacspace/password) | Password hashing (PBKDF2, PHC string) + strength meter |
+| [`@lacspace/jwt`](./jwt) | [![v](https://img.shields.io/npm/v/@lacspace/jwt?label=%20)](https://www.npmjs.com/package/@lacspace/jwt) | JWT sign/verify (HS256/384/512) + secure & CSRF tokens |
+| [`@lacspace/apikey`](./apikey) | [![v](https://img.shields.io/npm/v/@lacspace/apikey?label=%20)](https://www.npmjs.com/package/@lacspace/apikey) | Prefixed API keys — store-only-hash, constant-time verify |
+| [`@lacspace/otp`](./otp) | [![v](https://img.shields.io/npm/v/@lacspace/otp?label=%20)](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA (Authenticator-compatible) |
+| [`@lacspace/webauthn`](./webauthn) | [![v](https://img.shields.io/npm/v/@lacspace/webauthn?label=%20)](https://www.npmjs.com/package/@lacspace/webauthn) | Passkeys / biometric — ceremony + assertion verification |
+| [`@lacspace/mfa`](./mfa) | [![v](https://img.shields.io/npm/v/@lacspace/mfa?label=%20)](https://www.npmjs.com/package/@lacspace/mfa) | 2FA/3FA orchestration with NIST assurance levels |
+| [`@lacspace/lock`](./lock) | [![v](https://img.shields.io/npm/v/@lacspace/lock?label=%20)](https://www.npmjs.com/package/@lacspace/lock) | Account lockout / brute-force protection (server lock) |
+| [`@lacspace/headers`](./headers) | [![v](https://img.shields.io/npm/v/@lacspace/headers?label=%20)](https://www.npmjs.com/package/@lacspace/headers) | Secure HTTP headers + typed CSP builder |
+| [`@lacspace/redact`](./redact) | [![v](https://img.shields.io/npm/v/@lacspace/redact?label=%20)](https://www.npmjs.com/package/@lacspace/redact) | Redact secrets & PII from logs |
+
 ### Nepal toolkit — useful to everyone, not just Lacspace
 
 | Package | Version | Description |
@@ -164,6 +181,7 @@ npm run build:stock # indicators, market, market-clock, paper-trade
 npm run build:mail  # email-validate, email-templates, mailer, email-verify
 npm run build:web   # seo, env, rate-limit, otp, next
 npm run build:seokit # sitemap, robots, llms-txt, site-verify, rss, slugify
+npm run build:sec   # crypto, password, jwt, apikey, lock, headers, redact, mfa, webauthn
 ```
 
 ## 🌐 Links

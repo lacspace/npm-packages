@@ -67,8 +67,8 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     "@lacspace/ui": "^1.0.0",
     "@lacspace/form": "^1.0.0",
     "@lacspace/validate": "^1.0.0",
-    // The blog template renders Markdown posts with @lacspace/markdown.
-    ...(ctx.template.key === "blog" ? { "@lacspace/markdown": "^1.0.0" } : {}),
+    // The blog & docs templates render Markdown with @lacspace/markdown.
+    ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.0" } : {}),
   },
   devDependencies: {
     typescript: "^5.7.0",
@@ -142,7 +142,7 @@ body {
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; scroll-behavior: auto; } }
-${ctx.template.key === "blog" ? BLOG_PROSE_CSS : ""}`;
+${ctx.template.key === "blog" || ctx.template.key === "docs" ? BLOG_PROSE_CSS : ""}`;
 
 // Readable long-form styles for Markdown-rendered blog posts (the .prose wrapper).
 const BLOG_PROSE_CSS = `
@@ -724,7 +724,8 @@ export function CommandMenu() {
       items={[
         { id: "home", label: "Home", group: "Navigate", shortcut: "G H", onSelect: () => router.push("/") },
         { id: "about", label: "About", group: "Navigate", onSelect: () => router.push("/about") },${ctx.template.key === "blog" ? `
-        { id: "blog", label: "Blog", group: "Navigate", onSelect: () => router.push("/blog") },` : ""}
+        { id: "blog", label: "Blog", group: "Navigate", onSelect: () => router.push("/blog") },` : ""}${ctx.template.key === "docs" ? `
+        { id: "docs", label: "Docs", group: "Navigate", onSelect: () => router.push("/docs") },` : ""}
         { id: "contact", label: "Contact", group: "Navigate", onSelect: () => router.push("/contact") },
         { id: "packages", label: "Lacspace packages", group: "Links", onSelect: () => window.open("https://lacspace.com/packages", "_blank") },
       ]}
@@ -842,6 +843,324 @@ export default function ContactPage() {
     </main>
   );
 }
+`;
+
+/* --------------------------- docs template (markdown) --------------------------- */
+
+// ✨ A real Markdown-powered docs site — content/docs/*.md → sidebar + pages.
+const docsLib = (): string => `import fs from "node:fs";
+import path from "node:path";
+import { markdownToHtml, extractHeadings, type Heading } from "@lacspace/markdown";
+
+const DIR = path.join(process.cwd(), "content/docs");
+
+export interface DocMeta {
+  slug: string;
+  title: string;
+  group: string;
+  order: number;
+  description: string;
+}
+export interface Doc extends DocMeta {
+  html: string;
+  toc: Heading[];
+}
+
+function parse(raw: string): { data: Record<string, string>; body: string } {
+  const m = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n?([\\s\\S]*)$/.exec(raw);
+  if (!m) return { data: {}, body: raw };
+  const data: Record<string, string> = {};
+  for (const line of m[1].split(/\\r?\\n/)) {
+    const i = line.indexOf(":");
+    if (i === -1) continue;
+    data[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+  }
+  return { data, body: m[2] };
+}
+
+export function getAllDocs(): DocMeta[] {
+  if (!fs.existsSync(DIR)) return [];
+  return fs
+    .readdirSync(DIR)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => {
+      const { data } = parse(fs.readFileSync(path.join(DIR, f), "utf8"));
+      return {
+        slug: f.replace(/\\.md$/, ""),
+        title: data.title ?? f,
+        group: data.group ?? "Docs",
+        order: Number(data.order ?? "99"),
+        description: data.description ?? "",
+      };
+    })
+    .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+}
+
+export function getDoc(slug: string): Doc | null {
+  const file = path.join(DIR, \`\${slug}.md\`);
+  if (!fs.existsSync(file)) return null;
+  const { data, body } = parse(fs.readFileSync(file, "utf8"));
+  return {
+    slug,
+    title: data.title ?? slug,
+    group: data.group ?? "Docs",
+    order: Number(data.order ?? "99"),
+    description: data.description ?? "",
+    html: markdownToHtml(body, { headingOffset: 1 }),
+    toc: extractHeadings(body),
+  };
+}
+
+export function getDocNav(): { group: string; items: DocMeta[] }[] {
+  const groups: { group: string; items: DocMeta[] }[] = [];
+  for (const doc of getAllDocs()) {
+    let g = groups.find((x) => x.group === doc.group);
+    if (!g) { g = { group: doc.group, items: [] }; groups.push(g); }
+    g.items.push(doc);
+  }
+  return groups;
+}
+
+export function adjacentDocs(slug: string): { prev: DocMeta | null; next: DocMeta | null } {
+  const all = getAllDocs();
+  const i = all.findIndex((d) => d.slug === slug);
+  return { prev: i > 0 ? all[i - 1]! : null, next: i >= 0 && i < all.length - 1 ? all[i + 1]! : null };
+}
+`;
+
+const docsSidebar = (): string => `"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+interface DocMeta { slug: string; title: string; group: string; order: number; description: string; }
+
+export function DocsSidebar({ nav }: { nav: { group: string; items: DocMeta[] }[] }) {
+  const path = usePathname();
+  return (
+    <nav className="flex flex-col gap-6 text-sm">
+      {nav.map((group) => (
+        <div key={group.group}>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">{group.group}</p>
+          <ul className="flex flex-col gap-1">
+            {group.items.map((d) => {
+              const href = \`/docs/\${d.slug}\`;
+              const active = path === href;
+              return (
+                <li key={d.slug}>
+                  <Link
+                    href={href}
+                    className={\`block rounded-lg px-3 py-1.5 transition \${active ? "gradient-bg font-semibold text-black" : "text-white/70 hover:bg-white/5 hover:text-white"}\`}
+                  >
+                    {d.title}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+`;
+
+const docsLayout = (): string => `import Link from "next/link";
+import { getDocNav } from "@/lib/docs";
+import { DocsSidebar } from "@/components/docs-sidebar";
+
+export default function DocsLayout({ children }: { children: React.ReactNode }) {
+  const nav = getDocNav();
+  return (
+    <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[220px_1fr]">
+      <aside className="md:sticky md:top-24 md:h-fit">
+        <Link href="/docs" className="mb-6 block text-lg font-black gradient-text">Docs</Link>
+        <DocsSidebar nav={nav} />
+      </aside>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+`;
+
+const docsIndexPage = (ctx: Ctx): string => `import Link from "next/link";
+import { site } from "@/lib/site";
+import { getAllDocs } from "@/lib/docs";
+
+export const metadata = site.meta({
+  title: "Documentation",
+  path: "/docs",
+  description: "Documentation for ${ctx.template.siteName}.",
+});
+
+export default function DocsIndex() {
+  const docs = getAllDocs();
+  return (
+    <div>
+      <h1 className="text-4xl font-black gradient-text">Documentation</h1>
+      <p className="mt-4 text-white/60">Everything you need to get started and go deep.</p>
+      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        {docs.map((d) => (
+          <Link key={d.slug} href={\`/docs/\${d.slug}\`} className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/25">
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{d.group}</span>
+            <h2 className="mt-1 text-lg font-bold">{d.title}</h2>
+            {d.description && <p className="mt-1 text-sm text-white/60">{d.description}</p>}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+`;
+
+const docsPage = (): string => `import Link from "next/link";
+import { notFound } from "next/navigation";
+import { site } from "@/lib/site";
+import { getAllDocs, getDoc, adjacentDocs } from "@/lib/docs";
+
+export function generateStaticParams() {
+  return getAllDocs().map((d) => ({ slug: d.slug }));
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const doc = getDoc(slug);
+  if (!doc) return {};
+  return site.meta({ title: doc.title, path: \`/docs/\${slug}\`, description: doc.description });
+}
+
+export default async function DocPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const doc = getDoc(slug);
+  if (!doc) notFound();
+  const { prev, next } = adjacentDocs(slug);
+
+  return (
+    <article>
+      <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{doc.group}</span>
+      <h1 className="mt-1 text-4xl font-black leading-tight">{doc.title}</h1>
+      {doc.description && <p className="mt-3 text-lg text-white/60">{doc.description}</p>}
+
+      {doc.toc.length > 2 && (
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">On this page</p>
+          <ul className="flex flex-col gap-1 text-sm">
+            {doc.toc.map((h) => (
+              <li key={h.id} style={{ paddingLeft: (h.level - 1) * 12 }}>
+                <a href={\`#\${h.id}\`} className="text-white/60 hover:text-white">{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="prose mt-10" dangerouslySetInnerHTML={{ __html: doc.html }} />
+
+      <nav className="mt-14 flex justify-between gap-4 border-t border-white/10 pt-8 text-sm">
+        {prev ? <Link href={\`/docs/\${prev.slug}\`} className="text-white/70 hover:text-white">&larr; {prev.title}</Link> : <span />}
+        {next ? <Link href={\`/docs/\${next.slug}\`} className="text-right text-white/70 hover:text-white">{next.title} &rarr;</Link> : <span />}
+      </nav>
+    </article>
+  );
+}
+`;
+
+const docsSitemapTs = (): string => `import { sitemapForSite } from "@lacspace/sitemap";
+import { site } from "@/lib/site";
+import { getAllDocs } from "@/lib/docs";
+
+export function GET() {
+  const paths = ["/", "/about", "/contact", "/docs", ...getAllDocs().map((d) => \`/docs/\${d.slug}\`)];
+  const xml = sitemapForSite(site.config, paths);
+  return new Response(xml, { headers: { "content-type": "application/xml" } });
+}
+`;
+
+const sampleDocIntro = (ctx: Ctx): string => `---
+title: Introduction
+group: Getting Started
+order: 1
+description: What ${ctx.template.siteName} is and how these docs work.
+---
+
+# Introduction
+
+Welcome to the **${ctx.template.siteName}** documentation. These pages are plain
+**Markdown files** in \`content/docs/\`, rendered to static pages with
+[\`@lacspace/markdown\`](https://www.npmjs.com/package/@lacspace/markdown).
+
+## How the docs are organised
+
+- Each \`.md\` file becomes a page at \`/docs/<filename>\`.
+- Front-matter sets the **title**, **group** (sidebar heading) and **order**.
+- The sidebar, the on-this-page table of contents and prev/next links are all
+  generated for you.
+
+> Edit these files, add your own, and the navigation updates automatically.
+`;
+
+const sampleDocInstall = (): string => `---
+title: Installation
+group: Getting Started
+order: 2
+description: Add a new documentation page in under a minute.
+---
+
+# Installation & setup
+
+Create a Markdown file in \`content/docs/\` with front-matter at the top:
+
+\`\`\`md
+---
+title: My page
+group: Guides
+order: 1
+description: A short summary for SEO and the index.
+---
+
+# My page
+
+Write **Markdown** here — headings, lists, tables and code all work.
+\`\`\`
+
+That's it — the page appears at \`/docs/my-page\` and in the sidebar under "Guides".
+`;
+
+const sampleDocWriting = (): string => `---
+title: Writing content
+group: Guides
+order: 1
+description: Everything the Markdown renderer supports.
+---
+
+# Writing content
+
+The renderer supports the essentials — and a bit more.
+
+## Text & lists
+
+**Bold**, *italic*, \`inline code\`, and:
+
+- bullet lists
+  - that nest
+- [x] task lists
+
+## Tables
+
+| Feature | Supported |
+| ------- | :-------: |
+| Headings + anchors | ✅ |
+| Code blocks | ✅ |
+| Tables | ✅ |
+
+## Code
+
+\`\`\`ts
+export function greet(name: string) {
+  return \`Hello, \${name}!\`;
+}
+\`\`\`
+
+Every heading gets an anchor id, so the on-this-page menu links straight to it.
 `;
 
 // ✨ CI gate — audits every page's SEO on each push and fails below grade A.
@@ -1109,6 +1428,7 @@ Check the [first post](/blog/welcome) for the full Markdown reference.
 
 function buildFiles(ctx: Ctx): Record<string, string> {
   const isBlog = ctx.template.key === "blog";
+  const isDocs = ctx.template.key === "docs";
   const files: Record<string, string> = {
     "package.json": pkgJson(ctx),
     "tsconfig.json": tsconfig(),
@@ -1127,7 +1447,7 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/apple-icon.tsx": appleIconTsx(ctx),
     "app/manifest.ts": manifestTs(ctx),
     "app/robots.txt/route.ts": robotsTs(),
-    "app/sitemap.xml/route.ts": isBlog ? blogSitemapTs() : sitemapTs(),
+    "app/sitemap.xml/route.ts": isBlog ? blogSitemapTs() : isDocs ? docsSitemapTs() : sitemapTs(),
     "app/contact/page.tsx": contactPage(ctx),
     "app/actions.ts": actionsTs(),
     "components/command-menu.tsx": commandMenu(ctx),
@@ -1144,6 +1464,18 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     files["app/blog/[slug]/page.tsx"] = blogPostPage();
     files["content/posts/welcome.md"] = samplePostWelcome(ctx);
     files["content/posts/building-in-the-open.md"] = samplePostSecond(ctx);
+  }
+
+  // ✨ The docs template gets a real Markdown-powered documentation site.
+  if (isDocs) {
+    files["lib/docs.ts"] = docsLib();
+    files["components/docs-sidebar.tsx"] = docsSidebar();
+    files["app/docs/layout.tsx"] = docsLayout();
+    files["app/docs/page.tsx"] = docsIndexPage(ctx);
+    files["app/docs/[slug]/page.tsx"] = docsPage();
+    files["content/docs/introduction.md"] = sampleDocIntro(ctx);
+    files["content/docs/installation.md"] = sampleDocInstall();
+    files["content/docs/writing-content.md"] = sampleDocWriting();
   }
 
   return files;

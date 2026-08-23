@@ -1,0 +1,17 @@
+{
+  "name": "create-lacspace-app",
+  "version": "1.0.0",
+  "description": "Scaffold a beautiful, production-ready Next.js app from a Lacspace template — personal portfolio, business site, e-commerce or SaaS landing — pre-wired with SEO metadata + JSON-LD, security headers, sitemap and robots. Like create-next-app, but you start gorgeous.",
+  "type": "module",
+  "bin": { "create-lacspace-app": "./dist/index.js" },
+  "files": ["dist"],
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["create-lacspace-app", "nextjs", "next-app", "starter", "template", "scaffold", "boilerplate", "portfolio-template", "ecommerce-template", "saas-template", "cli", "create-next-app-alternative", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://lacspace.com/packages",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "create-lacspace-app" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

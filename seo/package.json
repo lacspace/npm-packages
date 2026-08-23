@@ -1,11 +1,14 @@
 {
   "name": "@lacspace/seo",
-  "version": "1.4.0",
-  "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb) and a Next.js App Router Metadata helper. Zero-dependency, isomorphic.",
+  "version": "1.5.0",
+  "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb), a Next.js App Router Metadata helper, the defineSite() SEO Autopilot engine, and an on-page SEO auditor (`npx @lacspace/seo audit <url>`). Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "lacspace-seo": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": {

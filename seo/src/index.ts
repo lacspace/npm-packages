@@ -729,6 +729,178 @@ export function jsonLdScript(data: Json | Json[]): string {
 }
 
 /* ================================================================== *
+ * SEO Auditor — fetch a page's HTML, grade its on-page SEO.
+ *
+ * auditHtml() is isomorphic & dependency-free: give it the HTML string
+ * (from fetch, a build step, or a test) and get a scored report.
+ * The `@lacspace/seo audit <url>` CLI wraps it with a fetcher.
+ * ================================================================== */
+
+export type CheckStatus = "pass" | "warn" | "fail";
+
+export interface SeoCheck {
+  id: string;
+  label: string;
+  status: CheckStatus;
+  detail: string;
+  /** Weight in the score (critical checks count double). */
+  weight: number;
+}
+
+export interface SeoAudit {
+  url?: string;
+  /** 0–100. */
+  score: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  checks: SeoCheck[];
+  passed: number;
+  warnings: number;
+  failed: number;
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#x27;/gi, "'");
+}
+
+function tagByAttr(html: string, tag: string, attr: string, value: string): string | undefined {
+  const re = new RegExp(`<${tag}\\b[^>]*\\b${attr}=["']${value}["'][^>]*>`, "i");
+  return html.match(re)?.[0];
+}
+
+function attrValue(tag: string, attr: string): string | undefined {
+  const m = tag.match(new RegExp(`\\b${attr}=["']([\\s\\S]*?)["']`, "i"));
+  return m?.[1];
+}
+
+function metaContent(html: string, key: string): string | undefined {
+  const tag = tagByAttr(html, "meta", "name", key) ?? tagByAttr(html, "meta", "property", key);
+  if (!tag) return undefined;
+  const content = attrValue(tag, "content");
+  return content ? decodeEntities(content).trim() : undefined;
+}
+
+const GRADE = (score: number): SeoAudit["grade"] =>
+  score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+
+/**
+ * Grade a page's on-page SEO from its raw HTML — title, meta description,
+ * canonical, headings, Open Graph, Twitter, viewport, lang, charset, JSON-LD,
+ * image alts and indexability. Returns a 0–100 score, a letter grade and every
+ * check with a human explanation. Dependency-free & isomorphic.
+ */
+export function auditHtml(html: string, opts: { url?: string } = {}): SeoAudit {
+  const checks: SeoCheck[] = [];
+  const add = (id: string, label: string, status: CheckStatus, detail: string, weight = 1): void => {
+    checks.push({ id, label, status, detail, weight });
+  };
+
+  // <title>
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim();
+  const titleText = title ? decodeEntities(title) : "";
+  if (!titleText) add("title", "Title tag", "fail", "No <title> found.", 2);
+  else if (titleText.length < 10) add("title", "Title tag", "warn", `Only ${titleText.length} chars — aim for 10–60.`, 2);
+  else if (titleText.length > 60) add("title", "Title tag", "warn", `${titleText.length} chars — may truncate in search (aim ≤60).`, 2);
+  else add("title", "Title tag", "pass", `"${titleText}" (${titleText.length} chars).`, 2);
+
+  // meta description
+  const desc = metaContent(html, "description");
+  if (!desc) add("description", "Meta description", "fail", "No meta description.", 2);
+  else if (desc.length < 50) add("description", "Meta description", "warn", `Only ${desc.length} chars — aim for 50–160.`, 2);
+  else if (desc.length > 160) add("description", "Meta description", "warn", `${desc.length} chars — will truncate (aim ≤160).`, 2);
+  else add("description", "Meta description", "pass", `${desc.length} chars.`, 2);
+
+  // canonical
+  const canonical = tagByAttr(html, "link", "rel", "canonical");
+  if (canonical) add("canonical", "Canonical URL", "pass", attrValue(canonical, "href") ?? "present", 2);
+  else add("canonical", "Canonical URL", "fail", "No <link rel=\"canonical\">.", 2);
+
+  // exactly one h1
+  const h1s = html.match(/<h1[\s>]/gi)?.length ?? 0;
+  if (h1s === 1) add("h1", "Single H1", "pass", "Exactly one <h1>.", 1);
+  else if (h1s === 0) add("h1", "Single H1", "fail", "No <h1> on the page.", 1);
+  else add("h1", "Single H1", "warn", `${h1s} <h1> tags — prefer exactly one.`, 1);
+
+  // Open Graph
+  const ogTitle = metaContent(html, "og:title");
+  const ogDesc = metaContent(html, "og:description");
+  const ogImage = metaContent(html, "og:image");
+  const ogMissing = [!ogTitle && "og:title", !ogDesc && "og:description", !ogImage && "og:image"].filter(Boolean);
+  if (ogMissing.length === 0) add("og", "Open Graph", "pass", "og:title, og:description & og:image present.", 2);
+  else if (ogImage) add("og", "Open Graph", "warn", `Missing ${ogMissing.join(", ")}.`, 2);
+  else add("og", "Open Graph", "fail", `Missing ${ogMissing.join(", ")} — no social preview.`, 2);
+
+  // Twitter card
+  const twCard = metaContent(html, "twitter:card");
+  if (twCard) add("twitter", "Twitter card", "pass", `card = ${twCard}.`, 1);
+  else add("twitter", "Twitter card", "warn", "No twitter:card — falls back to og.", 1);
+
+  // viewport
+  if (metaContent(html, "viewport")) add("viewport", "Mobile viewport", "pass", "viewport meta present.", 1);
+  else add("viewport", "Mobile viewport", "fail", "No viewport meta — not mobile-friendly.", 1);
+
+  // lang
+  const htmlTag = html.match(/<html\b[^>]*>/i)?.[0];
+  const lang = htmlTag ? attrValue(htmlTag, "lang") : undefined;
+  if (lang) add("lang", "HTML lang", "pass", `lang = ${lang}.`, 1);
+  else add("lang", "HTML lang", "warn", "No lang attribute on <html>.", 1);
+
+  // charset
+  if (/<meta[^>]*\bcharset=/i.test(html)) add("charset", "Charset", "pass", "charset declared.", 1);
+  else add("charset", "Charset", "warn", "No <meta charset>.", 1);
+
+  // JSON-LD
+  const ldBlocks = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) ?? [];
+  if (ldBlocks.length === 0) {
+    add("jsonld", "Structured data", "warn", "No JSON-LD — you miss rich results.", 1);
+  } else {
+    let bad = 0;
+    for (const b of ldBlocks) {
+      const body = b.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "").trim();
+      try { JSON.parse(body); } catch { bad++; }
+    }
+    if (bad === 0) add("jsonld", "Structured data", "pass", `${ldBlocks.length} valid JSON-LD block(s).`, 1);
+    else add("jsonld", "Structured data", "fail", `${bad}/${ldBlocks.length} JSON-LD block(s) are invalid JSON.`, 1);
+  }
+
+  // images missing alt
+  const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
+  const noAlt = imgs.filter((t) => !/\balt=/i.test(t)).length;
+  if (imgs.length === 0) add("imgalt", "Image alt text", "pass", "No <img> tags.", 1);
+  else if (noAlt === 0) add("imgalt", "Image alt text", "pass", `All ${imgs.length} images have alt.`, 1);
+  else add("imgalt", "Image alt text", "warn", `${noAlt}/${imgs.length} images missing alt.`, 1);
+
+  // indexability
+  const robotsMeta = metaContent(html, "robots");
+  if (robotsMeta && /noindex/i.test(robotsMeta)) add("index", "Indexable", "fail", "robots meta says noindex — hidden from search.", 2);
+  else add("index", "Indexable", "pass", robotsMeta ? `robots = ${robotsMeta}.` : "No noindex.", 2);
+
+  // score
+  let got = 0;
+  let max = 0;
+  for (const c of checks) {
+    max += c.weight;
+    got += c.weight * (c.status === "pass" ? 1 : c.status === "warn" ? 0.5 : 0);
+  }
+  const score = max > 0 ? Math.round((got / max) * 100) : 0;
+
+  return {
+    url: opts.url,
+    score,
+    grade: GRADE(score),
+    checks,
+    passed: checks.filter((c) => c.status === "pass").length,
+    warnings: checks.filter((c) => c.status === "warn").length,
+    failed: checks.filter((c) => c.status === "fail").length,
+  };
+}
+
+/* ================================================================== *
  * Content auto-derivation — turn raw content into SEO text for free.
  * ================================================================== */
 

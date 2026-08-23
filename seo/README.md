@@ -120,6 +120,27 @@ lintSeo({ title, description, canonical, image }).warnings; // ["description is 
 
 Also: `blogPosting`, `newsArticle`, `webPage` builders.
 
+## New in 1.5 — SEO auditor (`generate` *and* `grade`)
+
+Grade any live page's on-page SEO from the terminal — or `auditHtml()` in code/CI:
+
+```bash
+npx @lacspace/seo audit https://example.com
+# Score 88/100  Grade B  · title/description/canonical/OG/JSON-LD/alt/indexable …
+npx @lacspace/seo audit https://example.com --json   # machine output for CI (exits non-zero on any fail)
+```
+
+```ts
+import { auditHtml } from "@lacspace/seo";
+
+const report = auditHtml(await (await fetch(url)).text(), { url });
+report.score;   // 0–100
+report.grade;   // "A" … "F"
+report.checks;  // [{ id, label, status: "pass"|"warn"|"fail", detail }]
+```
+
+Checks title, meta description, canonical, single H1, Open Graph, Twitter card, viewport, `lang`, charset, JSON-LD validity, image alts and indexability — each with a human explanation.
+
 ## New in 1.4 — scaffolder + more page presets
 
 Skip the setup entirely — scaffold the whole SEO layer into a Next.js app:

@@ -120,6 +120,23 @@ lintSeo({ title, description, canonical, image }).warnings; // ["description is 
 
 Also: `blogPosting`, `newsArticle`, `webPage` builders.
 
+## New in 1.4 — scaffolder + more page presets
+
+Skip the setup entirely — scaffold the whole SEO layer into a Next.js app:
+
+```bash
+npm create lacspace-seo@latest
+# drops in lib/site.ts + robots.txt, sitemap.xml, feed.xml, llms.txt & a dynamic OG route
+```
+
+And three more `defineSite()` presets, each returning `{ metadata, jsonLd }`:
+
+```ts
+site.softwareApp({ title: "My App", path: "/app", price: 0, operatingSystem: "Web" });
+site.event({ title: "Launch", path: "/events/launch", startDate: "2026-09-01", online: true });
+site.localBusiness({ title: "Acme Cafe", path: "/cafe", telephone: "+1-555-0100", rating: { value: 4.8, count: 30 } });
+```
+
 ## New in 1.3 — SEO Autopilot (configure once, auto-fill everything)
 
 Set your brand **once** with `defineSite()`, then every page's metadata **and** JSON-LD is a one-liner — canonical URL, title template, Open Graph, Twitter card, auto description and auto OG image all filled in for you.

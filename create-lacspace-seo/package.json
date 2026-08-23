@@ -1,0 +1,50 @@
+{
+  "name": "create-lacspace-seo",
+  "version": "1.0.0",
+  "description": "Scaffold a complete, production-ready SEO setup into a Next.js App Router app in seconds — defineSite() config plus ready-made robots.txt, sitemap.xml, feed.xml, llms.txt and a dynamic OG-image route. Zero config, zero copywriting.",
+  "type": "module",
+  "bin": {
+    "create-lacspace-seo": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "create-lacspace-seo",
+    "seo",
+    "scaffold",
+    "generator",
+    "nextjs",
+    "next-seo",
+    "robots-txt",
+    "sitemap",
+    "llms-txt",
+    "rss-feed",
+    "og-image",
+    "structured-data",
+    "boilerplate",
+    "cli",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://lacspace.com/packages",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "create-lacspace-seo"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

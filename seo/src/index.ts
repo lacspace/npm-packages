@@ -891,8 +891,39 @@ export interface Site {
   product(input: SiteProductInput): SitePage;
   /** FAQ page: metadata + `@graph(FAQPage, Breadcrumb)`. */
   faq(items: { question: string; answer: string }[], input: SitePageInput): SitePage;
+  /** App/tool page: metadata + `@graph(SoftwareApplication, Breadcrumb)`. */
+  softwareApp(input: SiteSoftwareInput): SitePage;
+  /** Event page: metadata + `@graph(Event, Breadcrumb)`. */
+  event(input: SiteEventInput): SitePage;
+  /** Local business / store page: metadata + `@graph(LocalBusiness, Breadcrumb)`. */
+  localBusiness(input: SiteLocalBusinessInput): SitePage;
   /** Organization + WebSite as one `@graph` — drop into your root layout once. */
   rootJsonLd(): Json;
+}
+
+export interface SiteSoftwareInput extends SitePageInput {
+  operatingSystem?: string;
+  category?: string;
+  price?: number | string;
+  currency?: string;
+}
+
+export interface SiteEventInput extends Omit<SitePageInput, "type"> {
+  startDate: string;
+  endDate?: string;
+  location?: { name?: string; address?: PostalAddress; url?: string };
+  online?: boolean;
+  price?: number | string;
+  currency?: string;
+}
+
+export interface SiteLocalBusinessInput extends Omit<SitePageInput, "type"> {
+  telephone?: string;
+  priceRange?: string;
+  address?: PostalAddress;
+  geo?: { latitude: number; longitude: number };
+  openingHours?: string[];
+  rating?: { value: number; count: number };
 }
 
 const normHandle = (h?: string): string | undefined => (h ? (h.startsWith("@") ? h : `@${h}`) : undefined);
@@ -1011,6 +1042,58 @@ export function defineSite(config: SiteConfig): Site {
       const metadata = site.meta(input);
       const jsonLd = graph(
         faqPage(items),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    softwareApp(input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        softwareApp({
+          name: input.title,
+          description: metadata.description,
+          operatingSystem: input.operatingSystem,
+          category: input.category,
+          price: input.price,
+          currency: input.currency,
+          url: abs(input.path),
+        }),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    event(input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        event({
+          name: input.title,
+          description: metadata.description,
+          image: pickImage(input.image, input.title),
+          url: abs(input.path),
+          startDate: input.startDate,
+          endDate: input.endDate,
+          location: input.location,
+          online: input.online,
+          offers: input.price !== undefined ? { price: input.price, currency: input.currency ?? "USD" } : undefined,
+        }),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    localBusiness(input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        localBusiness({
+          name: input.title,
+          url: abs(input.path),
+          image: pickImage(input.image, input.title),
+          telephone: input.telephone,
+          priceRange: input.priceRange,
+          address: input.address,
+          geo: input.geo,
+          openingHours: input.openingHours,
+          rating: input.rating,
+        }),
         site.breadcrumb(input.path ?? "/"),
       );
       return { metadata, jsonLd };

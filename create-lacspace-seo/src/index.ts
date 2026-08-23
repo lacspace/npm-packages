@@ -1,0 +1,381 @@
+/**
+ * create-lacspace-seo
+ *
+ * Scaffold a complete SEO setup into a Next.js App Router project:
+ *   - lib/site.ts            → one defineSite() config, used everywhere
+ *   - app/robots.txt/route   → robots.txt (auto sitemap, optional AI blocking)
+ *   - app/sitemap.xml/route  → sitemap.xml from bare paths
+ *   - app/feed.xml/route     → RSS feed, prefilled from the site config
+ *   - app/llms.txt/route     → llms.txt map for LLMs (llmstxt.org)
+ *   - app/og/route.tsx       → dynamic Open Graph images (no design tool)
+ *
+ * Zero runtime dependencies — uses only Node built-ins.
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { stdin, stdout, argv, cwd, exit } from "node:process";
+
+/* ----------------------------- tiny styling ----------------------------- */
+const C = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
+  blue: "\x1b[34m",
+};
+const c = (color: keyof typeof C, s: string): string => `${C[color]}${s}${C.reset}`;
+
+/* ----------------------------- arg parsing ------------------------------ */
+interface Args {
+  name?: string;
+  url?: string;
+  description?: string;
+  twitter?: string;
+  logo?: string;
+  yes: boolean;
+  force: boolean;
+  og: boolean;
+  help: boolean;
+}
+
+function parseArgs(list: string[]): Args {
+  const a: Args = { yes: false, force: false, og: true, help: false };
+  for (let i = 0; i < list.length; i++) {
+    const arg = list[i]!;
+    const next = (): string => list[++i] ?? "";
+    switch (arg) {
+      case "--name": a.name = next(); break;
+      case "--url": a.url = next(); break;
+      case "--description": case "--desc": a.description = next(); break;
+      case "--twitter": a.twitter = next(); break;
+      case "--logo": a.logo = next(); break;
+      case "-y": case "--yes": a.yes = true; break;
+      case "--force": a.force = true; break;
+      case "--no-og": a.og = false; break;
+      case "-h": case "--help": a.help = true; break;
+      default:
+        if (arg.startsWith("--")) {
+          const eq = arg.indexOf("=");
+          if (eq !== -1) {
+            const key = arg.slice(2, eq);
+            const val = arg.slice(eq + 1);
+            if (key === "name") a.name = val;
+            else if (key === "url") a.url = val;
+            else if (key === "description" || key === "desc") a.description = val;
+            else if (key === "twitter") a.twitter = val;
+            else if (key === "logo") a.logo = val;
+          }
+        }
+    }
+  }
+  return a;
+}
+
+const HELP = `
+${c("bold", "create-lacspace-seo")} — scaffold a full SEO setup into a Next.js app
+
+${c("bold", "Usage")}
+  npm create lacspace-seo@latest
+  npx create-lacspace-seo [options]
+
+${c("bold", "Options")}
+  --name <name>          Site / brand name
+  --url <url>            Absolute site URL (https://…)
+  --description <text>   Default meta description
+  --twitter <handle>     Twitter/X handle (with or without @)
+  --logo <path>          Logo path (e.g. /logo.png)
+  --no-og                Skip the dynamic OG-image route
+  -y, --yes              Accept defaults, no prompts (needs --name & --url)
+  --force                Overwrite existing files
+  -h, --help             Show this help
+`;
+
+/* ----------------------------- file layout ------------------------------ */
+interface Layout {
+  root: string;
+  appDir: string; // absolute
+  libDir: string; // absolute
+  usesSrc: boolean;
+}
+
+function detectLayout(root: string): Layout | null {
+  if (existsSync(join(root, "src", "app"))) {
+    return { root, appDir: join(root, "src", "app"), libDir: join(root, "src", "lib"), usesSrc: true };
+  }
+  if (existsSync(join(root, "app"))) {
+    return { root, appDir: join(root, "app"), libDir: join(root, "lib"), usesSrc: false };
+  }
+  return null;
+}
+
+function isNextProject(root: string): boolean {
+  const pkgPath = join(root, "package.json");
+  if (!existsSync(pkgPath)) return false;
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    return Boolean(pkg.dependencies?.["next"] ?? pkg.devDependencies?.["next"]);
+  } catch {
+    return false;
+  }
+}
+
+/* ------------------------------ templates ------------------------------- */
+interface SiteCfg {
+  name: string;
+  url: string;
+  description?: string;
+  twitter?: string;
+  logo?: string;
+  og: boolean;
+}
+
+const q = (s: string): string => JSON.stringify(s);
+
+function siteTemplate(cfg: SiteCfg): string {
+  const lines = [
+    `import { defineSite } from "@lacspace/seo";`,
+    ``,
+    `/**`,
+    ` * Your site's SEO configuration — set ONCE, used everywhere.`,
+    ` * Generated by create-lacspace-seo.`,
+    ` */`,
+    `export const site = defineSite({`,
+    `  name: ${q(cfg.name)},`,
+    `  url: ${q(cfg.url)},`,
+  ];
+  if (cfg.description) lines.push(`  description: ${q(cfg.description)},`);
+  if (cfg.logo) lines.push(`  logo: ${q(cfg.logo)},`);
+  if (cfg.twitter) lines.push(`  twitter: ${q(cfg.twitter)},`);
+  if (cfg.og) lines.push(`  ogImage: "/og", // dynamic social cards → /og?title=<page>`);
+  lines.push(`  // searchUrl: ${q(cfg.url.replace(/\/$/, "") + "/search?q={search_term_string}")},`);
+  lines.push(`});`, ``);
+  return lines.join("\n");
+}
+
+const robotsTemplate = (): string => `import { robotsForSite } from "@lacspace/robots";
+import { site } from "@/lib/site";
+
+// Served at /robots.txt — flip blockAi to true to fend off AI scrapers.
+export function GET() {
+  return new Response(robotsForSite(site.config, { blockAi: false }), {
+    headers: { "content-type": "text/plain" },
+  });
+}
+`;
+
+const sitemapTemplate = (): string => `import { sitemapForSite } from "@lacspace/sitemap";
+import { site } from "@/lib/site";
+
+// Served at /sitemap.xml — add your static + dynamic routes here.
+export function GET() {
+  const xml = sitemapForSite(site.config, [
+    "/",
+    "/about",
+    // { path: "/blog", changefreq: "daily", priority: 0.8 },
+  ]);
+  return new Response(xml, { headers: { "content-type": "application/xml" } });
+}
+`;
+
+const feedTemplate = (): string => `import { rss, feedForSite } from "@lacspace/rss";
+import { site } from "@/lib/site";
+
+// Served at /feed.xml — map your posts into feed items.
+export function GET() {
+  const posts: { title: string; link: string; date: string; description?: string }[] = [
+    // { title: "Hello world", link: site.url("/blog/hello"), date: "2026-01-01" },
+  ];
+  return new Response(rss(feedForSite(site.config, "/feed.xml"), posts), {
+    headers: { "content-type": "application/rss+xml" },
+  });
+}
+`;
+
+const llmsTemplate = (): string => `import { llmsTxt } from "@lacspace/llms-txt";
+import { site } from "@/lib/site";
+
+// Served at /llms.txt — a curated map for LLMs (llmstxt.org).
+export function GET() {
+  const txt = llmsTxt({
+    title: site.config.name,
+    summary: site.config.description ?? "",
+    sections: [
+      {
+        title: "Pages",
+        links: [
+          { title: "Home", url: site.url("/") },
+          { title: "About", url: site.url("/about") },
+        ],
+      },
+    ],
+  });
+  return new Response(txt, { headers: { "content-type": "text/plain" } });
+}
+`;
+
+const ogTemplate = (): string => `import { ImageResponse } from "next/og";
+import { site } from "@/lib/site";
+
+export const runtime = "edge";
+
+// Served at /og?title=... — dynamic Open Graph card, no design tool needed.
+export function GET(req: Request) {
+  const title = new URL(req.url).searchParams.get("title") ?? site.config.name;
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "80px",
+          background: "linear-gradient(135deg, #0b1220, #1e293b)",
+          color: "white",
+          fontFamily: "sans-serif",
+        }}
+      >
+        <div style={{ fontSize: 68, fontWeight: 800, lineHeight: 1.1 }}>{title}</div>
+        <div style={{ marginTop: 24, fontSize: 30, opacity: 0.7 }}>{site.config.name}</div>
+      </div>
+    ),
+    { width: 1200, height: 630 },
+  );
+}
+`;
+
+/* -------------------------------- write --------------------------------- */
+interface Plan {
+  path: string; // absolute
+  rel: string; // for display
+  content: string;
+}
+
+function writePlan(plans: Plan[], force: boolean): { written: string[]; skipped: string[] } {
+  const written: string[] = [];
+  const skipped: string[] = [];
+  for (const p of plans) {
+    if (existsSync(p.path) && !force) {
+      skipped.push(p.rel);
+      continue;
+    }
+    mkdirSync(dirname(p.path), { recursive: true });
+    writeFileSync(p.path, p.content);
+    written.push(p.rel);
+  }
+  return { written, skipped };
+}
+
+/* --------------------------------- main --------------------------------- */
+async function main(): Promise<void> {
+  const args = parseArgs(argv.slice(2));
+  if (args.help) {
+    stdout.write(HELP + "\n");
+    return;
+  }
+
+  stdout.write(`\n${c("bold", c("cyan", "◆ create-lacspace-seo"))} ${c("dim", "— full SEO setup for Next.js")}\n\n`);
+
+  const root = cwd();
+  if (!isNextProject(root)) {
+    stdout.write(c("yellow", "! No \"next\" dependency found in package.json.\n"));
+    stdout.write(c("dim", "  Run this inside a Next.js App Router project.\n\n"));
+    if (args.yes) exit(1);
+  }
+
+  const layout = detectLayout(root);
+  if (!layout) {
+    stdout.write(c("red", "✗ Could not find an app/ or src/app/ directory.\n"));
+    stdout.write(c("dim", "  This scaffolder targets the Next.js App Router.\n\n"));
+    exit(1);
+    return;
+  }
+
+  let name = args.name;
+  let url = args.url;
+  let description = args.description;
+  let twitter = args.twitter;
+  let logo = args.logo;
+  let og = args.og;
+
+  if (!args.yes) {
+    const rl = createInterface({ input: stdin, output: stdout });
+    try {
+      const ask = async (label: string, fallback = ""): Promise<string> => {
+        const suffix = fallback ? c("dim", ` (${fallback})`) : "";
+        const ans = (await rl.question(`${c("green", "?")} ${label}${suffix}: `)).trim();
+        return ans || fallback;
+      };
+      if (!name) name = await ask("Site / brand name", "My Site");
+      if (!url) url = await ask("Site URL", "https://example.com");
+      if (description === undefined) description = await ask("Default description") || undefined;
+      if (twitter === undefined) twitter = await ask("Twitter/X handle (optional)") || undefined;
+      if (logo === undefined) logo = await ask("Logo path (optional, e.g. /logo.png)") || undefined;
+      const ogAns = (await ask("Add dynamic OG-image route? (Y/n)", "Y")).toLowerCase();
+      og = ogAns !== "n" && ogAns !== "no";
+    } finally {
+      rl.close();
+    }
+  }
+
+  if (!name || !url) {
+    stdout.write(c("red", "\n✗ --name and --url are required (with --yes).\n\n"));
+    exit(1);
+    return;
+  }
+
+  const cfg: SiteCfg = { name, url, description, twitter, logo, og };
+  const { appDir, libDir } = layout;
+
+  const plans: Plan[] = [
+    { path: join(libDir, "site.ts"), rel: relTo(root, join(libDir, "site.ts")), content: siteTemplate(cfg) },
+    { path: join(appDir, "robots.txt", "route.ts"), rel: relTo(root, join(appDir, "robots.txt", "route.ts")), content: robotsTemplate() },
+    { path: join(appDir, "sitemap.xml", "route.ts"), rel: relTo(root, join(appDir, "sitemap.xml", "route.ts")), content: sitemapTemplate() },
+    { path: join(appDir, "feed.xml", "route.ts"), rel: relTo(root, join(appDir, "feed.xml", "route.ts")), content: feedTemplate() },
+    { path: join(appDir, "llms.txt", "route.ts"), rel: relTo(root, join(appDir, "llms.txt", "route.ts")), content: llmsTemplate() },
+  ];
+  if (og) {
+    plans.push({ path: join(appDir, "og", "route.tsx"), rel: relTo(root, join(appDir, "og", "route.tsx")), content: ogTemplate() });
+  }
+
+  const { written, skipped } = writePlan(plans, args.force);
+
+  stdout.write("\n");
+  for (const w of written) stdout.write(`  ${c("green", "+")} ${w}\n`);
+  for (const s of skipped) stdout.write(`  ${c("yellow", "•")} ${s} ${c("dim", "(exists, skipped — use --force)")}\n`);
+
+  const deps = ["@lacspace/seo", "@lacspace/robots", "@lacspace/sitemap", "@lacspace/rss", "@lacspace/llms-txt"];
+
+  stdout.write(`\n${c("bold", "Next steps")}\n`);
+  stdout.write(`  1. Install the SEO packages:\n`);
+  stdout.write(`     ${c("cyan", `npm i ${deps.join(" ")}`)}\n`);
+  stdout.write(`  2. Edit ${c("cyan", relTo(root, join(libDir, "site.ts")))} — that's your one source of truth.\n`);
+  stdout.write(`  3. Use it in any page:\n`);
+  stdout.write(`     ${c("dim", `import { site } from "@/lib/site";`)}\n`);
+  stdout.write(`     ${c("dim", `export const metadata = site.meta({ title: "Pricing", path: "/pricing" });`)}\n`);
+  stdout.write(`  4. Drop the sitewide JSON-LD into app/layout.tsx once:\n`);
+  stdout.write(`     ${c("dim", `import { jsonLdScript } from "@lacspace/seo";`)}\n`);
+  stdout.write(`     ${c("dim", `<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(site.rootJsonLd()) }} />`)}\n`);
+  if (skipped.length) {
+    stdout.write(`\n${c("yellow", `${skipped.length} file(s) already existed`)} — re-run with ${c("cyan", "--force")} to overwrite.\n`);
+  }
+  stdout.write(`\n${c("green", "✓ SEO on autopilot.")} ${c("dim", "Docs: https://lacspace.com/packages")}\n\n`);
+}
+
+function relTo(root: string, p: string): string {
+  const r = resolve(p).slice(resolve(root).length).replace(/^[/\\]/, "");
+  return r || p;
+}
+
+main().catch((err: unknown) => {
+  stdout.write(c("red", `\n✗ ${err instanceof Error ? err.message : String(err)}\n\n`));
+  exit(1);
+});

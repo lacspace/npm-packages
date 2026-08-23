@@ -36,11 +36,17 @@ It asks for a project name and a template, scaffolds the project, installs depen
 
 Every template is a real Next.js 15 App Router + Tailwind v4 project — dark, modern, responsive, with a gradient accent you can theme.
 
-## Batteries already wired
+## A complete, polished project — not a blank page
 
-- **`lib/site.ts`** — one [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) `defineSite()` config drives your `<title>`, canonical, Open Graph, Twitter card and JSON-LD
-- **`next.config.mjs`** — hardened security headers via [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers)
-- **`app/robots.txt` + `app/sitemap.xml`** — generated from your site config with [`@lacspace/robots`](https://www.npmjs.com/package/@lacspace/robots) & [`@lacspace/sitemap`](https://www.npmjs.com/package/@lacspace/sitemap)
+Every generated app arrives finished, with the boring-but-essential things done:
+
+- 🎨 **Beautiful home page** — Tailwind v4, the Inter font, dark theme + a gradient accent
+- 🔎 **SEO** — one [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) `defineSite()` config drives your `<title>`, canonical, Open Graph, Twitter card and JSON-LD
+- ✨ **Dynamic OG images** — every page auto-generates a social-share card at `/og` (no design tool)
+- 🛡️ **Security headers** — HSTS, CSP, X-Frame-Options and more via [`@lacspace/headers`](https://www.npmjs.com/package/@lacspace/headers)
+- 🗺️ **robots.txt + sitemap.xml** — generated from your config with [`@lacspace/robots`](https://www.npmjs.com/package/@lacspace/robots) & [`@lacspace/sitemap`](https://www.npmjs.com/package/@lacspace/sitemap)
+- 🧩 **A styled 404, a PWA manifest, and `.env.example`** — the finishing touches most starters skip
+- 🎁 **A `WELCOME.md`** that walks you through everything and shows the bonus packages you can drop in
 
 Edit `lib/site.ts` and `app/page.tsx` and you're off.
 

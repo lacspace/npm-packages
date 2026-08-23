@@ -108,16 +108,34 @@ const globalsCss = (ctx: Ctx): string => `@import "tailwindcss";
 :root {
   --accent-from: ${ctx.template.accent[0]};
   --accent-to: ${ctx.template.accent[1]};
+  --bg: #0a0a0f;
+  --fg: #e5e7eb;
 }
 
+* { border-color: rgb(255 255 255 / 0.08); }
 html { scroll-behavior: smooth; }
-body { background: #0a0a0f; color: #e5e7eb; -webkit-font-smoothing: antialiased; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--accent-to); color: #0a0a0f; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.12); border-radius: 8px; }
+:focus-visible { outline: 2px solid var(--accent-to); outline-offset: 2px; border-radius: 4px; }
 
 .gradient-text {
   background: linear-gradient(120deg, var(--accent-from), var(--accent-to));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .gradient-bg { background: linear-gradient(120deg, var(--accent-from), var(--accent-to)); }
+
+/* soft entrance for content */
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; scroll-behavior: auto; } }
 `;
 
 const siteTs = (ctx: Ctx): string => `import { defineSite } from "@lacspace/seo";
@@ -125,23 +143,26 @@ const siteTs = (ctx: Ctx): string => `import { defineSite } from "@lacspace/seo"
 /** Your site's SEO configuration — set once, used everywhere. */
 export const site = defineSite({
   name: ${JSON.stringify(ctx.template.siteName)},
-  url: "https://example.com",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com",
   description: ${JSON.stringify(ctx.template.siteDescription)},
   // twitter: "yourhandle",
-  // ogImage: "/og",
+  ogImage: "/og", // ✨ auto social-share images — see app/og/route.tsx
 });
 `;
 
 const layout = (ctx: Ctx): string => `import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { site } from "@/lib/site";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = site.meta({ title: ${JSON.stringify(ctx.template.siteName)} });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.className}>
+      <body className="antialiased">
         {children}
         <script
           type="application/ld+json"
@@ -151,6 +172,118 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+`;
+
+const ogRoute = (ctx: Ctx): string => `import { ImageResponse } from "next/og";
+import { site } from "@/lib/site";
+
+// ✨ Dynamic Open Graph images — every page gets a gorgeous social card,
+// generated on the fly at /og?title=Your+Page+Title. No design tool needed.
+export const runtime = "edge";
+
+export function GET(req: Request) {
+  const title = new URL(req.url).searchParams.get("title") ?? site.config.name;
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%", height: "100%", display: "flex", flexDirection: "column",
+          justifyContent: "center", padding: "90px",
+          background: "linear-gradient(135deg, ${ctx.template.accent[0]}, ${ctx.template.accent[1]})",
+          color: "white", fontFamily: "sans-serif",
+        }}
+      >
+        <div style={{ fontSize: 72, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.02em" }}>{title}</div>
+        <div style={{ marginTop: 28, fontSize: 34, opacity: 0.85 }}>{site.config.name}</div>
+      </div>
+    ),
+    { width: 1200, height: 630 },
+  );
+}
+`;
+
+const notFound = (): string => `import Link from "next/link";
+
+export default function NotFound() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="text-8xl font-black gradient-text">404</div>
+      <p className="text-lg text-white/60">This page wandered off.</p>
+      <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">Back home</Link>
+    </main>
+  );
+}
+`;
+
+const manifestTs = (ctx: Ctx): string => `import type { MetadataRoute } from "next";
+import { site } from "@/lib/site";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: site.config.name,
+    short_name: site.config.name,
+    description: site.config.description,
+    start_url: "/",
+    display: "standalone",
+    background_color: "#0a0a0f",
+    theme_color: "${ctx.template.accent[0]}",
+  };
+}
+`;
+
+const envExample = (): string => `# Your production URL — powers canonical URLs, sitemap, robots and OG images.
+NEXT_PUBLIC_SITE_URL=https://example.com
+`;
+
+const welcomeMd = (ctx: Ctx): string => `# 🎁 Welcome to ${ctx.name}
+
+You didn't get a blank page — you got a running, good-looking **${ctx.template.label}** with the
+boring-but-essential stuff already done. Here's what's in the box.
+
+## ✅ Already set up for you
+
+- **Beautiful home page** — styled with Tailwind v4, Inter font, dark theme + gradient accent.
+- **SEO** — metadata, Open Graph, Twitter cards & JSON-LD, all from one file (\`lib/site.ts\`).
+- **✨ Dynamic OG images** — every page auto-generates a social-share card at \`/og\`. Share a link and see.
+- **Security headers** — HSTS, CSP, X-Frame-Options and more, via \`next.config.mjs\`.
+- **robots.txt + sitemap.xml** — generated from your site config. No hand-editing.
+- **A styled 404** and a **PWA manifest** — the finishing touches most starters skip.
+
+## 🚀 Run it
+
+\`\`\`bash
+npm run dev      # http://localhost:3000
+\`\`\`
+
+## 🎨 Make it yours (start here)
+
+1. Edit **\`lib/site.ts\`** — your name, URL and description flow into SEO, sitemap, robots and OG.
+2. Edit **\`app/page.tsx\`** — your home page.
+3. Set **\`NEXT_PUBLIC_SITE_URL\`** in \`.env\` before deploying (copy \`.env.example\`).
+
+## 🎉 Surprise: 49 more Lacspace packages, one install away
+
+Your app is wired for the whole ecosystem. Drop any of these in — all zero-dependency:
+
+\`\`\`bash
+npm i @lacspace/id          # uuidv7, nanoid, short ids
+npm i @lacspace/pdf         # invoices & receipts, no headless browser
+npm i @lacspace/signed-url  # magic-login & expiring download links
+npm i @lacspace/webhooks    # sign / verify / deliver webhooks
+npm i @lacspace/flags       # feature flags & A/B, no SaaS
+npm i @lacspace/humanize    # "1.5 KB", "3 hours ago", "1.2M"
+\`\`\`
+
+Browse them all → **https://lacspace.com/packages**
+
+## ☁️ Deploy
+
+Push to GitHub and import on **[Vercel](https://vercel.com/new)** — it just works. Remember to set
+\`NEXT_PUBLIC_SITE_URL\` to your real domain.
+
+---
+
+Built with ❤️ using [Lacspace](https://lacspace.com/packages). This app is yours under the Lacspace Free Licence.
 `;
 
 const robotsTs = (): string => `import { robotsForSite } from "@lacspace/robots";
@@ -482,8 +615,13 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/layout.tsx": layout(ctx),
     "app/globals.css": globalsCss(ctx),
     "app/page.tsx": homePage(ctx),
+    "app/not-found.tsx": notFound(),
+    "app/og/route.tsx": ogRoute(ctx),
+    "app/manifest.ts": manifestTs(ctx),
     "app/robots.txt/route.ts": robotsTs(),
     "app/sitemap.xml/route.ts": sitemapTs(),
+    ".env.example": envExample(),
+    "WELCOME.md": welcomeMd(ctx),
   };
 }
 

@@ -60,6 +60,12 @@
     "markdown",
     "analytics-lite",
     "money",
+    "hooks",
+    "store",
+    "query",
+    "theme",
+    "hotkeys",
+    "virtual",
     "create-lacspace-app"
   ],
   "scripts": {
@@ -70,6 +76,8 @@
     "build:web": "npm -w @lacspace/seo run build && npm -w @lacspace/env run build && npm -w @lacspace/rate-limit run build && npm -w @lacspace/otp run build && npm -w @lacspace/next run build",
     "build:seokit": "npm -w @lacspace/sitemap run build && npm -w @lacspace/robots run build && npm -w @lacspace/llms-txt run build && npm -w @lacspace/site-verify run build && npm -w @lacspace/rss run build && npm -w @lacspace/slugify run build",
     "build:sec": "npm -w @lacspace/crypto run build && npm -w @lacspace/password run build && npm -w @lacspace/jwt run build && npm -w @lacspace/apikey run build && npm -w @lacspace/lock run build && npm -w @lacspace/headers run build && npm -w @lacspace/redact run build && npm -w @lacspace/mfa run build && npm -w @lacspace/webauthn run build",
+    "build:reactkit": "npm -w @lacspace/hooks run build && npm -w @lacspace/store run build && npm -w @lacspace/query run build && npm -w @lacspace/theme run build && npm -w @lacspace/hotkeys run build && npm -w @lacspace/virtual run build",
+    "publish:reactkit": "npm -w @lacspace/hooks publish --access public && npm -w @lacspace/store publish --access public && npm -w @lacspace/query publish --access public && npm -w @lacspace/theme publish --access public && npm -w @lacspace/hotkeys publish --access public && npm -w @lacspace/virtual publish --access public",
     "clean": "rm -rf */dist */*.tsbuildinfo",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "publish:stock": "npm -w @lacspace/indicators publish --access public && npm -w @lacspace/market publish --access public && npm -w @lacspace/market-clock publish --access public && npm -w @lacspace/paper-trade publish --access public",

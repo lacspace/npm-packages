@@ -59,10 +59,14 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     next: "^15.1.0",
     react: "^19.0.0",
     "react-dom": "^19.0.0",
-    "@lacspace/seo": "^1.5.0",
+    "@lacspace/seo": "^1.6.0",
     "@lacspace/headers": "^1.1.1",
     "@lacspace/robots": "^1.2.0",
     "@lacspace/sitemap": "^1.1.0",
+    "@lacspace/og": "^1.0.0",
+    "@lacspace/ui": "^1.0.0",
+    "@lacspace/form": "^1.0.0",
+    "@lacspace/validate": "^1.0.0",
   },
   devDependencies: {
     typescript: "^5.7.0",
@@ -153,6 +157,7 @@ export const site = defineSite({
 const layout = (ctx: Ctx): string => `import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { site } from "@/lib/site";
+import { CommandMenu } from "@/components/command-menu";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
@@ -163,6 +168,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.className}>
       <body className="antialiased">
+        {/* ✨ Press ⌘K / Ctrl-K anywhere — powered by @lacspace/ui */}
+        <CommandMenu />
         {children}
         <script
           type="application/ld+json"
@@ -175,28 +182,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 `;
 
 const ogRoute = (ctx: Ctx): string => `import { ImageResponse } from "next/og";
+import { ogCard } from "@lacspace/og";
 import { site } from "@/lib/site";
 
-// ✨ Dynamic Open Graph images — every page gets a gorgeous social card,
-// generated on the fly at /og?title=Your+Page+Title. No design tool needed.
+// ✨ Dynamic Open Graph images — every page gets a gorgeous, auto-fitting social
+// card at /og?title=Your+Page+Title, designed by @lacspace/og. No design tool.
 export const runtime = "edge";
 
 export function GET(req: Request) {
-  const title = new URL(req.url).searchParams.get("title") ?? site.config.name;
+  const { searchParams } = new URL(req.url);
+  const title = searchParams.get("title") ?? site.config.name;
+  const eyebrow = searchParams.get("eyebrow") ?? undefined;
+
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%", height: "100%", display: "flex", flexDirection: "column",
-          justifyContent: "center", padding: "90px",
-          background: "linear-gradient(135deg, ${ctx.template.accent[0]}, ${ctx.template.accent[1]})",
-          color: "white", fontFamily: "sans-serif",
-        }}
-      >
-        <div style={{ fontSize: 72, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.02em" }}>{title}</div>
-        <div style={{ marginTop: 28, fontSize: 34, opacity: 0.85 }}>{site.config.name}</div>
-      </div>
-    ),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ogCard({
+      title,
+      eyebrow,
+      subtitle: site.config.name,
+      footer: site.config.url.replace(/^https?:\\/\\//, ""),
+      logo: "${ctx.template.siteName.trim().charAt(0).toUpperCase()}",
+      from: "${ctx.template.accent[0]}",
+      to: "${ctx.template.accent[1]}",
+    }) as any,
     { width: 1200, height: 630 },
   );
 }
@@ -244,10 +252,14 @@ boring-but-essential stuff already done. Here's what's in the box.
 
 - **Beautiful home page** — styled with Tailwind v4, Inter font, dark theme + gradient accent.
 - **SEO** — metadata, Open Graph, Twitter cards & JSON-LD, all from one file (\`lib/site.ts\`).
-- **✨ Dynamic OG images** — every page auto-generates a social-share card at \`/og\`. Share a link and see.
+- **✨ Dynamic OG images** — every page auto-generates a social-share card at \`/og\` (\`@lacspace/og\`, auto-fitting titles). Share a link and see.
+- **✨ A working contact form** — \`/contact\` is live, typed, validated and spam-protected (honeypot + timing) via \`@lacspace/form\` + \`@lacspace/validate\`. Just point it at your inbox.
+- **✨ A ⌘K command palette** — press \`⌘K\` / \`Ctrl-K\` anywhere, powered by \`@lacspace/ui\`. Also try \`<Reveal>\`, \`<Counter>\`, \`<GradientText>\`, \`<TiltCard>\`, \`<Marquee>\`, \`<Typewriter>\`.
+- **✨ Per-page SEO** — see \`app/about\` & \`app/contact\`: one \`site.meta()\` call gives each route its own title, canonical & OG image.
+- **✨ An SEO CI gate** — \`.github/workflows/seo.yml\` audits every page on each push and fails below grade A, so SEO can never regress.
 - **Security headers** — HSTS, CSP, X-Frame-Options and more, via \`next.config.mjs\`.
 - **robots.txt + sitemap.xml** — generated from your site config. No hand-editing.
-- **A styled 404** and a **PWA manifest** — the finishing touches most starters skip.
+- **A styled 404**, a **PWA manifest**, and **auto favicon + Apple icon** — the finishing touches most starters skip.
 
 ## 🚀 Run it
 
@@ -261,7 +273,7 @@ npm run dev      # http://localhost:3000
 2. Edit **\`app/page.tsx\`** — your home page.
 3. Set **\`NEXT_PUBLIC_SITE_URL\`** in \`.env\` before deploying (copy \`.env.example\`).
 
-## 🎉 Surprise: 49 more Lacspace packages, one install away
+## 🎉 Surprise: 50+ more Lacspace packages, one install away
 
 Your app is wired for the whole ecosystem. Drop any of these in — all zero-dependency:
 
@@ -344,7 +356,12 @@ const FOOTER = (name: string): string =>
 
 function homePage(ctx: Ctx): string {
   const n = ctx.template.siteName;
-  const shell = (inner: string): string => `export default function Home() {
+  const shell = (inner: string): string => `import { site } from "@/lib/site";
+
+// ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
+export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
+
+export default function Home() {
   return (
     <main className="min-h-screen">
       ${inner}
@@ -668,6 +685,168 @@ export default function AboutPage() {
 }
 `;
 
+/* --------------------------- interactivity --------------------------- */
+
+// ✨ Global ⌘K command palette — @lacspace/ui, wired to the app's routes.
+const commandMenu = (ctx: Ctx): string => `"use client";
+import { useRouter } from "next/navigation";
+import { CommandPalette } from "@lacspace/ui";
+
+export function CommandMenu() {
+  const router = useRouter();
+  return (
+    <CommandPalette
+      accent="${ctx.template.accent[1]}"
+      items={[
+        { id: "home", label: "Home", group: "Navigate", shortcut: "G H", onSelect: () => router.push("/") },
+        { id: "about", label: "About", group: "Navigate", onSelect: () => router.push("/about") },
+        { id: "contact", label: "Contact", group: "Navigate", onSelect: () => router.push("/contact") },
+        { id: "packages", label: "Lacspace packages", group: "Links", onSelect: () => window.open("https://lacspace.com/packages", "_blank") },
+      ]}
+    />
+  );
+}
+`;
+
+// ✨ A real, working, spam-protected contact form — @lacspace/form + @lacspace/validate.
+const actionsTs = (): string => `"use server";
+import { createForm } from "@lacspace/form";
+import { v } from "@lacspace/validate";
+
+const contact = createForm({
+  schema: v.object({
+    name: v.string().min(2, "Please tell us your name").trim(),
+    email: v.string().email("Enter a valid email").toLowerCase(),
+    message: v.string().min(10, "A little more detail, please"),
+  }),
+  honeypot: "company", // bots fill this hidden field; humans never see it
+  minSubmitMs: 800,     // reject sub-second (bot-speed) submissions
+});
+
+export type ContactState =
+  | { ok: true }
+  | { ok: false; errors: Record<string, string>; values: Record<string, unknown> }
+  | null;
+
+export async function submitContact(prev: ContactState, formData: FormData): Promise<ContactState> {
+  const r = contact.action(prev, formData);
+  if (!r.ok) return r;
+
+  // ✅ r.data is fully typed: { name, email, message }
+  // TODO: send it with @lacspace/mailer, or save it to your database.
+  console.log("New contact message:", r.data);
+  return { ok: true };
+}
+`;
+
+const contactForm = (): string => `"use client";
+import { useActionState } from "react";
+import { honeypotProps, timestampValue } from "@lacspace/form";
+import { submitContact, type ContactState } from "@/app/actions";
+
+const field = "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-white/30";
+const label = "mb-1 block text-sm text-white/60";
+const errCls = "mt-1 text-sm text-red-400";
+
+export function ContactForm() {
+  const [state, action, pending] = useActionState<ContactState, FormData>(submitContact, null);
+
+  if (state?.ok) {
+    return (
+      <p className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-lg">
+        Thanks — we&rsquo;ll be in touch! ✅
+      </p>
+    );
+  }
+
+  const err = (k: string) => (state && !state.ok ? state.errors[k] : undefined);
+  const val = (k: string) => (state && !state.ok ? ((state.values[k] as string) ?? "") : "");
+
+  return (
+    <form action={action} className="flex flex-col gap-5">
+      <div>
+        <label className={label} htmlFor="name">Name</label>
+        <input id="name" name="name" defaultValue={val("name")} className={field} />
+        {err("name") && <p className={errCls}>{err("name")}</p>}
+      </div>
+      <div>
+        <label className={label} htmlFor="email">Email</label>
+        <input id="email" name="email" type="email" defaultValue={val("email")} className={field} />
+        {err("email") && <p className={errCls}>{err("email")}</p>}
+      </div>
+      <div>
+        <label className={label} htmlFor="message">Message</label>
+        <textarea id="message" name="message" rows={5} defaultValue={val("message")} className={field} />
+        {err("message") && <p className={errCls}>{err("message")}</p>}
+      </div>
+
+      {/* spam protection — one line each */}
+      <input {...honeypotProps("company")} />
+      <input type="hidden" name="_ts" defaultValue={timestampValue()} />
+
+      {err("_form") && <p className={errCls}>{err("_form")}</p>}
+      <button
+        disabled={pending}
+        className="gradient-bg rounded-full px-8 py-3 font-semibold text-black disabled:opacity-60"
+      >
+        {pending ? "Sending…" : "Send message"}
+      </button>
+    </form>
+  );
+}
+`;
+
+const contactPage = (ctx: Ctx): string => `import { site } from "@/lib/site";
+import { ContactForm } from "@/components/contact-form";
+
+// ✨ Per-page SEO in one line — title, canonical, Open Graph & Twitter, all set.
+export const metadata = site.meta({
+  title: "Contact",
+  path: "/contact",
+  description: "Get in touch with ${ctx.template.siteName}.",
+});
+
+export default function ContactPage() {
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-24">
+      <h1 className="text-4xl font-black gradient-text sm:text-5xl">Get in touch</h1>
+      <p className="mt-4 text-white/60">Have a question or a project in mind? Drop a message below.</p>
+      <div className="mt-10">
+        <ContactForm />
+      </div>
+    </main>
+  );
+}
+`;
+
+// ✨ CI gate — audits every page's SEO on each push and fails below grade A.
+const seoWorkflow = (): string => `name: SEO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      - name: Start the app
+        run: npm run start &
+      - name: Wait for it
+        run: npx wait-on http://localhost:3000 -t 60000
+      - name: Audit every page (fails below grade A)
+        run: npx @lacspace/seo crawl http://localhost:3000 --min-grade A
+`;
+
 /* ------------------------------ file plan ------------------------------ */
 
 function buildFiles(ctx: Ctx): Record<string, string> {
@@ -690,6 +869,11 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/manifest.ts": manifestTs(ctx),
     "app/robots.txt/route.ts": robotsTs(),
     "app/sitemap.xml/route.ts": sitemapTs(),
+    "app/contact/page.tsx": contactPage(ctx),
+    "app/actions.ts": actionsTs(),
+    "components/command-menu.tsx": commandMenu(ctx),
+    "components/contact-form.tsx": contactForm(),
+    ".github/workflows/seo.yml": seoWorkflow(),
     ".env.example": envExample(),
     "WELCOME.md": welcomeMd(ctx),
   };

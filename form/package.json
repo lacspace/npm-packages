@@ -1,14 +1,11 @@
 {
-  "name": "@lacspace/seo",
-  "version": "1.6.1",
-  "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb), a Next.js App Router Metadata helper, the defineSite() SEO Autopilot engine, and an on-page SEO auditor with a CI sitemap crawler that fails the build when SEO regresses (`npx @lacspace/seo audit <url>` / `crawl <site> --min-grade A`). Zero-dependency, isomorphic.",
+  "name": "@lacspace/form",
+  "version": "1.0.0",
+  "description": "End-to-end form handling for the server — turn FormData into typed, validated data with a honeypot + timing spam guard, and get back your data or per-field errors ready to re-render. Shaped for Next.js Server Actions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "lacspace-seo": "./dist/cli.js"
-  },
   "exports": {
     ".": {
       "import": {
@@ -30,23 +27,21 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "seo",
-    "json-ld",
-    "structured-data",
-    "schema-org",
-    "next-metadata",
-    "opengraph",
-    "meta-tags",
-    "rich-results",
+    "form",
+    "form-handling",
+    "form-validation",
+    "formdata",
+    "server-actions",
+    "nextjs",
+    "honeypot",
+    "spam-protection",
+    "useactionstate",
+    "contact-form",
     "typescript",
-    "metadata",
-    "nextjs-seo",
-    "organization-schema",
-    "article-schema",
-    "faq-schema",
-    "breadcrumb",
-    "sitemap",
-    "meta"
+    "zero-dependency",
+    "isomorphic",
+    "type-safe",
+    "validation"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -54,7 +49,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
-    "directory": "seo"
+    "directory": "form"
   },
   "bugs": {
     "url": "https://github.com/lacspace/npm-packages/issues"

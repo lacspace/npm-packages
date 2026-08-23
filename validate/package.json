@@ -1,14 +1,11 @@
 {
-  "name": "@lacspace/seo",
-  "version": "1.6.1",
-  "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb), a Next.js App Router Metadata helper, the defineSite() SEO Autopilot engine, and an on-page SEO auditor with a CI sitemap crawler that fails the build when SEO regresses (`npx @lacspace/seo audit <url>` / `crawl <site> --min-grade A`). Zero-dependency, isomorphic.",
+  "name": "@lacspace/validate",
+  "version": "1.0.0",
+  "description": "A tiny, typed schema validator — the ergonomics of zod (parse/safeParse, object/array/enum/union, coercion, type inference) in a zero-dependency, isomorphic package. Great for forms, API bodies, env and query strings.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "lacspace-seo": "./dist/cli.js"
-  },
   "exports": {
     ".": {
       "import": {
@@ -30,23 +27,21 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "seo",
-    "json-ld",
-    "structured-data",
-    "schema-org",
-    "next-metadata",
-    "opengraph",
-    "meta-tags",
-    "rich-results",
+    "validation",
+    "schema",
+    "validator",
+    "zod-alternative",
+    "zod-lite",
+    "type-inference",
+    "safeparse",
+    "parse",
+    "form-validation",
+    "runtime-validation",
     "typescript",
-    "metadata",
-    "nextjs-seo",
-    "organization-schema",
-    "article-schema",
-    "faq-schema",
-    "breadcrumb",
-    "sitemap",
-    "meta"
+    "coerce",
+    "zero-dependency",
+    "isomorphic",
+    "type-safe"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
@@ -54,7 +49,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
-    "directory": "seo"
+    "directory": "validate"
   },
   "bugs": {
     "url": "https://github.com/lacspace/npm-packages/issues"

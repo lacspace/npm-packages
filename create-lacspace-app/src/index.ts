@@ -601,6 +601,73 @@ function homePage(ctx: Ctx): string {
       ${FOOTER(n)}`);
 }
 
+/* ------------------------------ auto-generated brand images ------------------------------ */
+
+const glyph = (ctx: Ctx): string => (ctx.template.siteName.trim()[0] ?? "A").toUpperCase();
+
+const iconTsx = (ctx: Ctx): string => `import { ImageResponse } from "next/og";
+
+// ✨ Auto-generated favicon — a branded icon from your accent, no design file.
+export const size = { width: 64, height: 64 };
+export const contentType = "image/png";
+
+export default function Icon() {
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, ${ctx.template.accent[0]}, ${ctx.template.accent[1]})", color: "white", fontSize: 40, fontWeight: 800, fontFamily: "sans-serif", borderRadius: 14 }}>
+        ${glyph(ctx)}
+      </div>
+    ),
+    { ...size },
+  );
+}
+`;
+
+const appleIconTsx = (ctx: Ctx): string => `import { ImageResponse } from "next/og";
+
+// ✨ Auto-generated Apple touch icon.
+export const size = { width: 180, height: 180 };
+export const contentType = "image/png";
+
+export default function AppleIcon() {
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, ${ctx.template.accent[0]}, ${ctx.template.accent[1]})", color: "white", fontSize: 104, fontWeight: 800, fontFamily: "sans-serif" }}>
+        ${glyph(ctx)}
+      </div>
+    ),
+    { ...size },
+  );
+}
+`;
+
+const aboutPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import Link from "next/link";
+import { site } from "@/lib/site";
+
+// ✨ Per-page SEO, auto-generated: title template, canonical, Open Graph,
+// Twitter card and its OWN dynamic OG image — all from one line.
+export const metadata: Metadata = site.meta({
+  title: "About",
+  path: "/about",
+  description: "Learn more about ${ctx.template.siteName}.",
+});
+
+export default function AboutPage() {
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-28">
+      <Link href="/" className="text-sm text-white/50 hover:text-white">← Back home</Link>
+      <h1 className="mt-6 text-4xl font-black sm:text-5xl gradient-text">About</h1>
+      <p className="mt-6 text-lg leading-relaxed text-white/60">
+        This page already has its own SEO — a unique title, canonical URL, Open Graph tags and a
+        generated social image — from a single <code>site.meta()</code> call. Duplicate this file for
+        any new route and it just works.
+      </p>
+    </main>
+  );
+}
+`;
+
 /* ------------------------------ file plan ------------------------------ */
 
 function buildFiles(ctx: Ctx): Record<string, string> {
@@ -615,8 +682,11 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/layout.tsx": layout(ctx),
     "app/globals.css": globalsCss(ctx),
     "app/page.tsx": homePage(ctx),
+    "app/about/page.tsx": aboutPage(ctx),
     "app/not-found.tsx": notFound(),
     "app/og/route.tsx": ogRoute(ctx),
+    "app/icon.tsx": iconTsx(ctx),
+    "app/apple-icon.tsx": appleIconTsx(ctx),
     "app/manifest.ts": manifestTs(ctx),
     "app/robots.txt/route.ts": robotsTs(),
     "app/sitemap.xml/route.ts": sitemapTs(),

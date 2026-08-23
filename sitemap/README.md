@@ -85,6 +85,21 @@ const { index, files } = splitSitemaps(allUrls, { baseUrl: "https://lacspace.com
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | [`@lacspace/slugify`](https://www.npmjs.com/package/@lacspace/slugify) | SEO URL slugs |
 
+## New in 1.1 — sitemap from bare paths
+
+```ts
+import { sitemapForSite } from "@lacspace/sitemap";
+
+sitemapForSite({ url: "https://acme.com" }, [
+  "/",
+  "/pricing",
+  { path: "/blog", changefreq: "daily", priority: 0.8 },
+]);
+// no repeating your domain on every row — relative paths resolve automatically
+```
+
+Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `sitemapForSite(site.config, routes)`.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -727,3 +727,294 @@ export function jsonLd(data: Json | Json[]): string {
 export function jsonLdScript(data: Json | Json[]): string {
   return `<script type="application/ld+json">${jsonLd(data)}</script>`;
 }
+
+/* ================================================================== *
+ * Content auto-derivation — turn raw content into SEO text for free.
+ * ================================================================== */
+
+/** Strip Markdown / HTML down to clean prose (for excerpts & descriptions). */
+export function stripMarkdown(input: string): string {
+  return input
+    .replace(/```[\s\S]*?```/g, " ")          // fenced code
+    .replace(/`[^`]*`/g, " ")                  // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")     // images
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")   // links → text
+    .replace(/<\/?[^>]+>/g, " ")               // html tags
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")        // headings
+    .replace(/^\s{0,3}>\s?/gm, "")             // blockquotes
+    .replace(/[*_~]{1,3}/g, "")                // emphasis marks
+    .replace(/^\s*[-*+]\s+/gm, "")             // list bullets
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * A clean, length-capped excerpt for `<meta description>` / OG — cuts on a
+ * word boundary and adds an ellipsis. Handles Markdown/HTML input.
+ * @example excerpt(post.body) // "The first ~155 characters, tidied…"
+ */
+export function excerpt(input: string, maxLength = 155): string {
+  const text = stripMarkdown(input);
+  if (text.length <= maxLength) return text;
+  const cut = text.slice(0, maxLength);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > maxLength * 0.5 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?-]+$/, "")}…`;
+}
+
+/** Alias of {@link excerpt} tuned for meta descriptions (default 155 chars). */
+export const metaDescription = excerpt;
+
+export interface ReadingTime {
+  minutes: number;
+  words: number;
+  /** Human label, e.g. "5 min read". */
+  text: string;
+}
+
+/** Estimate reading time from content (default 200 wpm). Great for article schema & UI. */
+export function readingTime(input: string, wordsPerMinute = 200): ReadingTime {
+  const words = stripMarkdown(input).split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.round(words / wordsPerMinute));
+  return { minutes, words, text: `${minutes} min read` };
+}
+
+/**
+ * Build a dynamic OG-image URL for a "/og" style endpoint — encodes params
+ * into the query string. Pairs with a Next.js ImageResponse route.
+ * @example ogImageUrl("https://x.com/og", { title: "Hello", theme: "dark" })
+ */
+export function ogImageUrl(endpoint: string, params: Record<string, string | number | undefined>): string {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join("&");
+  return qs ? `${endpoint}${endpoint.includes("?") ? "&" : "?"}${qs}` : endpoint;
+}
+
+/* ================================================================== *
+ * SEO Autopilot — configure your site ONCE, auto-fill every page.
+ *
+ * defineSite() captures your brand defaults (name, url, logo, social,
+ * default image, title template) so page code stays a one-liner:
+ *   const site = defineSite({ name: "Acme", url: "https://acme.com", … });
+ *   export const metadata = site.meta({ title: "Pricing", path: "/pricing" });
+ * ================================================================== */
+
+export interface SiteConfig {
+  /** Brand / site name — used in titles, OG siteName, Organization & WebSite. */
+  name: string;
+  /** Absolute base URL, e.g. "https://acme.com" (trailing slash optional). */
+  url: string;
+  /** Default meta description when a page omits one. */
+  description?: string;
+  /** Logo URL (absolute or root-relative). */
+  logo?: string;
+  /** Default social-share image (absolute or root-relative). */
+  defaultImage?: string;
+  /** Title template; "%s" → the page title. Default `"%s · <name>"`. */
+  titleTemplate?: string;
+  /** Locale, e.g. "en_US". */
+  locale?: string;
+  /** Twitter/X handle for the site (with or without "@"). */
+  twitter?: string;
+  /** Social / profile URLs → Organization.sameAs. */
+  sameAs?: string[];
+  /** Sitelinks search box template, "https://x.com/search?q={search_term_string}". */
+  searchUrl?: string;
+  /** Organization contact. */
+  email?: string;
+  telephone?: string;
+  /** Keywords merged into every page. */
+  keywords?: string[];
+  /**
+   * Dynamic OG-image endpoint (e.g. "/og"). When set, pages without an explicit
+   * image get `<endpoint>?title=<page title>` — auto social cards, zero design work.
+   */
+  ogImage?: string;
+}
+
+export interface SitePageInput {
+  title: string;
+  description?: string;
+  /** Path like "/pricing" (preferred) or an absolute URL. */
+  path?: string;
+  image?: string;
+  keywords?: string[];
+  type?: "website" | "article" | "profile";
+  noindex?: boolean;
+  languages?: Record<string, string>;
+  /** If no `description` is given, one is auto-derived from this content. */
+  content?: string;
+  article?: SeoInput["article"];
+}
+
+export interface SiteArticleInput extends Omit<SitePageInput, "type"> {
+  datePublished: string;
+  dateModified?: string;
+  author?: string;
+  section?: string;
+  tags?: string[];
+}
+
+export interface SiteProductInput extends Omit<SitePageInput, "type"> {
+  price?: number | string;
+  currency?: string;
+  availability?: "InStock" | "OutOfStock" | "PreOrder";
+  brand?: string;
+  sku?: string;
+  rating?: { value: number; count: number };
+}
+
+/** A page's SEO in one object — spread `metadata`, render `jsonLd`. */
+export interface SitePage {
+  metadata: Metadata;
+  jsonLd: Json;
+}
+
+export interface Site {
+  readonly config: Readonly<SiteConfig>;
+  /** Absolute URL for a path (or the base URL when omitted). */
+  url(path?: string): string;
+  /** Full Next.js Metadata for a page, with all brand defaults applied. */
+  meta(input: SitePageInput): Metadata;
+  /** Organization JSON-LD, prefilled from the config. */
+  organization(): Json;
+  /** WebSite JSON-LD (with SearchAction when `searchUrl` is set). */
+  website(): Json;
+  /** BreadcrumbList JSON-LD derived from a path. */
+  breadcrumb(path: string, labels?: Record<string, string>): Json;
+  /** Generic page: `{ metadata, jsonLd:@graph(WebPage, Breadcrumb) }`. */
+  page(input: SitePageInput): SitePage;
+  /** Article/blog page: metadata + `@graph(BlogPosting, Breadcrumb)`. */
+  article(input: SiteArticleInput): SitePage;
+  /** Product page: metadata + `@graph(Product, Breadcrumb)`. */
+  product(input: SiteProductInput): SitePage;
+  /** FAQ page: metadata + `@graph(FAQPage, Breadcrumb)`. */
+  faq(items: { question: string; answer: string }[], input: SitePageInput): SitePage;
+  /** Organization + WebSite as one `@graph` — drop into your root layout once. */
+  rootJsonLd(): Json;
+}
+
+const normHandle = (h?: string): string | undefined => (h ? (h.startsWith("@") ? h : `@${h}`) : undefined);
+
+const mergeKeywords = (a?: string[], b?: string[]): string[] | undefined => {
+  if (!a && !b) return undefined;
+  return [...new Set([...(a ?? []), ...(b ?? [])])];
+};
+
+/**
+ * Create a configured {@link Site}. Set your brand once; every page becomes a
+ * one-liner with canonical URL, title template, Open Graph, Twitter card,
+ * auto description and auto OG image all filled in.
+ */
+export function defineSite(config: SiteConfig): Site {
+  const base = config.url.replace(/\/$/, "");
+  const template = config.titleTemplate ?? `%s · ${config.name}`;
+  const handle = normHandle(config.twitter);
+
+  const abs = (path?: string): string => {
+    if (!path) return base;
+    if (/^https?:\/\//.test(path)) return path;
+    return `${base}/${path.replace(/^\//, "")}`;
+  };
+  const applyTitle = (t: string): string => (t === config.name ? t : template.replace("%s", t));
+  const pickImage = (image: string | undefined, title: string): string | undefined => {
+    if (image) return abs(image);
+    if (config.ogImage) return ogImageUrl(abs(config.ogImage), { title });
+    return config.defaultImage ? abs(config.defaultImage) : undefined;
+  };
+  const describe = (input: SitePageInput): string | undefined =>
+    input.description ?? (input.content ? excerpt(input.content) : config.description);
+
+  const site: Site = {
+    config,
+    url: abs,
+    meta(input) {
+      return seoMetadata({
+        title: applyTitle(input.title),
+        description: describe(input),
+        canonical: input.path ? abs(input.path) : undefined,
+        baseUrl: base,
+        image: pickImage(input.image, input.title),
+        siteName: config.name,
+        type: input.type,
+        locale: config.locale,
+        twitterSite: handle,
+        twitterCreator: handle,
+        noindex: input.noindex,
+        keywords: mergeKeywords(config.keywords, input.keywords),
+        languages: input.languages,
+        article: input.article,
+      });
+    },
+    organization: () =>
+      organization({
+        name: config.name,
+        url: base,
+        logo: config.logo ? abs(config.logo) : undefined,
+        description: config.description,
+        sameAs: config.sameAs,
+        email: config.email,
+        telephone: config.telephone,
+      }),
+    website: () => website({ name: config.name, url: base, searchUrl: config.searchUrl }),
+    breadcrumb: (path, labels) => breadcrumbFromPath(path, { baseUrl: base, labels }),
+    rootJsonLd: () => graph(site.organization(), site.website()),
+    page(input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        webPage({ name: input.title, url: abs(input.path), description: metadata.description }),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    article(input) {
+      const metadata = site.meta({ ...input, type: "article" });
+      const publisher: OrganizationInput | undefined = config.logo
+        ? { name: config.name, url: base, logo: abs(config.logo) }
+        : { name: config.name, url: base };
+      const jsonLd = graph(
+        blogPosting({
+          headline: input.title,
+          description: metadata.description,
+          image: pickImage(input.image, input.title),
+          author: input.author ?? config.name,
+          datePublished: input.datePublished,
+          dateModified: input.dateModified,
+          url: abs(input.path),
+          publisher,
+        }),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    product(input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        product({
+          name: input.title,
+          description: metadata.description,
+          image: pickImage(input.image, input.title),
+          brand: input.brand ?? config.name,
+          sku: input.sku,
+          offers:
+            input.price !== undefined
+              ? { price: input.price, currency: input.currency ?? "USD", availability: input.availability, url: abs(input.path) }
+              : undefined,
+          rating: input.rating,
+        }),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    faq(items, input) {
+      const metadata = site.meta(input);
+      const jsonLd = graph(
+        faqPage(items),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+  };
+  return site;
+}

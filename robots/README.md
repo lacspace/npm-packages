@@ -110,6 +110,17 @@ isAllowed("/admin/secret", parsed);        // false
 isAllowed("/files/a.pdf", parseRobots("User-agent: *\nDisallow: /*.pdf$")); // false
 ```
 
+## New in 1.2 — one-line robots.txt from your site URL
+
+```ts
+import { robotsForSite } from "@lacspace/robots";
+
+robotsForSite({ url: "https://acme.com" }, { blockAi: true });
+// allow all · Sitemap: https://acme.com/sitemap.xml · Host: … · blocks GPTBot, ClaudeBot, CCBot, Google-Extended…
+```
+
+Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `robotsForSite(site.config, { blockAi: true })`.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

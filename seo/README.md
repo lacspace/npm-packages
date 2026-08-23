@@ -120,6 +120,41 @@ lintSeo({ title, description, canonical, image }).warnings; // ["description is 
 
 Also: `blogPosting`, `newsArticle`, `webPage` builders.
 
+## New in 1.3 — SEO Autopilot (configure once, auto-fill everything)
+
+Set your brand **once** with `defineSite()`, then every page's metadata **and** JSON-LD is a one-liner — canonical URL, title template, Open Graph, Twitter card, auto description and auto OG image all filled in for you.
+
+```ts
+import { defineSite, jsonLdScript } from "@lacspace/seo";
+
+export const site = defineSite({
+  name: "Acme",
+  url: "https://acme.com",
+  logo: "/logo.png",
+  twitter: "acmehq",
+  ogImage: "/og",   // dynamic social cards → /og?title=<page> (zero design work)
+  searchUrl: "https://acme.com/search?q={search_term_string}",
+});
+
+// app/layout.tsx — sitewide Organization + WebSite, declared once
+// <>{/* */}<div dangerouslySetInnerHTML={{ __html: jsonLdScript(site.rootJsonLd()) }} /></>
+
+// app/pricing/page.tsx
+export const metadata = site.meta({ title: "Pricing", path: "/pricing" });
+// → "Pricing · Acme" + canonical + OG + Twitter + og:image?title=Pricing
+
+// app/blog/[slug]/page.tsx — metadata + BlogPosting + BreadcrumbList in ONE call
+const { metadata, jsonLd } = site.article({
+  title: post.title,
+  path: `/blog/${post.slug}`,
+  datePublished: post.date,
+  author: "Lumi AI",
+  content: post.body,   // ← description auto-derived, no copywriting
+});
+```
+
+Also `site.product(...)`, `site.faq(...)`, `site.page(...)` — each returns `{ metadata, jsonLd }`. Plus content auto-derivation helpers you can use anywhere: **`excerpt()`**, **`metaDescription()`**, **`readingTime()`**, **`stripMarkdown()`** and **`ogImageUrl()`**.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

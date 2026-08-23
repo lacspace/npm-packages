@@ -96,6 +96,21 @@ export function GET() {
 }
 ```
 
+## New in 1.2 — prefill the feed from your site
+
+```ts
+import { rss, feedForSite } from "@lacspace/rss";
+
+// app/feed.xml/route.ts — title, link, feedUrl and language auto-filled
+export function GET() {
+  return new Response(rss(feedForSite({ name: "Acme Blog", url: "https://acme.com" }, "/feed.xml"), posts), {
+    headers: { "content-type": "application/rss+xml" },
+  });
+}
+```
+
+Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `feedForSite(site.config)`.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

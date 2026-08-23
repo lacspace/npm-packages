@@ -255,3 +255,30 @@ export function toNextRobots(opts: RobotsOptions): NextRobots {
     host: opts.host,
   };
 }
+
+/** Minimal site shape shared across the Lacspace SEO Kit (structural, no imports). */
+export interface SiteLike {
+  /** Absolute base URL, e.g. "https://acme.com". */
+  url: string;
+}
+
+export interface RobotsForSiteOptions {
+  /** Paths to disallow (default: none — allow everything). */
+  disallow?: string[];
+  /** Also block AI/LLM crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended…). */
+  blockAi?: boolean;
+  /** Override the sitemap URL (defaults to `<url>/sitemap.xml`). */
+  sitemap?: string | string[];
+}
+
+/**
+ * A sensible, production-ready robots.txt from just your site URL — allow all,
+ * auto sitemap reference and host, with one flag to fend off AI scrapers.
+ * @example robotsForSite({ url: "https://acme.com" }, { blockAi: true })
+ */
+export function robotsForSite(site: SiteLike, opts: RobotsForSiteOptions = {}): string {
+  const base = site.url.replace(/\/$/, "");
+  const groups: RobotsGroup[] = [{ userAgent: "*", allow: ["/"], disallow: opts.disallow ?? [] }];
+  if (opts.blockAi) for (const bot of AI_BOTS) groups.push({ userAgent: bot, disallow: ["/"] });
+  return robots({ groups, sitemap: opts.sitemap ?? `${base}/sitemap.xml`, host: base });
+}

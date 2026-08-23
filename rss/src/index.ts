@@ -219,3 +219,31 @@ export function jsonFeedResponse(feed: FeedOptions, items: FeedItem[], init: Res
     headers: { "content-type": "application/feed+json; charset=utf-8", ...(init.headers ?? {}) },
   });
 }
+
+/** Minimal site shape shared across the Lacspace SEO Kit (structural, no imports). */
+export interface SiteLike {
+  /** Brand / site name → feed title. */
+  name?: string;
+  /** Absolute base URL, e.g. "https://acme.com". */
+  url: string;
+  /** Feed / site description. */
+  description?: string;
+  /** Language, e.g. "en". */
+  locale?: string;
+}
+
+/**
+ * Prefill a {@link FeedOptions} from your site config, so a feed route is one line:
+ * `rss(feedForSite(site), posts)`. Auto-fills title, link, feedUrl and language.
+ * @example rss(feedForSite({ name: "Acme Blog", url: "https://acme.com" }, "/feed.xml"), items)
+ */
+export function feedForSite(site: SiteLike, feedPath = "/feed.xml"): FeedOptions {
+  const base = site.url.replace(/\/$/, "");
+  return {
+    title: site.name ?? base,
+    link: base,
+    description: site.description,
+    feedUrl: /^https?:\/\//.test(feedPath) ? feedPath : `${base}${feedPath.startsWith("/") ? "" : "/"}${feedPath}`,
+    language: site.locale ? site.locale.replace(/_/g, "-").toLowerCase() : undefined,
+  };
+}

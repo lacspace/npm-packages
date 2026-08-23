@@ -193,3 +193,29 @@ export function toNextSitemap(urls: SitemapUrl[]): NextSitemapEntry[] {
     return entry;
   });
 }
+
+/** Minimal site shape shared across the Lacspace SEO Kit (structural, no imports). */
+export interface SiteLike {
+  /** Absolute base URL, e.g. "https://acme.com". */
+  url: string;
+}
+
+/** A route: just a path string, or a full entry (its `loc`/`path` is resolved against the site URL). */
+export type SiteRoute = string | (Omit<SitemapUrl, "loc"> & { loc?: string; path?: string });
+
+/**
+ * Build a sitemap from bare paths — no need to repeat your domain on every row.
+ * Relative locs are resolved against the site URL; absolute ones pass through.
+ * @example sitemapForSite({ url: "https://acme.com" }, ["/", "/pricing", { path: "/blog", changefreq: "daily", priority: 0.8 }])
+ */
+export function sitemapForSite(site: SiteLike, routes: SiteRoute[]): string {
+  const base = site.url.replace(/\/$/, "");
+  const resolve = (p: string): string =>
+    /^https?:\/\//.test(p) ? p : `${base}/${p.replace(/^\//, "")}`;
+  const urls: SitemapUrl[] = routes.map((r) => {
+    if (typeof r === "string") return { loc: resolve(r) };
+    const { path, loc, ...rest } = r;
+    return { ...rest, loc: resolve(path ?? loc ?? "/") };
+  });
+  return sitemap(urls);
+}

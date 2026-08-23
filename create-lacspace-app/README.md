@@ -29,6 +29,10 @@ It asks for a project name and a template, scaffolds the project, installs depen
 | **business** | A professional company / agency site with services + CTA |
 | **ecommerce** | A modern storefront home with a featured product grid |
 | **saas** | A high-converting SaaS landing page with features + pricing |
+| **blog** | An editorial blog / magazine home with a featured post + grid |
+| **docs** | A documentation landing with quick-start + feature cards |
+| **dashboard** | An admin app shell with a sidebar, stat cards and activity |
+| **restaurant** | A warm restaurant / cafe site with a menu and reservations |
 
 Every template is a real Next.js 15 App Router + Tailwind v4 project — dark, modern, responsive, with a gradient accent you can theme.
 

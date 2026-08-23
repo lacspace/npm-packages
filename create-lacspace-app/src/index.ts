@@ -40,6 +40,10 @@ const TEMPLATES: TemplateDef[] = [
   { key: "business", label: "Business site", description: "A professional company / agency site with services and a CTA.", accent: ["#2563eb", "#06b6d4"], siteName: "Acme Studio", siteDescription: "We design and build digital products that grow businesses." },
   { key: "ecommerce", label: "E-commerce storefront", description: "A modern product storefront home with a featured grid.", accent: ["#0d9488", "#84cc16"], siteName: "Acme Store", siteDescription: "Beautiful things, thoughtfully made. Free shipping worldwide." },
   { key: "saas", label: "SaaS landing", description: "A high-converting SaaS landing page with features and pricing.", accent: ["#7c3aed", "#ec4899"], siteName: "Acme Cloud", siteDescription: "The all-in-one platform your team will love. Ship faster." },
+  { key: "blog", label: "Blog / magazine", description: "A clean editorial blog home with a featured post and a grid.", accent: ["#f97316", "#ef4444"], siteName: "The Journal", siteDescription: "Essays, notes and stories on building things that matter." },
+  { key: "docs", label: "Documentation", description: "A docs landing with quick-start and feature cards.", accent: ["#0ea5e9", "#6366f1"], siteName: "Acme Docs", siteDescription: "Everything you need to build with Acme — guides, API and examples." },
+  { key: "dashboard", label: "Admin dashboard", description: "An app dashboard shell with stat cards and a table.", accent: ["#10b981", "#14b8a6"], siteName: "Acme Admin", siteDescription: "Your control center — metrics, activity and management in one place." },
+  { key: "restaurant", label: "Restaurant / cafe", description: "A warm restaurant home with menu highlights and reservations.", accent: ["#e11d48", "#f59e0b"], siteName: "Olive & Ember", siteDescription: "Seasonal plates, natural wine and a warm room. Book a table." },
 ];
 
 /* ------------------------------ shared files ------------------------------ */
@@ -296,6 +300,135 @@ function homePage(ctx: Ctx): string {
             </div>
           ))}
         </div>
+      </section>
+      ${FOOTER(n)}`);
+  }
+
+  if (ctx.template.key === "blog") {
+    return shell(`${NAV(n, ["Latest", "Topics", "About"])}
+      <section className="mx-auto max-w-3xl px-6 py-24">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-white/40">The Journal</p>
+        <h1 className="text-5xl font-black leading-tight sm:text-6xl gradient-text">${n}</h1>
+        <p className="mt-6 text-lg text-white/60">${ctx.template.siteDescription}</p>
+      </section>
+      <section id="latest" className="mx-auto max-w-5xl px-6 pb-8">
+        <a href="#" className="group block rounded-3xl border border-white/10 bg-white/[0.02] p-8 transition hover:border-white/20">
+          <div className="mb-6 h-56 rounded-2xl gradient-bg opacity-80" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-white/40">Featured</span>
+          <h2 className="mt-2 text-3xl font-bold group-hover:opacity-90">The one thing every product needs before launch</h2>
+          <p className="mt-2 text-white/60">A short, punchy dek that pulls the reader into the piece and makes them want more.</p>
+        </a>
+      </section>
+      <section className="mx-auto max-w-5xl px-6 py-12">
+        <div className="grid gap-8 sm:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <a key={i} href="#" className="group">
+              <div className="mb-4 h-40 rounded-xl gradient-bg opacity-70" />
+              <span className="text-xs uppercase tracking-wider text-white/40">Essay</span>
+              <h3 className="mt-1 text-xl font-semibold group-hover:opacity-90">A thoughtful headline for post {i}</h3>
+              <p className="mt-1 text-sm text-white/50">Two lines of supporting copy to set the scene for the reader.</p>
+            </a>
+          ))}
+        </div>
+      </section>
+      ${FOOTER(n)}`);
+  }
+
+  if (ctx.template.key === "docs") {
+    return shell(`${NAV(n, ["Guides", "API", "Examples"])}
+      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+        <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <div className="mt-8 inline-flex items-center gap-3 rounded-lg border border-white/10 bg-black/40 px-4 py-3 font-mono text-sm text-white/80">
+          <span className="text-white/40">$</span> npm install @acme/sdk
+        </div>
+      </section>
+      <section id="guides" className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid gap-6 md:grid-cols-3">
+          {[
+            { t: "Quick start", d: "Go from zero to your first request in five minutes." },
+            { t: "Guides", d: "Task-focused walkthroughs for the common paths." },
+            { t: "API reference", d: "Every endpoint, typed, with copy-paste examples." },
+          ].map((c) => (
+            <a key={c.t} href="#" className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 transition hover:border-white/20">
+              <h3 className="text-xl font-bold gradient-text">{c.t}</h3>
+              <p className="mt-2 text-white/60">{c.d}</p>
+            </a>
+          ))}
+        </div>
+      </section>
+      ${FOOTER(n)}`);
+  }
+
+  if (ctx.template.key === "dashboard") {
+    return shell(`<div className="flex min-h-screen">
+        <aside className="hidden w-56 shrink-0 border-r border-white/10 p-6 md:block">
+          <div className="mb-8 text-lg font-black gradient-text">${n}</div>
+          <nav className="space-y-1 text-sm text-white/60">
+            {["Overview", "Analytics", "Customers", "Settings"].map((l) => (
+              <a key={l} href="#" className="block rounded-lg px-3 py-2 hover:bg-white/5 hover:text-white">{l}</a>
+            ))}
+          </nav>
+        </aside>
+        <main className="flex-1 p-6 md:p-10">
+          <h1 className="text-2xl font-bold">Overview</h1>
+          <p className="mt-1 text-white/50">${ctx.template.siteDescription}</p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { l: "Revenue", v: "$48.2k", c: "+12%" }, { l: "Users", v: "12,480", c: "+3.4%" },
+              { l: "Orders", v: "1,204", c: "+8%" }, { l: "Churn", v: "1.2%", c: "-0.3%" },
+            ].map((s) => (
+              <div key={s.l} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div className="text-sm text-white/50">{s.l}</div>
+                <div className="mt-1 text-2xl font-bold">{s.v}</div>
+                <div className="mt-1 text-xs text-emerald-400">{s.c}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <div className="mb-4 font-semibold">Recent activity</div>
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center justify-between border-b border-white/5 pb-3 text-sm">
+                  <span className="text-white/70">Event #{i}</span>
+                  <span className="text-white/40">just now</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>`);
+  }
+
+  if (ctx.template.key === "restaurant") {
+    return shell(`${NAV(n, ["Menu", "Story", "Reserve"])}
+      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-white/40">Est. 2026</p>
+        <h1 className="text-5xl font-black leading-tight sm:text-7xl gradient-text">${n}</h1>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <a href="#reserve" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Reserve a table</a>
+      </section>
+      <section id="menu" className="mx-auto max-w-4xl px-6 py-16">
+        <h2 className="mb-10 text-center text-3xl font-bold">Tonight's plates</h2>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {[
+            { n: "Charred leeks", p: "$14" }, { n: "Handmade tagliatelle", p: "$22" },
+            { n: "Wood-fired trout", p: "$28" }, { n: "Olive oil cake", p: "$11" },
+          ].map((d) => (
+            <div key={d.n} className="flex items-baseline justify-between gap-4 border-b border-white/10 pb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{d.n}</h3>
+                <p className="text-sm text-white/50">A short, mouth-watering description of the dish.</p>
+              </div>
+              <span className="shrink-0 gradient-text font-bold">{d.p}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section id="reserve" className="mx-auto max-w-2xl px-6 py-24 text-center">
+        <h2 className="text-3xl font-bold">Join us</h2>
+        <p className="mt-3 text-white/60">Open Wed–Sun, 5pm till late. Walk-ins welcome; bookings recommended.</p>
+        <a href="tel:+10000000000" className="mt-8 inline-block rounded-full border border-white/20 px-8 py-3 font-semibold hover:bg-white/5">Call to book</a>
       </section>
       ${FOOTER(n)}`);
   }

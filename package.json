@@ -42,7 +42,8 @@
     "create-lacspace-seo",
     "signed-url",
     "pdf",
-    "webhooks"
+    "webhooks",
+    "flags"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",

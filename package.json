@@ -56,6 +56,10 @@
     "form",
     "og",
     "ui",
+    "cache",
+    "markdown",
+    "analytics-lite",
+    "money",
     "create-lacspace-app"
   ],
   "scripts": {

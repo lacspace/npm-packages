@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/cache",
+  "version": "1.0.0",
+  "description": "A tiny in-memory cache — LRU eviction, per-entry TTL and stale-while-revalidate, plus wrap()/memoize() to cache any async function with in-flight de-duplication. Zero-dependency, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "cache",
+    "lru",
+    "lru-cache",
+    "ttl",
+    "stale-while-revalidate",
+    "swr",
+    "memoize",
+    "memoization",
+    "in-memory-cache",
+    "dedupe",
+    "async-cache",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://lacspace.com/packages",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "cache"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

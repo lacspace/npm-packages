@@ -67,6 +67,8 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     "@lacspace/ui": "^1.0.0",
     "@lacspace/form": "^1.0.0",
     "@lacspace/validate": "^1.0.0",
+    // The blog template renders Markdown posts with @lacspace/markdown.
+    ...(ctx.template.key === "blog" ? { "@lacspace/markdown": "^1.0.0" } : {}),
   },
   devDependencies: {
     typescript: "^5.7.0",
@@ -140,6 +142,28 @@ body {
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; scroll-behavior: auto; } }
+${ctx.template.key === "blog" ? BLOG_PROSE_CSS : ""}`;
+
+// Readable long-form styles for Markdown-rendered blog posts (the .prose wrapper).
+const BLOG_PROSE_CSS = `
+/* article typography for Markdown posts */
+.prose { line-height: 1.75; color: rgb(229 231 235 / 0.9); }
+.prose > * + * { margin-top: 1.25em; }
+.prose h1, .prose h2, .prose h3 { font-weight: 700; line-height: 1.25; margin-top: 2em; color: #fff; }
+.prose h2 { font-size: 1.6rem; } .prose h3 { font-size: 1.3rem; }
+.prose a { color: var(--accent-to); text-decoration: underline; text-underline-offset: 3px; }
+.prose strong { color: #fff; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose ul { list-style: disc; } .prose ol { list-style: decimal; }
+.prose li { margin-top: 0.4em; }
+.prose blockquote { border-left: 3px solid var(--accent-to); padding-left: 1em; color: rgb(229 231 235 / 0.7); font-style: italic; }
+.prose code { background: rgb(255 255 255 / 0.08); padding: 0.15em 0.4em; border-radius: 6px; font-size: 0.9em; }
+.prose pre { background: #0f0f16; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 1.1em; overflow-x: auto; }
+.prose pre code { background: none; padding: 0; }
+.prose img { border-radius: 12px; max-width: 100%; height: auto; }
+.prose table { width: 100%; border-collapse: collapse; }
+.prose th, .prose td { border: 1px solid rgb(255 255 255 / 0.12); padding: 0.5em 0.75em; text-align: left; }
+.prose hr { border: none; border-top: 1px solid rgb(255 255 255 / 0.12); }
 `;
 
 const siteTs = (ctx: Ctx): string => `import { defineSite } from "@lacspace/seo";
@@ -699,7 +723,8 @@ export function CommandMenu() {
       accent="${ctx.template.accent[1]}"
       items={[
         { id: "home", label: "Home", group: "Navigate", shortcut: "G H", onSelect: () => router.push("/") },
-        { id: "about", label: "About", group: "Navigate", onSelect: () => router.push("/about") },
+        { id: "about", label: "About", group: "Navigate", onSelect: () => router.push("/about") },${ctx.template.key === "blog" ? `
+        { id: "blog", label: "Blog", group: "Navigate", onSelect: () => router.push("/blog") },` : ""}
         { id: "contact", label: "Contact", group: "Navigate", onSelect: () => router.push("/contact") },
         { id: "packages", label: "Lacspace packages", group: "Links", onSelect: () => window.open("https://lacspace.com/packages", "_blank") },
       ]}
@@ -847,10 +872,244 @@ jobs:
         run: npx @lacspace/seo crawl http://localhost:3000 --min-grade A
 `;
 
+/* ------------------------- blog template (markdown) ------------------------- */
+
+// ✨ A real Markdown-powered blog — content/posts/*.md → static pages via @lacspace/markdown.
+const postsLib = (): string => `import fs from "node:fs";
+import path from "node:path";
+import { markdownToHtml, extractHeadings, type Heading } from "@lacspace/markdown";
+
+const DIR = path.join(process.cwd(), "content/posts");
+
+export interface PostMeta {
+  slug: string;
+  title: string;
+  date: string;
+  excerpt: string;
+  tag?: string;
+  author?: string;
+}
+export interface Post extends PostMeta {
+  html: string;
+  toc: Heading[];
+}
+
+// Tiny front-matter parser (no gray-matter needed).
+function parse(raw: string): { data: Record<string, string>; body: string } {
+  const m = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n?([\\s\\S]*)$/.exec(raw);
+  if (!m) return { data: {}, body: raw };
+  const data: Record<string, string> = {};
+  for (const line of m[1].split(/\\r?\\n/)) {
+    const i = line.indexOf(":");
+    if (i === -1) continue;
+    data[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+  }
+  return { data, body: m[2] };
+}
+
+export function getAllPosts(): PostMeta[] {
+  if (!fs.existsSync(DIR)) return [];
+  return fs
+    .readdirSync(DIR)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => {
+      const { data } = parse(fs.readFileSync(path.join(DIR, f), "utf8"));
+      return {
+        slug: f.replace(/\\.md$/, ""),
+        title: data.title ?? f,
+        date: data.date ?? "",
+        excerpt: data.excerpt ?? "",
+        tag: data.tag,
+        author: data.author,
+      };
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+export function getPost(slug: string): Post | null {
+  const file = path.join(DIR, \`\${slug}.md\`);
+  if (!fs.existsSync(file)) return null;
+  const { data, body } = parse(fs.readFileSync(file, "utf8"));
+  return {
+    slug,
+    title: data.title ?? slug,
+    date: data.date ?? "",
+    excerpt: data.excerpt ?? "",
+    tag: data.tag,
+    author: data.author,
+    html: markdownToHtml(body, { headingOffset: 1 }),
+    toc: extractHeadings(body),
+  };
+}
+`;
+
+const blogListPage = (ctx: Ctx): string => `import Link from "next/link";
+import { site } from "@/lib/site";
+import { getAllPosts } from "@/lib/posts";
+
+export const metadata = site.meta({
+  title: "Blog",
+  path: "/blog",
+  description: "Writing, notes and updates from ${ctx.template.siteName}.",
+});
+
+export default function Blog() {
+  const posts = getAllPosts();
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-24">
+      <h1 className="text-4xl font-black gradient-text sm:text-5xl">Blog</h1>
+      <p className="mt-4 text-white/60">Thoughts, notes and updates.</p>
+      <div className="mt-12 flex flex-col gap-8">
+        {posts.map((post) => (
+          <Link key={post.slug} href={\`/blog/\${post.slug}\`} className="group rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/25">
+            {post.tag && <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{post.tag}</span>}
+            <h2 className="mt-1 text-2xl font-bold group-hover:gradient-text">{post.title}</h2>
+            <p className="mt-2 text-white/60">{post.excerpt}</p>
+            {post.date && <time className="mt-3 block text-sm text-white/40">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
+          </Link>
+        ))}
+        {posts.length === 0 && <p className="text-white/50">No posts yet — add a Markdown file in <code>content/posts/</code>.</p>}
+      </div>
+    </main>
+  );
+}
+`;
+
+const blogPostPage = (): string => `import Link from "next/link";
+import { notFound } from "next/navigation";
+import { site } from "@/lib/site";
+import { getAllPosts, getPost } from "@/lib/posts";
+
+// ✨ Every post is statically generated at build time.
+export function generateStaticParams() {
+  return getAllPosts().map((p) => ({ slug: p.slug }));
+}
+
+// ✨ Per-post SEO — title, canonical, OG image and Article JSON-LD, from one call.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPost(slug);
+  if (!post) return {};
+  return site.article({
+    title: post.title,
+    path: \`/blog/\${slug}\`,
+    description: post.excerpt,
+    datePublished: post.date,
+    author: post.author,
+    tags: post.tag ? [post.tag] : undefined,
+  }).metadata;
+}
+
+export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPost(slug);
+  if (!post) notFound();
+
+  const jsonLd = site.article({
+    title: post.title,
+    path: \`/blog/\${slug}\`,
+    description: post.excerpt,
+    datePublished: post.date,
+    author: post.author,
+    tags: post.tag ? [post.tag] : undefined,
+  }).jsonLd;
+
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-24">
+      <Link href="/blog" className="text-sm text-white/50 hover:text-white">&larr; All posts</Link>
+      <article className="mt-6">
+        <h1 className="text-4xl font-black leading-tight sm:text-5xl">{post.title}</h1>
+        {post.date && <time className="mt-4 block text-sm text-white/40">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
+        <div className="prose mt-10" dangerouslySetInnerHTML={{ __html: post.html }} />
+      </article>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    </main>
+  );
+}
+`;
+
+const blogSitemapTs = (): string => `import { sitemapForSite } from "@lacspace/sitemap";
+import { site } from "@/lib/site";
+import { getAllPosts } from "@/lib/posts";
+
+export function GET() {
+  const paths = ["/", "/about", "/contact", "/blog", ...getAllPosts().map((p) => \`/blog/\${p.slug}\`)];
+  const xml = sitemapForSite(site.config, paths);
+  return new Response(xml, { headers: { "content-type": "application/xml" } });
+}
+`;
+
+const samplePostWelcome = (ctx: Ctx): string => `---
+title: Welcome to your new blog
+date: 2026-01-15
+excerpt: How this Markdown-powered blog works — and how to add your own posts.
+tag: Guide
+author: ${ctx.template.siteName}
+---
+
+# You're up and running
+
+This blog reads **Markdown files** from \`content/posts/\` and renders them to
+static pages with [\`@lacspace/markdown\`](https://www.npmjs.com/package/@lacspace/markdown).
+No CMS, no database — just files you can version in git.
+
+## Add a post
+
+1. Create \`content/posts/my-post.md\`.
+2. Add front-matter at the top (title, date, excerpt, tag).
+3. Write Markdown. That's it — the post appears at \`/blog/my-post\`.
+
+## What Markdown supports
+
+- **Bold**, *italic*, ~~strikethrough~~ and \`inline code\`
+- Lists, including
+  - nested items
+  - [x] task lists
+- Links, images and autolinks
+- Tables:
+
+| Feature | Works |
+| ------- | :---: |
+| Headings + anchors | ✅ |
+| Code blocks | ✅ |
+
+\`\`\`ts
+// even fenced code, with a language class for highlighting
+export function hello(name: string) {
+  return \`Hello, \${name}!\`;
+}
+\`\`\`
+
+> Every post is statically generated and gets its own SEO metadata and
+> Article JSON-LD automatically. Happy writing!
+`;
+
+const samplePostSecond = (ctx: Ctx): string => `---
+title: Why we build in the open
+date: 2026-02-02
+excerpt: A short second post so you can see the list and navigation in action.
+tag: Notes
+author: ${ctx.template.siteName}
+---
+
+# Building in the open
+
+This is a second sample post. Delete it whenever you like.
+
+Because posts are just Markdown files, you can:
+
+1. Draft in any editor
+2. Preview locally with \`npm run dev\`
+3. Commit and deploy
+
+Check the [first post](/blog/welcome) for the full Markdown reference.
+`;
+
 /* ------------------------------ file plan ------------------------------ */
 
 function buildFiles(ctx: Ctx): Record<string, string> {
-  return {
+  const isBlog = ctx.template.key === "blog";
+  const files: Record<string, string> = {
     "package.json": pkgJson(ctx),
     "tsconfig.json": tsconfig(),
     "next.config.mjs": nextConfig(),
@@ -868,7 +1127,7 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/apple-icon.tsx": appleIconTsx(ctx),
     "app/manifest.ts": manifestTs(ctx),
     "app/robots.txt/route.ts": robotsTs(),
-    "app/sitemap.xml/route.ts": sitemapTs(),
+    "app/sitemap.xml/route.ts": isBlog ? blogSitemapTs() : sitemapTs(),
     "app/contact/page.tsx": contactPage(ctx),
     "app/actions.ts": actionsTs(),
     "components/command-menu.tsx": commandMenu(ctx),
@@ -877,6 +1136,17 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     ".env.example": envExample(),
     "WELCOME.md": welcomeMd(ctx),
   };
+
+  // ✨ The blog template gets a real Markdown-powered blog.
+  if (isBlog) {
+    files["lib/posts.ts"] = postsLib();
+    files["app/blog/page.tsx"] = blogListPage(ctx);
+    files["app/blog/[slug]/page.tsx"] = blogPostPage();
+    files["content/posts/welcome.md"] = samplePostWelcome(ctx);
+    files["content/posts/building-in-the-open.md"] = samplePostSecond(ctx);
+  }
+
+  return files;
 }
 
 /* ------------------------------ cli ------------------------------ */

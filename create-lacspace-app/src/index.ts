@@ -182,6 +182,23 @@ body {
 /* indeterminate progress bar (used by the "under development" pages) */
 @keyframes loadbar { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
 
+/* ambient motion for illustrations & the aurora background */
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes gradient-pan { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.animate-floaty { animation: floaty 6s ease-in-out infinite; }
+.animate-floaty-slow { animation: floaty 9s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 26s linear infinite; }
+.gradient-text-animated {
+  background: linear-gradient(120deg, var(--accent-from), var(--accent-to), var(--accent-from));
+  background-size: 200% 200%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: gradient-pan 6s ease infinite;
+}
+.marquee-track { display: flex; width: max-content; animation: marquee-x 32s linear infinite; }
+.marquee-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+
 /* soft entrance for content */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -437,14 +454,21 @@ function homePage(ctx: Ctx): string {
 
   const shell = (inner: string): string => `import { site } from "@/lib/site";
 import { LiveStats } from "@/components/live-stats";
+import { Aurora } from "@/components/aurora";
+import { HeroArt } from "@/components/hero-art";
 
 // ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
 export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main className="relative min-h-screen overflow-hidden">
+      {/* ✨ Animated, theme-aware gradient backdrop */}
+      <Aurora />
       ${inner}
+      ${showcaseSection(ctx)}
+      ${marqueeSection(ctx)}
+      ${faqSection(ctx)}
       ${builtWithSection(ctx)}
     </main>
   );
@@ -1516,6 +1540,9 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     files["components/site-header.tsx"] = siteHeader(ctx);
     files["components/site-footer.tsx"] = siteFooter(ctx);
     files["components/announcement-bar.tsx"] = announcementBar();
+    // ✨ Creative home extras — animated backdrop + bespoke illustration.
+    files["components/aurora.tsx"] = aurora();
+    files["components/hero-art.tsx"] = heroArt(ctx);
   }
 
   // ✨ Every nav/footer link gets a real, branded page — no 404s. Pages without
@@ -2428,6 +2455,206 @@ function realPageFiles(ctx: Ctx): Record<string, string> {
   if (k === "dashboard") { f["app/settings/page.tsx"] = settingsPage(ctx); f["components/settings-panel.tsx"] = settingsPanel(); }
   return f;
 }
+
+/* ----------------------- creative sections & illustrations ----------------------- */
+
+interface CreativeData {
+  emoji: string;
+  chips: [string, string, string];
+  showcaseTitle: string;
+  showcaseLead: string;
+  bullets: string[];
+  marqueeLabel: string;
+  marquee: string[];
+  faq: { q: string; a: string }[];
+}
+
+/** Pre-written, template-tailored copy for the auto-generated home sections. */
+function creativeData(ctx: Ctx): CreativeData {
+  const n = ctx.template.siteName;
+  const map: Record<string, CreativeData> = {
+    personal: {
+      emoji: "👋", chips: ["Design", "Code", "Ship"],
+      showcaseTitle: "Design & build, end to end",
+      showcaseLead: `${n} turns ideas into polished products — from the first sketch to the last pixel.`,
+      bullets: ["10+ years shipping web & mobile", "Design systems that scale", "Obsessed with the details"],
+      marqueeLabel: "Worked with", marquee: ["Aurora", "Northwind", "Lumen", "Harbor", "Cadence", "Meadow"],
+      faq: [
+        { q: "Are you available for freelance?", a: "Yes — I take on a couple of projects each quarter. Reach out via the contact page." },
+        { q: "What do you work with?", a: "React, Next.js and TypeScript, with a lot of care for UX and performance." },
+        { q: "Do you do both design and development?", a: "Both — I can take a project from concept all the way to production." },
+      ],
+    },
+    business: {
+      emoji: "🏢", chips: ["Strategy", "Design", "Launch"],
+      showcaseTitle: "Everything you need to grow",
+      showcaseLead: `${n} partners with you from strategy to launch — one senior team, accountable for outcomes.`,
+      bullets: ["Senior team, no hand-offs", "Fixed timelines & clear pricing", "We sweat the details"],
+      marqueeLabel: "Trusted by teams at", marquee: ["Northwind", "Globex", "Initech", "Umbrella", "Soylent", "Hooli"],
+      faq: [
+        { q: "How do engagements work?", a: "We scope a clear plan, agree a fixed timeline, and ship in weekly increments." },
+        { q: "What does it cost?", a: "See our pricing page for plans, or contact us for a custom quote." },
+        { q: "How soon can we start?", a: "Usually within two weeks. Get in touch to check availability." },
+      ],
+    },
+    ecommerce: {
+      emoji: "🛍️", chips: ["Shop", "Bag", "Checkout"],
+      showcaseTitle: "Thoughtfully made, delivered fast",
+      showcaseLead: `${n} curates beautiful things and ships them worldwide — with easy returns, always.`,
+      bullets: ["Free worldwide shipping", "30-day easy returns", "Sustainably sourced"],
+      marqueeLabel: "Why shop with us", marquee: ["Free shipping", "Easy returns", "Secure checkout", "Ethically made", "Gift wrapping", "Loved by 10k+"],
+      faq: [
+        { q: "How long is shipping?", a: "Most orders arrive in 3–5 business days with free worldwide shipping." },
+        { q: "What's your return policy?", a: "30 days, no questions asked — see the returns page for details." },
+        { q: "Is checkout secure?", a: "Yes — payments are encrypted and we never store your card details." },
+      ],
+    },
+    saas: {
+      emoji: "⚡", chips: ["Analytics", "Billing", "API"],
+      showcaseTitle: "The platform your team will love",
+      showcaseLead: `${n} brings analytics, billing and automation into one fast, secure place.`,
+      bullets: ["Set up in minutes", "SOC 2-ready security", "Scales with you"],
+      marqueeLabel: "Powering teams at", marquee: ["Globex", "Initech", "Hooli", "Pied Piper", "Umbrella", "Stark"],
+      faq: [
+        { q: "Is there a free plan?", a: "Yes — start free and upgrade when you're ready. See the pricing page." },
+        { q: "How is my data secured?", a: "Encryption in transit and at rest, audit logs, and SSO on higher plans." },
+        { q: "Can I self-host?", a: "Contact sales — we offer flexible deployment options." },
+      ],
+    },
+    blog: {
+      emoji: "✍️", chips: ["Essays", "Notes", "Stories"],
+      showcaseTitle: "Words worth your time",
+      showcaseLead: `${n} publishes essays and notes on building things that matter — no fluff.`,
+      bullets: ["New pieces most weeks", "No clickbait, ever", "Written by practitioners"],
+      marqueeLabel: "Topics we cover", marquee: ["Engineering", "Design", "Product", "Culture", "Tutorials", "Announcements"],
+      faq: [
+        { q: "How often do you publish?", a: "A new piece most weeks — subscribe so you never miss one." },
+        { q: "Can I contribute?", a: "We love guest posts. Pitch us via the contact page." },
+        { q: "Is there a newsletter?", a: "Yes — head to the newsletter page to join." },
+      ],
+    },
+    docs: {
+      emoji: "📚", chips: ["Guides", "API", "Examples"],
+      showcaseTitle: "Everything you need to build",
+      showcaseLead: `${n} gives you guides, API references and copy-paste examples — all in one place.`,
+      bullets: ["Quickstart in 5 minutes", "Searchable & versioned", "Real, runnable examples"],
+      marqueeLabel: "What you'll find", marquee: ["Quickstart", "Guides", "API reference", "Examples", "Migrations", "Troubleshooting"],
+      faq: [
+        { q: "Where do I start?", a: "Head to the guides for a 5-minute quickstart." },
+        { q: "Is there an API reference?", a: "Yes — the API page has the full reference." },
+        { q: "How do I report a docs issue?", a: "Use the contact page — we fix docs fast." },
+      ],
+    },
+    restaurant: {
+      emoji: "🍷", chips: ["Menu", "Wine", "Reserve"],
+      showcaseTitle: "Seasonal plates, natural wine",
+      showcaseLead: `${n} serves ingredient-led plates and natural wine in a warm, low-lit room.`,
+      bullets: ["Menu changes with the seasons", "Natural, low-intervention wine", "Walk-ins welcome"],
+      marqueeLabel: "On the pass", marquee: ["Wood-fired", "Local produce", "Natural wine", "House-made pasta", "Seasonal", "Fresh sourdough"],
+      faq: [
+        { q: "Do you take reservations?", a: "Yes — book via the reservations page. Walk-ins are welcome too." },
+        { q: "Any dietary options?", a: "Plenty — vegetarian and vegan plates change weekly. Just ask about allergies." },
+        { q: "When are you open?", a: "Wednesday to Sunday, 5pm till late." },
+      ],
+    },
+  };
+  return map[ctx.template.key] ?? map.business!;
+}
+
+// components/aurora.tsx — an animated, theme-aware gradient backdrop for the hero.
+const aurora = (): string => `export function Aurora() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px] overflow-hidden">
+      <div className="absolute -left-20 -top-16 h-96 w-96 rounded-full opacity-30 blur-3xl animate-floaty" style={{ background: "radial-gradient(circle, var(--accent-from), transparent 70%)" }} />
+      <div className="absolute -right-10 top-40 h-80 w-80 rounded-full opacity-25 blur-3xl animate-floaty-slow" style={{ background: "radial-gradient(circle, var(--accent-to), transparent 70%)" }} />
+      <div className="absolute left-1/3 top-72 h-72 w-72 rounded-full opacity-20 blur-3xl animate-floaty" style={{ background: "radial-gradient(circle, var(--accent-to), transparent 70%)" }} />
+    </div>
+  );
+}
+`;
+
+// components/hero-art.tsx — a bespoke, animated illustration personalised with
+// the platform's initials and template-specific labels.
+const heroArt = (ctx: Ctx): string => {
+  const d = creativeData(ctx);
+  const initials = ctx.template.siteName.trim().split(/\s+/).slice(0, 2).map((w) => (w[0] ?? "").toUpperCase()).join("") || "A";
+  return `export function HeroArt() {
+  return (
+    <div className="relative mx-auto aspect-square w-full max-w-sm select-none">
+      {/* orbiting rings */}
+      <div className="absolute inset-0 rounded-full border border-hairline animate-spin-slow" />
+      <div className="absolute inset-10 rounded-full border border-hairline animate-spin-slow" style={{ animationDirection: "reverse" }} />
+      <div className="absolute inset-0 rounded-full opacity-40 blur-2xl gradient-bg" />
+      {/* center badge with the platform initials */}
+      <div className="absolute left-1/2 top-1/2 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-3xl gradient-bg text-4xl font-black text-black shadow-2xl animate-floaty">
+        ${JSON.stringify(initials)}
+      </div>
+      {/* floating labels */}
+      <div className="absolute left-0 top-10 flex items-center gap-2 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty">
+        <span>${d.emoji}</span> ${JSON.stringify(d.chips[0])}
+      </div>
+      <div className="absolute right-0 top-28 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty-slow">
+        ${JSON.stringify(d.chips[1])}
+      </div>
+      <div className="absolute bottom-8 left-6 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty" style={{ animationDelay: "1.2s" }}>
+        ${JSON.stringify(d.chips[2])}
+      </div>
+    </div>
+  );
+}
+`;
+};
+
+// A showcase band: pre-written copy + the animated illustration.
+const showcaseSection = (ctx: Ctx): string => {
+  const d = creativeData(ctx);
+  const bullets = d.bullets.map((b) => `<li className="flex items-center gap-2 text-muted"><span className="text-[color:var(--accent-to)]">✓</span> ${b}</li>`).join("\n            ");
+  return `<section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:grid-cols-2">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-widest text-faint">${ctx.template.siteName}</p>
+          <h2 className="mt-3 text-3xl font-bold sm:text-4xl">${d.showcaseTitle}</h2>
+          <p className="mt-4 max-w-md text-lg text-muted">${d.showcaseLead}</p>
+          <ul className="mt-6 space-y-3 text-sm">
+            ${bullets}
+          </ul>
+        </div>
+        <HeroArt />
+      </section>`;
+};
+
+// An auto-scrolling marquee band (pure CSS, duplicated track for a seamless loop).
+const marqueeSection = (ctx: Ctx): string => {
+  const d = creativeData(ctx);
+  const chip = (t: string) => `<span className="rounded-full border border-hairline bg-surface px-5 py-2 text-sm font-medium text-muted">${t}</span>`;
+  const track = d.marquee.map(chip).join("\n            ");
+  return `<section className="border-y border-hairline py-10">
+        <p className="mb-6 text-center text-xs font-semibold uppercase tracking-widest text-faint">${d.marqueeLabel}</p>
+        <div className="marquee-mask overflow-hidden">
+          <div className="marquee-track gap-4">
+            ${track}
+            ${track}
+          </div>
+        </div>
+      </section>`;
+};
+
+// A pre-written FAQ accordion (native <details>, no JS needed).
+const faqSection = (ctx: Ctx): string => {
+  const d = creativeData(ctx);
+  const items = d.faq.map((f) => `<details className="group rounded-2xl border border-hairline bg-surface p-5">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
+              ${f.q}
+              <span className="text-muted transition group-open:rotate-45">+</span>
+            </summary>
+            <p className="mt-3 text-sm leading-relaxed text-muted">${f.a}</p>
+          </details>`).join("\n          ");
+  return `<section className="mx-auto max-w-3xl px-6 py-20">
+        <h2 className="text-center text-3xl font-bold">Frequently asked</h2>
+        <div className="mt-10 space-y-3">
+          ${items}
+        </div>
+      </section>`;
+};
 
 /* ------------------------------ cli ------------------------------ */
 

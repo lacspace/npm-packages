@@ -67,9 +67,12 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     "@lacspace/ui": "^1.0.0",
     "@lacspace/form": "^1.0.0",
     "@lacspace/validate": "^1.0.0",
-    // React Kit: dark/light theming (no-flash) + essential hooks.
+    // React Kit: dark/light theming (no-flash) + essential hooks + global
+    // state (announcement bar, mobile nav) + data fetching (live stats).
     "@lacspace/theme": "^1.0.1",
     "@lacspace/hooks": "^1.0.0",
+    "@lacspace/store": "^1.0.0",
+    "@lacspace/query": "^1.0.0",
     // The blog & docs templates render Markdown with @lacspace/markdown.
     ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.0" } : {}),
   },
@@ -173,6 +176,12 @@ body {
 }
 .gradient-bg { background: linear-gradient(120deg, var(--accent-from), var(--accent-to)); }
 
+/* opaque theme background (for sticky chrome & chips) */
+.bg-app { background: var(--bg); }
+
+/* indeterminate progress bar (used by the "under development" pages) */
+@keyframes loadbar { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
+
 /* soft entrance for content */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -213,12 +222,27 @@ export const site = defineSite({
 });
 `;
 
-const layout = (ctx: Ctx): string => `import type { Metadata } from "next";
+const layout = (ctx: Ctx): string => {
+  const isDash = ctx.template.key === "dashboard";
+  // The dashboard is app-shaped (its pages render their own sidebar shell), so
+  // it skips the marketing header/footer/announcement chrome.
+  const imports = isDash
+    ? ""
+    : `import { AnnouncementBar } from "@/components/announcement-bar";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+`;
+  const open = isDash ? "" : `<AnnouncementBar />
+          <SiteHeader />
+          `;
+  const close = isDash ? "" : `
+          <SiteFooter />`;
+  return `import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@lacspace/theme";
 import { site } from "@/lib/site";
 import { CommandMenu } from "@/components/command-menu";
-import "./globals.css";
+${imports}import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -232,7 +256,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider defaultTheme="dark">
           {/* ✨ Press ⌘K / Ctrl-K anywhere — powered by @lacspace/ui */}
           <CommandMenu />
-          {children}
+          ${open}{children}${close}
         </ThemeProvider>
         <script
           type="application/ld+json"
@@ -243,6 +267,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 `;
+};
 
 const ogRoute = (ctx: Ctx): string => `import { ImageResponse } from "next/og";
 import { ogCard } from "@lacspace/og";
@@ -318,6 +343,9 @@ boring-but-essential stuff already done. Here's what's in the box.
 - **✨ Dynamic OG images** — every page auto-generates a social-share card at \`/og\` (\`@lacspace/og\`, auto-fitting titles). Share a link and see.
 - **✨ A working contact form** — \`/contact\` is live, typed, validated and spam-protected (honeypot + timing) via \`@lacspace/form\` + \`@lacspace/validate\`. Just point it at your inbox.
 - **✨ A ⌘K command palette** — press \`⌘K\` / \`Ctrl-K\` anywhere, powered by \`@lacspace/ui\`. Also try \`<Reveal>\`, \`<Counter>\`, \`<GradientText>\`, \`<TiltCard>\`, \`<Marquee>\`, \`<Typewriter>\`.
+- **✨ Dark / light / system theme** — a no-flash toggle in the header via \`@lacspace/theme\` + \`@lacspace/hooks\`. The whole template is theme-aware.
+- **✨ Multiple pages + auto header & footer** — the nav and a full footer are generated from one page map. Every link resolves to a real, branded page — pages you haven't filled in yet show a friendly **"under development"** screen instead of a 404. Add content in \`app/<route>/page.tsx\`.
+- **✨ Global state + data fetching** — a dismissible announcement bar and the mobile menu use \`@lacspace/store\` (with \`persist\`); the home page's live "By the numbers" strip fetches \`/api/stats\` with \`@lacspace/query\` (shared cache, revalidate-on-focus).
 - **✨ Per-page SEO** — see \`app/about\` & \`app/contact\`: one \`site.meta()\` call gives each route its own title, canonical & OG image.
 - **✨ An SEO CI gate** — \`.github/workflows/seo.yml\` audits every page on each push and fails below grade A, so SEO can never regress.
 - **Security headers** — HSTS, CSP, X-Frame-Options and more, via \`next.config.mjs\`.
@@ -401,29 +429,14 @@ Built with [Lacspace](https://lacspace.com/packages).
 
 /* ------------------------------ home pages ------------------------------ */
 
-const NAV = (name: string, links: string[]): string =>
-  `<header className="sticky top-0 z-40 backdrop-blur border-b border-hairline">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-black gradient-text">${name}</span>
-          <div className="flex items-center gap-6">
-            <div className="hidden gap-8 text-sm text-muted sm:flex">
-              ${links.map((l) => `<a href="#${l.toLowerCase()}" className="hover:text-fg">${l}</a>`).join("\n              ")}
-            </div>
-            <ThemeToggle />
-          </div>
-        </nav>
-      </header>`;
-
-const FOOTER = (name: string): string =>
-  `<footer className="border-t border-hairline py-10 text-center text-sm text-faint">
-        © {new Date().getFullYear()} ${name}. Built with{" "}
-        <a href="https://lacspace.com/packages" className="text-muted hover:text-fg">Lacspace</a>.
-      </footer>`;
-
 function homePage(ctx: Ctx): string {
   const n = ctx.template.siteName;
+  // The dashboard is app-shaped (sidebar) — it has its own shell, not the
+  // marketing header/footer chrome.
+  if (ctx.template.key === "dashboard") return dashboardHome(ctx);
+
   const shell = (inner: string): string => `import { site } from "@/lib/site";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { LiveStats } from "@/components/live-stats";
 
 // ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
 export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
@@ -432,14 +445,14 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       ${inner}
+      ${builtWithSection(ctx)}
     </main>
   );
 }
 `;
 
   if (ctx.template.key === "personal") {
-    return shell(`${NAV(n, ["Work", "About", "Contact"])}
-      <section className="mx-auto max-w-3xl px-6 py-28 text-center">
+    return shell(`<section className="mx-auto max-w-3xl px-6 py-28 text-center">
         <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Portfolio</p>
         <h1 className="text-5xl font-black leading-tight sm:text-7xl">Hi, I'm <span className="gradient-text">${n}</span>.</h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
@@ -459,13 +472,11 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
   }
 
   if (ctx.template.key === "business") {
-    return shell(`${NAV(n, ["Services", "Work", "Contact"])}
-      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl">We build products <span className="gradient-text">that grow businesses</span>.</h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <a href="#contact" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Start a project</a>
@@ -489,13 +500,11 @@ export default function Home() {
         <h2 className="text-3xl font-bold">Let's work together</h2>
         <p className="mt-3 text-muted">Tell us about your project and we'll get back within a day.</p>
         <a href="mailto:hello@example.com" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">hello@example.com</a>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
   }
 
   if (ctx.template.key === "ecommerce") {
-    return shell(`${NAV(n, ["Shop", "About", "Cart"])}
-      <section className="mx-auto max-w-5xl px-6 py-24 text-center">
+    return shell(`<section className="mx-auto max-w-5xl px-6 py-24 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <a href="#shop" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Shop the collection</a>
@@ -517,13 +526,11 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
   }
 
   if (ctx.template.key === "blog") {
-    return shell(`${NAV(n, ["Latest", "Topics", "About"])}
-      <section className="mx-auto max-w-3xl px-6 py-24">
+    return shell(`<section className="mx-auto max-w-3xl px-6 py-24">
         <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-faint">The Journal</p>
         <h1 className="text-5xl font-black leading-tight sm:text-6xl gradient-text">${n}</h1>
         <p className="mt-6 text-lg text-muted">${ctx.template.siteDescription}</p>
@@ -547,13 +554,11 @@ export default function Home() {
             </a>
           ))}
         </div>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
   }
 
   if (ctx.template.key === "docs") {
-    return shell(`${NAV(n, ["Guides", "API", "Examples"])}
-      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <div className="mt-8 inline-flex items-center gap-3 rounded-lg border border-hairline bg-panel px-4 py-3 font-mono text-sm text-muted">
@@ -573,56 +578,11 @@ export default function Home() {
             </a>
           ))}
         </div>
-      </section>
-      ${FOOTER(n)}`);
-  }
-
-  if (ctx.template.key === "dashboard") {
-    return shell(`<div className="flex min-h-screen">
-        <aside className="hidden w-56 shrink-0 border-r border-hairline p-6 md:block">
-          <div className="mb-8 flex items-center justify-between">
-            <span className="text-lg font-black gradient-text">${n}</span>
-            <ThemeToggle />
-          </div>
-          <nav className="space-y-1 text-sm text-muted">
-            {["Overview", "Analytics", "Customers", "Settings"].map((l) => (
-              <a key={l} href="#" className="block rounded-lg px-3 py-2 hover:bg-surface hover:text-fg">{l}</a>
-            ))}
-          </nav>
-        </aside>
-        <main className="flex-1 p-6 md:p-10">
-          <h1 className="text-2xl font-bold">Overview</h1>
-          <p className="mt-1 text-muted">${ctx.template.siteDescription}</p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { l: "Revenue", v: "$48.2k", c: "+12%" }, { l: "Users", v: "12,480", c: "+3.4%" },
-              { l: "Orders", v: "1,204", c: "+8%" }, { l: "Churn", v: "1.2%", c: "-0.3%" },
-            ].map((s) => (
-              <div key={s.l} className="rounded-2xl border border-hairline bg-surface p-5">
-                <div className="text-sm text-muted">{s.l}</div>
-                <div className="mt-1 text-2xl font-bold">{s.v}</div>
-                <div className="mt-1 text-xs text-emerald-400">{s.c}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 rounded-2xl border border-hairline bg-surface p-6">
-            <div className="mb-4 font-semibold">Recent activity</div>
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
-                  <span className="text-muted">Event #{i}</span>
-                  <span className="text-faint">just now</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>`);
+      </section>`);
   }
 
   if (ctx.template.key === "restaurant") {
-    return shell(`${NAV(n, ["Menu", "Story", "Reserve"])}
-      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Est. 2026</p>
         <h1 className="text-5xl font-black leading-tight sm:text-7xl gradient-text">${n}</h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
@@ -649,13 +609,11 @@ export default function Home() {
         <h2 className="text-3xl font-bold">Join us</h2>
         <p className="mt-3 text-muted">Open Wed–Sun, 5pm till late. Walk-ins welcome; bookings recommended.</p>
         <a href="tel:+10000000000" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">Call to book</a>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
   }
 
   // saas
-  return shell(`${NAV(n, ["Features", "Pricing", "Sign in"])}
-      <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+  return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <p className="mb-4 inline-block rounded-full border border-hairline px-4 py-1 text-xs font-semibold text-muted">New · v1.0</p>
         <h1 className="text-5xl font-black leading-tight sm:text-6xl">Ship faster with <span className="gradient-text">${n}</span></h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
@@ -684,8 +642,7 @@ export default function Home() {
           <p className="mt-2 text-5xl font-black gradient-text">$29<span className="text-lg text-faint">/mo</span></p>
           <a href="#" className="mt-8 inline-block w-full gradient-bg rounded-full px-8 py-3 font-semibold text-black">Get started</a>
         </div>
-      </section>
-      ${FOOTER(n)}`);
+      </section>`);
 }
 
 /* ------------------------------ auto-generated brand images ------------------------------ */
@@ -1540,10 +1497,32 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "components/command-menu.tsx": commandMenu(ctx),
     "components/contact-form.tsx": contactForm(),
     "components/theme-toggle.tsx": themeToggle(),
+    // ✨ React Kit: global state (@lacspace/store) + data fetching (@lacspace/query).
+    "lib/store.ts": uiStore(),
+    "components/under-development.tsx": underDevelopmentComponent(),
+    "components/live-stats.tsx": liveStats(),
+    "app/api/stats/route.ts": statsRoute(),
     ".github/workflows/seo.yml": seoWorkflow(),
     ".env.example": envExample(),
     "WELCOME.md": welcomeMd(ctx),
   };
+
+  const isDash = ctx.template.key === "dashboard";
+  if (isDash) {
+    // The dashboard shell (sidebar) is shared by its home + stub pages.
+    files["components/dashboard-shell.tsx"] = dashboardShell(ctx);
+  } else {
+    // Global marketing chrome — auto-built header + footer from the page map.
+    files["components/site-header.tsx"] = siteHeader(ctx);
+    files["components/site-footer.tsx"] = siteFooter(ctx);
+    files["components/announcement-bar.tsx"] = announcementBar();
+  }
+
+  // ✨ Every nav/footer link gets a real, branded page — no 404s. Pages without
+  // content yet render a friendly "under development" placeholder.
+  for (const page of stubPages(ctx)) {
+    files[`app${page.path}/page.tsx`] = isDash ? dashboardStubPage(page) : underDevPage(page);
+  }
 
   // ✨ The blog template gets a real Markdown-powered blog.
   if (isBlog) {
@@ -1568,6 +1547,420 @@ function buildFiles(ctx: Ctx): Record<string, string> {
 
   return files;
 }
+
+/* --------------------- site pages, chrome & react kit --------------------- */
+
+interface PageSpec { path: string; label: string; nav?: boolean; group?: "Product" | "Company" | "Resources"; real?: boolean; }
+
+/** The page set for a template — nav links, footer groups and which are real. */
+function pagesFor(ctx: Ctx): PageSpec[] {
+  const k = ctx.template.key;
+  if (k === "dashboard") {
+    return [
+      { path: "/analytics", label: "Analytics", nav: true, group: "Product" },
+      { path: "/customers", label: "Customers", nav: true, group: "Product" },
+      { path: "/billing", label: "Billing", nav: true, group: "Product" },
+      { path: "/settings", label: "Settings", nav: true, group: "Product" },
+      { path: "/help", label: "Help", group: "Resources" },
+    ];
+  }
+  const common: PageSpec[] = [
+    { path: "/about", label: "About", nav: true, group: "Company", real: true },
+    { path: "/contact", label: "Contact", nav: true, group: "Company", real: true },
+    { path: "/careers", label: "Careers", group: "Company" },
+    { path: "/privacy", label: "Privacy", group: "Resources" },
+    { path: "/terms", label: "Terms", group: "Resources" },
+  ];
+  const specific: Record<string, PageSpec[]> = {
+    personal: [
+      { path: "/work", label: "Work", nav: true, group: "Product" },
+      { path: "/blog", label: "Blog", nav: true, group: "Product" },
+      { path: "/uses", label: "Uses", group: "Resources" },
+    ],
+    business: [
+      { path: "/services", label: "Services", nav: true, group: "Product" },
+      { path: "/work", label: "Work", nav: true, group: "Product" },
+      { path: "/pricing", label: "Pricing", nav: true, group: "Product" },
+      { path: "/faq", label: "FAQ", group: "Resources" },
+    ],
+    ecommerce: [
+      { path: "/shop", label: "Shop", nav: true, group: "Product" },
+      { path: "/collections", label: "Collections", nav: true, group: "Product" },
+      { path: "/shipping", label: "Shipping", group: "Resources" },
+      { path: "/returns", label: "Returns", group: "Resources" },
+    ],
+    saas: [
+      { path: "/features", label: "Features", nav: true, group: "Product" },
+      { path: "/pricing", label: "Pricing", nav: true, group: "Product" },
+      { path: "/integrations", label: "Integrations", group: "Product" },
+      { path: "/changelog", label: "Changelog", group: "Resources" },
+    ],
+    blog: [
+      { path: "/blog", label: "Articles", nav: true, group: "Product", real: true },
+      { path: "/topics", label: "Topics", nav: true, group: "Product" },
+      { path: "/newsletter", label: "Newsletter", group: "Resources" },
+    ],
+    docs: [
+      { path: "/docs", label: "Docs", nav: true, group: "Product", real: true },
+      { path: "/guides", label: "Guides", nav: true, group: "Product" },
+      { path: "/api-reference", label: "API", nav: true, group: "Product" },
+      { path: "/changelog", label: "Changelog", group: "Resources" },
+    ],
+    restaurant: [
+      { path: "/menu", label: "Menu", nav: true, group: "Product" },
+      { path: "/reservations", label: "Reservations", nav: true, group: "Product" },
+      { path: "/gallery", label: "Gallery", nav: true, group: "Product" },
+      { path: "/events", label: "Private events", group: "Resources" },
+    ],
+  };
+  return [...(specific[k] ?? []), ...common];
+}
+
+/** Pages that need a generated "under development" stub (no real content yet). */
+function stubPages(ctx: Ctx): PageSpec[] {
+  return pagesFor(ctx).filter((p) => !p.real);
+}
+
+const linkLiteral = (pages: PageSpec[]): string =>
+  pages.map((l) => `{ href: ${JSON.stringify(l.path)}, label: ${JSON.stringify(l.label)} }`).join(", ");
+
+// ✨ Global site header — page nav, theme toggle, and a mobile menu backed by
+// @lacspace/store (so the open state is shared, not prop-drilled).
+const siteHeader = (ctx: Ctx): string => `"use client";
+
+import Link from "next/link";
+import { useUI } from "@/lib/store";
+import { ThemeToggle } from "./theme-toggle";
+
+const LINKS = [${linkLiteral(pagesFor(ctx).filter((p) => p.nav))}];
+
+export function SiteHeader() {
+  const open = useUI((s) => s.navOpen);
+  const toggle = useUI((s) => s.toggleNav);
+  const setOpen = useUI((s) => s.setNavOpen);
+  return (
+    <header className="sticky top-0 z-40 border-b border-hairline bg-app/90 backdrop-blur">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
+        <div className="hidden items-center gap-8 md:flex">
+          {LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="text-sm text-muted transition hover:text-fg">{l.label}</Link>
+          ))}
+          <ThemeToggle />
+        </div>
+        <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <button type="button" aria-label="Menu" onClick={toggle} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+        </div>
+      </nav>
+      {open ? (
+        <div className="border-t border-hairline md:hidden">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </header>
+  );
+}
+`;
+
+// ✨ Global site footer — columns auto-built from the template's page map.
+const siteFooter = (ctx: Ctx): string => {
+  const pages = pagesFor(ctx);
+  const groups = (["Product", "Company", "Resources"] as const)
+    .map((title) => ({ title, items: pages.filter((p) => p.group === title) }))
+    .filter((g) => g.items.length > 0);
+  const groupsLiteral = groups
+    .map((g) => `{ title: ${JSON.stringify(g.title)}, links: [${linkLiteral(g.items)}] }`)
+    .join(", ");
+  return `import Link from "next/link";
+
+const GROUPS = [${groupsLiteral}];
+
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-hairline">
+      <div className="mx-auto max-w-6xl px-6 py-14">
+        <div className="grid gap-10 md:grid-cols-4">
+          <div>
+            <div className="text-lg font-black gradient-text">${ctx.template.siteName}</div>
+            <p className="mt-3 max-w-xs text-sm text-muted">${ctx.template.siteDescription}</p>
+          </div>
+          {GROUPS.map((g) => (
+            <div key={g.title}>
+              <div className="text-sm font-semibold">{g.title}</div>
+              <ul className="mt-3 space-y-2 text-sm text-muted">
+                {g.links.map((l) => (
+                  <li key={l.href}><Link href={l.href} className="transition hover:text-fg">{l.label}</Link></li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12 flex flex-col gap-3 border-t border-hairline pt-6 text-sm text-faint sm:flex-row sm:items-center sm:justify-between">
+          <span>© {new Date().getFullYear()} ${ctx.template.siteName}. All rights reserved.</span>
+          <span>Built with <a href="https://lacspace.com/packages" className="text-muted transition hover:text-fg">the Lacspace React Kit</a>.</span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+`;
+};
+
+// ✨ Dismissible announcement bar — dismissal is persisted via @lacspace/store.
+const announcementBar = (): string => `"use client";
+
+import { useAnnouncement } from "@/lib/store";
+import { useIsMounted } from "@lacspace/hooks";
+
+export function AnnouncementBar() {
+  const dismissed = useAnnouncement((s) => s.dismissed);
+  const dismiss = useAnnouncement((s) => s.dismiss);
+  const mounted = useIsMounted();
+
+  // Persisted state is client-only — wait for mount to avoid a hydration flash.
+  if (!mounted() || dismissed) return null;
+
+  return (
+    <div className="relative gradient-bg px-10 py-2 text-center text-sm font-medium text-black">
+      ✨ Built with the Lacspace React Kit —{" "}
+      <a href="https://lacspace.com/packages" className="underline underline-offset-2">explore the packages</a>
+      <button type="button" aria-label="Dismiss" onClick={dismiss} className="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none text-black/60 hover:text-black">×</button>
+    </div>
+  );
+}
+`;
+
+// ✨ Friendly placeholder shown instead of a 404 for scaffolded-but-empty pages.
+const underDevelopmentComponent = (): string => `"use client";
+
+import Link from "next/link";
+
+/** A branded placeholder for pages that don't have content yet. */
+export function UnderDevelopment({ title = "This page", path }: { title?: string; path?: string }) {
+  return (
+    <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-6 py-20 text-center">
+      <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl gradient-bg text-3xl">🚧</div>
+      <p className="text-sm font-semibold uppercase tracking-widest text-muted">Under development</p>
+      <h1 className="mt-3 text-4xl font-bold tracking-tight"><span className="gradient-text">{title}</span> is coming soon</h1>
+      <p className="mt-4 max-w-md text-muted">We're putting the finishing touches on this page. Check back shortly — or head back home in the meantime.</p>
+      <div className="mt-8 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-surface">
+        <div className="h-full w-1/3 gradient-bg" style={{ animation: "loadbar 1.8s ease-in-out infinite" }} />
+      </div>
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+        <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">Back home</Link>
+        <Link href="/contact" className="rounded-full border border-hairline px-6 py-3 font-semibold transition hover:bg-surface">Get in touch</Link>
+      </div>
+      {path ? (
+        <p className="mt-8 text-xs text-faint">Add your content in <code className="rounded bg-surface px-1.5 py-0.5">app{path}/page.tsx</code>.</p>
+      ) : null}
+    </div>
+  );
+}
+`;
+
+// A generated route for a marketing-template stub page.
+const underDevPage = (page: PageSpec): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { UnderDevelopment } from "@/components/under-development";
+
+export const metadata: Metadata = site.meta({ title: ${JSON.stringify(page.label)}, path: ${JSON.stringify(page.path)}, description: ${JSON.stringify(page.label + " — coming soon. We're building this page.")} });
+
+export default function Page() {
+  return (
+    <main className="min-h-screen">
+      <UnderDevelopment title={${JSON.stringify(page.label)}} path={${JSON.stringify(page.path)}} />
+    </main>
+  );
+}
+`;
+
+// A generated stub page inside the dashboard shell.
+const dashboardStubPage = (page: PageSpec): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { UnderDevelopment } from "@/components/under-development";
+
+export const metadata: Metadata = site.meta({ title: ${JSON.stringify(page.label)}, path: ${JSON.stringify(page.path)}, description: ${JSON.stringify(page.label + " — coming soon.")} });
+
+export default function Page() {
+  return (
+    <DashboardShell title={${JSON.stringify(page.label)}}>
+      <UnderDevelopment title={${JSON.stringify(page.label)}} path={${JSON.stringify(page.path)}} />
+    </DashboardShell>
+  );
+}
+`;
+
+// lib/store.ts — global state via @lacspace/store.
+const uiStore = (): string => `import { create, persist } from "@lacspace/store";
+
+/** Ephemeral UI state — e.g. the mobile nav. Not persisted. */
+interface UIState {
+  navOpen: boolean;
+  setNavOpen: (open: boolean) => void;
+  toggleNav: () => void;
+}
+export const useUI = create<UIState>((set) => ({
+  navOpen: false,
+  setNavOpen: (navOpen) => set({ navOpen }),
+  toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
+}));
+
+/** Whether the announcement bar was dismissed — persisted to localStorage. */
+interface AnnouncementState {
+  dismissed: boolean;
+  dismiss: () => void;
+}
+export const useAnnouncement = create<AnnouncementState>(
+  persist(
+    (set) => ({
+      dismissed: false,
+      dismiss: () => set({ dismissed: true }),
+    }),
+    { name: "announcement" },
+  ),
+);
+`;
+
+// app/api/stats/route.ts — a self-contained endpoint for the query demo.
+const statsRoute = (): string => `import { NextResponse } from "next/server";
+
+// Demo endpoint powering <LiveStats/> (@lacspace/query). Swap in your real data.
+export const dynamic = "force-dynamic";
+
+export function GET() {
+  const jitter = (n: number) => n + Math.floor(Math.random() * n * 0.04);
+  return NextResponse.json({
+    users: jitter(12480),
+    uptime: 99.98,
+    requests: jitter(1_840_000),
+  });
+}
+`;
+
+// components/live-stats.tsx — data fetching + cache via @lacspace/query.
+const liveStats = (): string => `"use client";
+
+import { useQuery } from "@lacspace/query";
+
+interface Stats { users: number; uptime: number; requests: number; }
+
+export function LiveStats() {
+  // Shared cache, de-duped requests, and revalidation on window focus.
+  const { data, isLoading } = useQuery("stats", async () => {
+    const res = await fetch("/api/stats");
+    if (!res.ok) throw new Error("Failed to load stats");
+    return (await res.json()) as Stats;
+  });
+
+  const items = [
+    { label: "Active users", value: data ? data.users.toLocaleString() : "—" },
+    { label: "Uptime", value: data ? data.uptime + "%" : "—" },
+    { label: "Requests / mo", value: data ? new Intl.NumberFormat("en", { notation: "compact" }).format(data.requests) : "—" },
+  ];
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {items.map((s) => (
+        <div key={s.label} className="rounded-2xl border border-hairline bg-app p-6 text-center">
+          <div className={"text-3xl font-bold tabular-nums " + (isLoading ? "animate-pulse text-muted" : "")}>{s.value}</div>
+          <div className="mt-1 text-sm text-muted">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+`;
+
+// The creative "Built with the React Kit" + live-stats band appended to home.
+const builtWithSection = (ctx: Ctx): string => {
+  const count = pagesFor(ctx).length + 1; // + the home page
+  return `<section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="rounded-3xl border border-hairline bg-surface p-8 sm:p-12">
+          <p className="text-sm font-semibold uppercase tracking-widest text-muted">Live · @lacspace/query</p>
+          <h2 className="mt-3 text-3xl font-bold">By the numbers</h2>
+          <p className="mt-2 max-w-xl text-muted">Fetched from an internal API route and revalidated on window focus — a tiny demo of the data layer wired into this starter.</p>
+          <div className="mt-8"><LiveStats /></div>
+          <div className="mt-12 border-t border-hairline pt-8">
+            <p className="text-sm font-semibold uppercase tracking-widest text-muted">Built with the Lacspace React Kit</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["@lacspace/theme", "@lacspace/hooks", "@lacspace/store", "@lacspace/query", "@lacspace/ui", "@lacspace/seo", "@lacspace/og", "@lacspace/form"].map((p) => (
+                <span key={p} className="rounded-full border border-hairline bg-app px-3 py-1 font-mono text-xs text-muted">{p}</span>
+              ))}
+            </div>
+            <p className="mt-5 max-w-2xl text-sm text-muted">Dark mode with no flash, a ⌘K palette, SEO + dynamic OG images, a validated contact form, and ${count}+ pages wired up — all scaffolded, all yours. <a href="https://lacspace.com/packages" className="text-fg underline underline-offset-4">Explore the packages →</a></p>
+          </div>
+        </div>
+      </section>`;
+};
+
+// components/dashboard-shell.tsx — the sidebar chrome shared by dashboard pages.
+const dashboardShell = (ctx: Ctx): string => {
+  const nav = [{ path: "/", label: "Overview" }, ...pagesFor(ctx).filter((p) => p.nav)];
+  return `import Link from "next/link";
+import type { ReactNode } from "react";
+import { ThemeToggle } from "./theme-toggle";
+
+const NAV = [${linkLiteral(nav)}];
+
+export function DashboardShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen">
+      <aside className="hidden w-56 shrink-0 border-r border-hairline p-6 md:block">
+        <div className="mb-8 flex items-center justify-between">
+          <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
+          <ThemeToggle />
+        </div>
+        <nav className="space-y-1 text-sm text-muted">
+          {NAV.map((l) => (
+            <Link key={l.href} href={l.href} className="block rounded-lg px-3 py-2 transition hover:bg-surface hover:text-fg">{l.label}</Link>
+          ))}
+        </nav>
+      </aside>
+      <main className="flex-1 p-6 md:p-10">
+        <h1 className="text-2xl font-bold">{title}</h1>
+        {subtitle ? <p className="mt-1 text-muted">{subtitle}</p> : null}
+        <div className="mt-8">{children}</div>
+      </main>
+    </div>
+  );
+}
+`;
+};
+
+// app/page.tsx for the dashboard template — stats via @lacspace/query.
+const dashboardHome = (ctx: Ctx): string => `import { site } from "@/lib/site";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { LiveStats } from "@/components/live-stats";
+
+export const metadata = site.meta({ title: "Overview", path: "/" });
+
+export default function Home() {
+  return (
+    <DashboardShell title="Overview" subtitle=${JSON.stringify(ctx.template.siteDescription)}>
+      <LiveStats />
+      <div className="mt-6 rounded-2xl border border-hairline bg-surface p-6">
+        <div className="mb-4 font-semibold">Recent activity</div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
+              <span className="text-muted">Event #{i}</span>
+              <span className="text-faint">just now</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DashboardShell>
+  );
+}
+`;
 
 /* ------------------------------ cli ------------------------------ */
 

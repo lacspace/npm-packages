@@ -1551,6 +1551,9 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     files[`app${page.path}/page.tsx`] = isDash ? dashboardStubPage(page) : underDevPage(page);
   }
 
+  // ✨ Drop-in UI kit (Section, FeatureCard, Testimonial, CTABand, …) in every app.
+  Object.assign(files, uiKitFiles());
+
   // ✨ The highest-value page(s) per template ship with real content.
   Object.assign(files, realPageFiles(ctx));
 
@@ -2037,18 +2040,27 @@ export default function Home() {
 
 /* ------------------------ real (content-filled) pages ------------------------ */
 
-// A server page (exports metadata) whose body is raw JSX.
-const pageFile = (o: { title: string; path: string; description: string; body: string }): string =>
+interface Cta { title: string; subtitle?: string; label?: string; href?: string; }
+const ctaBandJsx = (c: Cta): string =>
+  `      <CTABand title=${JSON.stringify(c.title)}${c.subtitle ? ` subtitle=${JSON.stringify(c.subtitle)}` : ""}${c.label ? ` ctaLabel=${JSON.stringify(c.label)}` : ""}${c.href ? ` ctaHref=${JSON.stringify(c.href)}` : ""} />`;
+
+// A server page (exports metadata) whose body is raw JSX. Ships the animated
+// aurora backdrop, the drop-in UI kit, and an optional closing CTA band.
+const pageFile = (o: { title: string; path: string; description: string; body: string; cta?: Cta }): string =>
   `import type { Metadata } from "next";
 import Link from "next/link";
 import { site } from "@/lib/site";
+import { Aurora } from "@/components/aurora";
+import { Section, Pill, StatCard, FeatureCard, Testimonial, Steps, CTABand } from "@/components/ui";
 
 export const metadata: Metadata = site.meta({ title: ${JSON.stringify(o.title)}, path: ${JSON.stringify(o.path)}, description: ${JSON.stringify(o.description)} });
 
 export default function Page() {
   return (
-    <main className="min-h-screen">
+    <main className="relative min-h-screen overflow-hidden">
+      <Aurora />
 ${o.body}
+${o.cta ? ctaBandJsx(o.cta) : ""}
     </main>
   );
 }
@@ -2056,9 +2068,10 @@ ${o.body}
 
 const pricingPage = (ctx: Ctx): string => pageFile({
   title: "Pricing", path: "/pricing", description: `Simple, transparent pricing for ${ctx.template.siteName}. Start free and upgrade anytime.`,
+  cta: { title: "Still deciding?", subtitle: "Talk to us and we'll help you pick the right plan.", label: "Contact sales", href: "/contact" },
   body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Pricing</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Simple, transparent <span className="gradient-text">pricing</span></h1>
+        <Pill>Pricing</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Simple, transparent <span className="gradient-text">pricing</span></h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Start free. Upgrade when you're ready. Cancel anytime.</p>
       </section>
       <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -2086,14 +2099,18 @@ const pricingPage = (ctx: Ctx): string => pageFile({
           ))}
         </div>
         <p className="mt-10 text-center text-sm text-faint">All plans include SSL, unlimited bandwidth and a 14-day money-back guarantee.</p>
+      </section>
+      <section className="px-6 pb-8">
+        <Testimonial quote="We switched in an afternoon and never looked back. Worth every penny." author="Sam Rivera" role="CTO, Globex" />
       </section>`,
 });
 
 const servicesPage = (ctx: Ctx): string => pageFile({
   title: "Services", path: "/services", description: `What ${ctx.template.siteName} can do for you — from strategy to launch.`,
+  cta: { title: "Have a project in mind?", subtitle: "Tell us what you're building and we'll take it from there.", label: "Start a conversation", href: "/contact" },
   body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Services</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">What we <span className="gradient-text">do</span></h1>
+        <Pill>Services</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">What we <span className="gradient-text">do</span></h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted">End-to-end help — from the first sketch to a product your customers love.</p>
       </section>
       <section className="mx-auto max-w-6xl px-6 pb-16">
@@ -2106,28 +2123,24 @@ const servicesPage = (ctx: Ctx): string => pageFile({
             { icon: "📈", title: "Growth", desc: "Experiments and optimization that move the numbers." },
             { icon: "🤝", title: "Support", desc: "Ongoing care so your product keeps getting better." },
           ].map((s) => (
-            <div key={s.title} className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{s.icon}</div>
-              <h3 className="font-semibold">{s.title}</h3>
-              <p className="mt-1 text-sm text-muted">{s.desc}</p>
-            </div>
+            <FeatureCard key={s.title} icon={s.icon} title={s.title} desc={s.desc} />
           ))}
         </div>
       </section>
-      <section className="mx-auto max-w-3xl px-6 pb-24 text-center">
-        <h2 className="text-2xl font-bold">Have a project in mind?</h2>
-        <Link href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Start a conversation</Link>
+      <section className="px-6 pb-8">
+        <Testimonial quote="They shipped faster than we thought possible — and it looked incredible." author="Jordan Ellis" role="Founder, Northwind" />
       </section>`,
 });
 
 const featuresPage = (ctx: Ctx): string => pageFile({
   title: "Features", path: "/features", description: `Everything ${ctx.template.siteName} gives your team, in one place.`,
+  cta: { title: "Ready to ship faster?", subtitle: "Start free — no credit card required.", label: "See pricing", href: "/pricing" },
   body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Features</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Built to <span className="gradient-text">ship faster</span></h1>
+        <Pill>Features</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Built to <span className="gradient-text">ship faster</span></h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted">A focused set of features that do the heavy lifting so your team can move.</p>
       </section>
-      <section className="mx-auto max-w-6xl px-6 pb-24">
+      <section className="mx-auto max-w-6xl px-6 pb-16">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[
             { icon: "⚡", title: "Fast by default", desc: "Edge-rendered and cached — instant everywhere." },
@@ -2137,24 +2150,26 @@ const featuresPage = (ctx: Ctx): string => pageFile({
             { icon: "🧩", title: "Extensible", desc: "A clean API and webhooks for anything custom." },
             { icon: "🌗", title: "Delightful UX", desc: "Dark mode, a ⌘K palette and thoughtful details." },
           ].map((f) => (
-            <div key={f.title} className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{f.icon}</div>
-              <h3 className="font-semibold">{f.title}</h3>
-              <p className="mt-1 text-sm text-muted">{f.desc}</p>
-            </div>
+            <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />
           ))}
         </div>
-        <div className="mt-12 text-center">
-          <Link href="/pricing" className="inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">See pricing</Link>
-        </div>
+      </section>
+      <section className="mx-auto max-w-5xl px-6 pb-8">
+        <h2 className="mb-8 text-center text-2xl font-bold">How it works</h2>
+        <Steps items={[
+          { title: "Connect", desc: "Sign up and link the tools you already use." },
+          { title: "Configure", desc: "Set it up your way in a few clicks — no code required." },
+          { title: "Ship", desc: "Go live and watch the numbers in real time." },
+        ]} />
       </section>`,
 });
 
 const workPage = (ctx: Ctx): string => pageFile({
   title: "Work", path: "/work", description: `Selected projects by ${ctx.template.siteName}.`,
+  cta: { title: "Have something in mind?", subtitle: "I'm currently open to new projects.", label: "Get in touch", href: "/contact" },
   body: `      <section className="mx-auto max-w-3xl px-6 py-24">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Work</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Selected <span className="gradient-text">work</span></h1>
+        <Pill>Work</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Selected <span className="gradient-text">work</span></h1>
         <p className="mt-4 text-lg text-muted">A few things I've designed and built recently.</p>
       </section>
       <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -2182,9 +2197,10 @@ const workPage = (ctx: Ctx): string => pageFile({
 
 const menuPage = (ctx: Ctx): string => pageFile({
   title: "Menu", path: "/menu", description: `The menu at ${ctx.template.siteName} — seasonal plates and natural wine.`,
+  cta: { title: "Hungry?", subtitle: "Book a table — we can't wait to cook for you.", label: "Reserve a table", href: "/reservations" },
   body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Menu</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl gradient-text">Tonight's menu</h1>
+        <Pill>Menu</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl gradient-text">Tonight's menu</h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Seasonal, ingredient-led and always changing. Here's what we're serving now.</p>
       </section>
       <section className="mx-auto max-w-3xl px-6 pb-24">
@@ -2205,17 +2221,14 @@ const menuPage = (ctx: Ctx): string => pageFile({
             </div>
           </div>
         ))}
-        <div className="text-center">
-          <Link href="/reservations" className="inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Book a table</Link>
-        </div>
       </section>`,
 });
 
-const cardGridPage = (o: { ctx: Ctx; title: string; path: string; eyebrow: string; heading: string; lead: string; items: { title: string; desc: string }[] }): string => pageFile({
-  title: o.title, path: o.path, description: o.lead,
+const cardGridPage = (o: { ctx: Ctx; title: string; path: string; eyebrow: string; heading: string; lead: string; items: { title: string; desc: string }[]; cta?: Cta }): string => pageFile({
+  title: o.title, path: o.path, description: o.lead, cta: o.cta,
   body: `      <section className="mx-auto max-w-3xl px-6 py-24">
-        <p className="text-sm font-semibold uppercase tracking-widest text-faint">${o.eyebrow}</p>
-        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">${o.heading}</h1>
+        <Pill>${o.eyebrow}</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">${o.heading}</h1>
         <p className="mt-4 text-lg text-muted">${o.lead}</p>
       </section>
       <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -2232,6 +2245,7 @@ const cardGridPage = (o: { ctx: Ctx; title: string; path: string; eyebrow: strin
 
 const topicsPage = (ctx: Ctx): string => cardGridPage({
   ctx, title: "Topics", path: "/topics", eyebrow: "Topics", heading: "Browse by topic", lead: "Find what you care about — from deep dives to quick notes.",
+  cta: { title: "Never miss a post", subtitle: "Subscribe and get new pieces in your inbox.", label: "Join the newsletter", href: "/newsletter" },
   items: [
     { title: "Engineering", desc: "How we build and the decisions behind it." },
     { title: "Design", desc: "Craft, systems and the details that matter." },
@@ -2244,6 +2258,7 @@ const topicsPage = (ctx: Ctx): string => cardGridPage({
 
 const guidesPage = (ctx: Ctx): string => cardGridPage({
   ctx, title: "Guides", path: "/guides", eyebrow: "Guides", heading: "Guides & tutorials", lead: "Task-focused walkthroughs to get you productive fast.",
+  cta: { title: "Can't find what you need?", subtitle: "We're happy to help — reach out any time.", label: "Contact us", href: "/contact" },
   items: [
     { title: "Getting started", desc: "Install, configure and run your first build." },
     { title: "Authentication", desc: "Add sign-in, sessions and protected routes." },
@@ -2435,6 +2450,100 @@ export function SettingsPanel() {
   );
 }
 `;
+
+// A small, dependency-free, theme-aware UI kit that ships in every app so users
+// can drop <Section>, <FeatureCard>, <CTABand> etc. anywhere. Server components.
+const uiKitFiles = (): Record<string, string> => ({
+  "components/ui/section.tsx": `import type { ReactNode } from "react";
+
+export function Section({ eyebrow, title, lead, children, className = "" }: { eyebrow?: string; title?: string; lead?: string; children?: ReactNode; className?: string }) {
+  return (
+    <section className={"mx-auto max-w-6xl px-6 py-16 " + className}>
+      {eyebrow ? <p className="text-sm font-semibold uppercase tracking-widest text-faint">{eyebrow}</p> : null}
+      {title ? <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{title}</h2> : null}
+      {lead ? <p className="mt-4 max-w-2xl text-lg text-muted">{lead}</p> : null}
+      {children ? <div className="mt-10">{children}</div> : null}
+    </section>
+  );
+}
+`,
+  "components/ui/pill.tsx": `import type { ReactNode } from "react";
+
+export function Pill({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <span className={"inline-flex items-center gap-1 rounded-full border border-hairline bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted " + className}>{children}</span>;
+}
+`,
+  "components/ui/stat-card.tsx": `export function StatCard({ label, value, delta }: { label: string; value: string; delta?: string }) {
+  return (
+    <div className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
+      <div className="text-3xl font-bold tabular-nums">{value}</div>
+      <div className="mt-1 text-sm text-muted">{label}</div>
+      {delta ? <div className="mt-2 text-xs font-medium text-emerald-400">{delta}</div> : null}
+    </div>
+  );
+}
+`,
+  "components/ui/feature-card.tsx": `import type { ReactNode } from "react";
+
+export function FeatureCard({ icon, title, desc }: { icon?: ReactNode; title: string; desc: string }) {
+  return (
+    <div className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 hover:border-[color:var(--accent-to)]">
+      {icon ? <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{icon}</div> : null}
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted">{desc}</p>
+    </div>
+  );
+}
+`,
+  "components/ui/testimonial.tsx": `export function Testimonial({ quote, author, role }: { quote: string; author: string; role?: string }) {
+  return (
+    <figure className="mx-auto max-w-2xl rounded-3xl border border-hairline bg-surface p-8 text-center">
+      <div className="text-4xl leading-none gradient-text">&ldquo;</div>
+      <blockquote className="mt-2 text-lg font-medium leading-relaxed">{quote}</blockquote>
+      <figcaption className="mt-4 text-sm text-muted">— {author}{role ? ", " + role : ""}</figcaption>
+    </figure>
+  );
+}
+`,
+  "components/ui/steps.tsx": `export function Steps({ items }: { items: { title: string; desc: string }[] }) {
+  return (
+    <ol className="grid gap-6 sm:grid-cols-3">
+      {items.map((s, i) => (
+        <li key={s.title} className="rounded-2xl border border-hairline bg-surface p-6">
+          <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full gradient-bg text-sm font-bold text-black">{i + 1}</div>
+          <h3 className="font-semibold">{s.title}</h3>
+          <p className="mt-1 text-sm text-muted">{s.desc}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+`,
+  "components/ui/cta-band.tsx": `import Link from "next/link";
+
+export function CTABand({ title, subtitle, ctaLabel = "Get started", ctaHref = "/contact" }: { title: string; subtitle?: string; ctaLabel?: string; ctaHref?: string }) {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-20">
+      <div className="relative overflow-hidden rounded-3xl border border-hairline bg-surface p-10 text-center sm:p-16">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full gradient-bg opacity-40 blur-3xl animate-floaty" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full gradient-bg opacity-30 blur-3xl animate-floaty-slow" />
+        <h2 className="relative text-3xl font-bold sm:text-4xl">{title}</h2>
+        {subtitle ? <p className="relative mx-auto mt-3 max-w-xl text-muted">{subtitle}</p> : null}
+        <Link href={ctaHref} className="relative mt-8 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black transition hover:opacity-90">{ctaLabel}</Link>
+      </div>
+    </section>
+  );
+}
+`,
+  "components/ui/index.ts": `export * from "./section";
+export * from "./pill";
+export * from "./stat-card";
+export * from "./feature-card";
+export * from "./testimonial";
+export * from "./steps";
+export * from "./cta-band";
+`,
+});
 
 /** Real, content-filled pages that replace the highest-value stub per template. */
 function realPageFiles(ctx: Ctx): Record<string, string> {

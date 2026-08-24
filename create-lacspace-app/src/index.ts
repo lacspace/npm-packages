@@ -197,6 +197,8 @@ body {
   animation: gradient-pan 6s ease infinite;
 }
 .marquee-track { display: flex; width: max-content; animation: marquee-x 32s linear infinite; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.animate-draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: draw 1.8s ease forwards; }
 .marquee-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 
 /* soft entrance for content */
@@ -825,6 +827,27 @@ export async function submitContact(prev: ContactState, formData: FormData): Pro
   // ✅ r.data is fully typed: { name, email, message }
   // TODO: send it with @lacspace/mailer, or save it to your database.
   console.log("New contact message:", r.data);
+  return { ok: true };
+}
+
+const newsletter = createForm({
+  schema: v.object({ email: v.string().email("Enter a valid email").toLowerCase() }),
+  honeypot: "website",
+  minSubmitMs: 500,
+});
+
+export type SubscribeState =
+  | { ok: true }
+  | { ok: false; errors: Record<string, string>; values: Record<string, unknown> }
+  | null;
+
+export async function submitNewsletter(prev: SubscribeState, formData: FormData): Promise<SubscribeState> {
+  const r = newsletter.action(prev, formData);
+  if (!r.ok) return r;
+
+  // ✅ r.data is fully typed: { email }
+  // TODO: add r.data.email to your list (Resend, Mailchimp, a database…).
+  console.log("New subscriber:", r.data.email);
   return { ok: true };
 }
 `;
@@ -1590,7 +1613,7 @@ function pagesFor(ctx: Ctx): PageSpec[] {
   const k = ctx.template.key;
   if (k === "dashboard") {
     return [
-      { path: "/analytics", label: "Analytics", nav: true, group: "Product" },
+      { path: "/analytics", label: "Analytics", nav: true, group: "Product", real: true },
       { path: "/customers", label: "Customers", nav: true, group: "Product" },
       { path: "/billing", label: "Billing", nav: true, group: "Product" },
       { path: "/settings", label: "Settings", nav: true, group: "Product", real: true },
@@ -1632,7 +1655,7 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     blog: [
       { path: "/blog", label: "Articles", nav: true, group: "Product", real: true },
       { path: "/topics", label: "Topics", nav: true, group: "Product", real: true },
-      { path: "/newsletter", label: "Newsletter", group: "Resources" },
+      { path: "/newsletter", label: "Newsletter", group: "Resources", real: true },
     ],
     docs: [
       { path: "/docs", label: "Docs", nav: true, group: "Product", real: true },
@@ -2011,26 +2034,40 @@ export function DashboardShell({ title, subtitle, children }: { title: string; s
 `;
 };
 
-// app/page.tsx for the dashboard template — stats via @lacspace/query.
+// app/page.tsx for the dashboard template — StatCards + an animated area chart.
 const dashboardHome = (ctx: Ctx): string => `import { site } from "@/lib/site";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { LiveStats } from "@/components/live-stats";
+import { StatCard, AreaChart } from "@/components/ui";
 
 export const metadata = site.meta({ title: "Overview", path: "/" });
 
 export default function Home() {
   return (
     <DashboardShell title="Overview" subtitle=${JSON.stringify(ctx.template.siteDescription)}>
-      <LiveStats />
-      <div className="mt-6 rounded-2xl border border-hairline bg-surface p-6">
-        <div className="mb-4 font-semibold">Recent activity</div>
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
-              <span className="text-muted">Event #{i}</span>
-              <span className="text-faint">just now</span>
-            </div>
-          ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Revenue" value="$48.2k" delta="+12%" />
+        <StatCard label="Orders" value="1,204" delta="+8%" />
+        <StatCard label="Customers" value="8,430" delta="+3.4%" />
+        <StatCard label="Churn" value="1.2%" delta="-0.3%" />
+      </div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="rounded-2xl border border-hairline bg-surface p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Revenue</h2>
+            <span className="text-sm font-medium text-emerald-400">+12.4%</span>
+          </div>
+          <AreaChart data={[12, 18, 15, 22, 20, 28, 26, 34, 30, 38, 42, 48]} />
+        </div>
+        <div className="rounded-2xl border border-hairline bg-surface p-6">
+          <div className="mb-4 font-semibold">Recent activity</div>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
+                <span className="text-muted">Event #{i}</span>
+                <span className="text-faint">just now</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </DashboardShell>
@@ -2051,7 +2088,7 @@ const pageFile = (o: { title: string; path: string; description: string; body: s
 import Link from "next/link";
 import { site } from "@/lib/site";
 import { Aurora } from "@/components/aurora";
-import { Section, Pill, StatCard, FeatureCard, Testimonial, Steps, CTABand } from "@/components/ui";
+import { Section, Pill, StatCard, FeatureCard, Testimonial, Steps, CTABand, Bento, AreaChart, Newsletter } from "@/components/ui";
 
 export const metadata: Metadata = site.meta({ title: ${JSON.stringify(o.title)}, path: ${JSON.stringify(o.path)}, description: ${JSON.stringify(o.description)} });
 
@@ -2161,6 +2198,16 @@ const featuresPage = (ctx: Ctx): string => pageFile({
           { title: "Configure", desc: "Set it up your way in a few clicks — no code required." },
           { title: "Ship", desc: "Go live and watch the numbers in real time." },
         ]} />
+      </section>
+      <section className="mx-auto max-w-6xl px-6 py-8">
+        <h2 className="mb-8 text-center text-2xl font-bold">One platform, everything included</h2>
+        <Bento items={[
+          { title: "Realtime dashboard", desc: "Everything as it happens, in one view.", icon: "📊", className: "sm:col-span-2 sm:row-span-2" },
+          { title: "Webhooks", desc: "Automate anything.", icon: "🔌" },
+          { title: "SSO & SAML", desc: "Enterprise-ready.", icon: "🔐" },
+          { title: "Audit logs", desc: "Full history.", icon: "🧾" },
+          { title: "99.99% uptime", desc: "Rock solid.", icon: "⚡" },
+        ]} />
       </section>`,
 });
 
@@ -2268,6 +2315,52 @@ const guidesPage = (ctx: Ctx): string => cardGridPage({
     { title: "Troubleshooting", desc: "Fix the most common issues quickly." },
   ],
 });
+
+const newsletterPage = (ctx: Ctx): string => pageFile({
+  title: "Newsletter", path: "/newsletter", description: `Subscribe to ${ctx.template.siteName} — new posts straight to your inbox.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>Newsletter</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Join the <span className="gradient-text">list</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
+      </section>
+      <section className="px-6 pb-24">
+        <Newsletter title="Get new posts in your inbox" subtitle="A short email when we publish something new. Unsubscribe anytime." />
+      </section>`,
+});
+
+// dashboard — a real analytics page with live stats and animated charts.
+const analyticsPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { LiveStats } from "@/components/live-stats";
+import { StatCard, AreaChart } from "@/components/ui";
+
+export const metadata: Metadata = site.meta({ title: "Analytics", path: "/analytics", description: ${JSON.stringify(`Analytics for ${ctx.template.siteName}.`)} });
+
+export default function Page() {
+  return (
+    <DashboardShell title="Analytics" subtitle="Traffic, signups and revenue at a glance.">
+      <LiveStats />
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-hairline bg-surface p-6">
+          <div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Traffic</h2><span className="text-sm font-medium text-emerald-400">+18%</span></div>
+          <AreaChart gradientId="g-traffic" data={[8, 12, 10, 16, 14, 20, 22, 19, 26, 30, 28, 34]} />
+        </div>
+        <div className="rounded-2xl border border-hairline bg-surface p-6">
+          <div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Signups</h2><span className="text-sm font-medium text-emerald-400">+9%</span></div>
+          <AreaChart gradientId="g-signups" data={[3, 5, 4, 7, 9, 8, 11, 13, 12, 15, 18, 21]} />
+        </div>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Sessions" value="48.2k" delta="+12%" />
+        <StatCard label="Avg. time" value="3m 14s" delta="+4%" />
+        <StatCard label="Bounce rate" value="38%" delta="-2%" />
+        <StatCard label="Conversion" value="3.4%" delta="+0.6%" />
+      </div>
+    </DashboardShell>
+  );
+}
+`;
 
 // ecommerce — shop (server) renders the client product grid.
 const shopPage = (ctx: Ctx): string => `import type { Metadata } from "next";
@@ -2535,6 +2628,80 @@ export function CTABand({ title, subtitle, ctaLabel = "Get started", ctaHref = "
   );
 }
 `,
+  "components/ui/bento.tsx": `import type { ReactNode } from "react";
+
+interface BentoItem { title: string; desc?: string; icon?: ReactNode; className?: string; }
+
+/** A modern, asymmetric "bento" grid. Pass className like "sm:col-span-2" to span. */
+export function Bento({ items }: { items: BentoItem[] }) {
+  return (
+    <div className="grid auto-rows-[minmax(150px,auto)] grid-cols-2 gap-4 sm:grid-cols-3">
+      {items.map((it) => (
+        <div key={it.title} className={"relative overflow-hidden rounded-3xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 " + (it.className ?? "")}>
+          <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full gradient-bg opacity-20 blur-2xl" />
+          {it.icon ? <div className="mb-3 text-2xl">{it.icon}</div> : null}
+          <h3 className="relative font-semibold">{it.title}</h3>
+          {it.desc ? <p className="relative mt-1 text-sm text-muted">{it.desc}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/area-chart.tsx": `/** A dependency-free, theme-aware area chart with an animated draw. */
+export function AreaChart({ data, height = 160, gradientId = "lac-area", className = "" }: { data: number[]; height?: number; gradientId?: string; className?: string }) {
+  const w = 600;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const step = data.length > 1 ? w / (data.length - 1) : w;
+  const pts = data.map((d, i) => [i * step, height - ((d - min) / range) * (height - 24) - 12] as const);
+  const line = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = line + " L" + w + " " + height + " L0 " + height + " Z";
+  return (
+    <svg viewBox={"0 0 " + w + " " + height} preserveAspectRatio="none" className={"w-full " + className} style={{ height }} role="img" aria-label="Chart">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent-to)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--accent-to)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={"url(#" + gradientId + ")"} />
+      <path d={line} fill="none" stroke="var(--accent-to)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-draw" />
+    </svg>
+  );
+}
+`,
+  "components/ui/newsletter.tsx": `"use client";
+
+import { useActionState } from "react";
+import { honeypotProps, timestampValue } from "@lacspace/form";
+import { submitNewsletter, type SubscribeState } from "@/app/actions";
+
+/** An email capture block — validated & spam-protected via @lacspace/form. */
+export function Newsletter({ title = "Stay in the loop", subtitle = "Occasional updates. No spam — unsubscribe anytime." }: { title?: string; subtitle?: string }) {
+  const [state, action, pending] = useActionState<SubscribeState, FormData>(submitNewsletter, null);
+  const err = state && !state.ok ? (state.errors.email ?? state.errors._form) : undefined;
+
+  return (
+    <div className="mx-auto max-w-xl rounded-3xl border border-hairline bg-surface p-8 text-center">
+      <h2 className="text-2xl font-bold">{title}</h2>
+      <p className="mt-2 text-sm text-muted">{subtitle}</p>
+      {state?.ok ? (
+        <p className="mt-6 rounded-xl border border-hairline bg-app p-4 text-sm">You&rsquo;re subscribed — thanks! ✅</p>
+      ) : (
+        <form action={action} className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <input name="email" type="email" placeholder="you@example.com" aria-label="Email" className="w-full flex-1 rounded-full border border-hairline bg-app px-5 py-3 outline-none focus:border-[color:var(--accent-to)]" />
+          <input {...honeypotProps("website")} />
+          <input type="hidden" name="_ts" defaultValue={timestampValue()} />
+          <button disabled={pending} className="rounded-full gradient-bg px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-60">{pending ? "Joining…" : "Subscribe"}</button>
+        </form>
+      )}
+      {err ? <p className="mt-3 text-sm text-red-400">{err}</p> : null}
+    </div>
+  );
+}
+`,
   "components/ui/index.ts": `export * from "./section";
 export * from "./pill";
 export * from "./stat-card";
@@ -2542,6 +2709,9 @@ export * from "./feature-card";
 export * from "./testimonial";
 export * from "./steps";
 export * from "./cta-band";
+export * from "./bento";
+export * from "./area-chart";
+export * from "./newsletter";
 `,
 });
 
@@ -2558,10 +2728,14 @@ function realPageFiles(ctx: Ctx): Record<string, string> {
     f["components/product-grid.tsx"] = productGrid();
     f["components/cart-view.tsx"] = cartView();
   }
-  if (k === "blog") f["app/topics/page.tsx"] = topicsPage(ctx);
+  if (k === "blog") { f["app/topics/page.tsx"] = topicsPage(ctx); f["app/newsletter/page.tsx"] = newsletterPage(ctx); }
   if (k === "docs") f["app/guides/page.tsx"] = guidesPage(ctx);
   if (k === "restaurant") f["app/menu/page.tsx"] = menuPage(ctx);
-  if (k === "dashboard") { f["app/settings/page.tsx"] = settingsPage(ctx); f["components/settings-panel.tsx"] = settingsPanel(); }
+  if (k === "dashboard") {
+    f["app/settings/page.tsx"] = settingsPage(ctx);
+    f["components/settings-panel.tsx"] = settingsPanel();
+    f["app/analytics/page.tsx"] = analyticsPage(ctx);
+  }
   return f;
 }
 

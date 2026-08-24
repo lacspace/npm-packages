@@ -67,6 +67,9 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     "@lacspace/ui": "^1.0.0",
     "@lacspace/form": "^1.0.0",
     "@lacspace/validate": "^1.0.0",
+    // React Kit: dark/light theming (no-flash) + essential hooks.
+    "@lacspace/theme": "^1.0.1",
+    "@lacspace/hooks": "^1.0.0",
     // The blog & docs templates render Markdown with @lacspace/markdown.
     ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.0" } : {}),
   },
@@ -111,25 +114,57 @@ const gitignore = (): string => `node_modules\n.next\nout\n.env*\n!.env.example\
 
 const globalsCss = (ctx: Ctx): string => `@import "tailwindcss";
 
+/* Class-based dark mode — toggled by @lacspace/theme's <ThemeProvider>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic color tokens → Tailwind utilities (text-fg, text-muted, bg-surface,
+   border-hairline, …). They resolve to the CSS vars below, which swap per theme. */
+@theme inline {
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-surface: var(--surface);
+  --color-panel: var(--panel);
+  --color-hairline: var(--hairline);
+}
+
 :root {
   --accent-from: ${ctx.template.accent[0]};
   --accent-to: ${ctx.template.accent[1]};
-  --bg: #0a0a0f;
-  --fg: #e5e7eb;
+  /* Light theme */
+  --bg: #ffffff;
+  --fg: #0a0a0f;
+  --muted: #3f3f46;
+  --faint: #71717a;
+  --surface: rgb(0 0 0 / 0.03);
+  --panel: rgb(0 0 0 / 0.06);
+  --hairline: rgb(0 0 0 / 0.10);
 }
 
-* { border-color: rgb(255 255 255 / 0.08); }
+.dark {
+  /* Dark theme (default) */
+  --bg: #0a0a0f;
+  --fg: #f5f5f7;
+  --muted: rgb(255 255 255 / 0.62);
+  --faint: rgb(255 255 255 / 0.42);
+  --surface: rgb(255 255 255 / 0.04);
+  --panel: rgb(255 255 255 / 0.08);
+  --hairline: rgb(255 255 255 / 0.10);
+}
+
+* { border-color: var(--hairline); }
 html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-::selection { background: var(--accent-to); color: #0a0a0f; }
+::selection { background: var(--accent-to); color: #fff; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.12); border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 8px; }
 :focus-visible { outline: 2px solid var(--accent-to); outline-offset: 2px; border-radius: 4px; }
 
 .gradient-text {
@@ -180,6 +215,7 @@ export const site = defineSite({
 
 const layout = (ctx: Ctx): string => `import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "@lacspace/theme";
 import { site } from "@/lib/site";
 import { CommandMenu } from "@/components/command-menu";
 import "./globals.css";
@@ -190,11 +226,14 @@ export const metadata: Metadata = site.meta({ title: ${JSON.stringify(ctx.templa
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="antialiased">
-        {/* ✨ Press ⌘K / Ctrl-K anywhere — powered by @lacspace/ui */}
-        <CommandMenu />
-        {children}
+        {/* ✨ Dark / light / system theming with a built-in no-flash script — @lacspace/theme */}
+        <ThemeProvider defaultTheme="dark">
+          {/* ✨ Press ⌘K / Ctrl-K anywhere — powered by @lacspace/ui */}
+          <CommandMenu />
+          {children}
+        </ThemeProvider>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(site.rootJsonLd()) }}
@@ -240,7 +279,7 @@ export default function NotFound() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="text-8xl font-black gradient-text">404</div>
-      <p className="text-lg text-white/60">This page wandered off.</p>
+      <p className="text-lg text-muted">This page wandered off.</p>
       <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">Back home</Link>
     </main>
   );
@@ -363,24 +402,28 @@ Built with [Lacspace](https://lacspace.com/packages).
 /* ------------------------------ home pages ------------------------------ */
 
 const NAV = (name: string, links: string[]): string =>
-  `<header className="sticky top-0 z-40 backdrop-blur border-b border-white/10">
+  `<header className="sticky top-0 z-40 backdrop-blur border-b border-hairline">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <span className="text-lg font-black gradient-text">${name}</span>
-          <div className="hidden gap-8 text-sm text-white/60 sm:flex">
-            ${links.map((l) => `<a href="#${l.toLowerCase()}" className="hover:text-white">${l}</a>`).join("\n            ")}
+          <div className="flex items-center gap-6">
+            <div className="hidden gap-8 text-sm text-muted sm:flex">
+              ${links.map((l) => `<a href="#${l.toLowerCase()}" className="hover:text-fg">${l}</a>`).join("\n              ")}
+            </div>
+            <ThemeToggle />
           </div>
         </nav>
       </header>`;
 
 const FOOTER = (name: string): string =>
-  `<footer className="border-t border-white/10 py-10 text-center text-sm text-white/40">
+  `<footer className="border-t border-hairline py-10 text-center text-sm text-faint">
         © {new Date().getFullYear()} ${name}. Built with{" "}
-        <a href="https://lacspace.com/packages" className="text-white/70 hover:text-white">Lacspace</a>.
+        <a href="https://lacspace.com/packages" className="text-muted hover:text-fg">Lacspace</a>.
       </footer>`;
 
 function homePage(ctx: Ctx): string {
   const n = ctx.template.siteName;
   const shell = (inner: string): string => `import { site } from "@/lib/site";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
 export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
@@ -397,22 +440,22 @@ export default function Home() {
   if (ctx.template.key === "personal") {
     return shell(`${NAV(n, ["Work", "About", "Contact"])}
       <section className="mx-auto max-w-3xl px-6 py-28 text-center">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-white/40">Portfolio</p>
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Portfolio</p>
         <h1 className="text-5xl font-black leading-tight sm:text-7xl">Hi, I'm <span className="gradient-text">${n}</span>.</h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex justify-center gap-4">
           <a href="#work" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">View my work</a>
-          <a href="#contact" className="rounded-full border border-white/20 px-6 py-3 font-semibold hover:bg-white/5">Get in touch</a>
+          <a href="#contact" className="rounded-full border border-hairline px-6 py-3 font-semibold hover:bg-surface">Get in touch</a>
         </div>
       </section>
       <section id="work" className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="mb-10 text-3xl font-bold">Selected work</h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="group rounded-2xl border border-white/10 bg-white/[0.02] p-6 transition hover:-translate-y-1 hover:border-white/20">
+            <div key={i} className="group rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 hover:border-hairline">
               <div className="mb-4 h-32 rounded-xl gradient-bg opacity-80" />
               <h3 className="font-semibold">Project {i}</h3>
-              <p className="mt-1 text-sm text-white/50">A short description of what you built and the impact it had.</p>
+              <p className="mt-1 text-sm text-muted">A short description of what you built and the impact it had.</p>
             </div>
           ))}
         </div>
@@ -424,7 +467,7 @@ export default function Home() {
     return shell(`${NAV(n, ["Services", "Work", "Contact"])}
       <section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl">We build products <span className="gradient-text">that grow businesses</span>.</h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <a href="#contact" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Start a project</a>
       </section>
       <section id="services" className="mx-auto max-w-6xl px-6 py-16">
@@ -435,17 +478,17 @@ export default function Home() {
             { t: "Design", d: "Brand and product design that people remember." },
             { t: "Engineering", d: "Fast, reliable software built to last." },
           ].map((s) => (
-            <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">
+            <div key={s.t} className="rounded-2xl border border-hairline bg-surface p-8">
               <h3 className="text-xl font-bold gradient-text">{s.t}</h3>
-              <p className="mt-2 text-white/60">{s.d}</p>
+              <p className="mt-2 text-muted">{s.d}</p>
             </div>
           ))}
         </div>
       </section>
       <section id="contact" className="mx-auto max-w-3xl px-6 py-24 text-center">
         <h2 className="text-3xl font-bold">Let's work together</h2>
-        <p className="mt-3 text-white/60">Tell us about your project and we'll get back within a day.</p>
-        <a href="mailto:hello@example.com" className="mt-8 inline-block rounded-full border border-white/20 px-8 py-3 font-semibold hover:bg-white/5">hello@example.com</a>
+        <p className="mt-3 text-muted">Tell us about your project and we'll get back within a day.</p>
+        <a href="mailto:hello@example.com" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">hello@example.com</a>
       </section>
       ${FOOTER(n)}`);
   }
@@ -454,7 +497,7 @@ export default function Home() {
     return shell(`${NAV(n, ["Shop", "About", "Cart"])}
       <section className="mx-auto max-w-5xl px-6 py-24 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <a href="#shop" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Shop the collection</a>
       </section>
       <section id="shop" className="mx-auto max-w-6xl px-6 py-16">
@@ -464,13 +507,13 @@ export default function Home() {
             { n: "Aurora Lamp", p: "$89" }, { n: "Terra Mug", p: "$24" },
             { n: "Linen Throw", p: "$65" }, { n: "Oak Stand", p: "$120" },
           ].map((prod) => (
-            <div key={prod.n} className="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition hover:-translate-y-1">
+            <div key={prod.n} className="group rounded-2xl border border-hairline bg-surface p-4 transition hover:-translate-y-1">
               <div className="mb-4 aspect-square rounded-xl gradient-bg opacity-80" />
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{prod.n}</h3>
-                <span className="text-white/60">{prod.p}</span>
+                <span className="text-muted">{prod.p}</span>
               </div>
-              <button className="mt-3 w-full rounded-lg border border-white/15 py-2 text-sm font-medium hover:bg-white/5">Add to cart</button>
+              <button className="mt-3 w-full rounded-lg border border-hairline py-2 text-sm font-medium hover:bg-surface">Add to cart</button>
             </div>
           ))}
         </div>
@@ -481,16 +524,16 @@ export default function Home() {
   if (ctx.template.key === "blog") {
     return shell(`${NAV(n, ["Latest", "Topics", "About"])}
       <section className="mx-auto max-w-3xl px-6 py-24">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-white/40">The Journal</p>
+        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-faint">The Journal</p>
         <h1 className="text-5xl font-black leading-tight sm:text-6xl gradient-text">${n}</h1>
-        <p className="mt-6 text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mt-6 text-lg text-muted">${ctx.template.siteDescription}</p>
       </section>
       <section id="latest" className="mx-auto max-w-5xl px-6 pb-8">
-        <a href="#" className="group block rounded-3xl border border-white/10 bg-white/[0.02] p-8 transition hover:border-white/20">
+        <a href="#" className="group block rounded-3xl border border-hairline bg-surface p-8 transition hover:border-hairline">
           <div className="mb-6 h-56 rounded-2xl gradient-bg opacity-80" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-white/40">Featured</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-faint">Featured</span>
           <h2 className="mt-2 text-3xl font-bold group-hover:opacity-90">The one thing every product needs before launch</h2>
-          <p className="mt-2 text-white/60">A short, punchy dek that pulls the reader into the piece and makes them want more.</p>
+          <p className="mt-2 text-muted">A short, punchy dek that pulls the reader into the piece and makes them want more.</p>
         </a>
       </section>
       <section className="mx-auto max-w-5xl px-6 py-12">
@@ -498,9 +541,9 @@ export default function Home() {
           {[1, 2, 3, 4].map((i) => (
             <a key={i} href="#" className="group">
               <div className="mb-4 h-40 rounded-xl gradient-bg opacity-70" />
-              <span className="text-xs uppercase tracking-wider text-white/40">Essay</span>
+              <span className="text-xs uppercase tracking-wider text-faint">Essay</span>
               <h3 className="mt-1 text-xl font-semibold group-hover:opacity-90">A thoughtful headline for post {i}</h3>
-              <p className="mt-1 text-sm text-white/50">Two lines of supporting copy to set the scene for the reader.</p>
+              <p className="mt-1 text-sm text-muted">Two lines of supporting copy to set the scene for the reader.</p>
             </a>
           ))}
         </div>
@@ -512,9 +555,9 @@ export default function Home() {
     return shell(`${NAV(n, ["Guides", "API", "Examples"])}
       <section className="mx-auto max-w-4xl px-6 py-28 text-center">
         <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-white/60">${ctx.template.siteDescription}</p>
-        <div className="mt-8 inline-flex items-center gap-3 rounded-lg border border-white/10 bg-black/40 px-4 py-3 font-mono text-sm text-white/80">
-          <span className="text-white/40">$</span> npm install @acme/sdk
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
+        <div className="mt-8 inline-flex items-center gap-3 rounded-lg border border-hairline bg-panel px-4 py-3 font-mono text-sm text-muted">
+          <span className="text-faint">$</span> npm install @acme/sdk
         </div>
       </section>
       <section id="guides" className="mx-auto max-w-6xl px-6 py-12">
@@ -524,9 +567,9 @@ export default function Home() {
             { t: "Guides", d: "Task-focused walkthroughs for the common paths." },
             { t: "API reference", d: "Every endpoint, typed, with copy-paste examples." },
           ].map((c) => (
-            <a key={c.t} href="#" className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 transition hover:border-white/20">
+            <a key={c.t} href="#" className="rounded-2xl border border-hairline bg-surface p-8 transition hover:border-hairline">
               <h3 className="text-xl font-bold gradient-text">{c.t}</h3>
-              <p className="mt-2 text-white/60">{c.d}</p>
+              <p className="mt-2 text-muted">{c.d}</p>
             </a>
           ))}
         </div>
@@ -536,36 +579,39 @@ export default function Home() {
 
   if (ctx.template.key === "dashboard") {
     return shell(`<div className="flex min-h-screen">
-        <aside className="hidden w-56 shrink-0 border-r border-white/10 p-6 md:block">
-          <div className="mb-8 text-lg font-black gradient-text">${n}</div>
-          <nav className="space-y-1 text-sm text-white/60">
+        <aside className="hidden w-56 shrink-0 border-r border-hairline p-6 md:block">
+          <div className="mb-8 flex items-center justify-between">
+            <span className="text-lg font-black gradient-text">${n}</span>
+            <ThemeToggle />
+          </div>
+          <nav className="space-y-1 text-sm text-muted">
             {["Overview", "Analytics", "Customers", "Settings"].map((l) => (
-              <a key={l} href="#" className="block rounded-lg px-3 py-2 hover:bg-white/5 hover:text-white">{l}</a>
+              <a key={l} href="#" className="block rounded-lg px-3 py-2 hover:bg-surface hover:text-fg">{l}</a>
             ))}
           </nav>
         </aside>
         <main className="flex-1 p-6 md:p-10">
           <h1 className="text-2xl font-bold">Overview</h1>
-          <p className="mt-1 text-white/50">${ctx.template.siteDescription}</p>
+          <p className="mt-1 text-muted">${ctx.template.siteDescription}</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { l: "Revenue", v: "$48.2k", c: "+12%" }, { l: "Users", v: "12,480", c: "+3.4%" },
               { l: "Orders", v: "1,204", c: "+8%" }, { l: "Churn", v: "1.2%", c: "-0.3%" },
             ].map((s) => (
-              <div key={s.l} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                <div className="text-sm text-white/50">{s.l}</div>
+              <div key={s.l} className="rounded-2xl border border-hairline bg-surface p-5">
+                <div className="text-sm text-muted">{s.l}</div>
                 <div className="mt-1 text-2xl font-bold">{s.v}</div>
                 <div className="mt-1 text-xs text-emerald-400">{s.c}</div>
               </div>
             ))}
           </div>
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="mt-6 rounded-2xl border border-hairline bg-surface p-6">
             <div className="mb-4 font-semibold">Recent activity</div>
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center justify-between border-b border-white/5 pb-3 text-sm">
-                  <span className="text-white/70">Event #{i}</span>
-                  <span className="text-white/40">just now</span>
+                <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
+                  <span className="text-muted">Event #{i}</span>
+                  <span className="text-faint">just now</span>
                 </div>
               ))}
             </div>
@@ -577,9 +623,9 @@ export default function Home() {
   if (ctx.template.key === "restaurant") {
     return shell(`${NAV(n, ["Menu", "Story", "Reserve"])}
       <section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-white/40">Est. 2026</p>
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Est. 2026</p>
         <h1 className="text-5xl font-black leading-tight sm:text-7xl gradient-text">${n}</h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <a href="#reserve" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Reserve a table</a>
       </section>
       <section id="menu" className="mx-auto max-w-4xl px-6 py-16">
@@ -589,10 +635,10 @@ export default function Home() {
             { n: "Charred leeks", p: "$14" }, { n: "Handmade tagliatelle", p: "$22" },
             { n: "Wood-fired trout", p: "$28" }, { n: "Olive oil cake", p: "$11" },
           ].map((d) => (
-            <div key={d.n} className="flex items-baseline justify-between gap-4 border-b border-white/10 pb-4">
+            <div key={d.n} className="flex items-baseline justify-between gap-4 border-b border-hairline pb-4">
               <div>
                 <h3 className="text-lg font-semibold">{d.n}</h3>
-                <p className="text-sm text-white/50">A short, mouth-watering description of the dish.</p>
+                <p className="text-sm text-muted">A short, mouth-watering description of the dish.</p>
               </div>
               <span className="shrink-0 gradient-text font-bold">{d.p}</span>
             </div>
@@ -601,8 +647,8 @@ export default function Home() {
       </section>
       <section id="reserve" className="mx-auto max-w-2xl px-6 py-24 text-center">
         <h2 className="text-3xl font-bold">Join us</h2>
-        <p className="mt-3 text-white/60">Open Wed–Sun, 5pm till late. Walk-ins welcome; bookings recommended.</p>
-        <a href="tel:+10000000000" className="mt-8 inline-block rounded-full border border-white/20 px-8 py-3 font-semibold hover:bg-white/5">Call to book</a>
+        <p className="mt-3 text-muted">Open Wed–Sun, 5pm till late. Walk-ins welcome; bookings recommended.</p>
+        <a href="tel:+10000000000" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">Call to book</a>
       </section>
       ${FOOTER(n)}`);
   }
@@ -610,12 +656,12 @@ export default function Home() {
   // saas
   return shell(`${NAV(n, ["Features", "Pricing", "Sign in"])}
       <section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <p className="mb-4 inline-block rounded-full border border-white/15 px-4 py-1 text-xs font-semibold text-white/60">New · v1.0</p>
+        <p className="mb-4 inline-block rounded-full border border-hairline px-4 py-1 text-xs font-semibold text-muted">New · v1.0</p>
         <h1 className="text-5xl font-black leading-tight sm:text-6xl">Ship faster with <span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-white/60">${ctx.template.siteDescription}</p>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex justify-center gap-4">
           <a href="#pricing" className="gradient-bg rounded-full px-8 py-3 font-semibold text-black">Start free</a>
-          <a href="#features" className="rounded-full border border-white/20 px-8 py-3 font-semibold hover:bg-white/5">See features</a>
+          <a href="#features" className="rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">See features</a>
         </div>
       </section>
       <section id="features" className="mx-auto max-w-6xl px-6 py-16">
@@ -625,17 +671,17 @@ export default function Home() {
             { t: "Secure", d: "Hardened headers and auth out of the box." },
             { t: "Scalable", d: "From your first user to your millionth." },
           ].map((f) => (
-            <div key={f.t} className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">
+            <div key={f.t} className="rounded-2xl border border-hairline bg-surface p-8">
               <h3 className="text-xl font-bold gradient-text">{f.t}</h3>
-              <p className="mt-2 text-white/60">{f.d}</p>
+              <p className="mt-2 text-muted">{f.d}</p>
             </div>
           ))}
         </div>
       </section>
       <section id="pricing" className="mx-auto max-w-md px-6 py-24 text-center">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-10">
+        <div className="rounded-3xl border border-hairline bg-surface p-10">
           <h2 className="text-3xl font-bold">Pro</h2>
-          <p className="mt-2 text-5xl font-black gradient-text">$29<span className="text-lg text-white/40">/mo</span></p>
+          <p className="mt-2 text-5xl font-black gradient-text">$29<span className="text-lg text-faint">/mo</span></p>
           <a href="#" className="mt-8 inline-block w-full gradient-bg rounded-full px-8 py-3 font-semibold text-black">Get started</a>
         </div>
       </section>
@@ -697,9 +743,9 @@ export const metadata: Metadata = site.meta({
 export default function AboutPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-28">
-      <Link href="/" className="text-sm text-white/50 hover:text-white">← Back home</Link>
+      <Link href="/" className="text-sm text-muted hover:text-fg">← Back home</Link>
       <h1 className="mt-6 text-4xl font-black sm:text-5xl gradient-text">About</h1>
-      <p className="mt-6 text-lg leading-relaxed text-white/60">
+      <p className="mt-6 text-lg leading-relaxed text-muted">
         This page already has its own SEO — a unique title, canonical URL, Open Graph tags and a
         generated social image — from a single <code>site.meta()</code> call. Duplicate this file for
         any new route and it just works.
@@ -710,6 +756,43 @@ export default function AboutPage() {
 `;
 
 /* --------------------------- interactivity --------------------------- */
+
+// ✨ Dark / light theme toggle — @lacspace/theme + @lacspace/hooks.
+const themeToggle = (): string => `"use client";
+
+import { useTheme } from "@lacspace/theme";
+import { useIsMounted } from "@lacspace/hooks";
+
+/** A sun/moon button that flips between light and dark. */
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isMounted = useIsMounted();
+  const dark = resolvedTheme === "dark";
+
+  return (
+    <button
+      type="button"
+      aria-label="Toggle theme"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg"
+    >
+      {/* Render a neutral placeholder until mounted to avoid a hydration mismatch. */}
+      {!isMounted() ? (
+        <span className="block h-4 w-4" />
+      ) : dark ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+`;
 
 // ✨ Global ⌘K command palette — @lacspace/ui, wired to the app's routes.
 const commandMenu = (ctx: Ctx): string => `"use client";
@@ -770,8 +853,8 @@ import { useActionState } from "react";
 import { honeypotProps, timestampValue } from "@lacspace/form";
 import { submitContact, type ContactState } from "@/app/actions";
 
-const field = "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-white/30";
-const label = "mb-1 block text-sm text-white/60";
+const field = "w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none focus:border-hairline";
+const label = "mb-1 block text-sm text-muted";
 const errCls = "mt-1 text-sm text-red-400";
 
 export function ContactForm() {
@@ -779,7 +862,7 @@ export function ContactForm() {
 
   if (state?.ok) {
     return (
-      <p className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-lg">
+      <p className="rounded-2xl border border-hairline bg-surface p-8 text-center text-lg">
         Thanks — we&rsquo;ll be in touch! ✅
       </p>
     );
@@ -836,7 +919,7 @@ export default function ContactPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-24">
       <h1 className="text-4xl font-black gradient-text sm:text-5xl">Get in touch</h1>
-      <p className="mt-4 text-white/60">Have a question or a project in mind? Drop a message below.</p>
+      <p className="mt-4 text-muted">Have a question or a project in mind? Drop a message below.</p>
       <div className="mt-10">
         <ContactForm />
       </div>
@@ -940,7 +1023,7 @@ export function DocsSidebar({ nav }: { nav: { group: string; items: DocMeta[] }[
     <nav className="flex flex-col gap-6 text-sm">
       {nav.map((group) => (
         <div key={group.group}>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">{group.group}</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-faint">{group.group}</p>
           <ul className="flex flex-col gap-1">
             {group.items.map((d) => {
               const href = \`/docs/\${d.slug}\`;
@@ -949,7 +1032,7 @@ export function DocsSidebar({ nav }: { nav: { group: string; items: DocMeta[] }[
                 <li key={d.slug}>
                   <Link
                     href={href}
-                    className={\`block rounded-lg px-3 py-1.5 transition \${active ? "gradient-bg font-semibold text-black" : "text-white/70 hover:bg-white/5 hover:text-white"}\`}
+                    className={\`block rounded-lg px-3 py-1.5 transition \${active ? "gradient-bg font-semibold text-black" : "text-muted hover:bg-surface hover:text-fg"}\`}
                   >
                     {d.title}
                   </Link>
@@ -967,13 +1050,17 @@ export function DocsSidebar({ nav }: { nav: { group: string; items: DocMeta[] }[
 const docsLayout = (): string => `import Link from "next/link";
 import { getDocNav } from "@/lib/docs";
 import { DocsSidebar } from "@/components/docs-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const nav = getDocNav();
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[220px_1fr]">
       <aside className="md:sticky md:top-24 md:h-fit">
-        <Link href="/docs" className="mb-6 block text-lg font-black gradient-text">Docs</Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link href="/docs" className="block text-lg font-black gradient-text">Docs</Link>
+          <ThemeToggle />
+        </div>
         <DocsSidebar nav={nav} />
       </aside>
       <div className="min-w-0">{children}</div>
@@ -997,13 +1084,13 @@ export default function DocsIndex() {
   return (
     <div>
       <h1 className="text-4xl font-black gradient-text">Documentation</h1>
-      <p className="mt-4 text-white/60">Everything you need to get started and go deep.</p>
+      <p className="mt-4 text-muted">Everything you need to get started and go deep.</p>
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {docs.map((d) => (
-          <Link key={d.slug} href={\`/docs/\${d.slug}\`} className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/25">
-            <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{d.group}</span>
+          <Link key={d.slug} href={\`/docs/\${d.slug}\`} className="rounded-2xl border border-hairline bg-surface p-5 transition hover:border-hairline">
+            <span className="text-xs font-semibold uppercase tracking-widest text-faint">{d.group}</span>
             <h2 className="mt-1 text-lg font-bold">{d.title}</h2>
-            {d.description && <p className="mt-1 text-sm text-white/60">{d.description}</p>}
+            {d.description && <p className="mt-1 text-sm text-muted">{d.description}</p>}
           </Link>
         ))}
       </div>
@@ -1036,17 +1123,17 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
   return (
     <article>
-      <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{doc.group}</span>
+      <span className="text-xs font-semibold uppercase tracking-widest text-faint">{doc.group}</span>
       <h1 className="mt-1 text-4xl font-black leading-tight">{doc.title}</h1>
-      {doc.description && <p className="mt-3 text-lg text-white/60">{doc.description}</p>}
+      {doc.description && <p className="mt-3 text-lg text-muted">{doc.description}</p>}
 
       {doc.toc.length > 2 && (
-        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">On this page</p>
+        <div className="mt-8 rounded-xl border border-hairline bg-surface p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-faint">On this page</p>
           <ul className="flex flex-col gap-1 text-sm">
             {doc.toc.map((h) => (
               <li key={h.id} style={{ paddingLeft: (h.level - 1) * 12 }}>
-                <a href={\`#\${h.id}\`} className="text-white/60 hover:text-white">{h.text}</a>
+                <a href={\`#\${h.id}\`} className="text-muted hover:text-fg">{h.text}</a>
               </li>
             ))}
           </ul>
@@ -1055,9 +1142,9 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
       <div className="prose mt-10" dangerouslySetInnerHTML={{ __html: doc.html }} />
 
-      <nav className="mt-14 flex justify-between gap-4 border-t border-white/10 pt-8 text-sm">
-        {prev ? <Link href={\`/docs/\${prev.slug}\`} className="text-white/70 hover:text-white">&larr; {prev.title}</Link> : <span />}
-        {next ? <Link href={\`/docs/\${next.slug}\`} className="text-right text-white/70 hover:text-white">{next.title} &rarr;</Link> : <span />}
+      <nav className="mt-14 flex justify-between gap-4 border-t border-hairline pt-8 text-sm">
+        {prev ? <Link href={\`/docs/\${prev.slug}\`} className="text-muted hover:text-fg">&larr; {prev.title}</Link> : <span />}
+        {next ? <Link href={\`/docs/\${next.slug}\`} className="text-right text-muted hover:text-fg">{next.title} &rarr;</Link> : <span />}
       </nav>
     </article>
   );
@@ -1277,17 +1364,17 @@ export default function Blog() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-24">
       <h1 className="text-4xl font-black gradient-text sm:text-5xl">Blog</h1>
-      <p className="mt-4 text-white/60">Thoughts, notes and updates.</p>
+      <p className="mt-4 text-muted">Thoughts, notes and updates.</p>
       <div className="mt-12 flex flex-col gap-8">
         {posts.map((post) => (
-          <Link key={post.slug} href={\`/blog/\${post.slug}\`} className="group rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/25">
-            {post.tag && <span className="text-xs font-semibold uppercase tracking-widest text-white/40">{post.tag}</span>}
+          <Link key={post.slug} href={\`/blog/\${post.slug}\`} className="group rounded-2xl border border-hairline bg-surface p-6 transition hover:border-hairline">
+            {post.tag && <span className="text-xs font-semibold uppercase tracking-widest text-faint">{post.tag}</span>}
             <h2 className="mt-1 text-2xl font-bold group-hover:gradient-text">{post.title}</h2>
-            <p className="mt-2 text-white/60">{post.excerpt}</p>
-            {post.date && <time className="mt-3 block text-sm text-white/40">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
+            <p className="mt-2 text-muted">{post.excerpt}</p>
+            {post.date && <time className="mt-3 block text-sm text-faint">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
           </Link>
         ))}
-        {posts.length === 0 && <p className="text-white/50">No posts yet — add a Markdown file in <code>content/posts/</code>.</p>}
+        {posts.length === 0 && <p className="text-muted">No posts yet — add a Markdown file in <code>content/posts/</code>.</p>}
       </div>
     </main>
   );
@@ -1335,10 +1422,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-24">
-      <Link href="/blog" className="text-sm text-white/50 hover:text-white">&larr; All posts</Link>
+      <Link href="/blog" className="text-sm text-muted hover:text-fg">&larr; All posts</Link>
       <article className="mt-6">
         <h1 className="text-4xl font-black leading-tight sm:text-5xl">{post.title}</h1>
-        {post.date && <time className="mt-4 block text-sm text-white/40">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
+        {post.date && <time className="mt-4 block text-sm text-faint">{new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time>}
         <div className="prose mt-10" dangerouslySetInnerHTML={{ __html: post.html }} />
       </article>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -1452,6 +1539,7 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     "app/actions.ts": actionsTs(),
     "components/command-menu.tsx": commandMenu(ctx),
     "components/contact-form.tsx": contactForm(),
+    "components/theme-toggle.tsx": themeToggle(),
     ".github/workflows/seo.yml": seoWorkflow(),
     ".env.example": envExample(),
     "WELCOME.md": welcomeMd(ctx),

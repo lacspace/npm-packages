@@ -1,23 +1,67 @@
 {
   "name": "@lacspace/theme",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SSR-safe dark / light / system theme for React — a tiny ThemeProvider, a useTheme hook, and a no-flash inline script. Persists to storage, follows the OS, toggles a class or data-attribute. Zero-dependency, framework-agnostic, fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" } } },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
-  "keywords": ["react","theme","dark-mode","light-mode","next-themes","usetheme","color-scheme","prefers-color-scheme","ssr","no-flash","typescript","zero-dependency"],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "theme",
+    "dark-mode",
+    "light-mode",
+    "next-themes",
+    "usetheme",
+    "color-scheme",
+    "prefers-color-scheme",
+    "ssr",
+    "no-flash",
+    "typescript",
+    "zero-dependency"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://lacspace.com/packages",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "theme" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "peerDependencies": { "react": ">=18" },
-  "devDependencies": { "@types/react": "^18.3.12", "react": "^18.3.1" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "theme"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -53,27 +53,26 @@ export function ThemeToggle() {
 }
 ```
 
-### 3. The no-flash script in `<head>`
+### 3. No flash of the wrong theme — built in
 
-Inject `getThemeScript()` as early as possible so the correct theme is applied **before** the browser paints — no flicker.
+`<ThemeProvider>` renders a tiny inline no-flash script for you (because it's server-rendered to HTML, the script lands in the initial markup and runs **before** the browser paints). So the example in step 1 already has zero flicker — nothing else to wire up. Just add `suppressHydrationWarning` to your `<html>`:
 
 ```tsx
 // Next.js App Router — app/layout.tsx
-import { getThemeScript } from "@lacspace/theme";
+import { ThemeProvider } from "@lacspace/theme";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: getThemeScript() }} />
-      </head>
-      <body>{children}</body>
+      <body>
+        <ThemeProvider defaultTheme="system">{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
 ```
 
-Plain HTML works too — just paste the output of `getThemeScript()` into an inline `<script>` in `<head>` (pass the same options you give the provider):
+Prefer to inject the script yourself (e.g. a non-React app, or the document `<head>`)? Set `enableNoFlashScript={false}` on the provider and use `getThemeScript()` — a self-contained string — from a client component or plain HTML. Pass it the **same** options you give the provider:
 
 ```html
 <head>
@@ -85,18 +84,15 @@ Plain HTML works too — just paste the output of `getThemeScript()` into an inl
 
 ### 4. Using a `data-*` attribute instead of a class
 
+The built-in no-flash script follows the provider's options automatically — just set `attribute`:
+
 ```tsx
-import { ThemeProvider, getThemeScript } from "@lacspace/theme";
+import { ThemeProvider } from "@lacspace/theme";
 
-const opts = { attribute: "data-theme" as const, storageKey: "app-theme" };
-
-// Provider
 <ThemeProvider attribute="data-theme" storageKey="app-theme">
   {children}
 </ThemeProvider>;
-
-// Matching no-flash script — pass the SAME options
-<script dangerouslySetInnerHTML={{ __html: getThemeScript(opts) }} />;
+// → <html data-theme="dark"> before paint, no flicker
 ```
 
 Then style against the attribute:

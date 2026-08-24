@@ -71,6 +71,14 @@ export interface ThemeProviderProps {
   disableTransitionOnChange?: boolean;
   /** Optional CSP `nonce` applied to the transient transition-blocking style. */
   nonce?: string;
+  /**
+   * Render a tiny inline script at the top of the provider so the correct theme
+   * is applied to `<html>` **before first paint** — no flash of the wrong theme,
+   * no manual `<head>` script needed. Set `false` if you inject
+   * {@link getThemeScript} yourself.
+   * @defaultValue `true`
+   */
+  enableNoFlashScript?: boolean;
 }
 
 /**
@@ -179,6 +187,7 @@ export function ThemeProvider(props: ThemeProviderProps): ReactElement {
     enableSystem = true,
     disableTransitionOnChange = false,
     nonce,
+    enableNoFlashScript = true,
   } = props;
 
   const [theme, setThemeState] = useState<string>(defaultTheme);
@@ -268,7 +277,21 @@ export function ThemeProvider(props: ThemeProviderProps): ReactElement {
     [theme, setTheme, resolvedTheme, systemTheme, themesKey],
   );
 
-  return createElement(ThemeContext.Provider, { value }, children);
+  // A no-flash script rendered at the top of the tree. Because client components
+  // are server-rendered to HTML, this <script> lands in the initial markup and
+  // runs before hydration — applying the saved theme before first paint. It has
+  // no external references, so re-renders never re-execute it.
+  const noFlash = enableNoFlashScript
+    ? createElement("script", {
+        suppressHydrationWarning: true,
+        nonce,
+        dangerouslySetInnerHTML: {
+          __html: getThemeScript({ storageKey, defaultTheme, attribute, themes, enableSystem }),
+        },
+      })
+    : null;
+
+  return createElement(ThemeContext.Provider, { value }, noFlash, children);
 }
 
 /**

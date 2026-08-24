@@ -344,7 +344,7 @@ boring-but-essential stuff already done. Here's what's in the box.
 - **✨ A working contact form** — \`/contact\` is live, typed, validated and spam-protected (honeypot + timing) via \`@lacspace/form\` + \`@lacspace/validate\`. Just point it at your inbox.
 - **✨ A ⌘K command palette** — press \`⌘K\` / \`Ctrl-K\` anywhere, powered by \`@lacspace/ui\`. Also try \`<Reveal>\`, \`<Counter>\`, \`<GradientText>\`, \`<TiltCard>\`, \`<Marquee>\`, \`<Typewriter>\`.
 - **✨ Dark / light / system theme** — a no-flash toggle in the header via \`@lacspace/theme\` + \`@lacspace/hooks\`. The whole template is theme-aware.
-- **✨ Multiple pages + auto header & footer** — the nav and a full footer are generated from one page map. Every link resolves to a real, branded page — pages you haven't filled in yet show a friendly **"under development"** screen instead of a 404. Add content in \`app/<route>/page.tsx\`.
+- **✨ Multiple pages + auto header & footer** — the nav and a full footer are generated from one page map. The highest-value page for your template ships with **real content** (e.g. a pricing table, a shop with a working cart, a menu, a settings panel). Every other link still resolves to a real, branded page — ones you haven't filled in yet show a friendly **"under development"** screen instead of a 404. Add content in \`app/<route>/page.tsx\`.
 - **✨ Global state + data fetching** — a dismissible announcement bar and the mobile menu use \`@lacspace/store\` (with \`persist\`); the home page's live "By the numbers" strip fetches \`/api/stats\` with \`@lacspace/query\` (shared cache, revalidate-on-focus).
 - **✨ Per-page SEO** — see \`app/about\` & \`app/contact\`: one \`site.meta()\` call gives each route its own title, canonical & OG image.
 - **✨ An SEO CI gate** — \`.github/workflows/seo.yml\` audits every page on each push and fails below grade A, so SEO can never regress.
@@ -1524,6 +1524,9 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     files[`app${page.path}/page.tsx`] = isDash ? dashboardStubPage(page) : underDevPage(page);
   }
 
+  // ✨ The highest-value page(s) per template ship with real content.
+  Object.assign(files, realPageFiles(ctx));
+
   // ✨ The blog template gets a real Markdown-powered blog.
   if (isBlog) {
     files["lib/posts.ts"] = postsLib();
@@ -1560,7 +1563,7 @@ function pagesFor(ctx: Ctx): PageSpec[] {
       { path: "/analytics", label: "Analytics", nav: true, group: "Product" },
       { path: "/customers", label: "Customers", nav: true, group: "Product" },
       { path: "/billing", label: "Billing", nav: true, group: "Product" },
-      { path: "/settings", label: "Settings", nav: true, group: "Product" },
+      { path: "/settings", label: "Settings", nav: true, group: "Product", real: true },
       { path: "/help", label: "Help", group: "Resources" },
     ];
   }
@@ -1573,41 +1576,42 @@ function pagesFor(ctx: Ctx): PageSpec[] {
   ];
   const specific: Record<string, PageSpec[]> = {
     personal: [
-      { path: "/work", label: "Work", nav: true, group: "Product" },
+      { path: "/work", label: "Work", nav: true, group: "Product", real: true },
       { path: "/blog", label: "Blog", nav: true, group: "Product" },
       { path: "/uses", label: "Uses", group: "Resources" },
     ],
     business: [
-      { path: "/services", label: "Services", nav: true, group: "Product" },
+      { path: "/services", label: "Services", nav: true, group: "Product", real: true },
       { path: "/work", label: "Work", nav: true, group: "Product" },
-      { path: "/pricing", label: "Pricing", nav: true, group: "Product" },
+      { path: "/pricing", label: "Pricing", nav: true, group: "Product", real: true },
       { path: "/faq", label: "FAQ", group: "Resources" },
     ],
     ecommerce: [
-      { path: "/shop", label: "Shop", nav: true, group: "Product" },
+      { path: "/shop", label: "Shop", nav: true, group: "Product", real: true },
       { path: "/collections", label: "Collections", nav: true, group: "Product" },
+      { path: "/cart", label: "Cart", group: "Product", real: true },
       { path: "/shipping", label: "Shipping", group: "Resources" },
       { path: "/returns", label: "Returns", group: "Resources" },
     ],
     saas: [
-      { path: "/features", label: "Features", nav: true, group: "Product" },
-      { path: "/pricing", label: "Pricing", nav: true, group: "Product" },
+      { path: "/features", label: "Features", nav: true, group: "Product", real: true },
+      { path: "/pricing", label: "Pricing", nav: true, group: "Product", real: true },
       { path: "/integrations", label: "Integrations", group: "Product" },
       { path: "/changelog", label: "Changelog", group: "Resources" },
     ],
     blog: [
       { path: "/blog", label: "Articles", nav: true, group: "Product", real: true },
-      { path: "/topics", label: "Topics", nav: true, group: "Product" },
+      { path: "/topics", label: "Topics", nav: true, group: "Product", real: true },
       { path: "/newsletter", label: "Newsletter", group: "Resources" },
     ],
     docs: [
       { path: "/docs", label: "Docs", nav: true, group: "Product", real: true },
-      { path: "/guides", label: "Guides", nav: true, group: "Product" },
+      { path: "/guides", label: "Guides", nav: true, group: "Product", real: true },
       { path: "/api-reference", label: "API", nav: true, group: "Product" },
       { path: "/changelog", label: "Changelog", group: "Resources" },
     ],
     restaurant: [
-      { path: "/menu", label: "Menu", nav: true, group: "Product" },
+      { path: "/menu", label: "Menu", nav: true, group: "Product", real: true },
       { path: "/reservations", label: "Reservations", nav: true, group: "Product" },
       { path: "/gallery", label: "Gallery", nav: true, group: "Product" },
       { path: "/events", label: "Private events", group: "Resources" },
@@ -1626,30 +1630,45 @@ const linkLiteral = (pages: PageSpec[]): string =>
 
 // ✨ Global site header — page nav, theme toggle, and a mobile menu backed by
 // @lacspace/store (so the open state is shared, not prop-drilled).
-const siteHeader = (ctx: Ctx): string => `"use client";
+const siteHeader = (ctx: Ctx): string => {
+  const isEcom = ctx.template.key === "ecommerce";
+  const cartImport = isEcom ? `\nimport { useCart } from "@/lib/store";\nimport { useIsMounted } from "@lacspace/hooks";` : "";
+  const cartHook = isEcom
+    ? `\n  const count = useCart((s) => s.items.length);\n  const mounted = useIsMounted();`
+    : "";
+  const cartBtn = isEcom
+    ? `
+          <Link href="/cart" aria-label="Cart" className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
+            {mounted() && count > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold text-black">{count}</span>
+            ) : null}
+          </Link>`
+    : "";
+  return `"use client";
 
 import Link from "next/link";
 import { useUI } from "@/lib/store";
-import { ThemeToggle } from "./theme-toggle";
+import { ThemeToggle } from "./theme-toggle";${cartImport}
 
 const LINKS = [${linkLiteral(pagesFor(ctx).filter((p) => p.nav))}];
 
 export function SiteHeader() {
   const open = useUI((s) => s.navOpen);
   const toggle = useUI((s) => s.toggleNav);
-  const setOpen = useUI((s) => s.setNavOpen);
+  const setOpen = useUI((s) => s.setNavOpen);${cartHook}
   return (
     <header className="sticky top-0 z-40 border-b border-hairline bg-app/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 md:flex">
           {LINKS.map((l) => (
             <Link key={l.href} href={l.href} className="text-sm text-muted transition hover:text-fg">{l.label}</Link>
           ))}
-          <ThemeToggle />
+          <ThemeToggle />${cartBtn}
         </div>
         <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
+          <ThemeToggle />${cartBtn}
           <button type="button" aria-label="Menu" onClick={toggle} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
           </button>
@@ -1668,6 +1687,7 @@ export function SiteHeader() {
   );
 }
 `;
+};
 
 // ✨ Global site footer — columns auto-built from the template's page map.
 const siteFooter = (ctx: Ctx): string => {
@@ -1827,6 +1847,32 @@ export const useAnnouncement = create<AnnouncementState>(
     { name: "announcement" },
   ),
 );
+
+/** A tiny shopping cart — persisted to localStorage. */
+export interface CartItem { id: string; name: string; price: number; }
+interface CartState {
+  items: CartItem[];
+  add: (item: CartItem) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+}
+export const useCart = create<CartState>(
+  persist(
+    (set) => ({
+      items: [],
+      add: (item) => set((s) => ({ items: [...s.items, item] })),
+      remove: (id) => set((s) => {
+        const i = s.items.findIndex((x) => x.id === id);
+        if (i === -1) return {};
+        const items = s.items.slice();
+        items.splice(i, 1);
+        return { items };
+      }),
+      clear: () => set({ items: [] }),
+    }),
+    { name: "cart" },
+  ),
+);
 `;
 
 // app/api/stats/route.ts — a self-contained endpoint for the query demo.
@@ -1961,6 +2007,427 @@ export default function Home() {
   );
 }
 `;
+
+/* ------------------------ real (content-filled) pages ------------------------ */
+
+// A server page (exports metadata) whose body is raw JSX.
+const pageFile = (o: { title: string; path: string; description: string; body: string }): string =>
+  `import type { Metadata } from "next";
+import Link from "next/link";
+import { site } from "@/lib/site";
+
+export const metadata: Metadata = site.meta({ title: ${JSON.stringify(o.title)}, path: ${JSON.stringify(o.path)}, description: ${JSON.stringify(o.description)} });
+
+export default function Page() {
+  return (
+    <main className="min-h-screen">
+${o.body}
+    </main>
+  );
+}
+`;
+
+const pricingPage = (ctx: Ctx): string => pageFile({
+  title: "Pricing", path: "/pricing", description: `Simple, transparent pricing for ${ctx.template.siteName}. Start free and upgrade anytime.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Pricing</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Simple, transparent <span className="gradient-text">pricing</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Start free. Upgrade when you're ready. Cancel anytime.</p>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="grid gap-6 md:grid-cols-3">
+          {[
+            { name: "Starter", price: "$0", period: "/mo", tagline: "For side projects", features: ["1 project", "Community support", "Basic analytics"], cta: "Get started", highlight: false },
+            { name: "Pro", price: "$29", period: "/mo", tagline: "For growing teams", features: ["Unlimited projects", "Priority support", "Advanced analytics", "Custom domain"], cta: "Start free trial", highlight: true },
+            { name: "Scale", price: "Custom", period: "", tagline: "For organizations", features: ["SSO & SAML", "Dedicated support", "SLA & audit logs", "Guided onboarding"], cta: "Contact sales", highlight: false },
+          ].map((tier) => (
+            <div key={tier.name} className={"flex flex-col rounded-3xl border p-8 " + (tier.highlight ? "border-transparent bg-surface ring-2 ring-[color:var(--accent-to)]" : "border-hairline bg-surface")}>
+              {tier.highlight ? <span className="mb-4 inline-block w-fit rounded-full gradient-bg px-3 py-1 text-xs font-bold text-black">Most popular</span> : null}
+              <h2 className="text-lg font-semibold">{tier.name}</h2>
+              <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
+              <div className="mt-6 flex items-baseline gap-1">
+                <span className="text-4xl font-black">{tier.price}</span>
+                <span className="text-muted">{tier.period}</span>
+              </div>
+              <ul className="mt-6 flex-1 space-y-3 text-sm">
+                {tier.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-muted"><span className="text-[color:var(--accent-to)]">✓</span> {f}</li>
+                ))}
+              </ul>
+              <Link href="/contact" className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (tier.highlight ? "gradient-bg text-black" : "border border-hairline hover:bg-app")}>{tier.cta}</Link>
+            </div>
+          ))}
+        </div>
+        <p className="mt-10 text-center text-sm text-faint">All plans include SSL, unlimited bandwidth and a 14-day money-back guarantee.</p>
+      </section>`,
+});
+
+const servicesPage = (ctx: Ctx): string => pageFile({
+  title: "Services", path: "/services", description: `What ${ctx.template.siteName} can do for you — from strategy to launch.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Services</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">What we <span className="gradient-text">do</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">End-to-end help — from the first sketch to a product your customers love.</p>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 pb-16">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: "🎯", title: "Strategy", desc: "Positioning, roadmaps and the plan to get there." },
+            { icon: "🎨", title: "Design", desc: "Brand, UX and interfaces people enjoy using." },
+            { icon: "🛠️", title: "Development", desc: "Fast, accessible, maintainable web and mobile apps." },
+            { icon: "🚀", title: "Launch", desc: "Ship with confidence — SEO, analytics and monitoring." },
+            { icon: "📈", title: "Growth", desc: "Experiments and optimization that move the numbers." },
+            { icon: "🤝", title: "Support", desc: "Ongoing care so your product keeps getting better." },
+          ].map((s) => (
+            <div key={s.title} className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{s.icon}</div>
+              <h3 className="font-semibold">{s.title}</h3>
+              <p className="mt-1 text-sm text-muted">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="mx-auto max-w-3xl px-6 pb-24 text-center">
+        <h2 className="text-2xl font-bold">Have a project in mind?</h2>
+        <Link href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Start a conversation</Link>
+      </section>`,
+});
+
+const featuresPage = (ctx: Ctx): string => pageFile({
+  title: "Features", path: "/features", description: `Everything ${ctx.template.siteName} gives your team, in one place.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Features</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Built to <span className="gradient-text">ship faster</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">A focused set of features that do the heavy lifting so your team can move.</p>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: "⚡", title: "Fast by default", desc: "Edge-rendered and cached — instant everywhere." },
+            { icon: "🔒", title: "Secure", desc: "Hardened headers, auth and audit logs out of the box." },
+            { icon: "📊", title: "Analytics", desc: "Understand usage without bolting on a dozen tools." },
+            { icon: "🔌", title: "Integrations", desc: "Connect the tools you already use in a click." },
+            { icon: "🧩", title: "Extensible", desc: "A clean API and webhooks for anything custom." },
+            { icon: "🌗", title: "Delightful UX", desc: "Dark mode, a ⌘K palette and thoughtful details." },
+          ].map((f) => (
+            <div key={f.title} className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{f.icon}</div>
+              <h3 className="font-semibold">{f.title}</h3>
+              <p className="mt-1 text-sm text-muted">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12 text-center">
+          <Link href="/pricing" className="inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">See pricing</Link>
+        </div>
+      </section>`,
+});
+
+const workPage = (ctx: Ctx): string => pageFile({
+  title: "Work", path: "/work", description: `Selected projects by ${ctx.template.siteName}.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Work</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Selected <span className="gradient-text">work</span></h1>
+        <p className="mt-4 text-lg text-muted">A few things I've designed and built recently.</p>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { title: "Aurora", tag: "Product design", year: "2026" },
+            { title: "Northwind", tag: "Web app", year: "2025" },
+            { title: "Lumen", tag: "Branding", year: "2025" },
+            { title: "Harbor", tag: "Mobile app", year: "2024" },
+            { title: "Cadence", tag: "Design system", year: "2024" },
+            { title: "Meadow", tag: "Marketing site", year: "2023" },
+          ].map((p) => (
+            <div key={p.title} className="group rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
+              <div className="mb-4 aspect-video rounded-xl gradient-bg opacity-80 transition group-hover:opacity-100" />
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">{p.title}</h3>
+                <span className="text-xs text-faint">{p.year}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted">{p.tag}</p>
+            </div>
+          ))}
+        </div>
+      </section>`,
+});
+
+const menuPage = (ctx: Ctx): string => pageFile({
+  title: "Menu", path: "/menu", description: `The menu at ${ctx.template.siteName} — seasonal plates and natural wine.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">Menu</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl gradient-text">Tonight's menu</h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Seasonal, ingredient-led and always changing. Here's what we're serving now.</p>
+      </section>
+      <section className="mx-auto max-w-3xl px-6 pb-24">
+        {[
+          { section: "Starters", items: [ { n: "Charred leeks, hazelnut", p: "$14" }, { n: "Burrata, heirloom tomato", p: "$16" }, { n: "Wood-fired sourdough", p: "$7" } ] },
+          { section: "Mains", items: [ { n: "Handmade tagliatelle", p: "$22" }, { n: "Wood-fired trout", p: "$28" }, { n: "Dry-aged sirloin", p: "$34" } ] },
+          { section: "Dessert", items: [ { n: "Olive oil cake", p: "$11" }, { n: "Dark chocolate tart", p: "$12" } ] },
+        ].map((group) => (
+          <div key={group.section} className="mb-12">
+            <h2 className="mb-6 text-2xl font-bold">{group.section}</h2>
+            <div className="space-y-4">
+              {group.items.map((d) => (
+                <div key={d.n} className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
+                  <span className="font-medium">{d.n}</span>
+                  <span className="shrink-0 gradient-text font-bold">{d.p}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="text-center">
+          <Link href="/reservations" className="inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Book a table</Link>
+        </div>
+      </section>`,
+});
+
+const cardGridPage = (o: { ctx: Ctx; title: string; path: string; eyebrow: string; heading: string; lead: string; items: { title: string; desc: string }[] }): string => pageFile({
+  title: o.title, path: o.path, description: o.lead,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24">
+        <p className="text-sm font-semibold uppercase tracking-widest text-faint">${o.eyebrow}</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">${o.heading}</h1>
+        <p className="mt-4 text-lg text-muted">${o.lead}</p>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {${JSON.stringify(o.items)}.map((it) => (
+            <div key={it.title} className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 hover:border-[color:var(--accent-to)]">
+              <h3 className="font-semibold">{it.title}</h3>
+              <p className="mt-2 text-sm text-muted">{it.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>`,
+});
+
+const topicsPage = (ctx: Ctx): string => cardGridPage({
+  ctx, title: "Topics", path: "/topics", eyebrow: "Topics", heading: "Browse by topic", lead: "Find what you care about — from deep dives to quick notes.",
+  items: [
+    { title: "Engineering", desc: "How we build and the decisions behind it." },
+    { title: "Design", desc: "Craft, systems and the details that matter." },
+    { title: "Product", desc: "What we're shipping and why." },
+    { title: "Culture", desc: "How we work and what we believe." },
+    { title: "Tutorials", desc: "Step-by-step, hands-on guides." },
+    { title: "Announcements", desc: "News and releases." },
+  ],
+});
+
+const guidesPage = (ctx: Ctx): string => cardGridPage({
+  ctx, title: "Guides", path: "/guides", eyebrow: "Guides", heading: "Guides & tutorials", lead: "Task-focused walkthroughs to get you productive fast.",
+  items: [
+    { title: "Getting started", desc: "Install, configure and run your first build." },
+    { title: "Authentication", desc: "Add sign-in, sessions and protected routes." },
+    { title: "Deployment", desc: "Ship to production the right way." },
+    { title: "Best practices", desc: "Patterns that scale as your app grows." },
+    { title: "Migrations", desc: "Upgrade safely between versions." },
+    { title: "Troubleshooting", desc: "Fix the most common issues quickly." },
+  ],
+});
+
+// ecommerce — shop (server) renders the client product grid.
+const shopPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { ProductGrid } from "@/components/product-grid";
+
+export const metadata: Metadata = site.meta({ title: "Shop", path: "/shop", description: ${JSON.stringify(`Shop everything at ${ctx.template.siteName}.`)} });
+
+export default function Page() {
+  return (
+    <main className="mx-auto min-h-screen max-w-6xl px-6 py-24">
+      <p className="text-sm font-semibold uppercase tracking-widest text-faint">Shop</p>
+      <h1 className="mt-3 text-4xl font-bold">Everything in the <span className="gradient-text">store</span></h1>
+      <p className="mt-4 max-w-xl text-muted">Add items to your bag — it's saved locally with @lacspace/store, so it survives a refresh.</p>
+      <div className="mt-12"><ProductGrid /></div>
+    </main>
+  );
+}
+`;
+
+const cartPage = (): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { CartView } from "@/components/cart-view";
+
+export const metadata: Metadata = site.meta({ title: "Your bag", path: "/cart", description: "Review the items in your bag." });
+
+export default function Page() {
+  return (
+    <main className="mx-auto min-h-screen max-w-6xl px-6 py-24">
+      <h1 className="text-4xl font-bold">Your <span className="gradient-text">bag</span></h1>
+      <div className="mt-12"><CartView /></div>
+    </main>
+  );
+}
+`;
+
+const productGrid = (): string => `"use client";
+
+import { useCart } from "@/lib/store";
+
+const PRODUCTS = [
+  { id: "p1", name: "Aurora Mug", price: 18, emoji: "☕" },
+  { id: "p2", name: "Field Notebook", price: 12, emoji: "📓" },
+  { id: "p3", name: "Canvas Tote", price: 24, emoji: "👜" },
+  { id: "p4", name: "Enamel Pin", price: 8, emoji: "📌" },
+  { id: "p5", name: "Cotton Tee", price: 28, emoji: "👕" },
+  { id: "p6", name: "Sticker Pack", price: 6, emoji: "✨" },
+  { id: "p7", name: "Ceramic Vase", price: 42, emoji: "🏺" },
+  { id: "p8", name: "Linen Apron", price: 34, emoji: "🧵" },
+];
+
+export function ProductGrid() {
+  const add = useCart((s) => s.add);
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {PRODUCTS.map((p) => (
+        <div key={p.id} className="flex flex-col rounded-2xl border border-hairline bg-surface p-5">
+          <div className="mb-4 flex aspect-square items-center justify-center rounded-xl gradient-bg text-5xl">{p.emoji}</div>
+          <h3 className="font-semibold">{p.name}</h3>
+          <div className="mt-1 text-muted">{"$" + p.price.toFixed(2)}</div>
+          <button type="button" onClick={() => add({ id: p.id, name: p.name, price: p.price })} className="mt-4 rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90">Add to bag</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+`;
+
+const cartView = (): string => `"use client";
+
+import Link from "next/link";
+import { useCart } from "@/lib/store";
+import { useIsMounted } from "@lacspace/hooks";
+
+export function CartView() {
+  const items = useCart((s) => s.items);
+  const remove = useCart((s) => s.remove);
+  const clear = useCart((s) => s.clear);
+  const mounted = useIsMounted();
+
+  if (!mounted()) return <div className="py-16 text-center text-muted">Loading your bag…</div>;
+
+  if (items.length === 0) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <p className="text-lg text-muted">Your bag is empty.</p>
+        <Link href="/shop" className="mt-6 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+      </div>
+    );
+  }
+
+  const total = items.reduce((sum, i) => sum + i.price, 0);
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <ul className="divide-y divide-hairline">
+        {items.map((i, idx) => (
+          <li key={i.id + "-" + idx} className="flex items-center justify-between py-4">
+            <span className="font-medium">{i.name}</span>
+            <span className="flex items-center gap-4">
+              <span className="tabular-nums text-muted">{"$" + i.price.toFixed(2)}</span>
+              <button type="button" onClick={() => remove(i.id)} aria-label="Remove" className="text-faint transition hover:text-fg">✕</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-6 flex items-center justify-between border-t border-hairline pt-6">
+        <button type="button" onClick={clear} className="text-sm text-muted transition hover:text-fg">Clear bag</button>
+        <span className="text-lg font-bold">Total {"$" + total.toFixed(2)}</span>
+      </div>
+      <button type="button" className="mt-8 w-full rounded-full gradient-bg px-6 py-3 font-semibold text-black">Checkout</button>
+    </div>
+  );
+}
+`;
+
+// dashboard — settings (server) renders the client settings panel in the shell.
+const settingsPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { SettingsPanel } from "@/components/settings-panel";
+
+export const metadata: Metadata = site.meta({ title: "Settings", path: "/settings", description: ${JSON.stringify(`Manage your ${ctx.template.siteName} preferences.`)} });
+
+export default function Page() {
+  return (
+    <DashboardShell title="Settings" subtitle="Manage your preferences.">
+      <SettingsPanel />
+    </DashboardShell>
+  );
+}
+`;
+
+const settingsPanel = (): string => `"use client";
+
+import { useLocalStorage } from "@lacspace/hooks";
+import { useTheme } from "@lacspace/theme";
+
+export function SettingsPanel() {
+  // Persisted to the browser with @lacspace/hooks.
+  const [emailNotifs, setEmailNotifs] = useLocalStorage("settings:emailNotifs", true);
+  const [weekly, setWeekly] = useLocalStorage("settings:weeklyDigest", false);
+  const { theme, setTheme } = useTheme();
+
+  const toggle = (on: boolean) =>
+    "relative h-6 w-11 rounded-full transition " + (on ? "gradient-bg" : "bg-panel");
+  const knob = (on: boolean) =>
+    "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all " + (on ? "left-[1.375rem]" : "left-0.5");
+
+  return (
+    <div className="max-w-xl space-y-8">
+      <section className="rounded-2xl border border-hairline bg-surface p-6">
+        <h2 className="font-semibold">Notifications</h2>
+        <p className="mt-1 text-sm text-muted">Saved to your browser with @lacspace/hooks (useLocalStorage).</p>
+        <div className="mt-5 space-y-4">
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-sm">Email notifications</span>
+            <button type="button" role="switch" aria-checked={emailNotifs} onClick={() => setEmailNotifs((v) => !v)} className={toggle(emailNotifs)}>
+              <span className={knob(emailNotifs)} />
+            </button>
+          </label>
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-sm">Weekly digest</span>
+            <button type="button" role="switch" aria-checked={weekly} onClick={() => setWeekly((v) => !v)} className={toggle(weekly)}>
+              <span className={knob(weekly)} />
+            </button>
+          </label>
+        </div>
+      </section>
+      <section className="rounded-2xl border border-hairline bg-surface p-6">
+        <h2 className="font-semibold">Appearance</h2>
+        <p className="mt-1 text-sm text-muted">Theme via @lacspace/theme.</p>
+        <div className="mt-4 inline-flex rounded-full border border-hairline p-1">
+          {["light", "dark", "system"].map((t) => (
+            <button key={t} type="button" onClick={() => setTheme(t)} className={"rounded-full px-4 py-1.5 text-sm capitalize transition " + (theme === t ? "gradient-bg font-semibold text-black" : "text-muted hover:text-fg")}>{t}</button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+`;
+
+/** Real, content-filled pages that replace the highest-value stub per template. */
+function realPageFiles(ctx: Ctx): Record<string, string> {
+  const k = ctx.template.key;
+  const f: Record<string, string> = {};
+  if (k === "personal") f["app/work/page.tsx"] = workPage(ctx);
+  if (k === "business") { f["app/services/page.tsx"] = servicesPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); }
+  if (k === "saas") { f["app/features/page.tsx"] = featuresPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); }
+  if (k === "ecommerce") {
+    f["app/shop/page.tsx"] = shopPage(ctx);
+    f["app/cart/page.tsx"] = cartPage();
+    f["components/product-grid.tsx"] = productGrid();
+    f["components/cart-view.tsx"] = cartView();
+  }
+  if (k === "blog") f["app/topics/page.tsx"] = topicsPage(ctx);
+  if (k === "docs") f["app/guides/page.tsx"] = guidesPage(ctx);
+  if (k === "restaurant") f["app/menu/page.tsx"] = menuPage(ctx);
+  if (k === "dashboard") { f["app/settings/page.tsx"] = settingsPage(ctx); f["components/settings-panel.tsx"] = settingsPanel(); }
+  return f;
+}
 
 /* ------------------------------ cli ------------------------------ */
 

@@ -59,22 +59,23 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     next: "^15.1.0",
     react: "^19.0.0",
     "react-dom": "^19.0.0",
-    "@lacspace/seo": "^1.6.0",
-    "@lacspace/headers": "^1.1.1",
-    "@lacspace/robots": "^1.2.0",
-    "@lacspace/sitemap": "^1.1.0",
-    "@lacspace/og": "^1.0.0",
-    "@lacspace/ui": "^1.0.0",
-    "@lacspace/form": "^1.0.0",
-    "@lacspace/validate": "^1.0.0",
+    "@lacspace/seo": "^1.6.2",
+    "@lacspace/headers": "^1.1.2",
+    "@lacspace/robots": "^1.2.1",
+    "@lacspace/sitemap": "^1.1.1",
+    "@lacspace/og": "^1.0.1",
+    "@lacspace/ui": "^1.0.1",
+    "@lacspace/form": "^1.0.1",
+    "@lacspace/validate": "^1.0.1",
     // React Kit: dark/light theming (no-flash) + essential hooks + global
     // state (announcement bar, mobile nav) + data fetching (live stats).
-    "@lacspace/theme": "^1.0.1",
-    "@lacspace/hooks": "^1.0.0",
-    "@lacspace/store": "^1.0.0",
-    "@lacspace/query": "^1.0.0",
-    // The blog & docs templates render Markdown with @lacspace/markdown.
-    ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.0" } : {}),
+    "@lacspace/theme": "^1.0.2",
+    "@lacspace/hooks": "^1.0.1",
+    "@lacspace/store": "^1.1.0",
+    "@lacspace/query": "^1.0.1",
+    // The blog & docs templates render Markdown with @lacspace/markdown
+    // (>=1.0.1 includes the URL-scheme XSS hardening — keep the floor there).
+    ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.1" } : {}),
   },
   devDependencies: {
     typescript: "^5.7.0",

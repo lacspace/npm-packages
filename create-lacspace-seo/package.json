@@ -4,7 +4,7 @@
   "description": "Scaffold a complete, production-ready SEO setup into a Next.js App Router app in seconds — defineSite() config plus ready-made robots.txt, sitemap.xml, feed.xml, llms.txt and a dynamic OG-image route. Zero config, zero copywriting.",
   "type": "module",
   "bin": {
-    "create-lacspace-seo": "./dist/index.js"
+    "create-lacspace-seo": "dist/index.js"
   },
   "files": [
     "dist"

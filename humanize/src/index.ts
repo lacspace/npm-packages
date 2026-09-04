@@ -130,7 +130,16 @@ export function compact(n: number, decimals = 1): string {
 export function number(n: number, opts: { separator?: string; decimal?: string } = {}): string {
   const sep = opts.separator ?? ",";
   const dec = opts.decimal ?? ".";
-  const [int, frac] = String(n).split(".");
+  if (!Number.isFinite(n)) return String(n);
+  const str = String(n);
+  // Exponential notation (e.g. 1e21, 1e-7) mangles a naive split — expand it via
+  // locale grouping (en-US: "," groups, "." decimal) then apply the custom separators.
+  if (str.includes("e") || str.includes("E")) {
+    const grouped = n.toLocaleString("en-US", { maximumFractionDigits: 20, useGrouping: true });
+    const [g, f] = grouped.split(".");
+    return g!.split(",").join(sep) + (f ? dec + f : "");
+  }
+  const [int, frac] = str.split(".");
   const sign = int!.startsWith("-") ? "-" : "";
   const digits = int!.replace("-", "").replace(/\B(?=(\d{3})+(?!\d))/g, sep);
   return sign + digits + (frac ? dec + frac : "");

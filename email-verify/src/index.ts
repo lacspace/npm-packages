@@ -71,6 +71,12 @@ export function smtpCheck(
   const timeout = opts.timeout ?? 10000;
   const from = opts.fromAddress ?? `verify@${hostname() || "localhost"}`;
 
+  // Guard against SMTP command injection: a CR or LF in the email or MX host
+  // would let a caller inject additional SMTP commands into the probe.
+  if (/[\r\n]/.test(email) || /[\r\n]/.test(mxHost) || /[\r\n]/.test(from)) {
+    return Promise.resolve("undeliverable");
+  }
+
   return new Promise((resolve) => {
     const socket = net.connect({ host: mxHost, port: 25 });
     socket.setEncoding("utf8");

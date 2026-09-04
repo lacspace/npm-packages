@@ -187,9 +187,17 @@ export class PaperAccount {
     return round2(this.getHoldings().reduce((s, h) => s + h.pnl, 0));
   }
 
-  /** Total account P&L (realised + unrealised) vs starting cash. */
-  get pnl(): number {
+  /** Gross account P&L (realised + unrealised), before transaction charges. */
+  get grossPnl(): number {
     return round2(this._realizedPnl + this.unrealizedPnl);
+  }
+
+  /**
+   * Total account P&L, net of transaction charges — agrees with
+   * `summary().totalPnl`.
+   */
+  get pnl(): number {
+    return round2(this._realizedPnl + this.unrealizedPnl - this._charges);
   }
 
   summary(): PortfolioSummary {

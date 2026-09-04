@@ -241,7 +241,11 @@ export class StringSchema extends Schema<string> {
     return this.min(1, message);
   }
   email(message = "Invalid email address"): this {
-    this.checks.push((v, ctx) => (EMAIL_RE.test(v) ? undefined : [issue(ctx, message, "invalid_string")]));
+    // Cap length before the regex: an unbounded input can trigger quadratic
+    // backtracking (ReDoS). 320 = 64 local-part + 1 "@" + 255 domain (RFC 5321).
+    this.checks.push((v, ctx) =>
+      v.length <= 320 && EMAIL_RE.test(v) ? undefined : [issue(ctx, message, "invalid_string")],
+    );
     return this;
   }
   url(message = "Invalid URL"): this {
@@ -424,8 +428,8 @@ export class ObjectSchema<S extends Shape> extends Schema<InferShape<S>> {
         if (key in this.shape) continue;
         if (this.mode === "strict") {
           issues.push(issue({ path: [...ctx.path, key] }, "Unexpected key", "unrecognized_key"));
-        } else {
-          out[key] = src[key];
+        } else if (!isUnsafeKey(key)) {
+          out[key] = src[key]; // passthrough, but never pollute the prototype
         }
       }
     }
@@ -514,6 +518,7 @@ class RecordSchema<T> extends Schema<Record<string, T>> {
     const out: Record<string, T> = {};
     const issues: Issue[] = [];
     for (const key of Object.keys(src)) {
+      if (isUnsafeKey(key)) continue; // prevent prototype pollution
       const r = this.value._parse(src[key], { path: [...ctx.path, key] });
       if (r.ok) out[key] = r.value;
       else issues.push(...r.issues);
@@ -569,6 +574,14 @@ class CoerceStringSchema extends StringSchema {
 
 function issue(ctx: Ctx, message: string, code: string): Issue {
   return { path: [...ctx.path], message, code };
+}
+
+/**
+ * Keys that must never be copied from untrusted input onto a plain object —
+ * assigning them can pollute Object.prototype (prototype-pollution).
+ */
+function isUnsafeKey(key: string): boolean {
+  return key === "__proto__" || key === "constructor" || key === "prototype";
 }
 
 /* ------------------------------------------------------------------ *

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/color",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Parse, convert, manipulate and check colours — hex/rgb/hsl, lighten/darken/mix/alpha, and WCAG contrast for accessible palettes. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

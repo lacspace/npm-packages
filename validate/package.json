@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/validate",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A tiny, typed schema validator — the ergonomics of zod (parse/safeParse, object/array/enum/union, coercion, type inference) in a zero-dependency, isomorphic package. Great for forms, API bodies, env and query strings.",
   "type": "module",
   "main": "./dist/index.cjs",

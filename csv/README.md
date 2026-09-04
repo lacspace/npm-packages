@@ -55,7 +55,17 @@ stringify(rows, { columns: ["name", "email"], delimiter: ";" });
 | `stringify(rows, opts?)` | objects / arrays → CSV (Excel-friendly CRLF) |
 | `parseAuto(text, opts?)` | auto-detect comma / tab / semicolon |
 
-Options: `delimiter`, `header`, `skipEmpty`, `trim` (parse); `columns`, `header`, `delimiter`, `eol` (stringify).
+Options: `delimiter`, `header`, `skipEmpty`, `trim` (parse); `columns`, `header`, `delimiter`, `eol`, `escapeFormulas` (stringify).
+
+### CSV injection (`escapeFormulas`)
+
+When you serialize **untrusted** data, set `escapeFormulas: true`. A cell that begins with `=`, `+`, `-`, `@`, TAB or CR is otherwise treated as a formula by Excel/Google Sheets and can execute on open. With the flag on, such cells are prefixed with a single quote (`'`) so they stay literal text:
+
+```ts
+stringify(rows, { escapeFormulas: true }); // recommended for user-supplied data
+```
+
+It defaults to `false` to keep existing output byte-for-byte identical.
 
 ## Licensing
 

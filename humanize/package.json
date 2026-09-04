@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/humanize",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Turn machine values into human-readable text — bytes, durations, relative time, ordinals, plurals, compact numbers and grammatical lists. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

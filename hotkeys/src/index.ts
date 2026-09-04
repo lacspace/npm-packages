@@ -503,9 +503,14 @@ export function useHotkeys(
 
   const eventType = options.eventType ?? "keydown";
   const depList = deps ?? [];
+  const target = options.target;
 
   useEffect(() => {
-    const el = resolveTarget(optionsRef.current.target);
+    // Re-resolve on every target change so a late-mounting / swapped target
+    // re-binds. `target` is in the deps below; resolving inside the effect also
+    // keeps the common ref-to-element case working (ref.current is set by the
+    // time the effect runs after commit).
+    const el = resolveTarget(target);
     if (!el) return;
 
     const listener = (rawEvent: Event) => {
@@ -578,5 +583,5 @@ export function useHotkeys(
       el.removeEventListener(eventType, listener as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventType, ...depList]);
+  }, [target, eventType, ...depList]);
 }

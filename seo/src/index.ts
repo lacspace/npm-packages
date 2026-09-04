@@ -690,7 +690,14 @@ export function graph(...nodes: Json[]): Json {
 }
 
 function titleize(segment: string): string {
-  return decodeURIComponent(segment)
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    // Malformed percent-encoding — fall back to the raw segment instead of throwing.
+    decoded = segment;
+  }
+  return decoded
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }

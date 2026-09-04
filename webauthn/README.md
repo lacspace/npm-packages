@@ -63,15 +63,22 @@ const response = await startAuthentication(options);
 
 // --- server: verify ---
 import { verifyAuthentication } from "@lacspace/webauthn";
-const { verified, newCounter } = await verifyAuthentication({
+const { verified, newCounter, userVerified } = await verifyAuthentication({
   authenticatorData: response.authenticatorData,
   clientDataJSON: response.clientDataJSON,
   signature: response.signature,
   publicKey, algorithm, counter,                       // from storage
   expectedChallenge: challenge, expectedOrigin: "https://lacspace.com", expectedRPID: "lacspace.com",
+  requireUserVerification: true,                        // reject unless biometric/PIN was performed (UV flag)
 });
 if (verified) { /* update stored counter = newCounter, log the user in */ }
 ```
+
+> **User verification (UV).** Pass `requireUserVerification: true` to `verifyAuthentication`
+> (or `verifyRegistration`) to reject assertions where the authenticator did **not** verify the
+> user via biometric or PIN — enforce this when a passkey is your second factor or your sole
+> credential. When the option is omitted, behaviour is unchanged (only User-Present is required).
+> Both verifiers also return `userVerified` so you can record or branch on it.
 
 ## API
 

@@ -113,6 +113,17 @@ const next = await rotateRefreshToken(refreshToken, secret, { isUsed: (jti) => s
 store.add(next.usedJti); // mark the old one spent
 ```
 
+`issueTokenPair` stamps the access token with `typ: "access"` and the refresh token with
+`typ: "refresh"`. Since both are signed with the same secret, **always verify a refresh token
+with `{ requireTyp: "refresh" }`** so an access token can never be replayed as a refresh token
+(and gate protected routes with `{ requireTyp: "access" }`):
+
+```ts
+const claims = await verify(refreshToken, secret, { requireTyp: "refresh" }); // rejects non-refresh typ
+```
+
+`requireTyp` is off by default, so existing `verify(...)` calls are unchanged.
+
 Plus `audience: string[]` matching and `importJwk()`.
 
 ## Licensing

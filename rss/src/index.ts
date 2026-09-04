@@ -54,6 +54,12 @@ function toDate(d?: string | Date): Date {
   return new Date(0);
 }
 
+/** Parse to a Date, returning null for invalid inputs (so callers can omit the field instead of throwing). */
+function validDate(d?: string | Date): Date | null {
+  const date = toDate(d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function rfc822(d: Date): string {
   return d.toUTCString();
 }
@@ -77,7 +83,8 @@ export function rss(feed: FeedOptions, items: FeedItem[]): string {
         `      <link>${esc(it.link)}</link>`,
         `      <guid isPermaLink="${it.id ? "false" : "true"}">${esc(it.id ?? it.link)}</guid>`,
       ];
-      if (it.date) parts.push(`      <pubDate>${rfc822(toDate(it.date))}</pubDate>`);
+      const pubDate = validDate(it.date);
+      if (pubDate) parts.push(`      <pubDate>${rfc822(pubDate)}</pubDate>`);
       if (it.author) parts.push(`      <author>${esc(it.author)}</author>`);
       for (const c of it.categories ?? []) parts.push(`      <category>${esc(c)}</category>`);
       if (it.description) parts.push(`      <description>${cdata(it.description)}</description>`);
@@ -97,7 +104,7 @@ export function rss(feed: FeedOptions, items: FeedItem[]): string {
     `    <title>${esc(feed.title)}</title>`,
     `    <link>${esc(feed.link)}</link>`,
     `    <description>${esc(feed.description ?? feed.title)}</description>`,
-    `    <lastBuildDate>${rfc822(latest(feed, items))}</lastBuildDate>`,
+    `    <lastBuildDate>${rfc822(validDate(latest(feed, items)) ?? new Date(0))}</lastBuildDate>`,
   ];
   if (feed.language) head.push(`    <language>${esc(feed.language)}</language>`);
   if (feed.copyright) head.push(`    <copyright>${esc(feed.copyright)}</copyright>`);
@@ -128,8 +135,9 @@ export function atom(feed: FeedOptions, items: FeedItem[]): string {
         `    <title>${esc(it.title)}</title>`,
         `    <link href="${esc(it.link)}" />`,
         `    <id>${esc(it.id ?? it.link)}</id>`,
-        `    <updated>${iso(toDate(it.date))}</updated>`,
       ];
+      const updated = validDate(it.date);
+      if (updated) parts.push(`    <updated>${iso(updated)}</updated>`);
       if (it.author) parts.push(`    <author><name>${esc(it.author)}</name></author>`);
       for (const c of it.categories ?? []) parts.push(`    <category term="${esc(c)}" />`);
       if (it.content) parts.push(`    <content type="html">${cdata(it.content)}</content>`);
@@ -145,7 +153,7 @@ export function atom(feed: FeedOptions, items: FeedItem[]): string {
     `  <id>${esc(feed.id ?? feed.link)}</id>\n` +
     `  <link href="${esc(feed.link)}" />\n` +
     (feed.feedUrl ? `  <link href="${esc(feed.feedUrl)}" rel="self" />\n` : "") +
-    `  <updated>${iso(latest(feed, items))}</updated>\n` +
+    `  <updated>${iso(validDate(latest(feed, items)) ?? new Date(0))}</updated>\n` +
     (feed.author ? `  <author><name>${esc(feed.author)}</name></author>\n` : "") +
     (feed.description ? `  <subtitle>${esc(feed.description)}</subtitle>\n` : "") +
     entries +
@@ -187,7 +195,10 @@ export function jsonFeed(feed: FeedOptions, items: FeedItem[]): JsonFeed {
       title: it.title,
       content_html: it.content,
       summary: it.description,
-      date_published: it.date ? iso(toDate(it.date)) : undefined,
+      date_published: (() => {
+        const d = it.date ? validDate(it.date) : null;
+        return d ? iso(d) : undefined;
+      })(),
       authors: it.author ? [{ name: it.author }] : undefined,
       tags: it.categories,
     })),

@@ -116,7 +116,12 @@ import { charges } from "@lacspace/market";
 const acct = new PaperAccount({
   cash: 100_000,
   charges: ({ side, qty, price }) =>
-    charges({ segment: "intraday", side, qty, price }).total,
+    charges({
+      segment: "intraday",
+      qty,
+      buy: side === "BUY" ? price : 0,
+      sell: side === "SELL" ? price : 0,
+    }).totalCharges,
 });
 
 // Backtest-style performance summary

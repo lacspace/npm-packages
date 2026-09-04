@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/webhooks",
-  "version": "1.0.0",
-  "description": "The webhook toolkit for both directions — sign & deliver outgoing webhooks with retries, and verify incoming ones (timing-safe, replay-protected) with Stripe / GitHub / Shopify presets. Plus event ids & idempotency. Zero-dependency, isomorphic.",
+  "version": "1.0.1",
+  "description": "The webhook toolkit for both directions — sign & deliver outgoing webhooks with retries, and verify incoming ones (timing-safe, replay-protected) with Stripe / GitHub / Shopify presets. Plus event ids & idempotency. One internal dependency (@lacspace/crypto), isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -127,7 +127,14 @@ function titleFromUrl(url: string): string {
   }
   const seg = path.split("/").filter(Boolean).pop();
   if (!seg) return "Home";
-  return decodeURIComponent(seg).replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(seg);
+  } catch {
+    // Malformed percent-encoding — fall back to the raw segment instead of throwing.
+    decoded = seg;
+  }
+  return decoded.replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**

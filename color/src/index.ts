@@ -23,7 +23,8 @@ export function parse(input: string): RGBA {
       h.length === 3 || h.length === 4
         ? h.split("").map((c) => c + c).join("")
         : h;
-    if (hex.length !== 6 && hex.length !== 8) throw new Error(`Invalid hex colour: ${input}`);
+    if ((hex.length !== 6 && hex.length !== 8) || !/^[0-9a-f]+$/.test(hex))
+      throw new Error(`Invalid hex colour: ${input}`);
     return {
       r: parseInt(hex.slice(0, 2), 16),
       g: parseInt(hex.slice(2, 4), 16),
@@ -35,13 +36,19 @@ export function parse(input: string): RGBA {
   const rgb = /^rgba?\(([^)]+)\)$/.exec(s);
   if (rgb) {
     const p = rgb[1]!.split(/[,\s/]+/).filter(Boolean);
-    return { r: clamp(+p[0]!), g: clamp(+p[1]!), b: clamp(+p[2]!), a: p[3] !== undefined ? clamp(+p[3]!, 0, 1) : 1 };
+    const r = +p[0]!, g = +p[1]!, b = +p[2]!;
+    const a = p[3] !== undefined ? +p[3]! : 1;
+    if (![r, g, b, a].every(Number.isFinite)) throw new Error(`Invalid rgb colour: ${input}`);
+    return { r: clamp(r), g: clamp(g), b: clamp(b), a: p[3] !== undefined ? clamp(a, 0, 1) : 1 };
   }
 
   const hsl = /^hsla?\(([^)]+)\)$/.exec(s);
   if (hsl) {
     const p = hsl[1]!.split(/[,\s/]+/).filter(Boolean);
-    return hslToRgb({ h: +p[0]!, s: parseFloat(p[1]!), l: parseFloat(p[2]!), a: p[3] !== undefined ? +p[3]! : 1 });
+    const h = +p[0]!, sv = parseFloat(p[1]!), l = parseFloat(p[2]!);
+    const a = p[3] !== undefined ? +p[3]! : 1;
+    if (![h, sv, l, a].every(Number.isFinite)) throw new Error(`Invalid hsl colour: ${input}`);
+    return hslToRgb({ h, s: sv, l, a });
   }
 
   throw new Error(`Unrecognised colour: ${input}`);

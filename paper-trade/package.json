@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/paper-trade",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Headless paper-trading engine — virtual wallet, market/limit/stop orders that fill against live prices, positions, holdings and live P&L. The simulator core behind StockYatra. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",

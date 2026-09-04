@@ -9,13 +9,21 @@
  * Zero dependencies (bar @lacspace/crypto) · isomorphic · fully typed.
  */
 
-import { randomBytes, toBase64url, sha256, constantTimeEqual } from "@lacspace/crypto";
+import { randomBytes, sha256, constantTimeEqual } from "@lacspace/crypto";
 
 export interface ApiKeyOptions {
   /** Key prefix for identification, e.g. "lac_live". Default "lac". */
   prefix?: string;
-  /** Random entropy in bytes. Default 24 (→ 32-char secret). */
+  /** Random entropy in bytes. Default 24 (→ 48-char hex secret). */
   bytes?: number;
+}
+
+/** Hex-encode bytes — a `_`/`-`-free secret alphabet, so the prefix (which may itself
+ *  contain underscores, e.g. "lac_live") can always be split off at the LAST underscore. */
+function toHexSecret(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += b.toString(16).padStart(2, "0");
+  return s;
 }
 
 export interface GeneratedApiKey {
@@ -36,7 +44,7 @@ export interface GeneratedApiKey {
  */
 export async function generateApiKey(opts: ApiKeyOptions = {}): Promise<GeneratedApiKey> {
   const prefix = opts.prefix ?? "lac";
-  const secret = toBase64url(randomBytes(opts.bytes ?? 24));
+  const secret = toHexSecret(randomBytes(opts.bytes ?? 24));
   const key = `${prefix}_${secret}`;
   return {
     key,
@@ -56,7 +64,9 @@ export async function verifyApiKey(key: string, storedHash: string): Promise<boo
   return constantTimeEqual(await sha256(key), storedHash);
 }
 
-/** Extract the prefix from a key (the part before the first underscore-group). */
+/** Extract the prefix from a key. The secret is `_`-free (hex), so the prefix is
+ *  everything before the LAST underscore — this preserves multi-segment prefixes
+ *  like "lac_live". */
 export function parseApiKey(key: string): { prefix: string; last4: string } {
   const idx = key.lastIndexOf("_");
   return {

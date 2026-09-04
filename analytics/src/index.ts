@@ -39,7 +39,8 @@ export class LacspaceAnalytics {
 
   /** Send many events in one request. */
   batch(events: AnalyticsEvent[]): Promise<void> {
-    return this.api.post<void>(this.batchPath, { events });
+    const stamped = events.map((e) => (e.ts === undefined ? { ...e, ts: Date.now() } : e));
+    return this.api.post<void>(this.batchPath, { events: stamped });
   }
 
   /** Add an event to the in-memory queue without sending it yet. */

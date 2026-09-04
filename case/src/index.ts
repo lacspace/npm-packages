@@ -11,7 +11,7 @@
  * conversion. Handles spaces, underscores, hyphens, dots, camelCase and
  * ACRONYMBoundaries.
  *
- * @example words("XMLHttpRequest_v2") // ["XML", "Http", "Request", "v2"]
+ * @example words("XMLHttpRequest_v2") // ["XML", "Http", "Request", "v", "2"]
  */
 export function words(input: string): string[] {
   return (

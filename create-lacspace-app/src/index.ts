@@ -92,7 +92,7 @@ const tsconfig = (): string => JSON.stringify({
     target: "ES2022", lib: ["dom", "dom.iterable", "esnext"], allowJs: true, skipLibCheck: true,
     strict: true, noEmit: true, esModuleInterop: true, module: "esnext", moduleResolution: "bundler",
     resolveJsonModule: true, isolatedModules: true, jsx: "preserve", incremental: true,
-    plugins: [{ name: "next" }], paths: { "@/*": ["./*"] },
+    plugins: [{ name: "next" }], baseUrl: ".", paths: { "@/*": ["./*"] },
   },
   include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   exclude: ["node_modules"],
@@ -548,7 +548,7 @@ export default function Home() {
                 <h3 className="font-semibold">{prod.n}</h3>
                 <span className="text-muted">{prod.p}</span>
               </div>
-              <button className="mt-3 w-full rounded-lg border border-hairline py-2 text-sm font-medium hover:bg-surface">Add to cart</button>
+              <a href="/shop" className="mt-3 block w-full rounded-lg border border-hairline py-2 text-center text-sm font-medium hover:bg-surface">Add to cart</a>
             </div>
           ))}
         </div>

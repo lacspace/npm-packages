@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/idempotency",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Make any operation exactly-once with an idempotency key — replay stored results on retries, safe under concurrency, with optional request fingerprinting. Framework-agnostic, pluggable store, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

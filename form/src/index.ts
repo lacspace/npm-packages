@@ -61,6 +61,13 @@ export interface FormOptions<T> {
   minSubmitMs?: number;
   /** Hidden field holding the render time in ms. Default `"_ts"`. */
   timestampField?: string;
+  /**
+   * When `true`, a submission whose timestamp field is missing or non-numeric is
+   * itself treated as spam (rejected) rather than silently skipping the timing
+   * check — closing the loophole where a bot simply omits the field. Only takes
+   * effect alongside `minSubmitMs`. Default `false` (non-breaking).
+   */
+  requireTimestamp?: boolean;
   /** Message returned when a submission is flagged as spam. */
   spamMessage?: string;
   /** Key used for form-level (non-field) errors. Default `"_form"`. */
@@ -152,12 +159,16 @@ export function handleForm<T>(
   if (opts.minSubmitMs && opts.minSubmitMs > 0) {
     const tsField = opts.timestampField ?? DEFAULT_TS_FIELD;
     const raw = values[tsField];
-    const ts = typeof raw === "string" ? Number(raw) : typeof raw === "number" ? raw : NaN;
+    const ts = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : typeof raw === "number" ? raw : NaN;
     if (Number.isFinite(ts)) {
       const elapsed = Date.now() - ts;
       if (elapsed >= 0 && elapsed < opts.minSubmitMs) {
         return spam(opts, values, formKey);
       }
+    } else if (opts.requireTimestamp) {
+      // A bot that simply omits (or corrupts) the timestamp would otherwise
+      // bypass the timing heuristic entirely — treat that as suspicious.
+      return spam(opts, values, formKey);
     }
   }
 

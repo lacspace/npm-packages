@@ -132,7 +132,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 export class Idempotency {
   private readonly store: IdempotencyStore;
   private readonly cacheErrors: boolean;
-  private readonly inflight = new Map<string, Promise<unknown>>();
+  private readonly inflight = new Map<string, { promise: Promise<unknown>; fingerprint?: string }>();
 
   constructor(opts: { store?: IdempotencyStore; cacheErrors?: boolean } = {}) {
     this.store = opts.store ?? new MemoryIdempotencyStore();
@@ -147,8 +147,16 @@ export class Idempotency {
    */
   async run<T>(key: string, fn: () => Promise<T> | T, opts: RunOptions = {}): Promise<RunResult<T>> {
     // Same-process single-flight: concurrent duplicates await the same execution.
-    const flying = this.inflight.get(key) as Promise<{ value: T; fresh: boolean }> | undefined;
-    if (flying) return { value: (await flying).value, replayed: true };
+    const flying = this.inflight.get(key);
+    if (flying) {
+      // Apply the same fingerprint check the stored path uses, so a concurrent
+      // same-key call with a mismatched fingerprint throws consistently.
+      if (opts.fingerprint && flying.fingerprint && flying.fingerprint !== opts.fingerprint) {
+        throw new IdempotencyKeyReuseError(key);
+      }
+      const out = (await flying.promise) as { value: T; fresh: boolean };
+      return { value: out.value, replayed: true };
+    }
 
     const store = opts.store ?? this.store;
     const cacheErrors = opts.cacheErrors ?? this.cacheErrors;
@@ -189,7 +197,7 @@ export class Idempotency {
       }
     })().finally(() => this.inflight.delete(key));
 
-    this.inflight.set(key, exec);
+    this.inflight.set(key, { promise: exec, fingerprint: opts.fingerprint });
     const out = await exec;
     return { value: out.value, replayed: !out.fresh };
   }

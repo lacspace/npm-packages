@@ -82,6 +82,16 @@ Prefer to inject the script yourself (e.g. a non-React app, or the document `<he
 </head>
 ```
 
+> **For _guaranteed_ zero flash, put `getThemeScript()` in the document `<head>`.**
+> The provider's built-in script runs wherever `<ThemeProvider>` sits in the tree
+> (typically inside `<body>`), which is early enough to avoid a flash in most apps.
+> But the only way to _guarantee_ the theme is painted before the browser renders
+> any content is to run the script as the **first thing in `<head>`, before any
+> body markup** — so on frameworks that let you inject into `<head>` (e.g. Next.js
+> `app/layout.tsx`'s own `<head>`, or a plain HTML shell), prefer setting
+> `enableNoFlashScript={false}` on the provider and placing `getThemeScript(...)`
+> in `<head>` with the **same options** you pass the provider.
+
 ### 4. Using a `data-*` attribute instead of a class
 
 The built-in no-flash script follows the provider's options automatically — just set `attribute`:

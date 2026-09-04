@@ -55,6 +55,8 @@ Totals (subtotal → discount → tax → **total**) are computed for you. Long 
 
 ## Receipt
 
+Rendered on a standard **A4 page** (not a narrow 80mm thermal roll) with a compact, centered receipt-style layout — prints cleanly on any office printer.
+
 ```ts
 import { receipt } from "@lacspace/pdf";
 
@@ -96,7 +98,7 @@ const uri   = doc.toDataUri();     // data:application/pdf;base64,…  (great fo
 | Export | Description |
 | --- | --- |
 | `invoice(data)` | professional invoice → `Uint8Array` |
-| `receipt(data)` | compact receipt → `Uint8Array` |
+| `receipt(data)` | compact A4 receipt → `Uint8Array` |
 | `new PdfDocument(opts)` | document builder |
 | `.text` `.heading` `.paragraph` `.bullet` `.keyValue` `.table` `.divider` `.spacer` `.addPage` | content methods (chainable) |
 | `.toBytes()` `.toBase64()` `.toDataUri()` | output |

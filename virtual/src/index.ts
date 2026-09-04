@@ -263,6 +263,8 @@ function computeRange(
 export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
   const {
     count,
+    estimateSize,
+    getItemKey,
     overscan = 5,
     horizontal = false,
     gap = 0,
@@ -287,15 +289,15 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
     () =>
       buildMeasurements(
         count,
-        optionsRef.current.estimateSize,
+        estimateSize,
         measuredRef.current,
         paddingStart,
         gap,
-        optionsRef.current.getItemKey,
+        getItemKey,
       ),
-    // estimateSize/getItemKey are read from the ref to avoid rebuilding a large
-    // table on every render; measureVersion forces a rebuild after a measure.
-    [count, paddingStart, gap, measureVersion],
+    // estimateSize/getItemKey are real deps: a changed estimator or key fn must
+    // rebuild the table. measureVersion forces a rebuild after a measure.
+    [count, estimateSize, getItemKey, paddingStart, gap, measureVersion],
   );
 
   // Resolve the scroll element every render; setState bails out when unchanged,
@@ -456,6 +458,9 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
       range,
       options,
     }),
+    // Depend on the specific primitive fields rather than the raw `options`
+    // object, which is a fresh reference each render for inline callers and
+    // would defeat this memo. The callbacks/range above already track behavior.
     [
       getVirtualItems,
       getTotalSize,
@@ -463,7 +468,12 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
       scrollToOffset,
       measureElement,
       range,
-      options,
+      count,
+      overscan,
+      horizontal,
+      gap,
+      paddingStart,
+      scrollMargin,
     ],
   );
 }

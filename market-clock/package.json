@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/market-clock",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Holiday-aware, timezone-correct trading clock — is NSE/BSE open now, next open/close, pre-open, holidays. Bring your own exchange spec. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -30,7 +30,17 @@ export interface CheckoutResult {
   [key: string]: unknown;
 }
 
-export type LacspaceSDKOptions = LacspaceApiOptions;
+/** Override the default e-commerce base paths (defaults: products/cart/checkout). */
+export interface EcommercePaths {
+  products?: string;
+  cart?: string;
+  checkout?: string;
+}
+
+export interface LacspaceSDKOptions extends LacspaceApiOptions {
+  /** Override the default e-commerce endpoint paths. Defaults unchanged when omitted. */
+  ecommerce?: EcommercePaths;
+}
 
 export class LacspaceSDK {
   readonly api: LacspaceApi;
@@ -41,14 +51,23 @@ export class LacspaceSDK {
     this.api = new LacspaceApi(options);
     this.auth = new LacspaceAuth({ api: this.api });
     this.analytics = new LacspaceAnalytics({ api: this.api });
+    const productsPath = options.ecommerce?.products ?? "products";
+    const cartPath = options.ecommerce?.cart ?? "cart";
+    const checkoutPath = options.ecommerce?.checkout ?? "checkout";
+    this.ecommerce = {
+      getProducts: (): Promise<Product[]> => this.api.get<Product[]>(productsPath),
+      getProduct: (id: string): Promise<Product> => this.api.get<Product>(`${productsPath}/${id}`),
+      addToCart: (item: CartItem): Promise<void> => this.api.post<void>(cartPath, item),
+      checkout: (cartId: string): Promise<CheckoutResult> =>
+        this.api.post<CheckoutResult>(checkoutPath, { cartId }),
+    };
   }
 
-  readonly ecommerce = {
-    getProducts: (): Promise<Product[]> => this.api.get<Product[]>("products"),
-    getProduct: (id: string): Promise<Product> => this.api.get<Product>(`products/${id}`),
-    addToCart: (item: CartItem): Promise<void> => this.api.post<void>("cart", item),
-    checkout: (cartId: string): Promise<CheckoutResult> =>
-      this.api.post<CheckoutResult>("checkout", { cartId }),
+  readonly ecommerce: {
+    getProducts: () => Promise<Product[]>;
+    getProduct: (id: string) => Promise<Product>;
+    addToCart: (item: CartItem) => Promise<void>;
+    checkout: (cartId: string) => Promise<CheckoutResult>;
   };
 }
 

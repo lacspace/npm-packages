@@ -79,6 +79,11 @@ export function redact<T>(input: T, opts: RedactOptions = {}): T {
     if (typeof val === "string") return redactString(val, opts);
     if (val === null || typeof val !== "object" || depth >= maxDepth) return val;
     if (Array.isArray(val)) return val.map((v) => walk(v, depth + 1));
+    // Only recurse into plain objects. Non-plain objects (Date, Map, Set,
+    // Buffer/TypedArray, class instances) would be flattened lossily by
+    // Object.entries, so pass them through untouched.
+    const proto = Object.getPrototypeOf(val);
+    if (proto !== null && proto !== Object.prototype) return val;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(val as Record<string, unknown>)) out[k] = walk(v, depth + 1, k);
     return out;

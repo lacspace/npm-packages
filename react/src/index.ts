@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @lacspace/react — React hooks and a provider for the Lacspace SDK.
  * Wrap your app in <LacspaceProvider>, then use `useAuth`, `useQuery`, and
@@ -57,9 +59,16 @@ export interface UseAuthResult {
 /** Authentication state and actions backed by the shared SDK. */
 export function useAuth(): UseAuthResult {
   const sdk = useLacspace();
-  const [user, setUser] = useState<LacspaceUser | null>(null);
+  const [user, setUser] = useState<LacspaceUser | null>(() => sdk.auth.user);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Reflect shared SDK auth state: sync to the current user on mount and stay
+  // subscribed so login/logout/refresh done elsewhere are seen here too.
+  useEffect(() => {
+    setUser(sdk.auth.user);
+    return sdk.auth.subscribe(setUser);
+  }, [sdk]);
 
   const run = useCallback(async <R,>(fn: () => Promise<R>): Promise<R> => {
     setLoading(true);

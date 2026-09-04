@@ -93,7 +93,11 @@ function zip(files: { name: string; content: string }[]): Uint8Array {
 /* ------------------------------ helpers ------------------------------ */
 
 function xmlEsc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  // Strip control chars illegal in XML 1.0 (keep tab \x09, LF \x0A, CR \x0D);
+  // otherwise Excel rejects the file with a "repair" prompt.
+  return s
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** 0-based column index → spreadsheet letters (0→A, 26→AA). */

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/xlsx",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Write real Excel (.xlsx) files with zero dependencies and no headless browser — objects or arrays to a workbook, correct types (string/number/boolean/Date), bold headers, column widths, multiple sheets. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

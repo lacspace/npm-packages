@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-verify",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Best-effort email deliverability checks for Node — syntax + disposable, MX record lookup and an optional SMTP RCPT probe (no mail sent). Zero npm dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -257,7 +257,10 @@ export class LacspaceApi {
     const { params, timeoutMs, retries, responseType = "json", cacheTtlMs, dedupe, headers: reqHeaders, signal, ...restInit } = opts;
     const url = `${this.baseURL}/${String(path).replace(/^\/+/, "")}${toQuery(params)}`;
     const isGet = method.toUpperCase() === "GET";
-    const cacheKey = `${method} ${url}`;
+    // Include responseType so concurrent requests to the same URL that read the
+    // body differently (e.g. "json" vs "blob") don't collide in the dedupe map
+    // or the TTL cache.
+    const cacheKey = `${method} ${url} ${responseType}`;
 
     // TTL cache (GET only)
     if (isGet && cacheTtlMs) {

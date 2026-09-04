@@ -466,7 +466,7 @@ export function useQuery<T>(
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onOnline);
 
-    const intervalMs = optionsRef.current.refetchInterval;
+    const intervalMs = options.refetchInterval;
     const timer =
       intervalMs && intervalMs > 0 ? setInterval(() => void refetch(), intervalMs) : undefined;
 
@@ -475,7 +475,8 @@ export function useQuery<T>(
       window.removeEventListener("online", onOnline);
       if (timer !== undefined) clearInterval(timer);
     };
-  }, [keyStr, refetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyStr, refetch, options.refetchInterval]);
 
   // keepPreviousData: remember the last non-empty data to show across key changes.
   const previousDataRef = useRef<T | undefined>(undefined);

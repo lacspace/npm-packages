@@ -90,6 +90,12 @@ export interface StringifyOptions {
   header?: boolean;
   /** Line ending. Default "\r\n" (Excel-friendly). */
   eol?: string;
+  /**
+   * Prefix cells that begin with `= + - @ \t \r` with a single quote (`'`) so
+   * spreadsheet apps (Excel/Sheets) don't execute them as formulas. Off by
+   * default to keep output byte-identical; **set `true` for untrusted data.**
+   */
+  escapeFormulas?: boolean;
 }
 
 /**
@@ -101,8 +107,12 @@ export interface StringifyOptions {
 export function stringify(rows: Row[] | (string | number | boolean | null | undefined)[][], opts: StringifyOptions = {}): string {
   const delimiter = opts.delimiter ?? ",";
   const eol = opts.eol ?? "\r\n";
+  const escapeFormulas = opts.escapeFormulas ?? false;
   const quote = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v);
+    let s = v === null || v === undefined ? "" : String(v);
+    // Neutralize CSV/formula injection: a leading =, +, -, @, TAB or CR makes
+    // Excel/Sheets treat the cell as a formula. Prefix with a single quote.
+    if (escapeFormulas && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",\r\n]/.test(s) || s.includes(delimiter) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/analytics",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Event tracking for Lacspace platforms — batching and an offline queue.",
   "type": "module",
   "main": "./dist/index.cjs",

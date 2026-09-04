@@ -180,15 +180,25 @@ function readHeader(src: HeadersLike, name: string): string | undefined {
   return Array.isArray(v) ? v[0] : v ?? undefined;
 }
 
-/** Best-effort client IP from common proxy headers (falls back to "unknown"). */
+/**
+ * Best-effort client IP from common proxy headers (falls back to "unknown").
+ *
+ * Trusted platform-injected headers (`cf-connecting-ip`, `true-client-ip`) are
+ * preferred over `x-forwarded-for`. Note that `x-forwarded-for` is
+ * client-spoofable unless your app sits behind a trusted proxy that overwrites
+ * it — so it is only used as a fallback here.
+ */
 export function ipKeyFromRequest(src: HeadersLike): string {
+  const trusted =
+    readHeader(src, "cf-connecting-ip") ?? readHeader(src, "true-client-ip");
+  if (trusted) return trusted.trim();
+
   const xff = readHeader(src, "x-forwarded-for");
   if (xff) return xff.split(",")[0]!.trim();
+
   return (
-    readHeader(src, "cf-connecting-ip") ??
     readHeader(src, "x-real-ip") ??
     readHeader(src, "fly-client-ip") ??
-    readHeader(src, "true-client-ip") ??
     (src as { ip?: string }).ip ??
     (src as { socket?: { remoteAddress?: string } }).socket?.remoteAddress ??
     "unknown"

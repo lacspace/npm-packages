@@ -273,6 +273,8 @@ export interface RegistrationResult {
   publicKey: JsonWebKey;
   algorithm: CoseAlg;
   counter: number;
+  /** Whether the authenticator verified the user (biometric / PIN) at registration. */
+  userVerified: boolean;
 }
 
 export interface VerifyRegistrationInput {
@@ -281,6 +283,8 @@ export interface VerifyRegistrationInput {
   expectedChallenge: string;
   expectedOrigin: string;
   expectedRPID: string;
+  /** Require the User-Verified (UV) flag — reject if biometric/PIN was not performed. */
+  requireUserVerification?: boolean;
 }
 
 /** Verify a registration response and extract the credential's public key. */
@@ -295,6 +299,8 @@ export async function verifyRegistration(input: VerifyRegistrationInput): Promis
   const expectedHash = await sha256(new TextEncoder().encode(input.expectedRPID));
   if (toBase64url(authData.rpIdHash) !== toBase64url(expectedHash)) throw new Error("rpID hash mismatch");
   if (!authData.credentialId || !authData.publicKeyCose) throw new Error("no attested credential data");
+  if (input.requireUserVerification && !authData.userVerified)
+    throw new Error("user verification required but UV flag not set");
 
   const alg = coseAlgName(authData.publicKeyCose.get(3) as number);
   return {
@@ -303,6 +309,7 @@ export async function verifyRegistration(input: VerifyRegistrationInput): Promis
     publicKey: coseToJwk(authData.publicKeyCose),
     algorithm: alg,
     counter: authData.signCount,
+    userVerified: authData.userVerified,
   };
 }
 
@@ -317,11 +324,15 @@ export interface VerifyAuthenticationInput {
   expectedRPID: string;
   /** Stored sign counter — a non-increasing counter signals a cloned authenticator. */
   counter?: number;
+  /** Require the User-Verified (UV) flag — reject if biometric/PIN was not performed. */
+  requireUserVerification?: boolean;
 }
 
 export interface AuthenticationResult {
   verified: boolean;
   newCounter: number;
+  /** Whether the authenticator verified the user (biometric / PIN) for this assertion. */
+  userVerified: boolean;
 }
 
 /** Verify an authentication (login) assertion. Throws on any check failure. */
@@ -336,6 +347,8 @@ export async function verifyAuthentication(input: VerifyAuthenticationInput): Pr
   const expectedHash = await sha256(new TextEncoder().encode(input.expectedRPID));
   if (toBase64url(authData.rpIdHash) !== toBase64url(expectedHash)) throw new Error("rpID hash mismatch");
   if (!authData.userPresent) throw new Error("user not present");
+  if (input.requireUserVerification && !authData.userVerified)
+    throw new Error("user verification required but UV flag not set");
   if (
     input.counter !== undefined &&
     authData.signCount !== 0 &&
@@ -370,7 +383,7 @@ export async function verifyAuthentication(input: VerifyAuthenticationInput): Pr
   }
 
   if (!verified) throw new Error("signature verification failed");
-  return { verified: true, newCounter: authData.signCount };
+  return { verified: true, newCounter: authData.signCount, userVerified: authData.userVerified };
 }
 
 /* ------------------------------ browser helpers ------------------------------ */

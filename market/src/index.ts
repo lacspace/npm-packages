@@ -382,6 +382,30 @@ export function blackScholes(o: OptionInput): Greeks {
   const { type, spot: S, strike: K, timeYears: t, rate: r } = o;
   const q = o.dividendYield ?? 0;
   const sigma = o.volatility;
+
+  // Degenerate inputs (expired option or zero vol) would divide by zero and
+  // produce NaN/Infinity — fall back to the intrinsic value instead.
+  if (t <= 0 || sigma <= 0) {
+    if (type === "call") {
+      return {
+        price: Math.max(0, S - K),
+        delta: S > K ? 1 : 0,
+        gamma: 0,
+        theta: 0,
+        vega: 0,
+        rho: 0,
+      };
+    }
+    return {
+      price: Math.max(0, K - S),
+      delta: S < K ? -1 : 0,
+      gamma: 0,
+      theta: 0,
+      vega: 0,
+      rho: 0,
+    };
+  }
+
   const sqrtT = Math.sqrt(t);
   const d1 = (Math.log(S / K) + (r - q + (sigma * sigma) / 2) * t) / (sigma * sqrtT);
   const d2 = d1 - sigma * sqrtT;

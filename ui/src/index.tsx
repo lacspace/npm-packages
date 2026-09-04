@@ -335,6 +335,7 @@ export function Typewriter({ words, typeSpeed = 70, deleteSpeed = 40, hold = 140
   const reduced = usePrefersReducedMotion();
   const [text, setText] = useState("");
   const [wordIndex, setWordIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (reduced) {
@@ -344,19 +345,25 @@ export function Typewriter({ words, typeSpeed = 70, deleteSpeed = 40, hold = 140
     if (words.length === 0) return;
     const current = words[wordIndex % words.length]!;
     let timeout: ReturnType<typeof setTimeout>;
-    if (text === current) {
-      timeout = setTimeout(() => setText(current.slice(0, -1)), hold);
-    } else if (text.length < current.length && !isDeleting(text, current)) {
-      timeout = setTimeout(() => setText(current.slice(0, text.length + 1)), typeSpeed);
-    } else if (text.length > 0) {
-      timeout = setTimeout(() => setText(text.slice(0, -1)), deleteSpeed);
+    if (!deleting) {
+      if (text === current) {
+        // Word fully typed — hold, then start deleting it.
+        timeout = setTimeout(() => setDeleting(true), hold);
+      } else {
+        timeout = setTimeout(() => setText(current.slice(0, text.length + 1)), typeSpeed);
+      }
     } else {
-      setWordIndex((i) => (i + 1) % words.length);
-      timeout = setTimeout(() => {}, typeSpeed);
+      if (text === "") {
+        // Fully deleted — advance to the next word and type it out.
+        setDeleting(false);
+        setWordIndex((i) => (i + 1) % words.length);
+        return;
+      }
+      timeout = setTimeout(() => setText(text.slice(0, -1)), deleteSpeed);
     }
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, wordIndex, reduced]);
+  }, [text, wordIndex, deleting, reduced]);
 
   return createElement(
     "span",
@@ -365,11 +372,6 @@ export function Typewriter({ words, typeSpeed = 70, deleteSpeed = 40, hold = 140
     cursor ? createElement("span", { style: { animation: "lac-blink 1s step-end infinite" } }, "▍") : null,
     cursor ? createElement("style", null, `@keyframes lac-blink{50%{opacity:0}}`) : null,
   );
-}
-
-function isDeleting(text: string, current: string): boolean {
-  // We're deleting only when text is a prefix of current AND we've just held full.
-  return text.length === current.length ? false : !current.startsWith(text);
 }
 
 /* ------------------------------------------------------------------ *

@@ -145,6 +145,8 @@ export interface VerifyOptions {
   audience?: string | string[];
   /** Allowed clock skew in seconds. Default 0. */
   clockTolerance?: number;
+  /** If set, reject unless the token's `typ` claim equals this (e.g. "refresh"). */
+  requireTyp?: string;
 }
 
 /** Decode a JWT without verifying (never trust the result for auth). */
@@ -223,6 +225,8 @@ export async function verify<T extends JwtPayload = JwtPayload>(
     const have = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
     if (!want.some((a) => have.includes(a))) throw new JwtError("audience mismatch", "audience");
   }
+  if (opts.requireTyp !== undefined && payload.typ !== opts.requireTyp)
+    throw new JwtError(`token type mismatch (expected ${opts.requireTyp})`, "malformed");
   return payload;
 }
 
@@ -319,7 +323,8 @@ export async function issueTokenPair(
 ): Promise<TokenPair> {
   const subject = opts.subject ?? (payload.sub as string | undefined);
   const common = { algorithm: opts.algorithm, issuer: opts.issuer, audience: opts.audience, subject, keyId: opts.keyId };
-  const accessToken = await sign(payload, secret, { ...common, expiresIn: opts.accessTtl ?? 900 });
+  const accessPayload = payload.typ !== undefined ? payload : { typ: "access", ...payload };
+  const accessToken = await sign(accessPayload, secret, { ...common, expiresIn: opts.accessTtl ?? 900 });
   const refreshJti = randomToken(16);
   const refreshToken = await sign({ typ: "refresh", jti: refreshJti }, secret, {
     ...common,

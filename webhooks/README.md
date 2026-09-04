@@ -12,12 +12,12 @@
 
 </div>
 
-> Webhooks are simple until you do them right: HMAC signatures, replay windows, timing-safe comparison, retries with backoff, and never processing the same event twice. This does all of it — both sending and receiving — with no dependencies. The hosted alternative (svix) is a paid SaaS; this is the library.
+> Webhooks are simple until you do them right: HMAC signatures, replay windows, timing-safe comparison, retries with backoff, and never processing the same event twice. This does all of it — both sending and receiving — with a single internal dependency ([`@lacspace/crypto`](https://www.npmjs.com/package/@lacspace/crypto) for Web Crypto HMAC) and nothing else. The hosted alternative (svix) is a paid SaaS; this is the library.
 
 - ✍️ **Send** — `sign()` + `deliver()` with retries, exponential backoff & jitter
 - ✅ **Receive** — `verify()` (timing-safe, replay-protected) + presets for **Stripe, GitHub, Shopify**
 - ♻️ **Idempotency** — event ids + a dedupe store so handlers run exactly once
-- 🔐 Built on [`@lacspace/crypto`](https://www.npmjs.com/package/@lacspace/crypto) (Web Crypto HMAC) · ⚡ isomorphic · zero deps
+- 🔐 Built on [`@lacspace/crypto`](https://www.npmjs.com/package/@lacspace/crypto) (Web Crypto HMAC) · ⚡ isomorphic · one internal dependency
 
 ## Install
 

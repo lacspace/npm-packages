@@ -63,9 +63,13 @@ export function slugify(input: string, opts: SlugOptions = {}): string {
   if (lower) s = s.toLowerCase();
   // Replace any run of non-alphanumerics with a single separator.
   s = s.replace(/[^a-zA-Z0-9]+/g, sep);
-  // Trim separators from the ends.
-  const sepRe = new RegExp(`^${escapeRe(sep)}+|${escapeRe(sep)}+$`, "g");
-  s = s.replace(sepRe, "");
+  // Trim separators from the ends — only when there is a separator to trim.
+  // (An empty separator produces no leading/trailing separators, and would build
+  // an invalid `^+|+$` regexp.)
+  if (sep) {
+    const sepRe = new RegExp(`^${escapeRe(sep)}+|${escapeRe(sep)}+$`, "g");
+    s = s.replace(sepRe, "");
+  }
 
   if (opts.maxLength && s.length > opts.maxLength) {
     s = s.slice(0, opts.maxLength);

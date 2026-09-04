@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -206,6 +206,13 @@ export function create<T>(initializer: StateCreator<T>): UseBoundStore<T> {
     const getSnapshot = () => getSelection(api.getState());
     const getServerSnapshot = () => getSelection(api.getInitialState());
 
+    // Apply persisted state (if any) only after mount, so the first client
+    // render matches the server HTML. No-op for non-persisted stores.
+    useEffect(() => {
+      const p = (api as StoreWithPersist<T>).persist;
+      if (p && !p.skipHydration) p.rehydrate();
+    }, []);
+
     return useSyncExternalStore(api.subscribe, getSnapshot, getServerSnapshot);
   };
 
@@ -271,9 +278,28 @@ export type PersistOptions<T> = {
   partialize?: (state: T) => Partial<T>;
   /** Optional version number, stored alongside the state. */
   version?: number;
+  /**
+   * Skip automatic hydration after mount. When `true`, the store starts at its
+   * base state and stays there until you call `store.persist.rehydrate()`.
+   * Useful when you want to control exactly when persisted state is applied.
+   * @default false
+   */
+  skipHydration?: boolean;
 };
 
 type PersistedShape<T> = { state: Partial<T>; version?: number };
+
+/** Control surface attached to a persisted store's api (see {@link persist}). */
+export interface PersistApi {
+  /** Load persisted state from storage and merge it in. Runs at most once. */
+  rehydrate: () => void;
+  /** Whether hydration has already run. */
+  hasHydrated: () => boolean;
+  /** Mirrors {@link PersistOptions.skipHydration}. */
+  skipHydration?: boolean;
+}
+
+type StoreWithPersist<T> = StoreApi<T> & { persist?: PersistApi };
 
 /**
  * Persistence middleware. Wraps a {@link StateCreator} so the store hydrates
@@ -304,7 +330,7 @@ export function persist<T>(
   initializer: StateCreator<T>,
   options: PersistOptions<T>,
 ): StateCreator<T> {
-  const { name, storage = "local", partialize, version } = options;
+  const { name, storage = "local", partialize, version, skipHydration = false } = options;
 
   const getStorage = (): Storage | undefined => {
     if (typeof window === "undefined") return undefined;
@@ -336,21 +362,34 @@ export function persist<T>(
 
     const baseState = initializer(persistingSet, get, api);
 
-    // Hydrate synchronously so the very first snapshot is already restored.
-    const store = getStorage();
-    if (store) {
+    // Deferred hydration: the store starts at its BASE state so the very first
+    // snapshot (and `getServerSnapshot`) match the server-rendered HTML — no SSR
+    // hydration mismatch. Persisted state is applied AFTER mount: `create` calls
+    // `rehydrate()` from an effect, and it is also exposed as
+    // `store.persist.rehydrate()` for manual/vanilla use.
+    let hydrated = false;
+    const rehydrate = (): void => {
+      if (hydrated) return;
+      hydrated = true;
+      const store = getStorage();
+      if (!store) return;
       try {
         const raw = store.getItem(name);
-        if (raw !== null) {
-          const parsed = JSON.parse(raw) as PersistedShape<T>;
-          if (parsed && typeof parsed === "object" && parsed.state) {
-            return Object.assign({}, baseState, parsed.state);
-          }
+        if (raw === null) return;
+        const parsed = JSON.parse(raw) as PersistedShape<T>;
+        if (parsed && typeof parsed === "object" && parsed.state) {
+          set(parsed.state as Partial<T>);
         }
       } catch {
-        // Corrupt JSON — fall through to the base state.
+        // Corrupt JSON — keep the base state.
       }
-    }
+    };
+
+    (api as StoreWithPersist<T>).persist = {
+      rehydrate,
+      hasHydrated: () => hydrated,
+      skipHydration,
+    };
 
     return baseState;
   };

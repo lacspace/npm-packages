@@ -98,9 +98,19 @@ export function bucket(key: string): number {
   return (fnv1a(key) % 100000) / 100000;
 }
 
-/** Stable 0–100 percentage for a (flag, context) pair — useful for debugging rollouts. */
-export function percentage(flag: string, ctx: Context, seed = ""): number {
-  return Math.floor(bucket(`${flag}:${seed}:${ctx.key}`) * 100);
+/** Canonical bucketing string shared by the rollout decision and the debug helper. */
+function rolloutKey(flagKey: string, seed: string, ctx: Context, salt = ""): string {
+  return `${flagKey}:${seed}:${salt}:${ctx.key}`;
+}
+
+/**
+ * Stable 0–100 percentage for a (flag, context) pair — useful for debugging rollouts.
+ * Computes the exact same bucket the real rollout decision uses, so it truthfully
+ * reports who is in the rollout. Pass the flag's own `seed` (and the rule `salt`,
+ * if inspecting a rule rollout) to match a specific decision.
+ */
+export function percentage(flag: string, ctx: Context, seed = "", salt = ""): number {
+  return Math.floor(bucket(rolloutKey(flag, seed, ctx, salt)) * 100);
 }
 
 /* ------------------------------ matching ------------------------------ */
@@ -136,7 +146,7 @@ function matchCondition(attrs: Attributes, cond: Condition): boolean {
 function inRollout(flagKey: string, seed: string, ctx: Context, rollout: number, salt = ""): boolean {
   if (rollout >= 100) return true;
   if (rollout <= 0) return false;
-  return bucket(`${flagKey}:${seed}:${salt}:${ctx.key}`) * 100 < rollout;
+  return bucket(rolloutKey(flagKey, seed, ctx, salt)) * 100 < rollout;
 }
 
 function pickVariant(flagKey: string, seed: string, ctx: Context, variants: Variant[]): string {

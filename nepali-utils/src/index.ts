@@ -21,11 +21,14 @@ export function fromDevanagari(input: string): string {
  * then groups of two. `1234567` → `"12,34,567"`.
  */
 export function groupNepali(value: number | string): string {
-  const s = String(value).replace(/[^\d]/g, "");
-  if (s.length <= 3) return s;
+  const str = String(value).trim();
+  const negative = str.startsWith("-");
+  const sign = negative ? "-" : "";
+  const s = str.replace(/[^\d]/g, "");
+  if (s.length <= 3) return sign + s;
   const last3 = s.slice(-3);
   const rest = s.slice(0, -3);
-  return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3;
+  return sign + rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3;
 }
 
 export interface FormatNprOptions {
@@ -85,8 +88,10 @@ export function numberToWords(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      // Hundreds are 1–9; the higher units take up to two digits.
-      parts.push((size === 100 ? ONES[count] : twoDigitWords(count)) + " " + name);
+      // Hundreds are 1–9; middle units take two digits; the top (Arab) unit can
+      // itself run into the hundreds/thousands, so render its count recursively.
+      const words = size === 100 ? ONES[count]! : count >= 100 ? numberToWords(count) : twoDigitWords(count);
+      parts.push(words + " " + name);
       n %= size;
     }
   }
@@ -96,8 +101,9 @@ export function numberToWords(value: number): string {
 
 /** `numberToWords` plus a "Rupees … only" wrapper for invoices. */
 export function amountInWords(amount: number): string {
-  const rupees = Math.floor(Math.abs(amount));
-  const paisa = Math.round((Math.abs(amount) - rupees) * 100);
+  let rupees = Math.floor(Math.abs(amount));
+  let paisa = Math.round((Math.abs(amount) - rupees) * 100);
+  if (paisa === 100) { rupees += 1; paisa = 0; }
   let out = "Rupees " + numberToWords(rupees);
   if (paisa > 0) out += " and " + numberToWords(paisa) + " Paisa";
   return (amount < 0 ? "Minus " : "") + out + " Only";
@@ -237,7 +243,7 @@ export function getCarrier(input: string): Carrier {
   const n = normalizeMobile(input);
   if (!n) return "unknown";
   const p = n.slice(4, 7); // three digits after +977
-  if (["984", "985", "986", "974", "975"].includes(p)) return "Ntc";
+  if (["984", "985", "986", "974", "975", "976"].includes(p)) return "Ntc";
   if (["980", "981", "982"].includes(p)) return "Ncell";
   if (["961", "962", "988"].includes(p)) return "Smart Cell";
   if (p === "972") return "UTL";
@@ -297,7 +303,10 @@ export function numberToWordsNepali(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      parts.push(`${NEPALI_0_99[count]} ${name}`);
+      // NEPALI_0_99 only covers 0–99; the top (अरब) unit can exceed that, so
+      // render its count recursively.
+      const words = count >= 100 ? numberToWordsNepali(count) : NEPALI_0_99[count]!;
+      parts.push(`${words} ${name}`);
       n %= size;
     }
   }
@@ -307,8 +316,9 @@ export function numberToWordsNepali(value: number): string {
 
 /** `numberToWordsNepali` plus a "रुपैयाँ … मात्र" wrapper for Nepali invoices. */
 export function amountInWordsNepali(amount: number): string {
-  const rupees = Math.floor(Math.abs(amount));
-  const paisa = Math.round((Math.abs(amount) - rupees) * 100);
+  let rupees = Math.floor(Math.abs(amount));
+  let paisa = Math.round((Math.abs(amount) - rupees) * 100);
+  if (paisa === 100) { rupees += 1; paisa = 0; }
   let out = "रुपैयाँ " + numberToWordsNepali(rupees);
   if (paisa > 0) out += " " + numberToWordsNepali(paisa) + " पैसा";
   return (amount < 0 ? "माइनस " : "") + out + " मात्र";

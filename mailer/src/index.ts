@@ -78,10 +78,30 @@ export class SmtpError extends Error {
   }
 }
 
+/* ------------------------------ security ------------------------------ */
+
+/**
+ * Reject any value containing a CR or LF character. Prevents SMTP command and
+ * MIME header injection (CRLF injection) via untrusted addresses, headers,
+ * subjects, or attachment filenames.
+ */
+function assertNoCRLF(value: string, label: string): string {
+  if (/[\r\n]/.test(value)) {
+    throw new SmtpError(`${label} must not contain CR or LF characters`);
+  }
+  return value;
+}
+
 /* ------------------------------ addresses ------------------------------ */
 
 function toAddress(input: string | Address): Address {
-  if (typeof input !== "string") return input;
+  const a: Address = typeof input === "string" ? parseAddress(input) : input;
+  assertNoCRLF(a.address, "email address");
+  if (a.name !== undefined) assertNoCRLF(a.name, "address name");
+  return a;
+}
+
+function parseAddress(input: string): Address {
   const m = input.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
   if (m) return { name: m[1]!.replace(/^"|"$/g, ""), address: m[2]!.trim() };
   return { address: input.trim() };
@@ -136,11 +156,12 @@ function buildMime(mail: Mail, from: Address, messageId: string): string {
   headers.push(`To: ${to.map(formatAddress).join(", ")}`);
   if (cc.length) headers.push(`Cc: ${cc.map(formatAddress).join(", ")}`);
   if (mail.replyTo) headers.push(`Reply-To: ${formatAddress(toAddress(mail.replyTo))}`);
-  headers.push(`Subject: ${encodeHeader(mail.subject)}`);
+  headers.push(`Subject: ${encodeHeader(assertNoCRLF(mail.subject, "subject"))}`);
   headers.push(`Date: ${rfc2822Date(new Date())}`);
   headers.push(`Message-ID: ${messageId}`);
   headers.push(`MIME-Version: 1.0`);
-  for (const [k, v] of Object.entries(mail.headers ?? {})) headers.push(`${k}: ${v}`);
+  for (const [k, v] of Object.entries(mail.headers ?? {}))
+    headers.push(`${assertNoCRLF(k, "header name")}: ${assertNoCRLF(v, "header value")}`);
 
   const textPart = mail.text
     ? `Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(
@@ -170,10 +191,11 @@ function buildMime(mail: Mail, from: Address, messageId: string): string {
     const b = boundary("mix");
     const parts: string[] = [`--${b}\r\n${bodyBlock()}`];
     for (const att of mail.attachments) {
+      assertNoCRLF(att.filename, "attachment filename");
       const buf = Buffer.isBuffer(att.content)
         ? att.content
         : Buffer.from(att.content, att.encoding ?? "utf8");
-      const type = att.contentType ?? "application/octet-stream";
+      const type = assertNoCRLF(att.contentType ?? "application/octet-stream", "attachment content type");
       parts.push(
         `--${b}\r\nContent-Type: ${type}; name="${att.filename}"\r\n` +
           `Content-Transfer-Encoding: base64\r\n` +

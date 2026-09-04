@@ -23,13 +23,54 @@ export interface LockStore {
   delete(key: string): Promise<void>;
 }
 
+export interface MemoryLockStoreOptions {
+  /** Hard cap on tracked keys; the oldest are evicted past this. Default 100_000. */
+  maxEntries?: number;
+  /**
+   * ms after an entry's window/lock has fully lapsed before it may be purged on
+   * access. Default 3_600_000 (1 hour).
+   */
+  ttlMs?: number;
+}
+
+/**
+ * In-memory {@link LockStore}. Bounded so a flood of distinct keys cannot grow it
+ * without limit (a DoS vector): fully-expired entries are purged on access, and a
+ * hard `maxEntries` cap evicts the oldest keys once exceeded.
+ *
+ * Fine for a single process; use a shared store (Redis/Mongo) across instances.
+ */
 export class MemoryLockStore implements LockStore {
   private map = new Map<string, AttemptState>();
+  private readonly maxEntries: number;
+  private readonly ttlMs: number;
+
+  constructor(opts: MemoryLockStoreOptions = {}) {
+    this.maxEntries = opts.maxEntries ?? 100_000;
+    this.ttlMs = opts.ttlMs ?? 3_600_000;
+  }
+
+  /** Drop entries whose lock has lapsed and that are older than `ttlMs`. */
+  private purgeExpired(now: number) {
+    for (const [k, s] of this.map) {
+      if (s.lockedUntil <= now && now - s.firstAttempt > this.ttlMs) this.map.delete(k);
+    }
+  }
+
   async get(key: string) {
     return this.map.get(key);
   }
   async set(key: string, state: AttemptState) {
     this.map.set(key, state);
+    if (this.map.size > this.maxEntries) {
+      this.purgeExpired(Date.now());
+      // Still over the cap? Evict oldest by insertion order until within bounds.
+      while (this.map.size > this.maxEntries) {
+        const oldest = this.map.keys().next().value;
+        if (oldest === undefined) break;
+        this.map.delete(oldest);
+      }
+    }
   }
   async delete(key: string) {
     this.map.delete(key);
@@ -101,7 +142,16 @@ export class Lockout {
     return this.status(state, now);
   }
 
-  /** Record a failed attempt and return the new status. */
+  /**
+   * Record a failed attempt and return the new status.
+   *
+   * NOTE: this is a read-modify-write against the store and is therefore not
+   * atomic — under concurrent calls for the same key, two records can read the
+   * same state and one increment can be lost (a TOCTOU race). {@link MemoryLockStore}
+   * is single-process and safe enough, but a production/shared store (Redis, Mongo)
+   * MUST implement an atomic increment (e.g. Redis `INCR`/Lua, Mongo `$inc`) to
+   * count reliably under load.
+   */
   async record(key: string): Promise<LockStatus> {
     const now = Date.now();
     let state = await this.store.get(key);

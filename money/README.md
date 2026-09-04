@@ -36,6 +36,12 @@ money(1000, "JPY").format("ja-JP"); // "￥1,000"
 money(1.5, "BHD").toMinor();        // 1500  (BHD has 3 decimals)
 ```
 
+> **Note on `Money.parse()`:** parsing is **best-effort** and locale-agnostic. It
+> can misread strings where the thousands and decimal separators are ambiguous —
+> e.g. `"1,234"` is read as `1.234` (a decimal), not `1234`. For untrusted or
+> locale-specific input, prefer constructing from an explicit numeric amount
+> (`Money.of` / `Money.fromMinor`) rather than relying on `parse()`.
+
 ## Why minor units
 
 ```ts

@@ -53,11 +53,14 @@ export function verificationMeta(input: VerificationInput): MetaTag[] {
 
 /** Build verification meta tags as an HTML string (any SSR framework). */
 export function verificationMetaHtml(input: VerificationInput): string {
+  const esc = (s: string): string =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   return verificationMeta(input)
-    .map(
-      (t) =>
-        `<meta name="${t.name.replace(/"/g, "&quot;")}" content="${t.content.replace(/"/g, "&quot;")}" />`,
-    )
+    .map((t) => `<meta name="${esc(t.name)}" content="${esc(t.content)}" />`)
     .join("\n");
 }
 

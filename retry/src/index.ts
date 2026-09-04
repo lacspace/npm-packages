@@ -14,11 +14,27 @@ export class TimeoutError extends Error {
   }
 }
 
+/** Error thrown when a retry/sleep is cancelled via an AbortSignal. */
+export class AbortError extends Error {
+  readonly code = "aborted";
+  constructor() {
+    super("Aborted");
+    this.name = "AbortError";
+  }
+}
+
 const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new Error("Aborted"));
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => { clearTimeout(t); reject(new Error("Aborted")); }, { once: true });
+    if (signal?.aborted) return reject(new AbortError());
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new AbortError());
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 
 /* ------------------------------ backoff ------------------------------ */
@@ -78,7 +94,7 @@ export async function retry<T>(fn: (attempt: number) => Promise<T> | T, opts: Re
 
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    if (opts.signal?.aborted) throw new Error("Aborted");
+    if (opts.signal?.aborted) throw new AbortError();
     try {
       return await fn(attempt);
     } catch (err) {

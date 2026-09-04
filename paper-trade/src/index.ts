@@ -289,11 +289,13 @@ export class PaperAccount {
       updatedAt: t,
     };
 
+    // Record every order in history up front so rejections are logged uniformly
+    // (a bad-qty reject must appear alongside no-price / insufficient-cash ones).
+    this._orders.push(order);
+
     if (req.qty <= 0 || !Number.isFinite(req.qty)) {
       return this.reject(order, "qty must be a positive number");
     }
-
-    this._orders.push(order);
 
     if (type === "MARKET") {
       const px = this.ltp.get(req.symbol);

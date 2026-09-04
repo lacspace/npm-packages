@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/headers",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Secure HTTP headers & a typed Content-Security-Policy builder — HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -56,7 +56,7 @@
     "url": "https://github.com/lacspace/npm-packages/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"

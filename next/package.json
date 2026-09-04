@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/next",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Next.js App Router integration for the Lacspace SDK — authenticated server client from cookies, Route Handler & Server Action wrappers, cookie helpers and a middleware auth guard.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -56,7 +56,7 @@
     "url": "https://github.com/lacspace/npm-packages/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "@lacspace/sdk": "^2.0.0"

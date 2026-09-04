@@ -136,7 +136,8 @@ export class RSI {
   }
 
   private compute(): number {
-    if (this.avgLoss === 0) return 100;
+    // Flat series (no gains and no losses) is neutral, not overbought.
+    if (this.avgLoss === 0) return this.avgGain === 0 ? 50 : 100;
     const rs = this.avgGain / this.avgLoss;
     return 100 - 100 / (1 + rs);
   }
@@ -588,6 +589,15 @@ export interface PatternHit {
   /** Index in the input array where the pattern completes. */
   index: number;
   pattern: CandlePattern;
+  /**
+   * The pattern's directional bias: `true` for a bullish signal, `false` for a
+   * bearish one. Reversal patterns follow their meaning regardless of candle
+   * colour (a hammer is always bullish, a shooting star always bearish); the
+   * bullish/bearish engulfing & harami follow their names. Marubozu takes the
+   * colour of its (single) candle, which is also its direction. The doji is a
+   * neutral indecision pattern with no true direction — here `bullish` mirrors
+   * the candle's own close-vs-open as a tie-break, so read a doji as neutral.
+   */
   bullish: boolean;
 }
 

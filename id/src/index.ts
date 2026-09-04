@@ -45,9 +45,21 @@ let v7Counter = 0;
  * friendly, still globally unique. Monotonic within the same millisecond.
  */
 export function uuidv7(now?: number): string {
-  const time = now ?? Date.now();
-  if (time === lastV7Time) v7Counter++;
-  else { lastV7Time = time; v7Counter = 0; }
+  let time = now ?? Date.now();
+  if (time === lastV7Time) {
+    v7Counter++;
+    // rand_a is only 12 bits (0..4095). If we exhaust the counter within a
+    // single millisecond, borrow from the next ms so ordering stays monotonic
+    // instead of overflowing the reserved nibble.
+    if (v7Counter > 0x0fff) {
+      time = lastV7Time + 1;
+      lastV7Time = time;
+      v7Counter = 0;
+    }
+  } else {
+    lastV7Time = time;
+    v7Counter = 0;
+  }
 
   const b = getRandom(new Uint8Array(16));
   // 48-bit timestamp (big-endian) in bytes 0..5

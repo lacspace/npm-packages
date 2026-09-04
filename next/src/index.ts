@@ -101,7 +101,16 @@ export function routeHandler<T>(fn: Handler<T>) {
   };
 }
 
-/** Like {@link routeHandler}, but 401s unless a valid auth cookie is present; passes the token through. */
+/**
+ * Like {@link routeHandler}, but 401s unless an auth cookie is present; passes the token through.
+ *
+ * ⚠️ SECURITY: WITHOUT an `opts.verifyToken` this checks only that the cookie
+ * EXISTS — it does NOT validate the token's signature, expiry, or contents. On
+ * its own that is NOT authentication: any request carrying an arbitrary cookie
+ * value passes. Always supply `verifyToken` (JWT verify, `auth.me()`, a session
+ * lookup, …) for anything that guards real data or actions. Treat the
+ * presence-only mode as a convenience gate for non-sensitive routes only.
+ */
 export function withAuth<T>(
   fn: (req: NextRequest, ctx: RouteContext, token: string) => Promise<T> | T,
   opts: {

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/retry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Resilience for flaky calls — retry with exponential backoff & jitter, per-call timeouts, and a circuit breaker. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -60,6 +60,17 @@ export interface Analytics {
   readonly enabled: boolean;
 }
 
+/** Internal event fired when history.pushState/replaceState changes the URL. */
+const LOCATION_CHANGE = "lacspace:locationchange";
+/** Symbol under which the shared history patch (originals + refcount) is stashed. */
+const HISTORY_PATCH = Symbol.for("@lacspace/analytics-lite/history-patch");
+interface HistoryPatch {
+  origPush: History["pushState"];
+  origReplace: History["replaceState"];
+  refs: number;
+}
+type HistoryWithPatch = History & { [HISTORY_PATCH]?: HistoryPatch };
+
 const isBrowser = (): boolean => typeof window !== "undefined" && typeof document !== "undefined";
 
 function dntEnabled(): boolean {
@@ -154,27 +165,48 @@ export function createAnalytics(config: AnalyticsConfig): Analytics {
         }
       };
 
-      const origPush = history.pushState;
-      const origReplace = history.replaceState;
-      history.pushState = function (this: History, ...args: Parameters<History["pushState"]>) {
-        const r = origPush.apply(this, args);
-        fire();
-        return r;
-      };
-      history.replaceState = function (this: History, ...args: Parameters<History["replaceState"]>) {
-        const r = origReplace.apply(this, args);
-        fire();
-        return r;
-      };
+      // Patch history at most once, even across repeated autoTrack() calls.
+      // The true originals are stashed on the history object under a symbol —
+      // capturing history.pushState here on a second call would grab an
+      // already-patched wrapper, so a naive cleanup would "restore" the wrapper
+      // (double-fire + leak). The patched methods just broadcast a shared event;
+      // each autoTrack subscribes to it, and the LAST cleanup restores the
+      // genuine originals via the stashed refs.
+      const h = history as HistoryWithPatch;
+      if (!h[HISTORY_PATCH]) {
+        const origPush = history.pushState;
+        const origReplace = history.replaceState;
+        history.pushState = function (this: History, ...args: Parameters<History["pushState"]>) {
+          const r = origPush.apply(this, args);
+          window.dispatchEvent(new Event(LOCATION_CHANGE));
+          return r;
+        };
+        history.replaceState = function (this: History, ...args: Parameters<History["replaceState"]>) {
+          const r = origReplace.apply(this, args);
+          window.dispatchEvent(new Event(LOCATION_CHANGE));
+          return r;
+        };
+        h[HISTORY_PATCH] = { origPush, origReplace, refs: 0 };
+      }
+      const patch = h[HISTORY_PATCH]!;
+      patch.refs++;
+      window.addEventListener(LOCATION_CHANGE, fire);
       window.addEventListener("popstate", fire);
 
       // Initial view.
       send("pageview");
 
+      let cleaned = false;
       return () => {
-        history.pushState = origPush;
-        history.replaceState = origReplace;
+        if (cleaned) return;
+        cleaned = true;
+        window.removeEventListener(LOCATION_CHANGE, fire);
         window.removeEventListener("popstate", fire);
+        if (--patch.refs <= 0 && h[HISTORY_PATCH] === patch) {
+          history.pushState = patch.origPush;
+          history.replaceState = patch.origReplace;
+          delete h[HISTORY_PATCH];
+        }
       };
     },
   };

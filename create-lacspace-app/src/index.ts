@@ -846,6 +846,190 @@ const usesPage = (ctx: Ctx): string => pageFile({
       </Section>`,
 });
 
+// A reusable rich-page layout so every converted page ships 5+ suitable sections
+// with an illustration and creative components — driven by a short config.
+interface RichPageCfg {
+  title: string; path: string; description: string; eyebrow: string; heading: string; lead: string;
+  split: { eyebrow?: string; title: string; desc: string; bullets: string[]; emoji: string };
+  features: { icon: string; title: string; desc: string }[];
+  extra?: string;
+  cta: { title: string; subtitle: string; label: string; href: string };
+}
+const richPage = (ctx: Ctx, cfg: RichPageCfg): string => {
+  const r = richContent(ctx);
+  const showcase = cfg.extra ?? `<Section eyebrow="Loved by teams" title="Don't just take our word for it" className="pt-0">
+        <div className="grid gap-6 md:grid-cols-3">
+          ${r.testimonials.map((t) => `<Testimonial quote={${JSON.stringify(t.quote)}} author={${JSON.stringify(t.author)}} role={${JSON.stringify(t.role ?? "")}} />`).join("\n          ")}
+        </div>
+      </Section>`;
+  return pageFile({
+    title: cfg.title, path: cfg.path, description: cfg.description, cta: cfg.cta,
+    body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>${cfg.eyebrow}</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">${cfg.heading}</h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">${cfg.lead}</p>
+      </section>
+      <Section className="pt-0">
+        <FeatureSplit eyebrow=${JSON.stringify(cfg.split.eyebrow ?? "")} title=${JSON.stringify(cfg.split.title)} desc=${JSON.stringify(cfg.split.desc)} bullets={${JSON.stringify(cfg.split.bullets)}} media={<div className="grid h-52 place-items-center text-7xl">${cfg.split.emoji}</div>} />
+      </Section>
+      <Section className="pt-0"><StatBand stats={${JSON.stringify(r.stats)}} /></Section>
+      <Section eyebrow="Highlights" title="What you get" className="pt-0">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {${JSON.stringify(cfg.features)}.map((f) => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
+        </div>
+      </Section>
+      ${showcase}`,
+  });
+};
+
+// Careers (all marketing templates): open roles + why-us + perks.
+const careersPage = (ctx: Ctx): string => {
+  const n = ctx.template.siteName;
+  return richPage(ctx, {
+    title: "Careers", path: "/careers", eyebrow: "Careers",
+    description: `Join the team building ${n}.`,
+    heading: `Join the <span className="gradient-text">team</span>`,
+    lead: `We're a small team doing our best work. If that sounds like you, say hello.`,
+    split: { eyebrow: "Why us", title: "A place to do your best work", desc: "Small team, big ownership, and the support to grow.", bullets: ["Remote-first and async-friendly", "Real ownership from day one", "Learning budget and great gear"], emoji: "🚀" },
+    features: [
+      { icon: "🌍", title: "Remote-first", desc: "Work from anywhere, on your schedule." },
+      { icon: "📈", title: "Grow fast", desc: "Mentorship and a budget to level up." },
+      { icon: "🤝", title: "Real ownership", desc: "Ship things that matter, end to end." },
+      { icon: "🏖️", title: "Time to recharge", desc: "Generous, actually-used time off." },
+      { icon: "💙", title: "Great people", desc: "Kind, sharp teammates who have your back." },
+      { icon: "💸", title: "Fair pay", desc: "Transparent, competitive compensation." },
+    ],
+    extra: `<Section eyebrow="Open roles" title="We're hiring" className="pt-0">
+        <div className="mx-auto grid max-w-3xl gap-4">
+          {[
+            { role: "Senior Frontend Engineer", team: "Engineering", type: "Full-time · Remote" },
+            { role: "Product Designer", team: "Design", type: "Full-time · Remote" },
+            { role: "Developer Advocate", team: "Growth", type: "Full-time · Remote" },
+          ].map((j) => (
+            <div key={j.role} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-surface p-5">
+              <div><h3 className="font-semibold">{j.role}</h3><p className="text-sm text-muted">{j.team}</p></div>
+              <div className="flex items-center gap-3"><Badge>{j.type}</Badge><a href="/contact" className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black">Apply</a></div>
+            </div>
+          ))}
+        </div>
+      </Section>`,
+    cta: { title: "Don't see your role?", subtitle: "We're always keen to meet great people.", label: "Send an intro", href: "/contact" },
+  });
+};
+
+// Collections (ecommerce): curated category edits + a visual gallery.
+const collectionsPage = (ctx: Ctx): string => richPage(ctx, {
+  title: "Collections", path: "/collections", eyebrow: "Collections",
+  description: `Shop ${ctx.template.siteName} by collection.`,
+  heading: `Shop by <span className="gradient-text">collection</span>`,
+  lead: "Curated edits for every season and style.",
+  split: { eyebrow: "Featured", title: "This season's edit", desc: "Hand-picked pieces our team is loving right now.", bullets: ["Free shipping over $50", "30-day easy returns", "Ethically sourced"], emoji: "🛍️" },
+  features: [
+    { icon: "🧥", title: "New arrivals", desc: "Fresh drops, added weekly." },
+    { icon: "🔥", title: "Best sellers", desc: "The pieces everyone's buying." },
+    { icon: "🌱", title: "Sustainable", desc: "Made to last, kind to the planet." },
+    { icon: "🎁", title: "Gifting", desc: "Thoughtful picks for everyone." },
+    { icon: "💎", title: "Premium", desc: "Elevated essentials worth the splurge." },
+    { icon: "🏷️", title: "Sale", desc: "Up to 40% off, while stocks last." },
+  ],
+  extra: `<Section eyebrow="Browse" title="Explore the collections" className="pt-0">
+        <Gallery items={[
+          { emoji: "🧥", label: "Outerwear" }, { emoji: "👟", label: "Footwear" }, { emoji: "👜", label: "Bags" },
+          { emoji: "⌚", label: "Accessories" }, { emoji: "🕶️", label: "Eyewear" }, { emoji: "🧢", label: "Headwear" },
+        ]} />
+      </Section>`,
+  cta: { title: "Ready to shop?", subtitle: "Your next favourite thing is waiting.", label: "Browse the shop", href: "/shop" },
+});
+
+// Case studies (business /work): outcomes-led project showcase.
+const businessWorkPage = (ctx: Ctx): string => richPage(ctx, {
+  title: "Work", path: "/work", eyebrow: "Case studies",
+  description: `Selected work from ${ctx.template.siteName}.`,
+  heading: `Work that <span className="gradient-text">performs</span>`,
+  lead: "A few recent projects and the outcomes they drove.",
+  split: { eyebrow: "How we work", title: "Outcomes, not just output", desc: "We measure success by the numbers that move your business.", bullets: ["Discovery-led, evidence-based", "Ship weekly, learn faster", "Own the result together"], emoji: "📊" },
+  features: [
+    { icon: "🛒", title: "Northwind Commerce", desc: "+38% conversion after a full storefront rebuild." },
+    { icon: "🏦", title: "Globex Fintech", desc: "Onboarding time cut from 9 minutes to under 2." },
+    { icon: "🎓", title: "Initech Learning", desc: "2.4× course completions with a redesigned LMS." },
+    { icon: "🚚", title: "Umbrella Logistics", desc: "Real-time tracking that cut support tickets 45%." },
+    { icon: "🏥", title: "Soylent Health", desc: "HIPAA-ready portal shipped in eight weeks." },
+    { icon: "📱", title: "Hooli Mobile", desc: "A 4.9★ app rebuilt from the ground up." },
+  ],
+  cta: { title: "Have a project in mind?", subtitle: "Tell us the outcome you're after — we'll map the path.", label: "Start a project", href: "/contact" },
+});
+
+// API reference (docs): endpoints + example requests.
+const apiRefPage = (ctx: Ctx): string => richPage(ctx, {
+  title: "API Reference", path: "/api-reference", eyebrow: "API",
+  description: `The ${ctx.template.siteName} REST API reference.`,
+  heading: `The <span className="gradient-text">API</span> reference`,
+  lead: "A predictable, typed REST API with sensible defaults.",
+  split: { eyebrow: "Basics", title: "REST, done right", desc: "JSON everywhere, cursor pagination, and clear error codes.", bullets: ["Bearer-token auth", "Idempotent writes", "Webhooks for every event"], emoji: "🔌" },
+  features: [
+    { icon: "🔑", title: "POST /auth/token", desc: "Exchange credentials for an access token." },
+    { icon: "👤", title: "GET /users/:id", desc: "Fetch a single user by id." },
+    { icon: "📦", title: "GET /resources", desc: "List resources with cursor pagination." },
+    { icon: "✏️", title: "PATCH /resources/:id", desc: "Partially update a resource." },
+    { icon: "🗑️", title: "DELETE /resources/:id", desc: "Remove a resource (idempotent)." },
+    { icon: "🪝", title: "POST /webhooks", desc: "Subscribe to real-time events." },
+  ],
+  extra: `<Section eyebrow="Examples" title="Common requests" className="pt-0">
+        <div className="mx-auto max-w-3xl"><Accordion items={[
+          { q: "Authenticate", a: "curl -X POST /auth/token -d '{ \\"key\\": \\"...\\" }' — returns a bearer token valid for 24h." },
+          { q: "List with pagination", a: "GET /resources?limit=20&cursor=... — responses include a next_cursor field." },
+          { q: "Handle errors", a: "Every error returns a JSON body with a code and message, plus the right HTTP status." },
+        ]} /></div>
+      </Section>`,
+  cta: { title: "Need a hand?", subtitle: "Our team is happy to help you integrate.", label: "Talk to us", href: "/contact" },
+});
+
+// Reservations (restaurant): booking info, hours, and a nudge to reserve.
+const reservationsPage = (ctx: Ctx): string => {
+  const n = ctx.template.siteName;
+  return richPage(ctx, {
+    title: "Reservations", path: "/reservations", eyebrow: "Reservations",
+    description: `Book your table at ${n}.`,
+    heading: `Reserve your <span className="gradient-text">table</span>`,
+    lead: `We can't wait to host you at ${n}. Book ahead — we fill up fast.`,
+    split: { eyebrow: "Good to know", title: "Everything for a perfect evening", desc: "Walk-ins welcome, but reservations are recommended, especially on weekends.", bullets: ["Parties up to 12 online", "Private dining available", "Dietary needs? Just ask"], emoji: "🍽️" },
+    features: [
+      { icon: "🕰️", title: "Lunch", desc: "Tue–Fri · 12:00–15:00" },
+      { icon: "🌙", title: "Dinner", desc: "Tue–Sun · 18:00–23:00" },
+      { icon: "🥂", title: "Weekend brunch", desc: "Sat–Sun · 10:00–14:00" },
+      { icon: "🎉", title: "Private events", desc: "Book the whole room." },
+      { icon: "🚗", title: "Parking", desc: "Valet available on evenings." },
+      { icon: "♿", title: "Accessible", desc: "Step-free access throughout." },
+    ],
+    extra: `<Section className="pt-0">
+        <div className="mx-auto max-w-2xl rounded-3xl border border-hairline bg-surface p-8 text-center">
+          <h2 className="text-2xl font-bold">Book by phone or online</h2>
+          <p className="mt-3 text-muted">Call us on <span className="font-semibold text-fg">+1 (555) 012-3456</span> or reserve online in seconds.</p>
+          <a href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Reserve a table</a>
+        </div>
+      </Section>`,
+    cta: { title: "Planning something special?", subtitle: "Ask us about private dining and set menus.", label: "Enquire now", href: "/contact" },
+  });
+};
+
+// Private events (restaurant).
+const eventsPage = (ctx: Ctx): string => richPage(ctx, {
+  title: "Private events", path: "/events", eyebrow: "Private events",
+  description: `Host your event at ${ctx.template.siteName}.`,
+  heading: `Your event, <span className="gradient-text">elevated</span>`,
+  lead: "From intimate dinners to full buy-outs — we'll make it unforgettable.",
+  split: { eyebrow: "Occasions", title: "Made for the moments that matter", desc: "Birthdays, launches, weddings and everything in between.", bullets: ["Bespoke set menus", "Dedicated event host", "AV and styling on request"], emoji: "🎉" },
+  features: [
+    { icon: "🎂", title: "Celebrations", desc: "Birthdays and anniversaries, done right." },
+    { icon: "💼", title: "Corporate", desc: "Launches, offsites and client dinners." },
+    { icon: "💍", title: "Weddings", desc: "Rehearsal dinners and receptions." },
+    { icon: "🍷", title: "Tastings", desc: "Guided wine and menu pairings." },
+    { icon: "👥", title: "Buy-outs", desc: "The whole space, just for you." },
+    { icon: "🎶", title: "Live music", desc: "We'll arrange the perfect soundtrack." },
+  ],
+  cta: { title: "Let's plan your event", subtitle: "Tell us the date and the vibe — we'll handle the rest.", label: "Start planning", href: "/contact" },
+});
+
 
 /* --------------------------- interactivity --------------------------- */
 
@@ -1734,7 +1918,7 @@ function pagesFor(ctx: Ctx): PageSpec[] {
   const common: PageSpec[] = [
     { path: "/about", label: "About", nav: true, group: "Company", real: true },
     { path: "/contact", label: "Contact", nav: true, group: "Company", real: true },
-    { path: "/careers", label: "Careers", group: "Company" },
+    { path: "/careers", label: "Careers", group: "Company", real: true },
     { path: "/faq", label: "FAQ", group: "Resources", real: true },
     { path: "/privacy", label: "Privacy", group: "Resources" },
     { path: "/terms", label: "Terms", group: "Resources" },
@@ -1747,12 +1931,12 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     ],
     business: [
       { path: "/services", label: "Services", nav: true, group: "Product", real: true },
-      { path: "/work", label: "Work", nav: true, group: "Product" },
+      { path: "/work", label: "Work", nav: true, group: "Product", real: true },
       { path: "/pricing", label: "Pricing", nav: true, group: "Product", real: true },
     ],
     ecommerce: [
       { path: "/shop", label: "Shop", nav: true, group: "Product", real: true },
-      { path: "/collections", label: "Collections", nav: true, group: "Product" },
+      { path: "/collections", label: "Collections", nav: true, group: "Product", real: true },
       { path: "/cart", label: "Cart", group: "Product", real: true },
       { path: "/shipping", label: "Shipping", group: "Resources" },
       { path: "/returns", label: "Returns", group: "Resources" },
@@ -1771,14 +1955,14 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     docs: [
       { path: "/docs", label: "Docs", nav: true, group: "Product", real: true },
       { path: "/guides", label: "Guides", nav: true, group: "Product", real: true },
-      { path: "/api-reference", label: "API", nav: true, group: "Product" },
+      { path: "/api-reference", label: "API", nav: true, group: "Product", real: true },
       { path: "/changelog", label: "Changelog", group: "Resources", real: true },
     ],
     restaurant: [
       { path: "/menu", label: "Menu", nav: true, group: "Product", real: true },
-      { path: "/reservations", label: "Reservations", nav: true, group: "Product" },
+      { path: "/reservations", label: "Reservations", nav: true, group: "Product", real: true },
       { path: "/gallery", label: "Gallery", nav: true, group: "Product", real: true },
-      { path: "/events", label: "Private events", group: "Resources" },
+      { path: "/events", label: "Private events", group: "Resources", real: true },
     ],
   };
   return [...(specific[k] ?? []), ...common];
@@ -3084,19 +3268,20 @@ export * from "./avatar";
 function realPageFiles(ctx: Ctx): Record<string, string> {
   const k = ctx.template.key;
   const f: Record<string, string> = {};
-  if (k !== "dashboard") f["app/faq/page.tsx"] = faqPage(ctx);
+  if (k !== "dashboard") { f["app/faq/page.tsx"] = faqPage(ctx); f["app/careers/page.tsx"] = careersPage(ctx); }
   if (k === "personal") { f["app/work/page.tsx"] = workPage(ctx); f["app/uses/page.tsx"] = usesPage(ctx); }
-  if (k === "business") { f["app/services/page.tsx"] = servicesPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); }
+  if (k === "business") { f["app/services/page.tsx"] = servicesPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); f["app/work/page.tsx"] = businessWorkPage(ctx); }
   if (k === "saas") { f["app/features/page.tsx"] = featuresPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); f["app/integrations/page.tsx"] = integrationsPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); }
   if (k === "ecommerce") {
     f["app/shop/page.tsx"] = shopPage(ctx);
     f["app/cart/page.tsx"] = cartPage();
+    f["app/collections/page.tsx"] = collectionsPage(ctx);
     f["components/product-grid.tsx"] = productGrid();
     f["components/cart-view.tsx"] = cartView();
   }
   if (k === "blog") { f["app/topics/page.tsx"] = topicsPage(ctx); f["app/newsletter/page.tsx"] = newsletterPage(ctx); }
-  if (k === "docs") { f["app/guides/page.tsx"] = guidesPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); }
-  if (k === "restaurant") { f["app/menu/page.tsx"] = menuPage(ctx); f["app/gallery/page.tsx"] = galleryPage(ctx); }
+  if (k === "docs") { f["app/guides/page.tsx"] = guidesPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); f["app/api-reference/page.tsx"] = apiRefPage(ctx); }
+  if (k === "restaurant") { f["app/menu/page.tsx"] = menuPage(ctx); f["app/gallery/page.tsx"] = galleryPage(ctx); f["app/reservations/page.tsx"] = reservationsPage(ctx); f["app/events/page.tsx"] = eventsPage(ctx); }
   if (k === "dashboard") {
     f["app/settings/page.tsx"] = settingsPage(ctx);
     f["components/settings-panel.tsx"] = settingsPanel();

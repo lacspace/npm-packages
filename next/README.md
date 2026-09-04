@@ -56,6 +56,18 @@ export const POST = withAuth(async (req, _ctx, token) => {
 });
 ```
 
+> ⚠️ **`withAuth` without `verifyToken` only checks cookie _presence_, not
+> validity.** On its own that is **not authentication** — any request carrying an
+> arbitrary cookie value passes. For anything guarding real data or actions,
+> always pass a `verifyToken` that verifies the token (JWT signature + expiry,
+> `auth.me()`, a session lookup, …):
+>
+> ```ts
+> export const POST = withAuth(handler, {
+>   verifyToken: async (token) => (await verifyJwt(token)) !== null,
+> });
+> ```
+
 ## Sign in / out
 
 ```ts

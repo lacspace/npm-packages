@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/lock",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Account lockout & brute-force protection (server lock) — N-strikes, exponential backoff, self-resetting window, pluggable store. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -70,7 +70,19 @@ export function createCache<V = unknown>(options: CacheOptions = {}): Cache<V> {
     store.set(key, entry);
   }
 
+  /** Drop entries that are fully dead (past their stale window) so they don't count as live. */
+  function purgeExpired(): void {
+    const t = now();
+    for (const [key, entry] of store) {
+      const deadline = entry.staleUntil || entry.expires;
+      if (deadline && t > deadline) store.delete(key);
+    }
+  }
+
   function evictIfNeeded(): void {
+    // Reclaim already-dead entries before evicting any live (LRU) ones — a dead
+    // entry should never push a live one out just because it still sits in the Map.
+    if (store.size > max) purgeExpired();
     while (store.size > max) {
       const oldest = store.keys().next().value;
       if (oldest === undefined) break;
@@ -148,6 +160,9 @@ export function createCache<V = unknown>(options: CacheOptions = {}): Cache<V> {
         }
         // Stale but within the SWR window → serve stale, refresh in background.
         if (swr && entry.staleUntil && t <= entry.staleUntil) {
+          // Mark as recently used so a hot-but-stale key isn't evicted before
+          // its background refresh lands.
+          touch(key, entry);
           if (!inflight.has(key)) revalidate(key, fn, ttl, swr);
           return entry.value as Awaited<ReturnType<typeof fn>>;
         }

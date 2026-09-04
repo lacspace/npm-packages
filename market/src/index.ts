@@ -76,6 +76,10 @@ function toMillis(d: Date | string | number): number {
 /**
  * Extended Internal Rate of Return for irregularly-spaced cash flows.
  * Returns an annualised rate as a fraction. Uses Newton–Raphson.
+ *
+ * Returns `NaN` when there are fewer than two flows OR when the solver fails to
+ * converge within its iteration budget (e.g. no sign change in the flows, or a
+ * diverging/oscillating series) — check with `Number.isNaN(result)` before use.
  * @example xirr([{amount:-10000, date:"2024-01-01"}, {amount:12000, date:"2025-01-01"}]) // ~0.20
  */
 export function xirr(flows: CashFlow[], guess = 0.1): number {
@@ -104,7 +108,8 @@ export function xirr(flows: CashFlow[], guess = 0.1): number {
     if (Math.abs(next - r) < 1e-10) return next;
     r = next;
   }
-  return r;
+  // Exhausted the iteration budget without meeting the tolerance: did not converge.
+  return NaN;
 }
 
 /* ------------------------------------------------------------------ *

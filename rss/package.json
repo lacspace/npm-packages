@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/rss",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Generate RSS 2.0, Atom 1.0 and JSON Feed 1.1 from one set of items — content syndication for blogs and news. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

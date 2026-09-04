@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/og",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Dynamic Open Graph images — a share-card design system you configure once and call per page. Produces a next/og element tree AND a zero-dependency SVG from the same options, with auto-fitting titles, presets, badges and gradients. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

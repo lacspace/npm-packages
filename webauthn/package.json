@@ -57,7 +57,7 @@
     "url": "https://github.com/lacspace/npm-packages/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"

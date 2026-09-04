@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/flags",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Feature flags & A/B experiments with no SaaS and no infrastructure — deterministic bucketing (same user always gets the same result), targeting rules, percentage rollouts and weighted variants. Synchronous, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

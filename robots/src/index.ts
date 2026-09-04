@@ -45,11 +45,16 @@ function block(...lines: (string | false | undefined)[]): string {
   return lines.filter(Boolean).join("\n");
 }
 
+/** Strip CR/LF so a directive value cannot inject additional robots.txt lines. */
+function dv(s: string): string {
+  return String(s).replace(/[\r\n]/g, "");
+}
+
 function agentBlock(g: RobotsGroup): string {
   const agents = Array.isArray(g.userAgent) ? g.userAgent : [g.userAgent];
-  const lines: string[] = agents.map((a) => `User-agent: ${a}`);
-  for (const p of g.allow ?? []) lines.push(`Allow: ${p}`);
-  for (const p of g.disallow ?? []) lines.push(`Disallow: ${p}`);
+  const lines: string[] = agents.map((a) => `User-agent: ${dv(a)}`);
+  for (const p of g.allow ?? []) lines.push(`Allow: ${dv(p)}`);
+  for (const p of g.disallow ?? []) lines.push(`Disallow: ${dv(p)}`);
   if (g.crawlDelay !== undefined) lines.push(`Crawl-delay: ${g.crawlDelay}`);
   // A group with neither allow nor disallow means "allow everything".
   if (!g.allow?.length && !g.disallow?.length) lines.push("Disallow:");
@@ -61,9 +66,9 @@ export function robots(opts: RobotsOptions): string {
   const groups = opts.groups?.length ? opts.groups : [{ userAgent: "*" }];
   const parts = groups.map(agentBlock);
   const tail: string[] = [];
-  if (opts.host) tail.push(`Host: ${opts.host}`);
+  if (opts.host) tail.push(`Host: ${dv(opts.host)}`);
   for (const s of opts.sitemap ? (Array.isArray(opts.sitemap) ? opts.sitemap : [opts.sitemap]) : [])
-    tail.push(`Sitemap: ${s}`);
+    tail.push(`Sitemap: ${dv(s)}`);
   return block(parts.join("\n\n"), tail.length ? "\n" + tail.join("\n") : undefined) + "\n";
 }
 
@@ -121,10 +126,12 @@ export function parseRobots(txt: string): ParsedRobots {
         if (current) current.disallow.push(value);
         expectingAgent = false;
         break;
-      case "crawl-delay":
-        if (current) current.crawlDelay = Number(value);
+      case "crawl-delay": {
+        const cd = Number(value);
+        if (current && Number.isFinite(cd)) current.crawlDelay = cd;
         expectingAgent = false;
         break;
+      }
       case "sitemap":
         result.sitemaps.push(value);
         break;

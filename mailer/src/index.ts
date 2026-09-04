@@ -305,7 +305,8 @@ export class Mailer {
       await this.command(`MAIL FROM:<${from.address}>`, 250);
       const accepted: string[] = [];
       for (const r of recipients) {
-        await this.command(`RCPT TO:<${r.address}>`, 250);
+        // 250 = accepted; 251 = user not local, will forward. Both are success.
+        await this.command(`RCPT TO:<${r.address}>`, [250, 251]);
         accepted.push(r.address);
       }
       await this.command("DATA", 354);
@@ -427,7 +428,10 @@ export class Mailer {
     });
   }
 
-  private async command(cmd: string, expectCode: number): Promise<{ code: number; text: string }> {
+  private async command(
+    cmd: string,
+    expectCode: number | number[],
+  ): Promise<{ code: number; text: string }> {
     if (!this.socket) throw new SmtpError("not connected");
     if (this.config.debug) {
       const shown = /^(.{0,60})/.exec(cmd.replace(/\r\n/g, "\\n"))?.[1] ?? "";
@@ -437,7 +441,8 @@ export class Mailer {
     this.socket.write(cmd + "\r\n");
     const r = await this.readResponse();
     if (this.config.debug) console.log("S:", r.text.replace(/\n/g, " ")); // eslint-disable-line no-console
-    if (r.code !== expectCode) {
+    const accepted = Array.isArray(expectCode) ? expectCode : [expectCode];
+    if (!accepted.includes(r.code)) {
       throw new SmtpError(`SMTP ${cmd.split(/\s/)[0]} failed: ${r.code}`, r.code, r.text);
     }
     return r;

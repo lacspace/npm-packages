@@ -115,6 +115,15 @@ export function percentage(flag: string, ctx: Context, seed = "", salt = ""): nu
 
 /* ------------------------------ matching ------------------------------ */
 
+/** A malformed regex rule must not throw — treat it as "no match". */
+function safeRegexTest(pattern: string, value: string): boolean {
+  try {
+    return new RegExp(pattern).test(value);
+  } catch {
+    return false;
+  }
+}
+
 function matchOperator(actual: AttrValue, op: Operator): boolean {
   if ("eq" in op && actual !== op.eq) return false;
   if ("ne" in op && actual === op.ne) return false;
@@ -125,7 +134,7 @@ function matchOperator(actual: AttrValue, op: Operator): boolean {
   if (typeof op.lt === "number" && !(typeof actual === "number" && actual < op.lt)) return false;
   if (typeof op.lte === "number" && !(typeof actual === "number" && actual <= op.lte)) return false;
   if (typeof op.contains === "string" && !(typeof actual === "string" && actual.includes(op.contains))) return false;
-  if (typeof op.regex === "string" && !(typeof actual === "string" && new RegExp(op.regex).test(actual))) return false;
+  if (typeof op.regex === "string" && !(typeof actual === "string" && safeRegexTest(op.regex, actual))) return false;
   return true;
 }
 

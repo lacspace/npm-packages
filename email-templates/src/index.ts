@@ -53,13 +53,16 @@ function theme(t?: Partial<Theme>): Theme {
 export function heading(text: string, opts: { level?: 1 | 2 | 3; theme?: Partial<Theme> } = {}): string {
   const t = theme(opts.theme);
   const size = opts.level === 3 ? 18 : opts.level === 2 ? 22 : 26;
-  return `<h1 style="margin:0 0 12px;font-family:${t.fontFamily};font-size:${size}px;line-height:1.3;font-weight:700;color:${t.textColor};">${escapeHtml(text)}</h1>`;
+  return `<h1 class="t" style="margin:0 0 12px;font-family:${t.fontFamily};font-size:${size}px;line-height:1.3;font-weight:700;color:${t.textColor};">${escapeHtml(text)}</h1>`;
 }
 
 export function text(content: string, opts: { muted?: boolean; theme?: Partial<Theme> } = {}): string {
   const t = theme(opts.theme);
   const color = opts.muted ? t.mutedColor : t.textColor;
-  return `<p style="margin:0 0 16px;font-family:${t.fontFamily};font-size:15px;line-height:1.6;color:${color};">${escapeHtml(content)}</p>`;
+  // Only primary body text carries `.t`; muted text keeps its lighter grey, which
+  // already reads on a dark background (see the dark-mode @media rule in render()).
+  const cls = opts.muted ? "" : ` class="t"`;
+  return `<p${cls} style="margin:0 0 16px;font-family:${t.fontFamily};font-size:15px;line-height:1.6;color:${color};">${escapeHtml(content)}</p>`;
 }
 
 /** Raw HTML passthrough — you are responsible for escaping. */

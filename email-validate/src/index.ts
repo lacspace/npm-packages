@@ -46,7 +46,10 @@ const COMMON_DOMAINS = [
 
 // Pragmatic RFC-5321-ish address grammar (no comments/quoted-strings; good for real-world use).
 const LOCAL_RE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
-const DOMAIN_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+// TLD is either an alphabetic label (com, org, …) or an IDN/punycode A-label
+// (e.g. `xn--p1ai`). The `.` separator stays outside every character class so
+// there is no ambiguous overlap that could cause catastrophic backtracking.
+const DOMAIN_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:xn--[A-Za-z0-9-]{2,}|[A-Za-z]{2,})$/;
 
 export interface ValidationOptions {
   /** Extra disposable domains to treat as disposable. */
@@ -87,7 +90,7 @@ export function isValidEmail(email: string): boolean {
   if (!parts) return false;
   const { local, domain } = parts;
   if (local.length > 64 || local.length === 0) return false;
-  if (domain.length > 255) return false;
+  if (domain.length > 253) return false;
   if (!LOCAL_RE.test(local)) return false;
   if (!DOMAIN_RE.test(domain)) return false;
   return true;

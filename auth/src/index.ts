@@ -210,6 +210,9 @@ export class LacspaceAuth {
   private installAutoRefresh(): void {
     const orig = this.api.request.bind(this.api);
     const refreshPath = this.endpoints.refresh;
+    // Track which opts objects belong to a post-refresh retry WITHOUT writing a
+    // marker into the object itself (it would leak into the fetch RequestInit).
+    const retried = new WeakSet<object>();
     (this.api as { request: unknown }).request = async (
       method: string,
       path: string,
@@ -219,13 +222,15 @@ export class LacspaceAuth {
       try {
         return await orig(method, path, body, opts);
       } catch (e) {
-        if (isApiError(e) && e.status === 401 && path !== refreshPath && !opts?.["_retried"]) {
+        if (isApiError(e) && e.status === 401 && path !== refreshPath && !(opts && retried.has(opts))) {
           try {
             await this.refresh();
           } catch {
             throw e;
           }
-          return orig(method, path, body, { ...opts, _retried: true } as Parameters<typeof orig>[3]);
+          const retryOpts = { ...(opts ?? {}) };
+          retried.add(retryOpts);
+          return orig(method, path, body, retryOpts as Parameters<typeof orig>[3]);
         }
         throw e;
       }

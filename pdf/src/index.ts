@@ -326,6 +326,9 @@ export class PdfDocument {
   /** Finished PDF as raw bytes. */
   toBytes(): Uint8Array {
     const pageStreams = [...this.pages, this.cur];
+    // Drop a trailing empty page (e.g. from a final addPage()); always keep at
+    // least one page so an empty document still renders.
+    if (pageStreams.length > 1 && pageStreams[pageStreams.length - 1] === "") pageStreams.pop();
     return assemble(pageStreams, this.pageW, this.pageH, this.meta);
   }
 
@@ -595,19 +598,23 @@ export interface ReceiptData {
   accent?: RGB;
 }
 
-/** Generate a compact receipt PDF (narrow, thermal-style). Returns raw bytes. */
+/**
+ * Generate a receipt-style PDF. Returns raw bytes.
+ *
+ * Rendered on a standard A4 page (not a narrow 80mm thermal roll) with a
+ * centered, receipt-style layout: small font, tight margins, centered header,
+ * item rows and totals. Prints cleanly on any office printer.
+ */
 export function receipt(data: ReceiptData): Uint8Array {
   const cur = data.currency ?? "$";
   const m = money(cur);
-  // Narrow page (80mm ≈ 226pt) with tight margins.
+  // A4 page with a small font and tight margins for a compact receipt layout.
   const doc = new PdfDocument({
     margins: 14,
     fontSize: 9,
     accent: data.accent,
     title: `${data.title ?? "Receipt"}${data.number ? ` ${data.number}` : ""}`,
   });
-  // Override to a narrow page by drawing on A4 but constrained width would misalign;
-  // for a real narrow receipt we keep A4 but center a slim column.
   doc.text(data.brand ?? data.title ?? "RECEIPT", { size: 15, bold: true, align: "center", color: data.accent ?? DEFAULT_ACCENT });
   if (data.title && data.brand) doc.text(data.title, { size: 9, align: "center", color: DEFAULT_MUTED });
   if (data.number) doc.text(`#${data.number}`, { size: 9, align: "center", color: DEFAULT_MUTED });

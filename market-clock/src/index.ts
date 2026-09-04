@@ -6,6 +6,10 @@
  * with NSE / BSE (India) presets — India has no DST, so a fixed IST offset is
  * exact. Bring your own exchange spec or override the holiday list any time.
  *
+ * Note: the bundled holiday lists are hand-maintained and only cover the years
+ * listed. Extend them per year from the official exchange circular (e.g.
+ * `new MarketClock({ ...NSE, holidays: [...NSE.holidays, "2027-..."] })`).
+ *
  * Zero dependencies · isomorphic · fully typed.
  */
 
@@ -112,7 +116,7 @@ export class MarketClock {
     return "closed";
   }
 
-  /** The next moment the regular session opens, at or after `from`. */
+  /** The next moment the regular session opens, strictly after `from`. */
   nextOpen(from: Date = new Date()): Date {
     const start = this.parts(from);
     for (let i = 0; i < 500; i++) {
@@ -127,7 +131,7 @@ export class MarketClock {
     throw new Error("no trading day found within 500 days");
   }
 
-  /** The next moment the regular session closes, at or after `from`. */
+  /** The next moment the regular session closes, strictly after `from`. */
   nextClose(from: Date = new Date()): Date {
     const start = this.parts(from);
     for (let i = 0; i < 500; i++) {

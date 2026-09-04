@@ -566,7 +566,9 @@ export function useHover<T extends HTMLElement>(): [RefObject<T | null>, boolean
       node.removeEventListener("mouseenter", onEnter);
       node.removeEventListener("mouseleave", onLeave);
     };
-  });
+    // `ref` is a stable object and the node is read from `ref.current` (attached
+    // before effects run), so subscribe once on mount instead of every render.
+  }, []);
 
   return [ref, hovered];
 }

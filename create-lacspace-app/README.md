@@ -62,6 +62,23 @@ Edit `lib/site.ts` (your site config) and `app/page.tsx` — you're off.
 
 ---
 
+## 🧩 Grow your app anytime — `add`
+
+Unlike every other `create-*` tool, `create-lacspace-app` doesn't stop after day one. Drop **prebuilt, themed sections** into an existing app whenever you need them:
+
+```bash
+npx create-lacspace-app add pricing faq testimonials
+```
+
+That writes ready-to-use sections into `components/sections/` (and installs the UI kit automatically if it's missing — so it works in **any** Next.js app, not just ones we scaffolded). Then:
+
+```tsx
+import { PricingSection } from "@/components/sections/pricing";
+// …drop <PricingSection /> anywhere in your JSX.
+```
+
+**Available sections:** `hero` · `features` · `pricing` · `faq` · `testimonials` · `team` · `stats` · `timeline` · `gallery` · `logos` · `cta` · `bento`. Run `add` with no arguments to list them.
+
 ## Templates
 
 | Key | What you get |

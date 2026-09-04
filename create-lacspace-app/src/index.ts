@@ -3625,6 +3625,7 @@ ${c("bold", "create-lacspace-app")} — scaffold a beautiful Next.js app, Lacspa
 ${c("bold", "Usage")}
   npm create lacspace-app@latest <name> [options]
   npx create-lacspace-app <name> --template <key>
+  npx create-lacspace-app add <section...>   ${c("dim", "# grow an existing app")}
 
 ${c("bold", "Templates")}
 ${TEMPLATES.map((t) => `  ${t.key.padEnd(10)} ${t.description}`).join("\n")}
@@ -3636,10 +3637,249 @@ ${c("bold", "Options")}
   --no-git               Skip git init
   -y, --yes              Accept defaults (needs <name>)
   -h, --help             Show this help
+
+${c("bold", "Add sections to an existing app")}
+  npx create-lacspace-app add pricing faq testimonials
+  ${c("dim", "Drops prebuilt, themed sections into components/sections/ (and the UI kit if missing).")}
 `;
 
+/* ------------------------- `add` — grow an existing app ------------------------- */
+
+// Prebuilt, drop-in page SECTIONS. `npx create-lacspace-app add pricing faq` writes
+// these into components/sections/ so you can compose new pages after scaffolding.
+const SECTIONS: Record<string, string> = {
+  hero: `import Link from "next/link";
+import { Pill } from "@/components/ui";
+
+export function HeroSection() {
+  return (
+    <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+      <Pill>New</Pill>
+      <h1 className="mt-5 text-5xl font-bold sm:text-6xl">Build something <span className="gradient-text">people love</span></h1>
+      <p className="mx-auto mt-5 max-w-xl text-lg text-muted">A confident headline and one sentence that sells the outcome — edit me.</p>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <Link href="/contact" className="rounded-full gradient-bg px-7 py-3 font-semibold text-black transition hover:opacity-90">Get started</Link>
+        <Link href="/about" className="rounded-full border border-hairline px-7 py-3 font-semibold transition hover:bg-surface">Learn more</Link>
+      </div>
+    </section>
+  );
+}
+`,
+  features: `import { Section, FeatureCard } from "@/components/ui";
+
+const ITEMS = [
+  { icon: "⚡", title: "Fast", desc: "Server-rendered and instant by default." },
+  { icon: "🔒", title: "Secure", desc: "Sensible security headers out of the box." },
+  { icon: "🎨", title: "Beautiful", desc: "A polished, themeable design system." },
+  { icon: "🔎", title: "SEO-ready", desc: "Metadata, JSON-LD and sitemaps wired." },
+  { icon: "📱", title: "Responsive", desc: "Looks great on every screen." },
+  { icon: "🌗", title: "Dark mode", desc: "Light, dark and system — no flash." },
+];
+
+export function FeaturesSection() {
+  return (
+    <Section eyebrow="Features" title="Everything you need">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {ITEMS.map((f) => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
+      </div>
+    </Section>
+  );
+}
+`,
+  pricing: `import { Section, PricingTable } from "@/components/ui";
+
+export function PricingSection() {
+  return (
+    <Section eyebrow="Pricing" title="Simple, transparent pricing">
+      <PricingTable tiers={[
+        { name: "Starter", price: "$0", period: "mo", features: ["1 project", "Community support", "Basic analytics"] },
+        { name: "Pro", price: "$29", period: "mo", featured: true, features: ["Unlimited projects", "Priority support", "Advanced analytics", "Custom domain"] },
+        { name: "Scale", price: "Custom", features: ["SSO & SAML", "Dedicated support", "SLA & audit logs"] },
+      ]} />
+    </Section>
+  );
+}
+`,
+  faq: `import { Section, FAQ } from "@/components/ui";
+
+export function FaqSection() {
+  return (
+    <Section className="pt-0">
+      <FAQ title="Frequently asked" items={[
+        { q: "Is it production-ready?", a: "Yes — server-rendered, SEO-optimized and secure by default." },
+        { q: "Can I customize it?", a: "Completely. Colours, fonts and layout are token-driven." },
+        { q: "Does it support dark mode?", a: "Light, dark and system themes with a no-flash script." },
+        { q: "How do I deploy?", a: "One click to any Node host or Vercel." },
+      ]} />
+    </Section>
+  );
+}
+`,
+  testimonials: `import { Section, Testimonial } from "@/components/ui";
+
+const QUOTES = [
+  { quote: "The smoothest launch we've ever had.", author: "Sam Rivera", role: "Product Lead" },
+  { quote: "Fast, polished and easy to build on.", author: "Jordan Ellis", role: "Founder" },
+  { quote: "The attention to detail shows everywhere.", author: "Priya Nair", role: "Design Director" },
+];
+
+export function TestimonialsSection() {
+  return (
+    <Section eyebrow="Loved by teams" title="Don't just take our word for it">
+      <div className="grid gap-6 md:grid-cols-3">
+        {QUOTES.map((t) => <Testimonial key={t.author} quote={t.quote} author={t.author} role={t.role} />)}
+      </div>
+    </Section>
+  );
+}
+`,
+  team: `import { Section, TeamGrid } from "@/components/ui";
+
+export function TeamSection() {
+  return (
+    <Section eyebrow="The team" title="The people behind it">
+      <TeamGrid members={[
+        { name: "Alex Morgan", role: "Founder & CEO", bio: "Sets the vision and keeps us honest." },
+        { name: "Riya Sharma", role: "Head of Design", bio: "Makes every pixel earn its place." },
+        { name: "Chris Doyle", role: "Lead Engineer", bio: "Ships fast without breaking things." },
+      ]} />
+    </Section>
+  );
+}
+`,
+  stats: `import { Section, StatBand } from "@/components/ui";
+
+export function StatsSection() {
+  return (
+    <Section eyebrow="By the numbers" title="Built to perform">
+      <StatBand stats={[
+        { value: "10k+", label: "Monthly visitors" },
+        { value: "99.9%", label: "Uptime" },
+        { value: "4.9★", label: "Average rating" },
+        { value: "<1s", label: "Load time" },
+      ]} />
+    </Section>
+  );
+}
+`,
+  timeline: `import { Section, Timeline } from "@/components/ui";
+
+export function TimelineSection() {
+  return (
+    <Section eyebrow="Our story" title="How we got here">
+      <div className="mx-auto max-w-2xl">
+        <Timeline items={[
+          { date: "Then", title: "The idea", desc: "It started with a simple frustration." },
+          { date: "Next", title: "First release", desc: "We shipped, and people showed up." },
+          { date: "Now", title: "Growing fast", desc: "Thousands of teams, and counting." },
+        ]} />
+      </div>
+    </Section>
+  );
+}
+`,
+  gallery: `import { Section, Gallery } from "@/components/ui";
+
+export function GallerySection() {
+  return (
+    <Section eyebrow="Gallery" title="A look inside">
+      <Gallery items={[
+        { emoji: "🖼️", label: "One" }, { emoji: "🌆", label: "Two" }, { emoji: "🎨", label: "Three" },
+        { emoji: "📸", label: "Four" }, { emoji: "✨", label: "Five" }, { emoji: "🌟", label: "Six" },
+      ]} />
+    </Section>
+  );
+}
+`,
+  logos: `import { Section, LogoCloud } from "@/components/ui";
+
+export function LogosSection() {
+  return (
+    <Section className="pt-0">
+      <LogoCloud label="Trusted by teams at" names={["Northwind", "Globex", "Initech", "Umbrella", "Soylent", "Hooli"]} />
+    </Section>
+  );
+}
+`,
+  cta: `import { CTABand } from "@/components/ui";
+
+export function CtaSection() {
+  return <CTABand title="Ready to get started?" subtitle="Join thousands of teams building with us." ctaLabel="Get started" ctaHref="/contact" />;
+}
+`,
+  bento: `import { Section, Bento } from "@/components/ui";
+
+export function BentoSection() {
+  return (
+    <Section eyebrow="One platform" title="Everything, together">
+      <Bento items={[
+        { icon: "⚡", title: "Blazing fast", desc: "Instant page loads, everywhere.", className: "sm:col-span-2" },
+        { icon: "🔒", title: "Secure", desc: "Locked down by default." },
+        { icon: "🎨", title: "Themeable", desc: "Your brand, one token away." },
+        { icon: "📊", title: "Insightful", desc: "Know what's working.", className: "sm:col-span-2" },
+      ]} />
+    </Section>
+  );
+}
+`,
+};
+
+/** Ensure the @lacspace UI kit exists in the target project (sections import from it). */
+function ensureUiKit(root: string): string[] {
+  const added: string[] = [];
+  for (const [rel, content] of Object.entries(uiKitFiles())) {
+    const full = join(root, rel);
+    if (!existsSync(full)) { mkdirSync(dirname(full), { recursive: true }); writeFileSync(full, content); added.push(rel); }
+  }
+  return added;
+}
+
+const pascal = (s: string): string => s.split(/[-_]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+
+/** `add` subcommand — drop prebuilt sections into an existing project. */
+function runAdd(rawNames: string[]): void {
+  stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app add"))} ${c("dim", "— drop prebuilt sections into your app")}\n\n`);
+  const root = cwd();
+  if (!existsSync(join(root, "package.json"))) {
+    stdout.write(c("red", "✗ No package.json here. Run this inside your Next.js project.\n\n")); exit(1); return;
+  }
+  const wanted = rawNames.filter((n) => !n.startsWith("-")).map((n) => n.toLowerCase());
+  if (wanted.length === 0 || rawNames.includes("--help") || rawNames.includes("-h")) {
+    stdout.write(`Usage: ${c("cyan", "npx create-lacspace-app add <section...>")}\n\n${c("bold", "Available sections")}\n`);
+    stdout.write("  " + Object.keys(SECTIONS).map((k) => c("cyan", k)).join("  ") + "\n");
+    stdout.write(`\nExample: ${c("cyan", "npx create-lacspace-app add pricing faq testimonials")}\n\n`);
+    return;
+  }
+  const unknown = wanted.filter((n) => !(n in SECTIONS));
+  if (unknown.length) stdout.write(c("yellow", `! Unknown: ${unknown.join(", ")} ${c("dim", "(run with no args to list)")}\n`));
+  const toAdd = wanted.filter((n) => n in SECTIONS);
+  if (toAdd.length === 0) { exit(1); return; }
+
+  const kitAdded = ensureUiKit(root);
+  if (kitAdded.length) stdout.write(`  ${c("green", "✔")} Added the UI kit ${c("dim", "(" + kitAdded.length + " components)")}\n`);
+
+  const created: string[] = [];
+  for (const name of toAdd) {
+    const rel = `components/sections/${name}.tsx`;
+    const full = join(root, rel);
+    if (existsSync(full)) { stdout.write(c("yellow", `  ~ ${rel} exists — skipped\n`)); continue; }
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, SECTIONS[name]!);
+    created.push(name);
+    stdout.write(`  ${c("green", "✔")} ${c("dim", "+ " + rel)}\n`);
+  }
+  if (created.length) {
+    stdout.write(`\n${c("bold", "Use them")} — import into any page:\n`);
+    for (const n of created) stdout.write(`  ${c("cyan", `import { ${pascal(n)}Section } from "@/components/sections/${n}";`)}\n`);
+    stdout.write(`\n  Then drop ${c("cyan", "<" + pascal(created[0]!) + "Section />")} into your JSX.\n`);
+    stdout.write(`\n  ${c("dim", "Sections use the @lacspace UI kit + design tokens — best inside a create-lacspace-app project.")}\n\n`);
+  }
+}
+
 async function main(): Promise<void> {
-  const args = parseArgs(argv.slice(2));
+  const raw = argv.slice(2);
+  if (raw[0] === "add") { runAdd(raw.slice(1)); return; }
+  const args = parseArgs(raw);
   if (args.help) { stdout.write(HELP + "\n"); return; }
 
   stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app"))} ${c("dim", "— a gorgeous Next.js starter, batteries wired")}\n\n`);

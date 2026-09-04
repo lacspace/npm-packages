@@ -7,7 +7,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "lacspace-seo": "./dist/cli.js"
+    "lacspace-seo": "dist/cli.js"
   },
   "exports": {
     ".": {

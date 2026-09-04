@@ -459,6 +459,7 @@ function homePage(ctx: Ctx): string {
 import { LiveStats } from "@/components/live-stats";
 import { Aurora } from "@/components/aurora";
 import { HeroArt } from "@/components/hero-art";
+import { StatBand, Steps, Testimonial } from "@/components/ui";
 
 // ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
 export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
@@ -471,6 +472,7 @@ export default function Home() {
       ${inner}
       ${showcaseSection(ctx)}
       ${marqueeSection(ctx)}
+      ${extraHomeSections(ctx)}
       ${faqSection(ctx)}
       ${builtWithSection(ctx)}
     </main>
@@ -712,32 +714,138 @@ export default function AppleIcon() {
 }
 `;
 
-const aboutPage = (ctx: Ctx): string => `import type { Metadata } from "next";
-import Link from "next/link";
-import { site } from "@/lib/site";
+// A rich, prefilled, project-name-personalized About page built from the UI kit.
+const aboutPage = (ctx: Ctx): string => {
+  const r = richContent(ctx);
+  const n = ctx.template.siteName;
+  const story = r.process.map((p, i) => ({ date: (["Then", "Next", "Now", "Ahead"][i] ?? ""), title: p.title, desc: p.desc }));
+  return pageFile({
+    title: "About", path: "/about", description: `The story, the team and the values behind ${n}.`,
+    cta: { title: "Let's build something together", subtitle: "We'd love to hear what you're working on.", label: "Get in touch", href: "/contact" },
+    body: `      <section className="mx-auto max-w-3xl px-6 py-24">
+        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "About" }]} />
+        <h1 className="mt-6 text-4xl font-bold sm:text-5xl">About <span className="gradient-text">${n}</span></h1>
+        <p className="mt-4 text-lg text-muted">${n} exists to help you ship something you're proud of — faster, and with less fuss. Here's who we are and what we believe.</p>
+      </section>
+      <Section className="pt-0"><StatBand stats={${JSON.stringify(r.stats)}} /></Section>
+      <Section eyebrow="Our story" title="How we got here" className="pt-0">
+        <div className="mx-auto max-w-2xl"><Timeline items={${JSON.stringify(story)}} /></div>
+      </Section>
+      <Section eyebrow="What we value" title="Principles we won't compromise" className="pt-0">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {${JSON.stringify(r.values)}.map((v) => <FeatureCard key={v.title} title={v.title} desc={v.desc} />)}
+        </div>
+      </Section>
+      <Section eyebrow="The team" title="The people behind ${n}" className="pt-0">
+        <TeamGrid members={${JSON.stringify(r.team)}} />
+      </Section>
+      <Section title="Frequently asked" className="pt-0"><FAQ items={${JSON.stringify(r.faqs.slice(0, 4))}} /></Section>`,
+  });
+};
 
-// ✨ Per-page SEO, auto-generated: title template, canonical, Open Graph,
-// Twitter card and its OWN dynamic OG image — all from one line.
-export const metadata: Metadata = site.meta({
-  title: "About",
-  path: "/about",
-  description: "Learn more about ${ctx.template.siteName}.",
+// A prefilled FAQ page (uses the shared richContent questions).
+const faqPage = (ctx: Ctx): string => {
+  const r = richContent(ctx);
+  const n = ctx.template.siteName;
+  return pageFile({
+    title: "FAQ", path: "/faq", description: `Answers to common questions about ${n}.`,
+    cta: { title: "Still have questions?", subtitle: "We're happy to help — reach out any time.", label: "Contact us", href: "/contact" },
+    body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>FAQ</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Frequently asked <span className="gradient-text">questions</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Everything you need to know about ${n}. Can't find an answer? Get in touch.</p>
+      </section>
+      <Section className="pt-0"><FAQ items={${JSON.stringify(r.faqs)}} /></Section>`,
+  });
+};
+
+// Integrations (saas): logo cloud + category feature grid.
+const integrationsPage = (ctx: Ctx): string => pageFile({
+  title: "Integrations", path: "/integrations", description: `Connect ${ctx.template.siteName} to the tools your team already uses.`,
+  cta: { title: "Don't see your tool?", subtitle: "We add integrations every month — tell us what you need.", label: "Request an integration", href: "/contact" },
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>Integrations</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Works with your <span className="gradient-text">stack</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Plug ${ctx.template.siteName} into the tools you already love.</p>
+      </section>
+      <Section className="pt-0"><LogoCloud label="Popular integrations" names={["Slack", "Notion", "GitHub", "Figma", "Linear", "Stripe", "Zapier", "HubSpot"]} /></Section>
+      <Section eyebrow="Categories" title="Everything connects" className="pt-0">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: "💬", title: "Communication", desc: "Slack, Teams and email — never miss an update." },
+            { icon: "📊", title: "Analytics", desc: "Pipe events to your warehouse or BI tool." },
+            { icon: "🔗", title: "Automation", desc: "Zapier and webhooks to connect anything." },
+            { icon: "💳", title: "Payments", desc: "Stripe and PayPal, wired and ready." },
+            { icon: "🗂️", title: "Productivity", desc: "Notion, Linear and Jira in two clicks." },
+            { icon: "🔐", title: "Identity", desc: "SSO, SAML and SCIM for teams." },
+          ].map((f) => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
+        </div>
+      </Section>`,
 });
 
-export default function AboutPage() {
-  return (
-    <main className="mx-auto max-w-3xl px-6 py-28">
-      <Link href="/" className="text-sm text-muted hover:text-fg">← Back home</Link>
-      <h1 className="mt-6 text-4xl font-black sm:text-5xl gradient-text">About</h1>
-      <p className="mt-6 text-lg leading-relaxed text-muted">
-        This page already has its own SEO — a unique title, canonical URL, Open Graph tags and a
-        generated social image — from a single <code>site.meta()</code> call. Duplicate this file for
-        any new route and it just works.
-      </p>
-    </main>
-  );
-}
-`;
+// Changelog (saas/docs): a release timeline.
+const changelogPage = (ctx: Ctx): string => pageFile({
+  title: "Changelog", path: "/changelog", description: `New features and improvements shipped to ${ctx.template.siteName}.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>Changelog</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">What&rsquo;s <span className="gradient-text">new</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">Every improvement we ship to ${ctx.template.siteName}, newest first.</p>
+      </section>
+      <Section className="pt-0">
+        <div className="mx-auto max-w-2xl">
+          <Timeline items={[
+            { date: "This week", title: "Dark mode everywhere", desc: "A no-flash theme system across every page." },
+            { date: "Last week", title: "Faster search", desc: "Command palette results now feel instant." },
+            { date: "Earlier", title: "Team roles", desc: "Invite teammates with granular permissions." },
+            { date: "Launch", title: "Hello, world 👋", desc: "The first public release." },
+          ]} />
+        </div>
+      </Section>`,
+});
+
+// Gallery (restaurant): a visual grid.
+const galleryPage = (ctx: Ctx): string => pageFile({
+  title: "Gallery", path: "/gallery", description: `A look inside ${ctx.template.siteName}.`,
+  cta: { title: "Come see for yourself", subtitle: "Book a table and taste the difference.", label: "Reserve a table", href: "/reservations" },
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>Gallery</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">A look <span className="gradient-text">inside</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">The room, the plates, the little details that make ${ctx.template.siteName}.</p>
+      </section>
+      <Section className="pt-0">
+        <Gallery items={[
+          { emoji: "🍽️", label: "The dining room" },
+          { emoji: "🥘", label: "Signature dish" },
+          { emoji: "🍷", label: "Cellar" },
+          { emoji: "👨‍🍳", label: "The kitchen" },
+          { emoji: "🍰", label: "Desserts" },
+          { emoji: "🌿", label: "Fresh daily" },
+        ]} />
+      </Section>`,
+});
+
+// Uses (personal): a categorized gear/tools list.
+const usesPage = (ctx: Ctx): string => pageFile({
+  title: "Uses", path: "/uses", description: `The gear, apps and tools ${ctx.template.siteName} uses every day.`,
+  body: `      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <Pill>Uses</Pill>
+        <h1 className="mt-4 text-4xl font-bold sm:text-5xl">What I <span className="gradient-text">use</span></h1>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">The gear and software behind the work.</p>
+      </section>
+      <Section title="Editor & tools" className="pt-0">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: "🖥️", title: "VS Code", desc: "My editor of choice, tuned to the bone." },
+            { icon: "⚡", title: "Next.js", desc: "The React framework behind everything I ship." },
+            { icon: "🎨", title: "Figma", desc: "Where every design starts." },
+            { icon: "⌨️", title: "Raycast", desc: "Launcher, clipboard history and snippets." },
+            { icon: "🧠", title: "Obsidian", desc: "Notes and a second brain." },
+            { icon: "🎧", title: "Focus playlist", desc: "Lo-fi, always." },
+          ].map((f) => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
+        </div>
+      </Section>`,
+});
+
 
 /* --------------------------- interactivity --------------------------- */
 
@@ -1556,6 +1664,9 @@ function buildFiles(ctx: Ctx): Record<string, string> {
   };
 
   const isDash = ctx.template.key === "dashboard";
+  // The animated backdrop is used by every content page (via the UI page shell),
+  // so it ships in all templates — including the dashboard's about/legal pages.
+  files["components/aurora.tsx"] = aurora();
   if (isDash) {
     // The dashboard shell (sidebar) is shared by its home + stub pages.
     files["components/dashboard-shell.tsx"] = dashboardShell(ctx);
@@ -1564,8 +1675,7 @@ function buildFiles(ctx: Ctx): Record<string, string> {
     files["components/site-header.tsx"] = siteHeader(ctx);
     files["components/site-footer.tsx"] = siteFooter(ctx);
     files["components/announcement-bar.tsx"] = announcementBar();
-    // ✨ Creative home extras — animated backdrop + bespoke illustration.
-    files["components/aurora.tsx"] = aurora();
+    // ✨ Bespoke, personalised hero illustration (marketing homes only).
     files["components/hero-art.tsx"] = heroArt(ctx);
   }
 
@@ -1625,6 +1735,7 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     { path: "/about", label: "About", nav: true, group: "Company", real: true },
     { path: "/contact", label: "Contact", nav: true, group: "Company", real: true },
     { path: "/careers", label: "Careers", group: "Company" },
+    { path: "/faq", label: "FAQ", group: "Resources", real: true },
     { path: "/privacy", label: "Privacy", group: "Resources" },
     { path: "/terms", label: "Terms", group: "Resources" },
   ];
@@ -1632,13 +1743,12 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     personal: [
       { path: "/work", label: "Work", nav: true, group: "Product", real: true },
       { path: "/blog", label: "Blog", nav: true, group: "Product" },
-      { path: "/uses", label: "Uses", group: "Resources" },
+      { path: "/uses", label: "Uses", group: "Resources", real: true },
     ],
     business: [
       { path: "/services", label: "Services", nav: true, group: "Product", real: true },
       { path: "/work", label: "Work", nav: true, group: "Product" },
       { path: "/pricing", label: "Pricing", nav: true, group: "Product", real: true },
-      { path: "/faq", label: "FAQ", group: "Resources" },
     ],
     ecommerce: [
       { path: "/shop", label: "Shop", nav: true, group: "Product", real: true },
@@ -1650,8 +1760,8 @@ function pagesFor(ctx: Ctx): PageSpec[] {
     saas: [
       { path: "/features", label: "Features", nav: true, group: "Product", real: true },
       { path: "/pricing", label: "Pricing", nav: true, group: "Product", real: true },
-      { path: "/integrations", label: "Integrations", group: "Product" },
-      { path: "/changelog", label: "Changelog", group: "Resources" },
+      { path: "/integrations", label: "Integrations", group: "Product", real: true },
+      { path: "/changelog", label: "Changelog", group: "Resources", real: true },
     ],
     blog: [
       { path: "/blog", label: "Articles", nav: true, group: "Product", real: true },
@@ -1662,12 +1772,12 @@ function pagesFor(ctx: Ctx): PageSpec[] {
       { path: "/docs", label: "Docs", nav: true, group: "Product", real: true },
       { path: "/guides", label: "Guides", nav: true, group: "Product", real: true },
       { path: "/api-reference", label: "API", nav: true, group: "Product" },
-      { path: "/changelog", label: "Changelog", group: "Resources" },
+      { path: "/changelog", label: "Changelog", group: "Resources", real: true },
     ],
     restaurant: [
       { path: "/menu", label: "Menu", nav: true, group: "Product", real: true },
       { path: "/reservations", label: "Reservations", nav: true, group: "Product" },
-      { path: "/gallery", label: "Gallery", nav: true, group: "Product" },
+      { path: "/gallery", label: "Gallery", nav: true, group: "Product", real: true },
       { path: "/events", label: "Private events", group: "Resources" },
     ],
   };
@@ -2089,7 +2199,7 @@ const pageFile = (o: { title: string; path: string; description: string; body: s
 import Link from "next/link";
 import { site } from "@/lib/site";
 import { Aurora } from "@/components/aurora";
-import { Section, Pill, StatCard, FeatureCard, Testimonial, Steps, CTABand, Bento, AreaChart, Newsletter } from "@/components/ui";
+import { Section, Pill, StatCard, FeatureCard, Testimonial, Steps, CTABand, Bento, AreaChart, Newsletter, Badge, Callout, Accordion, FAQ, Tabs, Timeline, PricingTable, LogoCloud, StatBand, TeamGrid, FeatureSplit, Gallery, Rating, Progress, Breadcrumbs, Avatar, AvatarGroup } from "@/components/ui";
 
 export const metadata: Metadata = site.meta({ title: ${JSON.stringify(o.title)}, path: ${JSON.stringify(o.path)}, description: ${JSON.stringify(o.description)} });
 
@@ -2703,6 +2813,244 @@ export function Newsletter({ title = "Stay in the loop", subtitle = "Occasional 
   );
 }
 `,
+  "components/ui/badge.tsx": `import type { ReactNode } from "react";
+
+const tones = {
+  default: "border-hairline bg-surface text-muted",
+  accent: "border-transparent gradient-bg text-black",
+  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  warning: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+  danger: "border-red-500/30 bg-red-500/10 text-red-400",
+} as const;
+
+export function Badge({ children, tone = "default", className = "" }: { children: ReactNode; tone?: keyof typeof tones; className?: string }) {
+  return <span className={"inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold " + tones[tone] + " " + className}>{children}</span>;
+}
+`,
+  "components/ui/callout.tsx": `import type { ReactNode } from "react";
+
+const tones = {
+  info: { c: "border-sky-500/30 bg-sky-500/10", i: "💡" },
+  success: { c: "border-emerald-500/30 bg-emerald-500/10", i: "✅" },
+  warning: { c: "border-amber-500/30 bg-amber-500/10", i: "⚠️" },
+  danger: { c: "border-red-500/30 bg-red-500/10", i: "⛔" },
+} as const;
+
+export function Callout({ children, title, tone = "info" }: { children: ReactNode; title?: string; tone?: keyof typeof tones }) {
+  const t = tones[tone];
+  return (
+    <div className={"flex gap-3 rounded-2xl border p-4 " + t.c}>
+      <div className="text-lg leading-none">{t.i}</div>
+      <div className="text-sm">
+        {title ? <p className="font-semibold">{title}</p> : null}
+        <div className="text-muted">{children}</div>
+      </div>
+    </div>
+  );
+}
+`,
+  "components/ui/accordion.tsx": `export function Accordion({ items }: { items: { q: string; a: string }[] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
+      {items.map((it, i) => (
+        <details key={it.q} className={"group px-6 " + (i > 0 ? "border-t border-hairline" : "")}>
+          <summary className="flex cursor-pointer list-none items-center justify-between py-4 font-medium">
+            {it.q}
+            <span className="ml-4 text-muted transition group-open:rotate-45">+</span>
+          </summary>
+          <p className="pb-5 text-sm leading-relaxed text-muted">{it.a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/faq.tsx": `export function FAQ({ items, title }: { items: { q: string; a: string }[]; title?: string }) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      {title ? <h2 className="mb-8 text-center text-3xl font-bold sm:text-4xl">{title}</h2> : null}
+      <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
+        {items.map((it, i) => (
+          <details key={it.q} className={"group px-6 " + (i > 0 ? "border-t border-hairline" : "")}>
+            <summary className="flex cursor-pointer list-none items-center justify-between py-4 font-medium">{it.q}<span className="ml-4 text-muted transition group-open:rotate-45">+</span></summary>
+            <p className="pb-5 text-sm leading-relaxed text-muted">{it.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+`,
+  "components/ui/tabs.tsx": `"use client";
+
+import { useState, type ReactNode } from "react";
+
+export function Tabs({ tabs }: { tabs: { label: string; content: ReactNode }[] }) {
+  const [i, setI] = useState(0);
+  return (
+    <div>
+      <div className="inline-flex flex-wrap gap-1 rounded-full border border-hairline bg-surface p-1">
+        {tabs.map((t, idx) => (
+          <button key={t.label} onClick={() => setI(idx)} className={"rounded-full px-4 py-2 text-sm font-medium transition " + (i === idx ? "gradient-bg text-black" : "text-muted hover:text-fg")}>{t.label}</button>
+        ))}
+      </div>
+      <div className="mt-6">{tabs[i]?.content}</div>
+    </div>
+  );
+}
+`,
+  "components/ui/timeline.tsx": `export function Timeline({ items }: { items: { date?: string; title: string; desc?: string }[] }) {
+  return (
+    <ol className="relative ml-3 border-l border-hairline">
+      {items.map((it) => (
+        <li key={it.title} className="mb-8 ml-6">
+          <span aria-hidden className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full gradient-bg" />
+          {it.date ? <p className="text-xs font-semibold uppercase tracking-widest text-faint">{it.date}</p> : null}
+          <h3 className="mt-1 font-semibold">{it.title}</h3>
+          {it.desc ? <p className="mt-1 text-sm text-muted">{it.desc}</p> : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+`,
+  "components/ui/pricing-table.tsx": `import Link from "next/link";
+
+interface Tier { name: string; price: string; period?: string; features: string[]; ctaLabel?: string; ctaHref?: string; featured?: boolean; }
+
+export function PricingTable({ tiers }: { tiers: Tier[] }) {
+  return (
+    <div className="grid gap-6 md:grid-cols-3">
+      {tiers.map((t) => (
+        <div key={t.name} className={"relative flex flex-col rounded-3xl border p-8 " + (t.featured ? "border-[color:var(--accent-to)] bg-surface shadow-lg" : "border-hairline bg-surface")}>
+          {t.featured ? <span className="absolute -top-3 left-8 rounded-full gradient-bg px-3 py-1 text-xs font-bold text-black">Most popular</span> : null}
+          <h3 className="font-semibold">{t.name}</h3>
+          <div className="mt-3 flex items-end gap-1"><span className="text-4xl font-bold">{t.price}</span>{t.period ? <span className="mb-1 text-sm text-muted">/{t.period}</span> : null}</div>
+          <ul className="mt-6 flex-1 space-y-2 text-sm text-muted">
+            {t.features.map((f) => <li key={f} className="flex gap-2"><span className="gradient-text">✓</span>{f}</li>)}
+          </ul>
+          <Link href={t.ctaHref ?? "/contact"} className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (t.featured ? "gradient-bg text-black hover:opacity-90" : "border border-hairline hover:bg-app")}>{t.ctaLabel ?? "Choose " + t.name}</Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/logo-cloud.tsx": `export function LogoCloud({ names, label }: { names: string[]; label?: string }) {
+  return (
+    <div className="text-center">
+      {label ? <p className="text-sm font-semibold uppercase tracking-widest text-faint">{label}</p> : null}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+        {names.map((n) => <span key={n} className="text-lg font-bold text-muted opacity-70 transition hover:opacity-100">{n}</span>)}
+      </div>
+    </div>
+  );
+}
+`,
+  "components/ui/stat-band.tsx": `export function StatBand({ stats }: { stats: { value: string; label: string }[] }) {
+  return (
+    <div className="grid gap-6 rounded-3xl border border-hairline bg-surface p-8 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map((s) => (
+        <div key={s.label} className="text-center">
+          <div className="gradient-text text-4xl font-bold tabular-nums">{s.value}</div>
+          <div className="mt-1 text-sm text-muted">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/team-grid.tsx": `export function TeamGrid({ members }: { members: { name: string; role: string; bio?: string }[] }) {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {members.map((m) => (
+        <div key={m.name} className="rounded-2xl border border-hairline bg-surface p-6 text-center transition hover:-translate-y-1">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full gradient-bg text-xl font-bold text-black">{m.name.split(" ").map((x) => x[0]).join("").slice(0, 2)}</div>
+          <h3 className="mt-4 font-semibold">{m.name}</h3>
+          <p className="gradient-text text-sm">{m.role}</p>
+          {m.bio ? <p className="mt-2 text-sm text-muted">{m.bio}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/feature-split.tsx": `import type { ReactNode } from "react";
+
+export function FeatureSplit({ eyebrow, title, desc, bullets, media, reverse = false }: { eyebrow?: string; title: string; desc?: string; bullets?: string[]; media?: ReactNode; reverse?: boolean }) {
+  return (
+    <div className={"grid items-center gap-10 md:grid-cols-2 " + (reverse ? "md:[&>*:first-child]:order-2" : "")}>
+      <div>
+        {eyebrow ? <p className="text-sm font-semibold uppercase tracking-widest text-faint">{eyebrow}</p> : null}
+        <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{title}</h2>
+        {desc ? <p className="mt-4 text-lg text-muted">{desc}</p> : null}
+        {bullets ? <ul className="mt-6 space-y-2 text-muted">{bullets.map((b) => <li key={b} className="flex gap-2"><span className="gradient-text">✓</span>{b}</li>)}</ul> : null}
+      </div>
+      <div className="relative overflow-hidden rounded-3xl border border-hairline bg-surface p-8">
+        <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full gradient-bg opacity-30 blur-3xl" />
+        <div className="relative">{media ?? <div className="grid h-48 place-items-center text-5xl">✨</div>}</div>
+      </div>
+    </div>
+  );
+}
+`,
+  "components/ui/gallery.tsx": `export function Gallery({ items }: { items: { label?: string; emoji?: string }[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {items.map((it, i) => (
+        <div key={i} className="group relative grid aspect-square place-items-center overflow-hidden rounded-2xl border border-hairline bg-surface">
+          <div aria-hidden className="pointer-events-none absolute inset-0 gradient-bg opacity-10 transition group-hover:opacity-20" />
+          <span className="relative text-4xl">{it.emoji ?? "🖼️"}</span>
+          {it.label ? <span className="absolute bottom-2 left-3 text-xs text-muted">{it.label}</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+`,
+  "components/ui/rating.tsx": `export function Rating({ value = 5, count }: { value?: number; count?: number }) {
+  return (
+    <div className="inline-flex items-center gap-1 text-amber-400" aria-label={value + " out of 5"}>
+      {[0, 1, 2, 3, 4].map((i) => <span key={i}>{i < Math.round(value) ? "★" : "☆"}</span>)}
+      {count ? <span className="ml-1 text-sm text-muted">({count})</span> : null}
+    </div>
+  );
+}
+`,
+  "components/ui/progress.tsx": `export function Progress({ value, label }: { value: number; label?: string }) {
+  const v = Math.max(0, Math.min(100, value));
+  return (
+    <div>
+      {label ? <div className="mb-1 flex justify-between text-sm"><span>{label}</span><span className="text-muted">{v}%</span></div> : null}
+      <div className="h-2 overflow-hidden rounded-full bg-app"><div className="h-full gradient-bg" style={{ width: v + "%" }} /></div>
+    </div>
+  );
+}
+`,
+  "components/ui/breadcrumbs.tsx": `import Link from "next/link";
+
+export function Breadcrumbs({ items }: { items: { label: string; href?: string }[] }) {
+  return (
+    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-muted">
+      {items.map((it, i) => (
+        <span key={it.label} className="flex items-center gap-2">
+          {it.href ? <Link href={it.href} className="hover:text-fg">{it.label}</Link> : <span className="text-fg">{it.label}</span>}
+          {i < items.length - 1 ? <span aria-hidden className="text-faint">/</span> : null}
+        </span>
+      ))}
+    </nav>
+  );
+}
+`,
+  "components/ui/avatar.tsx": `export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+  const initials = name.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase();
+  return <span className="inline-flex items-center justify-center rounded-full gradient-bg font-bold text-black" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
+}
+
+export function AvatarGroup({ names }: { names: string[] }) {
+  return <div className="flex -space-x-2">{names.map((n) => <span key={n} className="rounded-full bg-app p-0.5"><Avatar name={n} size={36} /></span>)}</div>;
+}
+`,
   "components/ui/index.ts": `export * from "./section";
 export * from "./pill";
 export * from "./stat-card";
@@ -2713,6 +3061,22 @@ export * from "./cta-band";
 export * from "./bento";
 export * from "./area-chart";
 export * from "./newsletter";
+export * from "./badge";
+export * from "./callout";
+export * from "./accordion";
+export * from "./faq";
+export * from "./tabs";
+export * from "./timeline";
+export * from "./pricing-table";
+export * from "./logo-cloud";
+export * from "./stat-band";
+export * from "./team-grid";
+export * from "./feature-split";
+export * from "./gallery";
+export * from "./rating";
+export * from "./progress";
+export * from "./breadcrumbs";
+export * from "./avatar";
 `,
 });
 
@@ -2720,9 +3084,10 @@ export * from "./newsletter";
 function realPageFiles(ctx: Ctx): Record<string, string> {
   const k = ctx.template.key;
   const f: Record<string, string> = {};
-  if (k === "personal") f["app/work/page.tsx"] = workPage(ctx);
+  if (k !== "dashboard") f["app/faq/page.tsx"] = faqPage(ctx);
+  if (k === "personal") { f["app/work/page.tsx"] = workPage(ctx); f["app/uses/page.tsx"] = usesPage(ctx); }
   if (k === "business") { f["app/services/page.tsx"] = servicesPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); }
-  if (k === "saas") { f["app/features/page.tsx"] = featuresPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); }
+  if (k === "saas") { f["app/features/page.tsx"] = featuresPage(ctx); f["app/pricing/page.tsx"] = pricingPage(ctx); f["app/integrations/page.tsx"] = integrationsPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); }
   if (k === "ecommerce") {
     f["app/shop/page.tsx"] = shopPage(ctx);
     f["app/cart/page.tsx"] = cartPage();
@@ -2730,8 +3095,8 @@ function realPageFiles(ctx: Ctx): Record<string, string> {
     f["components/cart-view.tsx"] = cartView();
   }
   if (k === "blog") { f["app/topics/page.tsx"] = topicsPage(ctx); f["app/newsletter/page.tsx"] = newsletterPage(ctx); }
-  if (k === "docs") f["app/guides/page.tsx"] = guidesPage(ctx);
-  if (k === "restaurant") f["app/menu/page.tsx"] = menuPage(ctx);
+  if (k === "docs") { f["app/guides/page.tsx"] = guidesPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); }
+  if (k === "restaurant") { f["app/menu/page.tsx"] = menuPage(ctx); f["app/gallery/page.tsx"] = galleryPage(ctx); }
   if (k === "dashboard") {
     f["app/settings/page.tsx"] = settingsPage(ctx);
     f["components/settings-panel.tsx"] = settingsPanel();
@@ -2890,6 +3255,114 @@ const heroArt = (ctx: Ctx): string => {
 };
 
 // A showcase band: pre-written copy + the animated illustration.
+/* ----------------------- expanded, prefilled content ----------------------- */
+
+interface RichContent {
+  stats: { value: string; label: string }[];
+  process: { title: string; desc: string }[];
+  testimonials: { quote: string; author: string; role?: string }[];
+  team: { name: string; role: string; bio?: string }[];
+  values: { title: string; desc: string }[];
+  faqs: { q: string; a: string }[];
+}
+
+/** Deeper, template-tailored, project-name-personalized content used by the extra
+ *  home sections and the rich prebuilt pages (about, faq, and template extras). */
+function richContent(ctx: Ctx): RichContent {
+  const n = ctx.template.siteName;
+  const base: RichContent = {
+    stats: [
+      { value: "10k+", label: "Monthly visitors" },
+      { value: "99.9%", label: "Uptime" },
+      { value: "4.9★", label: "Average rating" },
+      { value: "<1s", label: "Load time" },
+    ],
+    process: [
+      { title: "Discover", desc: `We learn what ${n} needs and map the fastest path to value.` },
+      { title: "Design", desc: "We shape the experience and validate it early with real content." },
+      { title: "Build", desc: "We ship in weekly increments you can see and steer." },
+      { title: "Launch", desc: "We go live, measure, and keep improving together." },
+    ],
+    testimonials: [
+      { quote: `Working with ${n} was the smoothest launch we've had — everything just worked.`, author: "Sam Rivera", role: "Product Lead" },
+      { quote: "Fast, polished and genuinely easy to build on. Highly recommend.", author: "Jordan Ellis", role: "Founder" },
+      { quote: "The attention to detail shows on every single page.", author: "Priya Nair", role: "Design Director" },
+    ],
+    team: [
+      { name: "Alex Morgan", role: "Founder & CEO", bio: "Sets the vision and keeps us honest." },
+      { name: "Riya Sharma", role: "Head of Design", bio: "Makes every pixel earn its place." },
+      { name: "Chris Doyle", role: "Lead Engineer", bio: "Ships fast without breaking things." },
+    ],
+    values: [
+      { title: "Craft", desc: "We care about the details others skip." },
+      { title: "Speed", desc: "We ship early and iterate in the open." },
+      { title: "Honesty", desc: "Clear pricing, clear timelines, no surprises." },
+      { title: "Partnership", desc: "Your goals are our goals." },
+    ],
+    faqs: [
+      { q: `Is ${n} really production-ready?`, a: `Yes — every ${n} page is server-rendered, SEO-optimized and ships with sensible security headers out of the box.` },
+      { q: "How do I get started?", a: "Clone the project, run npm install and npm run dev — you'll have a live site in under a minute." },
+      { q: "Can I customize the design?", a: "Completely. Colours, fonts and layout are token-driven, so a few edits reskin the whole site." },
+      { q: "Is it accessible and fast?", a: "Built mobile-first with semantic HTML, keyboard support and a strong Lighthouse baseline." },
+      { q: "Do you support dark mode?", a: "Yes — light, dark and system themes with a no-flash script, powered by @lacspace/theme." },
+      { q: "How do I deploy?", a: "Deploy to any Node host or Vercel in one click — sitemap, robots and OG images are all wired up." },
+    ],
+  };
+  const over: Record<string, Partial<RichContent>> = {
+    restaurant: {
+      stats: [
+        { value: "20+", label: "Years serving" },
+        { value: "4.8★", label: "Google rating" },
+        { value: "120", label: "Seats" },
+        { value: "Daily", label: "Fresh menu" },
+      ],
+      process: [
+        { title: "Reserve", desc: `Book your table at ${n} online in seconds.` },
+        { title: "Arrive", desc: "Settle in — we'll take it from here." },
+        { title: "Savour", desc: "Seasonal plates, made from scratch." },
+      ],
+      testimonials: [
+        { quote: `Best meal we've had all year — ${n} never misses.`, author: "Dana Lopez", role: "Regular" },
+        { quote: "The tasting menu is an experience. Book ahead!", author: "Marco Bianchi", role: "Food writer" },
+        { quote: "Warm service, unforgettable flavours.", author: "Aisha Khan", role: "Guest" },
+      ],
+    },
+    ecommerce: {
+      stats: [
+        { value: "50k+", label: "Orders shipped" },
+        { value: "4.9★", label: "Customer rating" },
+        { value: "48h", label: "Fast delivery" },
+        { value: "30d", label: "Free returns" },
+      ],
+    },
+  };
+  return { ...base, ...(over[ctx.template.key] ?? {}) };
+}
+
+/** Extra, filled home sections (stats band, process, testimonials) shared by every
+ *  marketing template — rendered with the prebuilt UI kit. */
+const extraHomeSections = (ctx: Ctx): string => {
+  const r = richContent(ctx);
+  const tst = r.testimonials
+    .map((t) => `<Testimonial quote={${JSON.stringify(t.quote)}} author={${JSON.stringify(t.author)}} role={${JSON.stringify(t.role ?? "")}} />`)
+    .join("\n          ");
+  return `<section className="mx-auto max-w-6xl px-6 py-16">
+        <p className="text-center text-sm font-semibold uppercase tracking-widest text-faint">By the numbers</p>
+        <div className="mt-8"><StatBand stats={${JSON.stringify(r.stats)}} /></div>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <h2 className="text-center text-3xl font-bold sm:text-4xl">How it works</h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-muted">A simple, proven path from first hello to launch day.</p>
+        <div className="mt-10"><Steps items={${JSON.stringify(r.process)}} /></div>
+      </section>
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <h2 className="text-center text-3xl font-bold sm:text-4xl">Loved by teams</h2>
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          ${tst}
+        </div>
+      </section>`;
+};
+
 const showcaseSection = (ctx: Ctx): string => {
   const d = creativeData(ctx);
   const bullets = d.bullets.map((b) => `<li className="flex items-center gap-2 text-muted"><span className="text-[color:var(--accent-to)]">✓</span> ${b}</li>`).join("\n            ");

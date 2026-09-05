@@ -64,6 +64,11 @@ export interface SeoInput {
   twitterSite?: string;
   twitterCreator?: string;
   noindex?: boolean;
+  /**
+   * Fine-grained robots directives → `Metadata.robots`. `noindex: true` still
+   * forces `{ index:false, follow:false }` and takes precedence over this.
+   */
+  robots?: { index?: boolean; follow?: boolean };
   /** Used to turn a relative `canonical` into an absolute OG url. */
   baseUrl?: string;
   /** Extra Open Graph "article:*" fields (for `type: "article"`). */
@@ -126,6 +131,7 @@ export function seoMetadata(input: SeoInput): Metadata {
       creator: input.twitterCreator,
     },
   };
+  if (input.robots) meta.robots = { index: input.robots.index ?? true, follow: input.robots.follow ?? true };
   if (input.noindex) meta.robots = { index: false, follow: false };
   return meta;
 }
@@ -640,6 +646,179 @@ export function hreflang(map: Record<string, string>): { languages: Record<strin
   return { languages: map };
 }
 
+/* ------------------------------------------------------------------ *
+ * Listing & page-shape builders (ItemList, CollectionPage, QAPage,
+ * ImageObject, SoftwareSourceCode, ProfilePage)
+ * ------------------------------------------------------------------ */
+
+export interface ItemListEntry {
+  name: string;
+  url: string;
+  image?: string;
+  /** Override the 1-based position (defaults to array order). */
+  position?: number;
+}
+
+export interface ItemListInput {
+  /** Name of the list itself (e.g. "Latest posts"). */
+  name?: string;
+  /** URL of the listing page. */
+  url?: string;
+  description?: string;
+}
+
+/**
+ * An ItemList — perfect for listing / index pages (a blog index, a product
+ * grid, "related articles"). Each entry becomes a positioned ListItem.
+ * @example itemList([{ name: "Post A", url: "/a" }, { name: "Post B", url: "/b" }])
+ */
+export function itemList(items: ItemListEntry[], opts: ItemListInput = {}): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: opts.name,
+    url: opts.url,
+    description: opts.description,
+    numberOfItems: items.length,
+    itemListElement: items.map((it, i) =>
+      clean({
+        "@type": "ListItem",
+        position: it.position ?? i + 1,
+        name: it.name,
+        url: it.url,
+        image: it.image,
+      }),
+    ),
+  });
+}
+
+export interface CollectionPageInput {
+  name: string;
+  url: string;
+  description?: string;
+  /** Optional entries — embedded as a `hasPart` ItemList. */
+  items?: ItemListEntry[];
+}
+
+/**
+ * A CollectionPage (a category / archive / index page). When `items` are given
+ * they are embedded as a `hasPart` ItemList.
+ */
+export function collectionPage(o: CollectionPageInput): Json {
+  const node: Json = clean({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: o.name,
+    url: o.url,
+    description: o.description,
+  });
+  if (o.items && o.items.length) {
+    const list = { ...itemList(o.items, { name: o.name, url: o.url }) };
+    delete list["@context"];
+    node.hasPart = list;
+  }
+  return node;
+}
+
+export interface QAItem {
+  question: string;
+  acceptedAnswer: string;
+  /** Alternative community answers, if any. */
+  suggestedAnswers?: string[];
+}
+
+/**
+ * A QAPage — a question-and-answer page (one accepted answer, optional
+ * suggested answers per question). Distinct from {@link faqPage}.
+ */
+export function qaPage(items: QAItem[]): Json {
+  return {
+    "@context": "https://schema.org",
+    "@type": "QAPage",
+    mainEntity: items.map((it) =>
+      clean({
+        "@type": "Question",
+        name: it.question,
+        acceptedAnswer: { "@type": "Answer", text: it.acceptedAnswer },
+        suggestedAnswer: it.suggestedAnswers?.map((t) => ({ "@type": "Answer", text: t })),
+      }),
+    ),
+  };
+}
+
+export interface ImageObjectInput {
+  url: string;
+  width?: number;
+  height?: number;
+  caption?: string;
+}
+
+/** An ImageObject — a standalone image with optional dimensions & caption. */
+export function imageObject(o: ImageObjectInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "ImageObject",
+    url: o.url,
+    contentUrl: o.url,
+    width: o.width,
+    height: o.height,
+    caption: o.caption,
+  });
+}
+
+export interface SoftwareSourceCodeInput {
+  name: string;
+  /** URL of the source repository (e.g. GitHub). */
+  codeRepository: string;
+  /** e.g. "TypeScript". */
+  programmingLanguage: string;
+  license?: string;
+  /** e.g. "Node.js", "Browser", "Edge". */
+  runtimePlatform?: string;
+  description?: string;
+  url?: string;
+}
+
+/**
+ * A SoftwareSourceCode node — for open-source package / library pages.
+ * @example softwareSourceCode({ name: "@lacspace/seo", codeRepository: "https://github.com/lacspace/npm-packages", programmingLanguage: "TypeScript" })
+ */
+export function softwareSourceCode(o: SoftwareSourceCodeInput): Json {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: o.name,
+    codeRepository: o.codeRepository,
+    programmingLanguage: o.programmingLanguage,
+    license: o.license,
+    runtimePlatform: o.runtimePlatform,
+    description: o.description,
+    url: o.url,
+  });
+}
+
+export interface ProfilePageInput {
+  /** The person (or profile subject) this page is about. */
+  person: PersonInput;
+  url?: string;
+  dateCreated?: string;
+  dateModified?: string;
+}
+
+/** A ProfilePage — a page about a single person, wrapping a Person as `mainEntity`. */
+export function profilePage(o: ProfilePageInput): Json {
+  const subject = { ...person(o.person) };
+  delete subject["@context"];
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    url: o.url,
+    dateCreated: o.dateCreated,
+    dateModified: o.dateModified,
+    mainEntity: subject,
+  });
+}
+
 /** A BlogPosting (Article subtype) — same input as {@link article}. */
 export function blogPosting(o: ArticleInput): Json {
   return { ...article(o), "@type": "BlogPosting" };
@@ -1021,6 +1200,9 @@ export interface SitePageInput {
   keywords?: string[];
   type?: "website" | "article" | "profile";
   noindex?: boolean;
+  /** Fine-grained robots directives → `Metadata.robots` (`noindex` wins). */
+  robots?: { index?: boolean; follow?: boolean };
+  /** i18n alternates (locale → absolute url) → `alternates.languages`. */
   languages?: Record<string, string>;
   /** If no `description` is given, one is auto-derived from this content. */
   content?: string;
@@ -1070,6 +1252,8 @@ export interface Site {
   product(input: SiteProductInput): SitePage;
   /** FAQ page: metadata + `@graph(FAQPage, Breadcrumb)`. */
   faq(items: { question: string; answer: string }[], input: SitePageInput): SitePage;
+  /** Listing/index page: metadata + `@graph(CollectionPage, ItemList, Breadcrumb)`. */
+  collection(input: SiteCollectionInput): SitePage;
   /** App/tool page: metadata + `@graph(SoftwareApplication, Breadcrumb)`. */
   softwareApp(input: SiteSoftwareInput): SitePage;
   /** Event page: metadata + `@graph(Event, Breadcrumb)`. */
@@ -1094,6 +1278,11 @@ export interface SiteEventInput extends Omit<SitePageInput, "type"> {
   online?: boolean;
   price?: number | string;
   currency?: string;
+}
+
+export interface SiteCollectionInput extends SitePageInput {
+  /** Entries in the list (URLs may be paths — resolved against the base URL). */
+  items: { name: string; url: string; image?: string }[];
 }
 
 export interface SiteLocalBusinessInput extends Omit<SitePageInput, "type"> {
@@ -1152,6 +1341,7 @@ export function defineSite(config: SiteConfig): Site {
         twitterSite: handle,
         twitterCreator: handle,
         noindex: input.noindex,
+        robots: input.robots,
         keywords: mergeKeywords(config.keywords, input.keywords),
         languages: input.languages,
         article: input.article,
@@ -1221,6 +1411,17 @@ export function defineSite(config: SiteConfig): Site {
       const metadata = site.meta(input);
       const jsonLd = graph(
         faqPage(items),
+        site.breadcrumb(input.path ?? "/"),
+      );
+      return { metadata, jsonLd };
+    },
+    collection(input) {
+      const metadata = site.meta(input);
+      const listUrl = abs(input.path);
+      const items = input.items.map((it) => ({ ...it, url: abs(it.url) }));
+      const jsonLd = graph(
+        collectionPage({ name: input.title, url: listUrl, description: metadata.description }),
+        itemList(items, { name: input.title, url: listUrl }),
         site.breadcrumb(input.path ?? "/"),
       );
       return { metadata, jsonLd };

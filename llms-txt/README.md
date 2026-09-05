@@ -120,6 +120,48 @@ export function GET() {
 }
 ```
 
+## Advanced (new)
+
+All additive and backward-compatible — `llmsTxt`, `llmsFullTxt`, `parseLlmsTxt`, `llmsTxtFromSitemap` and the `*Response` helpers keep their existing behavior.
+
+### Build from routes
+
+`llmsTxtFromRoutes(routes, meta)` turns a flat list of `{ title, url, notes?, section? }` into an `llms.txt`, grouping by `section` (first-seen order preserved).
+
+```ts
+import { llmsTxtFromRoutes } from "@lacspace/llms-txt";
+
+llmsTxtFromRoutes(
+  [
+    { title: "Home", url: "https://acme.com/", section: "Start" },
+    { title: "API", url: "https://acme.com/api", notes: "reference", section: "Docs" },
+    { title: "CLI", url: "https://acme.com/cli", section: "Docs" },
+  ],
+  { title: "Acme", summary: "Acme docs", defaultSection: "Docs" },
+);
+```
+
+### Sitemap: XML string, auto-sections, dedupe
+
+`llmsTxtFromSitemap` now accepts a **raw sitemap XML string** as well as an array, de-duplicates repeated URLs, and can derive sections from the first path segment with `sectionFromPath: true`. The original array signature is unchanged.
+
+```ts
+llmsTxtFromSitemap(sitemapXmlString, { title: "Acme", sectionFromPath: true });
+// "/docs/intro" → "## Docs", "/blog/hello" → "## Blog"
+```
+
+### Sort links within sections
+
+`llmsTxt(doc, { sort })` — and the `sort` option on `llmsTxtFromRoutes` / `llmsTxtFromSitemap` — orders the links inside each section. Sections keep their array order.
+
+```ts
+llmsTxt(doc, { sort: "title" });        // ascending by title
+llmsTxt(doc, { sort: "url-desc" });     // descending by url
+llmsTxt(doc, { sort: (a, b) => /* custom */ 0 });
+```
+
+`parseLlmsTxt` round-trips what `llmsTxt` produces (title, summary, details, sections and links).
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

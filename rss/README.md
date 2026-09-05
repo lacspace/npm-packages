@@ -111,6 +111,58 @@ export function GET() {
 
 Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `feedForSite(site.config)`.
 
+## Advanced (new)
+
+All additive and backward-compatible — the existing `rss()`, `atom()`, `jsonFeed()`, `*Response()` and `feedForSite()` are unchanged.
+
+### Podcast feeds (iTunes namespace)
+
+`podcastRss(feed, episodes)` builds an RSS 2.0 feed with the Apple Podcasts / Spotify `itunes:*` tags, and `podcastRssResponse(...)` returns it as a `Response` (`application/rss+xml`). Uses the typed `PodcastFeed` / `PodcastEpisode` interfaces.
+
+```ts
+import { podcastRss } from "@lacspace/rss";
+
+podcastRss(
+  {
+    title: "The Show",
+    link: "https://show.fm",
+    image: "https://show.fm/cover.jpg", // itunes:image + <image>
+    itunesAuthor: "Jane",
+    category: ["Technology", "Society & Culture > Personal Journals"], // nested via ">"
+    explicit: false,
+    podcastType: "episodic",
+    owner: { name: "Jane", email: "jane@show.fm" },
+  },
+  [
+    {
+      title: "Ep 1",
+      link: "https://show.fm/1",
+      duration: 1830, // seconds → itunes:duration "30:30" (or pass "HH:MM:SS")
+      episode: 1,
+      season: 1,
+      episodeType: "full",
+      enclosure: { url: "https://show.fm/1.mp3", type: "audio/mpeg", length: 29344 },
+    },
+  ],
+);
+```
+
+Channel: `itunes:author/image/category/explicit/type/owner`. Per-episode: `<enclosure>`, `itunes:duration/episode/season/episodeType/image/explicit`, `<guid>`.
+
+### Media RSS on regular items
+
+`FeedItem` gains an optional `media?: MediaContent | MediaContent[]`. Both `rss()` and `atom()` now emit `media:content` (and `atom()` also emits an `<enclosure>` link when `enclosure` is set). Feeds without the field are byte-for-byte unchanged.
+
+```ts
+rss(feed, [
+  {
+    title: "Photo post",
+    link: "https://acme.com/p",
+    media: { url: "https://acme.com/p.jpg", type: "image/jpeg", medium: "image", width: 1200, height: 630 },
+  },
+]);
+```
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

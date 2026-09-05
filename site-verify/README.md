@@ -90,6 +90,41 @@ export function GET() {
 }
 ```
 
+## Advanced (new)
+
+**More engines, and a public registry.** `VERIFICATION_PROVIDERS` maps every known provider id to its exact meta `name` — now including **Naver**, **Brave** and **Alexa** alongside Google, Bing, Yandex, Baidu, Pinterest, Ahrefs, Facebook and Norton. `VerificationInput` gains the matching optional fields; anything unknown still goes through `other`.
+
+```ts
+import { VERIFICATION_PROVIDERS } from "@lacspace/site-verify";
+// { google: "google-site-verification", bing: "msvalidate.01", …, naver: "naver-site-verification", brave: "brave-site-verification", alexa: "alexaVerifyID" }
+```
+
+**`allVerifications(record)`** — pass a loose record keyed by provider id *or* raw meta `name`; get back the `<meta>` tag descriptors. Empty values are skipped.
+
+```ts
+import { allVerifications } from "@lacspace/site-verify";
+
+allVerifications({ google: "abc", bing: "xyz", "custom-verify": "t" });
+// [{ name: "google-site-verification", content: "abc" },
+//  { name: "msvalidate.01", content: "xyz" },
+//  { name: "custom-verify", content: "t" }]
+```
+
+**`nextVerification(record)`** — the same loose record → a Next.js `metadata.verification`-shaped object, ready to spread.
+
+```ts
+import { nextVerification } from "@lacspace/site-verify";
+
+export const metadata = {
+  verification: nextVerification({ google: "abc", bing: "xyz", yandex: "y1" }),
+  // → { google: "abc", yandex: "y1", other: { "msvalidate.01": "xyz" } }
+};
+```
+
+**`verificationTag(providerOrName, content)`** — build a single tag, resolving a known provider id or using a raw meta `name` verbatim (the generic escape hatch).
+
+All existing exports (`verificationMeta`, `verificationMetaHtml`, `toNextVerification`, `verificationFile`, `verificationFileResponse`) are unchanged.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

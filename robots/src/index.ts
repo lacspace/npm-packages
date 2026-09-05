@@ -11,6 +11,11 @@ export interface RobotsGroup {
   disallow?: string[];
   /** Seconds between requests (non-standard; honoured by Bing/Yandex). */
   crawlDelay?: number;
+  /**
+   * Yandex `Clean-param` directive(s) — strip tracking/query params from URLs
+   * so duplicates aren't crawled, e.g. "ref /articles/" or "utm_source&utm_medium".
+   */
+  cleanParam?: string | string[];
 }
 
 export interface RobotsOptions {
@@ -30,12 +35,38 @@ export const AI_BOTS: string[] = [
   "CCBot",
   "Google-Extended",
   "PerplexityBot",
+  "Perplexity-User",
   "Bytespider",
   "Amazonbot",
   "Applebot-Extended",
   "cohere-ai",
   "Diffbot",
   "FacebookBot",
+  "Meta-ExternalAgent",
+  "ImagesiftBot",
+  "Omgilibot",
+  "Timpibot",
+  "YouBot",
+];
+
+/**
+ * AI crawlers used to gather/train on content (as opposed to answering live
+ * search queries). Blocking these keeps your pages out of training corpora
+ * while still allowing AI-powered search/answer engines to cite you.
+ */
+export const AI_TRAINING_BOTS: string[] = [
+  "GPTBot",
+  "ClaudeBot",
+  "anthropic-ai",
+  "Claude-Web",
+  "CCBot",
+  "Google-Extended",
+  "Applebot-Extended",
+  "Bytespider",
+  "cohere-ai",
+  "Diffbot",
+  "FacebookBot",
+  "Meta-ExternalAgent",
   "ImagesiftBot",
   "Omgilibot",
   "Timpibot",
@@ -56,6 +87,8 @@ function agentBlock(g: RobotsGroup): string {
   for (const p of g.allow ?? []) lines.push(`Allow: ${dv(p)}`);
   for (const p of g.disallow ?? []) lines.push(`Disallow: ${dv(p)}`);
   if (g.crawlDelay !== undefined) lines.push(`Crawl-delay: ${g.crawlDelay}`);
+  for (const c of g.cleanParam ? (Array.isArray(g.cleanParam) ? g.cleanParam : [g.cleanParam]) : [])
+    lines.push(`Clean-param: ${dv(c)}`);
   // A group with neither allow nor disallow means "allow everything".
   if (!g.allow?.length && !g.disallow?.length) lines.push("Disallow:");
   return lines.join("\n");
@@ -92,7 +125,13 @@ export function blockAiBots(
 /* ------------------------------ parser ------------------------------ */
 
 export interface ParsedRobots {
-  groups: { userAgents: string[]; allow: string[]; disallow: string[]; crawlDelay?: number }[];
+  groups: {
+    userAgents: string[];
+    allow: string[];
+    disallow: string[];
+    crawlDelay?: number;
+    cleanParam?: string[];
+  }[];
   sitemaps: string[];
   host?: string;
 }
@@ -132,6 +171,10 @@ export function parseRobots(txt: string): ParsedRobots {
         expectingAgent = false;
         break;
       }
+      case "clean-param":
+        if (current) (current.cleanParam ??= []).push(value);
+        expectingAgent = false;
+        break;
       case "sitemap":
         result.sitemaps.push(value);
         break;
@@ -288,4 +331,104 @@ export function robotsForSite(site: SiteLike, opts: RobotsForSiteOptions = {}): 
   const groups: RobotsGroup[] = [{ userAgent: "*", allow: ["/"], disallow: opts.disallow ?? [] }];
   if (opts.blockAi) for (const bot of AI_BOTS) groups.push({ userAgent: bot, disallow: ["/"] });
   return robots({ groups, sitemap: opts.sitemap ?? `${base}/sitemap.xml`, host: base });
+}
+
+/* ------------------------------ AI policy ------------------------------ */
+
+export type AiPolicyPreset = "block-all-ai" | "allow-search-block-training" | "allow-all";
+
+/**
+ * Ready-made robots groups expressing an AI-crawler policy, to spread into
+ * {@link robots} / {@link toNextRobots} alongside your own groups.
+ *
+ * - `"block-all-ai"` — disallow every known AI crawler (see {@link AI_BOTS}).
+ * - `"allow-search-block-training"` — block training crawlers ({@link AI_TRAINING_BOTS})
+ *   while leaving AI search/answer engines (OAI-SearchBot, PerplexityBot…) free.
+ * - `"allow-all"` — no AI-specific restrictions (empty).
+ *
+ * @example
+ * robots({ groups: [{ userAgent: "*", allow: ["/"] }, ...aiPolicy("block-all-ai")], sitemap });
+ */
+export function aiPolicy(preset: AiPolicyPreset): RobotsGroup[] {
+  switch (preset) {
+    case "block-all-ai":
+      return [{ userAgent: [...AI_BOTS], disallow: ["/"] }];
+    case "allow-search-block-training":
+      return [{ userAgent: [...AI_TRAINING_BOTS], disallow: ["/"] }];
+    case "allow-all":
+      return [];
+  }
+}
+
+/* ------------------------- robots directives ------------------------- */
+
+/**
+ * Robots meta / `X-Robots-Tag` directives. Boolean flags emit the bare token;
+ * `maxSnippet` / `maxImagePreview` / `maxVideoPreview` emit the `max-*` forms;
+ * `unavailableAfter` emits `unavailable_after:` with an RFC-1123 date.
+ */
+export interface RobotsDirectives {
+  /** Equivalent to `noindex, nofollow`. */
+  none?: boolean;
+  /** Explicit `all` (default behaviour — index and follow). */
+  all?: boolean;
+  index?: boolean;
+  noindex?: boolean;
+  follow?: boolean;
+  nofollow?: boolean;
+  noarchive?: boolean;
+  nosnippet?: boolean;
+  noimageindex?: boolean;
+  notranslate?: boolean;
+  nocache?: boolean;
+  /** `max-snippet:<n>` — max characters of snippet (-1 = no limit). */
+  maxSnippet?: number;
+  /** `max-image-preview:<setting>`. */
+  maxImagePreview?: "none" | "standard" | "large";
+  /** `max-video-preview:<n>` — max seconds of video preview (-1 = no limit). */
+  maxVideoPreview?: number;
+  /** `unavailable_after:<date>` — drop from results after this time. */
+  unavailableAfter?: string | Date;
+}
+
+function buildDirectives(d: RobotsDirectives): string {
+  const out: string[] = [];
+  if (d.none) out.push("none");
+  if (d.all) out.push("all");
+  if (d.index) out.push("index");
+  if (d.noindex) out.push("noindex");
+  if (d.follow) out.push("follow");
+  if (d.nofollow) out.push("nofollow");
+  if (d.noarchive) out.push("noarchive");
+  if (d.nosnippet) out.push("nosnippet");
+  if (d.noimageindex) out.push("noimageindex");
+  if (d.notranslate) out.push("notranslate");
+  if (d.nocache) out.push("nocache");
+  if (d.maxSnippet !== undefined) out.push(`max-snippet:${Math.trunc(d.maxSnippet)}`);
+  if (d.maxImagePreview !== undefined) out.push(`max-image-preview:${d.maxImagePreview}`);
+  if (d.maxVideoPreview !== undefined) out.push(`max-video-preview:${Math.trunc(d.maxVideoPreview)}`);
+  if (d.unavailableAfter !== undefined) {
+    const v = d.unavailableAfter;
+    out.push(`unavailable_after: ${v instanceof Date ? v.toUTCString() : dv(v)}`);
+  }
+  return out.join(", ");
+}
+
+/**
+ * Build a `<meta name="robots">` content string from typed directives.
+ * @example metaRobots({ noindex: true, nofollow: true }) // "noindex, nofollow"
+ */
+export function metaRobots(directives: RobotsDirectives): string {
+  return buildDirectives(directives);
+}
+
+/**
+ * Build an `X-Robots-Tag` header value from typed directives, optionally scoped
+ * to a specific crawler (prefixes `"<bot>: "`).
+ * @example xRobotsTag({ noindex: true, maxImagePreview: "large" }) // "noindex, max-image-preview:large"
+ * @example xRobotsTag({ noindex: true }, { userAgent: "googlebot" }) // "googlebot: noindex"
+ */
+export function xRobotsTag(directives: RobotsDirectives, opts?: { userAgent?: string }): string {
+  const body = buildDirectives(directives);
+  return opts?.userAgent ? `${dv(opts.userAgent)}: ${body}` : body;
 }

@@ -23,6 +23,33 @@ const CHAR_MAP: Record<string, string> = {
   ś: "s", š: "s", ş: "s",
   ź: "z", ż: "z", ž: "z",
   ř: "r", ŕ: "r", ť: "t", ď: "d", ğ: "g",
+  ĝ: "g", ġ: "g", ĥ: "h", ĵ: "j", ķ: "k", ŗ: "r", ţ: "t", ŵ: "w", ŷ: "y", ĳ: "ij",
+
+  // Cyrillic (Russian + common Ukrainian).
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
+  и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "shch",
+  ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+  і: "i", ї: "yi", є: "ye", ґ: "g", ў: "u",
+
+  // Greek (base + a few precomposed accents, for engines without NFKD).
+  α: "a", β: "v", γ: "g", δ: "d", ε: "e", ζ: "z", η: "i", θ: "th", ι: "i",
+  κ: "k", λ: "l", μ: "m", ν: "n", ξ: "x", ο: "o", π: "p", ρ: "r", σ: "s",
+  ς: "s", τ: "t", υ: "y", φ: "f", χ: "ch", ψ: "ps", ω: "o",
+  ά: "a", έ: "e", ή: "i", ί: "i", ό: "o", ύ: "y", ώ: "o",
+  ϊ: "i", ϋ: "y", ΐ: "i", ΰ: "y",
+};
+
+/** German umlaut / eszett word-expansion (opt-in via `{ german: true }`). */
+const GERMAN_MAP: Record<string, string> = {
+  ä: "ae", ö: "oe", ü: "ue", ß: "ss", ẞ: "SS",
+  Ä: "Ae", Ö: "Oe", Ü: "Ue",
+};
+
+/** Currency / symbol → word expansion (opt-in via `{ symbols: true }`). */
+const SYMBOL_MAP: Record<string, string> = {
+  "&": "and", "@": "at", "%": "percent", "+": "plus",
+  "€": "euro", $: "dollar", "£": "pound", "¥": "yen", "₹": "rupee", "¢": "cent",
 };
 
 export interface SlugOptions {
@@ -34,6 +61,16 @@ export interface SlugOptions {
   maxLength?: number;
   /** Extra character replacements applied before transliteration. */
   replace?: Record<string, string>;
+  /**
+   * Expand German umlauts/eszett as words (ü→ue, ö→oe, ä→ae, ß→ss) instead of
+   * the default ASCII fold (ü→u). Opt-in; default false. */
+  german?: boolean;
+  /**
+   * Expand common currency/symbol characters to words (& → "and", % → "percent",
+   * € → "euro", …). Opt-in; default false. */
+  symbols?: boolean;
+  /** Value to return when the slug would otherwise be empty. Default "". */
+  fallback?: string;
 }
 
 function escapeRe(s: string): string {
@@ -50,6 +87,17 @@ export function slugify(input: string, opts: SlugOptions = {}): string {
 
   let s = input.trim();
   for (const [from, to] of Object.entries(opts.replace ?? {})) s = s.split(from).join(to);
+
+  if (opts.symbols) {
+    for (const [from, to] of Object.entries(SYMBOL_MAP)) {
+      if (s.includes(from)) s = s.split(from).join(` ${to} `);
+    }
+  }
+  if (opts.german) {
+    for (const [from, to] of Object.entries(GERMAN_MAP)) {
+      if (s.includes(from)) s = s.split(from).join(to);
+    }
+  }
 
   // Decompose accents and drop the combining marks (U+0300–U+036F).
   try {
@@ -76,7 +124,36 @@ export function slugify(input: string, opts: SlugOptions = {}): string {
     const lastSep = s.lastIndexOf(sep);
     if (lastSep > 0) s = s.slice(0, lastSep);
   }
-  return s;
+  return s || (opts.fallback ?? "");
+}
+
+/**
+ * Slugify each "/"-separated segment of a URL path, preserving the slashes
+ * (and any leading/trailing slash). Empty segments are kept as-is.
+ * @example slugifyPath("/Blog/My First Post/") // "/blog/my-first-post/"
+ */
+export function slugifyPath(path: string, opts: SlugOptions = {}): string {
+  return path
+    .split("/")
+    .map((seg) => (seg ? slugify(seg, opts) : seg))
+    .join("/");
+}
+
+/**
+ * Slugify a filename's base name while preserving its extension.
+ * The extension is lowercased (when `lower` is on) and stripped of non-alphanumerics.
+ * @example slugifyFilename("My File.PDF") // "my-file.pdf"
+ * @example slugifyFilename("Résumé (final).docx") // "resume-final.docx"
+ */
+export function slugifyFilename(name: string, opts: SlugOptions = {}): string {
+  const dot = name.lastIndexOf(".");
+  // No extension, or a dotfile like ".env" → slugify the whole thing.
+  if (dot <= 0) return slugify(name, opts);
+  const lower = opts.lower ?? true;
+  const base = slugify(name.slice(0, dot), opts) || (opts.fallback ?? "file");
+  let ext = name.slice(dot + 1).replace(/[^a-zA-Z0-9]+/g, "");
+  if (lower) ext = ext.toLowerCase();
+  return ext ? `${base}.${ext}` : base;
 }
 
 /**

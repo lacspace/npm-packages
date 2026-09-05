@@ -119,10 +119,22 @@ const NS =
   'xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" ' +
   'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"';
 
+export interface SitemapOptions {
+  /**
+   * URL of an XSL stylesheet. When set, a `<?xml-stylesheet?>` processing
+   * instruction is added so the raw sitemap renders human-readably in a browser.
+   * @see {@link sitemapStylesheet}
+   */
+  stylesheet?: string;
+}
+
 /** Build a single sitemap.xml document. */
-export function sitemap(urls: SitemapUrl[]): string {
+export function sitemap(urls: SitemapUrl[], opts?: SitemapOptions): string {
+  const pi = opts?.stylesheet
+    ? `\n<?xml-stylesheet type="text/xsl" href="${esc(opts.stylesheet)}"?>`
+    : "";
   return (
-    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset ${NS}>\n` +
+    `<?xml version="1.0" encoding="UTF-8"?>${pi}\n<urlset ${NS}>\n` +
     urls.map(urlBlock).join("\n") +
     `\n</urlset>`
   );
@@ -219,4 +231,106 @@ export function sitemapForSite(site: SiteLike, routes: SiteRoute[]): string {
     return { ...rest, loc: resolve(path ?? loc ?? "/") };
   });
   return sitemap(urls);
+}
+
+/* --------------------- Specialised extension sitemaps --------------------- */
+
+/** One entry of a Google News sitemap: a page URL plus its news metadata. */
+export interface NewsSitemapItem extends SitemapNews {
+  loc: string;
+}
+
+/**
+ * Build a Google News sitemap (`<news:news>` per URL).
+ * News sitemaps should only contain articles from the last 2 days.
+ * @example newsSitemap([{ loc: "https://x.com/a", publicationName: "The Times", language: "en", title: "Headline", publicationDate: new Date() }])
+ */
+export function newsSitemap(items: NewsSitemapItem[], opts?: SitemapOptions): string {
+  const urls: SitemapUrl[] = items.map(({ loc, ...news }) => ({ loc, news }));
+  return sitemap(urls, opts);
+}
+
+/** One entry of a video sitemap: a page URL plus a single video's metadata. */
+export interface VideoSitemapItem extends SitemapVideo {
+  loc: string;
+}
+
+/**
+ * Build a video extension sitemap (`<video:video>` per URL).
+ * @example videoSitemap([{ loc: "https://x.com/watch", thumbnailLoc: "https://x.com/t.jpg", title: "Clip", description: "…", contentLoc: "https://x.com/v.mp4", duration: 120 }])
+ */
+export function videoSitemap(items: VideoSitemapItem[], opts?: SitemapOptions): string {
+  const urls: SitemapUrl[] = items.map(({ loc, ...video }) => ({ loc, videos: [video] }));
+  return sitemap(urls, opts);
+}
+
+/** One entry of an image sitemap: a page URL plus the images it contains. */
+export interface ImageSitemapItem {
+  loc: string;
+  images: SitemapImage[];
+}
+
+/**
+ * Build an image extension sitemap (`<image:image>` entries grouped per URL).
+ * @example imageSitemap([{ loc: "https://x.com/gallery", images: [{ loc: "https://x.com/1.jpg", title: "One" }] }])
+ */
+export function imageSitemap(items: ImageSitemapItem[], opts?: SitemapOptions): string {
+  const urls: SitemapUrl[] = items.map((i) => ({ loc: i.loc, images: i.images }));
+  return sitemap(urls, opts);
+}
+
+/**
+ * An XSL stylesheet that renders a raw `sitemap.xml` as a readable HTML table
+ * in the browser. Serve it alongside your sitemap and reference it via the
+ * `stylesheet` option on {@link sitemap} (or the extension sitemaps).
+ * @example
+ * // app/sitemap.xsl route → return sitemapStylesheet()
+ * sitemap(urls, { stylesheet: "/sitemap.xsl" })
+ */
+export function sitemapStylesheet(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:s="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <xsl:output method="html" encoding="UTF-8" indent="yes"/>
+  <xsl:template match="/">
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <title>XML Sitemap</title>
+        <style>
+          :root { color-scheme: light dark; }
+          body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 2rem; background: #f7f8fa; color: #111; }
+          @media (prefers-color-scheme: dark) { body { background: #0e0f12; color: #e7e9ee; } tr:nth-child(even) td { background: #16181d; } th { background: #1b1e24; } a { color: #7aa2ff; } }
+          h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+          p.meta { color: #667; margin: 0 0 1.5rem; }
+          table { width: 100%; border-collapse: collapse; background: transparent; }
+          th, td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid #e2e4ea; vertical-align: top; }
+          @media (prefers-color-scheme: dark) { th, td { border-color: #24272e; } }
+          th { font-weight: 600; background: #eef0f4; }
+          tr:nth-child(even) td { background: #fbfbfd; }
+          td.url { word-break: break-all; }
+          a { color: #2456c9; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <h1>XML Sitemap</h1>
+        <p class="meta">This sitemap contains <xsl:value-of select="count(s:urlset/s:url)"/> URL(s).</p>
+        <table>
+          <tr><th>URL</th><th>Last modified</th><th>Change freq.</th><th>Priority</th></tr>
+          <xsl:for-each select="s:urlset/s:url">
+            <tr>
+              <td class="url"><a href="{s:loc}"><xsl:value-of select="s:loc"/></a></td>
+              <td><xsl:value-of select="s:lastmod"/></td>
+              <td><xsl:value-of select="s:changefreq"/></td>
+              <td><xsl:value-of select="s:priority"/></td>
+            </tr>
+          </xsl:for-each>
+        </table>
+      </body>
+    </html>
+  </xsl:template>
+</xsl:stylesheet>`;
 }

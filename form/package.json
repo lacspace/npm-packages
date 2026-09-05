@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/form",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "End-to-end form handling for the server — turn FormData into typed, validated data with a honeypot + timing spam guard, and get back your data or per-field errors ready to re-render. Shaped for Next.js Server Actions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/form",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

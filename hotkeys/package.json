@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/hotkeys",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Ergonomic keyboard shortcuts for React — combos (mod+k), key sequences (g then d), scopes, and pretty display formatting (⌘K). SSR-safe, respects form fields, zero-dependency, fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/hotkeys",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

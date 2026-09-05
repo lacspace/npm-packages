@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/pdf",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Generate real PDFs — invoices, receipts & documents — with zero dependencies and no headless browser. Accurate text layout, auto page-breaks, batteries-included invoice() & receipt() generators. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/pdf",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

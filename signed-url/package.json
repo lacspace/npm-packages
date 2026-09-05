@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/signed-url",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "HMAC-signed, expiring URLs & tokens over Web Crypto — secure download links, magic-login links, unsubscribe links and one-time-action tokens. Tamper-proof, timing-safe, zero-config. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/signed-url",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

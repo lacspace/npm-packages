@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/auth",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

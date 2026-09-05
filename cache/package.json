@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/cache",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A tiny in-memory cache — LRU eviction, per-entry TTL and stale-while-revalidate, plus wrap()/memoize() to cache any async function with in-flight de-duplication. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/cache",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

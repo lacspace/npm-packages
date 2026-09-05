@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/store",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Minimal global state for React in ~1KB — create a store, use selectors, no provider. Built on useSyncExternalStore with a persist middleware and shallow equality. Zero-dependency, SSR-safe, fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/store",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

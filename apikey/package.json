@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/apikey",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Issue & verify API keys the right way — prefixed high-entropy keys, store only the SHA-256 hash, constant-time verify, last-4 display. Isomorphic over Web Crypto.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/apikey",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/hooks",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Essential, SSR-safe React hooks — useLocalStorage, useDebounce, useMediaQuery, useOnClickOutside, useCopyToClipboard and 20+ more. Zero-dependency, fully typed, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/hooks",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

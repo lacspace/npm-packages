@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sitemap",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Generate sitemap.xml, sitemap indexes and Next.js sitemaps — image/video/news extensions, hreflang alternates, auto-split at 50k URLs. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/sitemap",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

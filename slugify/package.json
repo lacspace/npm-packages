@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/slugify",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Turn any text into a clean, SEO-friendly URL slug — transliterates diacritics, collapses separators, and guarantees uniqueness against an existing set. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/slugify",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

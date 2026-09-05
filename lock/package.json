@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/lock",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Account lockout & brute-force protection (server lock) — N-strikes, exponential backoff, self-resetting window, pluggable store. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/lock",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

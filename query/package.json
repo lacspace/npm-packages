@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/query",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Tiny data fetching for React with a shared cache, request de-duplication, stale-while-revalidate, focus/reconnect revalidation, and mutations. useQuery + useMutation in ~2KB. Zero-dependency, SSR-safe, fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,7 +42,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/query",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

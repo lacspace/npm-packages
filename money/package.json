@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/money",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Money done right — integer minor units (no floating-point cent bugs), currency-safe arithmetic, remainder-preserving allocation/split, and localized formatting via Intl. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/money",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

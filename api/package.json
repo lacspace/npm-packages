@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/api",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/api",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

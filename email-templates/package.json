@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-templates",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Compose bulletproof, responsive, dark-mode-aware HTML emails from simple blocks — buttons, OTP codes, invoices — with ready-made OTP/welcome/alert/invoice templates. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/email-templates",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

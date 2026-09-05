@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/idempotency",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Make any operation exactly-once with an idempotency key — replay stored results on retries, safe under concurrency, with optional request fingerprinting. Framework-agnostic, pluggable store, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/idempotency",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

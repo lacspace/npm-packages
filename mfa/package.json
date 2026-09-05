@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/mfa",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Orchestrate multi-factor auth — combine password + TOTP + passkeys into 2FA/3FA step-up flows with NIST assurance levels (AAL). Zero-dependency (bar @lacspace/otp), isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/mfa",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

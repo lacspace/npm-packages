@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A tiny, dependency-free React kit that makes a page feel alive — scroll reveals, animated counters, gradient text, tilt cards, marquees, a typewriter and a ⌘K command palette. No animation library, no CSS import. Respects prefers-reduced-motion; Tailwind-friendly.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -47,7 +47,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/ui",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

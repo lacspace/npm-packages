@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/retry",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Resilience for flaky calls — retry with exponential backoff & jitter, per-call timeouts, and a circuit breaker. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/retry",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

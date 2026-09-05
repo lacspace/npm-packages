@@ -59,11 +59,11 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     next: "^15.1.0",
     react: "^19.0.0",
     "react-dom": "^19.0.0",
-    "@lacspace/seo": "^1.6.2",
+    "@lacspace/seo": "^1.7.0",
     "@lacspace/headers": "^1.1.2",
-    "@lacspace/robots": "^1.2.1",
-    "@lacspace/sitemap": "^1.1.1",
-    "@lacspace/og": "^1.0.1",
+    "@lacspace/robots": "^1.3.0",
+    "@lacspace/sitemap": "^1.2.0",
+    "@lacspace/og": "^1.1.0",
     "@lacspace/ui": "^1.0.1",
     "@lacspace/form": "^1.0.1",
     "@lacspace/validate": "^1.0.1",
@@ -3600,7 +3600,7 @@ const faqSection = (ctx: Ctx): string => {
 
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+interface Args { name?: string; template?: string; theme?: string; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
 
 function parseArgs(list: string[]): Args {
   const a: Args = { yes: false, install: true, git: true, pm: "npm", help: false };
@@ -3612,11 +3612,76 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--no-install") a.install = false;
     else if (arg === "--no-git") a.git = false;
     else if (arg === "--pm") a.pm = next();
+    else if (arg === "--theme" || arg === "--accent") a.theme = next();
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
+    else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
+    else if (arg.startsWith("--accent=")) a.theme = arg.slice(9);
     else if (!arg.startsWith("-") && !a.name) a.name = arg;
   }
   return a;
+}
+
+/* ------------------------- theme / accent customisation ------------------------- */
+
+// Named accent presets → [from, to] gradient stops. `--theme lacspace`, etc.
+const THEMES: Record<string, [string, string]> = {
+  lacspace: ["#0bb9d9", "#7c3aed"], violet: ["#7c3aed", "#ec4899"], indigo: ["#6366f1", "#a855f7"],
+  blue: ["#2563eb", "#06b6d4"], cyan: ["#0891b2", "#22d3ee"], sky: ["#0ea5e9", "#38bdf8"],
+  teal: ["#0d9488", "#22c55e"], emerald: ["#10b981", "#14b8a6"], green: ["#16a34a", "#4ade80"],
+  lime: ["#65a30d", "#a3e635"], amber: ["#f59e0b", "#f97316"], orange: ["#ea580c", "#f59e0b"],
+  red: ["#dc2626", "#f97316"], rose: ["#e11d48", "#fb7185"], pink: ["#db2777", "#f472b6"],
+  fuchsia: ["#c026d3", "#f0abfc"], purple: ["#9333ea", "#d946ef"], slate: ["#475569", "#94a3b8"],
+  sunset: ["#f97316", "#db2777"], ocean: ["#0ea5e9", "#6366f1"], forest: ["#16a34a", "#65a30d"],
+  aurora: ["#22d3ee", "#a855f7"], gold: ["#d97706", "#facc15"],
+};
+
+const normHex = (h: string): string | null => {
+  let s = h.trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{3}$/.test(s)) s = s.split("").map((ch) => ch + ch).join("");
+  return /^[0-9a-fA-F]{6}$/.test(s) ? "#" + s.toLowerCase() : null;
+};
+const hexToRgb = (h: string): [number, number, number] => {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const rgbToHex = (r: number, g: number, b: number): string =>
+  "#" + [r, g, b].map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("");
+const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b); let h = 0, s = 0; const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6;
+  }
+  return [h * 360, s, l];
+};
+const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
+  h = ((h % 360) + 360) % 360 / 360;
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const hue = (t: number): number => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [hue(h + 1 / 3) * 255, hue(h) * 255, hue(h - 1 / 3) * 255];
+};
+// A single hex → a pleasing 2-stop gradient (hue-rotated, slightly lighter second stop).
+const hexPair = (hex: string): [string, string] => {
+  const [h, s, l] = rgbToHsl(...hexToRgb(hex));
+  const [r2, g2, b2] = hslToRgb(h + 28, Math.min(1, s + 0.05), Math.min(0.72, l + 0.1));
+  return [hex, rgbToHex(r2, g2, b2)];
+};
+
+// Resolve a --theme value into [from, to], or null to keep the template default.
+function resolveAccent(theme: string | undefined): [string, string] | null {
+  if (!theme) return null;
+  const key = theme.toLowerCase().trim();
+  if (THEMES[key]) return THEMES[key];
+  if (key.includes(",")) {
+    const [a, b] = key.split(",").map((p) => normHex(p));
+    if (a && b) return [a, b];
+    if (a) return hexPair(a);
+    return null;
+  }
+  const one = normHex(key);
+  return one ? hexPair(one) : null;
 }
 
 const HELP = `
@@ -3632,11 +3697,16 @@ ${TEMPLATES.map((t) => `  ${t.key.padEnd(10)} ${t.description}`).join("\n")}
 
 ${c("bold", "Options")}
   -t, --template <key>   Template (${TEMPLATES.map((t) => t.key).join(" | ")})
+  --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (e.g. --theme lacspace)
   --pm <npm|pnpm|yarn|bun>  Package manager (default npm)
   --no-install           Skip installing dependencies
   --no-git               Skip git init
   -y, --yes              Accept defaults (needs <name>)
   -h, --help             Show this help
+
+${c("bold", "Themes")} ${c("dim", "(--theme)")}
+  ${Object.keys(THEMES).join(" · ")}
+  ${c("dim", 'or a custom colour: --theme "#ff6a00"  ·  --theme "#0bb9d9,#7c3aed"')}
 
 ${c("bold", "Add sections to an existing app")}
   npx create-lacspace-app add pricing faq testimonials
@@ -3904,7 +3974,14 @@ async function main(): Promise<void> {
   }
 
   name = name ?? "my-app";
-  const template = TEMPLATES.find((t) => t.key === templateKey) ?? TEMPLATES[0]!;
+  const base = TEMPLATES.find((t) => t.key === templateKey) ?? TEMPLATES[0]!;
+  // --theme <preset|#hex|from,to> customises the accent gradient at scaffold time.
+  const accent = resolveAccent(args.theme);
+  if (args.theme && !accent) {
+    stdout.write(c("yellow", `  ! Unknown theme "${args.theme}" — using the ${base.key} default. Try a preset (${Object.keys(THEMES).slice(0, 6).join(", ")}…) or a hex like "#ff6a00".\n`));
+  }
+  const template: TemplateDef = accent ? { ...base, accent } : base;
+  if (accent) stdout.write(`  ${c("dim", "theme")} ${c("bold", args.theme!)} ${c("dim", `→ ${accent[0]} → ${accent[1]}`)}\n`);
   const dir = resolve(cwd(), name);
   const projectName = basename(dir).toLowerCase().replace(/[^a-z0-9-_]/g, "-");
 

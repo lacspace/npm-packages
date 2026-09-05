@@ -55,6 +55,41 @@ slugify("C++ & C#", { replace: { "++": "pp", "#": "sharp" } }); // "cpp-csharp"
 | [`@lacspace/rss`](https://www.npmjs.com/package/@lacspace/rss) | RSS / Atom / JSON feeds |
 | **`@lacspace/slugify`** | SEO URL slugs (this package) |
 
+## Advanced (new)
+
+**Wider transliteration.** Cyrillic and Greek now fold to ASCII out of the box (in addition to Latin diacritics and Turkish, which already worked). Two opt-in options and a fallback keep the defaults 100% backward compatible:
+
+```ts
+import { slugify } from "@lacspace/slugify";
+
+slugify("Привет мир");                          // "privet-mir"   (Cyrillic)
+slugify("Καλημέρα");                            // "kalimera"     (Greek)
+slugify("İstanbul Şehri");                       // "istanbul-sehri" (Turkish)
+
+slugify("Zürich", { german: true });             // "zuerich"  (ü→ue, ö→oe, ä→ae, ß→ss)
+slugify("Rock & Roll", { symbols: true });       // "rock-and-roll" (& % € $ £ ¥ ₹ @ + …)
+slugify("!!!", { fallback: "untitled" });        // "untitled"  (empty-result fallback)
+```
+
+> `german` and `symbols` are **off by default** — without them, `ü→u` and `&` is stripped, exactly as before.
+
+**`slugifyPath(path, opts?)`** — slugify each `/`-separated segment, preserving the slashes:
+
+```ts
+import { slugifyPath } from "@lacspace/slugify";
+slugifyPath("/Blog/My First Post/"); // "/blog/my-first-post/"
+```
+
+**`slugifyFilename(name, opts?)`** — slugify the base name but keep the extension:
+
+```ts
+import { slugifyFilename } from "@lacspace/slugify";
+slugifyFilename("My File.PDF");            // "my-file.pdf"
+slugifyFilename("Résumé (final).docx");    // "resume-final.docx"
+```
+
+All existing exports (`slugify`, `uniqueSlug`) and their behavior for existing inputs are unchanged.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

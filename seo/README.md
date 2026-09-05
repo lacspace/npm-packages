@@ -193,6 +193,56 @@ const { metadata, jsonLd } = site.article({
 
 Also `site.product(...)`, `site.faq(...)`, `site.page(...)` — each returns `{ metadata, jsonLd }`. Plus content auto-derivation helpers you can use anywhere: **`excerpt()`**, **`metaDescription()`**, **`readingTime()`**, **`stripMarkdown()`** and **`ogImageUrl()`**.
 
+## Advanced (new)
+
+More schema.org builders for listing pages, Q&A, open-source pages and profiles — plus `defineSite()` gains a `collection()` preset, per-page `robots` control and `languages` hreflang everywhere. All additive and backward-compatible.
+
+**New JSON-LD builders:**
+
+```ts
+import { itemList, collectionPage, qaPage, imageObject, softwareSourceCode, profilePage } from "@lacspace/seo";
+
+// ItemList — for index / listing / "related" pages
+itemList([{ name: "Post A", url: "/a" }, { name: "Post B", url: "/b", image: "/b.png" }], { name: "Latest posts", url: "/blog" });
+
+// CollectionPage — a category / archive page (embeds a hasPart ItemList when items are given)
+collectionPage({ name: "Blog", url: "https://x.com/blog", description: "All posts", items: [{ name: "A", url: "/a" }] });
+
+// QAPage — question + accepted answer (+ optional community answers)
+qaPage([{ question: "Is it free?", acceptedAnswer: "Yes.", suggestedAnswers: ["For personal use."] }]);
+
+// ImageObject — a standalone image with dimensions & caption
+imageObject({ url: "https://x.com/hero.png", width: 1200, height: 630, caption: "Hero" });
+
+// SoftwareSourceCode — for open-source package / library pages
+softwareSourceCode({ name: "@lacspace/seo", codeRepository: "https://github.com/lacspace/npm-packages", programmingLanguage: "TypeScript", license: "https://lacspace.com/licenses/lacspace-free-1.0", runtimePlatform: "Node.js" });
+
+// ProfilePage — a page about a single person (wraps a Person as mainEntity)
+profilePage({ person: { name: "Lumi AI", url: "https://lacspace.com", jobTitle: "AI" }, dateModified: "2026-09-05" });
+```
+
+**`defineSite()` enhancements:**
+
+```ts
+const site = defineSite({ name: "Acme", url: "https://acme.com" });
+
+// Listing page in one call → @graph(CollectionPage, ItemList, BreadcrumbList)
+const { metadata, jsonLd } = site.collection({
+  title: "Blog",
+  path: "/blog",
+  items: [{ name: "Post A", url: "/blog/a" }, { name: "Post B", url: "/blog/b" }], // relative URLs auto-resolve
+});
+
+// Per-page robots + hreflang alternates (also on seoMetadata())
+site.meta({
+  title: "Staging",
+  robots: { index: false, follow: true },          // → Metadata.robots (noindex still forces both false)
+  languages: { en: "https://acme.com/en", ne: "https://acme.com/ne" }, // → alternates.languages
+});
+```
+
+`robots` and `languages` are accepted by both **`seoMetadata()`** and every `defineSite()` page preset.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

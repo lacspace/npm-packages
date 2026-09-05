@@ -100,6 +100,44 @@ sitemapForSite({ url: "https://acme.com" }, [
 
 Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `sitemapForSite(site.config, routes)`.
 
+## Advanced (new)
+
+Specialised extension sitemaps and a human-readable stylesheet — all additive, existing exports unchanged.
+
+```ts
+import {
+  newsSitemap, videoSitemap, imageSitemap,
+  sitemap, sitemapStylesheet,
+} from "@lacspace/sitemap";
+
+// Google News sitemap (last ~2 days of articles)
+newsSitemap([
+  { loc: "https://x.com/a", publicationName: "The Times", language: "en",
+    title: "Big Headline", publicationDate: new Date() },
+]);
+
+// Video extension sitemap
+videoSitemap([
+  { loc: "https://x.com/watch", thumbnailLoc: "https://x.com/t.jpg",
+    title: "Clip", description: "…", contentLoc: "https://x.com/v.mp4", duration: 120 },
+]);
+
+// Image extension sitemap (multiple images grouped per URL)
+imageSitemap([
+  { loc: "https://x.com/gallery", images: [{ loc: "https://x.com/1.jpg", title: "One" }] },
+]);
+
+// Make a raw sitemap.xml render as a table in the browser:
+// serve sitemapStylesheet() at /sitemap.xsl, then reference it
+sitemap(urls, { stylesheet: "/sitemap.xsl" });
+```
+
+- **`newsSitemap(items, opts?)`** — Google News sitemap (`<news:news>` with publication name/language, `publication_date`, `title`).
+- **`videoSitemap(items, opts?)`** — video sitemap (`<video:video>` with `thumbnail_loc`, `title`, `description`, `content_loc`/`player_loc`, `duration`).
+- **`imageSitemap(items, opts?)`** — image sitemap (`<image:image>` entries grouped per URL).
+- **`sitemapStylesheet()`** — returns an XSL stylesheet string; theme-aware HTML table view of any sitemap.
+- **`sitemap(urls, { stylesheet })`** — the existing builder now optionally adds an `<?xml-stylesheet?>` PI (each extension builder accepts the same `opts`).
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

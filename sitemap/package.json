@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sitemap",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Generate sitemap.xml, sitemap indexes and Next.js sitemaps — image/video/news extensions, hreflang alternates, auto-split at 50k URLs. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

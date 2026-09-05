@@ -121,6 +121,39 @@ robotsForSite({ url: "https://acme.com" }, { blockAi: true });
 
 Pairs with `defineSite()` from [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — `robotsForSite(site.config, { blockAi: true })`.
 
+## Advanced (new)
+
+Broader AI-crawler coverage, a spreadable AI-policy helper, Yandex `Clean-param`, and robots directive builders — all additive, existing exports unchanged.
+
+```ts
+import {
+  aiPolicy, robots, toNextRobots,
+  AI_BOTS, AI_TRAINING_BOTS,
+  xRobotsTag, metaRobots,
+} from "@lacspace/robots";
+
+// Spread a policy into your own groups
+robots({
+  groups: [{ userAgent: "*", allow: ["/"] }, ...aiPolicy("block-all-ai")],
+  sitemap: "https://x.com/sitemap.xml",
+});
+// presets: "block-all-ai" | "allow-search-block-training" | "allow-all"
+
+// Yandex Clean-param + Crawl-delay per group
+robots({ groups: [{ userAgent: "Yandex", crawlDelay: 2, cleanParam: ["ref /articles/"] }] });
+
+// X-Robots-Tag header value + <meta name="robots"> content
+xRobotsTag({ noindex: true, maxImagePreview: "large", unavailableAfter: new Date("2026-12-31") });
+xRobotsTag({ noindex: true }, { userAgent: "googlebot" }); // "googlebot: noindex"
+metaRobots({ noindex: true, nofollow: true });             // "noindex, nofollow"
+```
+
+- **`AI_BOTS`** — now also covers `Perplexity-User`, `Meta-ExternalAgent`, `YouBot` (plus the existing GPTBot/ClaudeBot/CCBot/Google-Extended… set).
+- **`AI_TRAINING_BOTS`** — the training-only subset (excludes AI *search* engines like OAI-SearchBot/PerplexityBot).
+- **`aiPolicy(preset)`** — returns `RobotsGroup[]` to spread into `robots()` / `toNextRobots()`.
+- **`cleanParam`** on any group — emits Yandex `Clean-param:` lines (`crawlDelay` already emitted `Crawl-delay:`); both round-trip through `parseRobots()`.
+- **`xRobotsTag(directives, { userAgent? })`** / **`metaRobots(directives)`** — typed builders for `noindex`, `nofollow`, `none`, `all`, `noarchive`, `nosnippet`, `noimageindex`, `notranslate`, `max-snippet`, `max-image-preview`, `max-video-preview`, `unavailable_after`.
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

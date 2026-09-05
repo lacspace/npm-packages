@@ -77,6 +77,53 @@ Also exports `fitFontSize(title)` if you want the sizing math for your own layou
 
 Pairs with [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) — feed the generated URL to `defineSite().meta({ image })`.
 
+## More card layouts (new)
+
+Beyond `ogCard`, the package ships four more ready-made layouts — all return the
+same element tree, work in the edge runtime, and degrade gracefully when
+optional fields are missing.
+
+```ts
+import {
+  ogCardSplit,   // title/subtitle on the left, gradient accent panel + logo on the right
+  ogCardMinimal, // big centered title on a full-bleed gradient, minimal chrome
+  ogArticle,     // category · title · footer row with author · date · reading time
+  ogProduct,     // title · subtitle/badge · large price with currency
+  ogThemes,      // named gradient presets: lacspace, ocean, sunset, forest, grape, slate
+} from "@lacspace/og";
+
+// Two-column split (logo falls back to the title's first letter)
+ogCardSplit({ title: "Ship faster", subtitle: "docs.example.com", logo: "L", theme: "dark" });
+
+// Minimal centered — pick a named gradient instead of from/to
+ogCardMinimal({ title: "Launch day", gradient: "sunset", pattern: "glow" });
+
+// Article card
+ogArticle({
+  title: "How we cut cold starts in half",
+  eyebrow: "Engineering",
+  author: "Ada Lovelace",
+  date: "Sep 5, 2026",
+  readingTime: "6 min read",
+  pattern: "dots",
+});
+
+// Product / pricing card
+ogProduct({ title: "Pro plan", subtitle: "Everything you need", badge: "POPULAR", price: 49, currency: "$" });
+```
+
+Extra options accepted by all four (on top of the existing `OgOptions`):
+
+| Option | Meaning |
+| --- | --- |
+| `gradient` | A named preset from `ogThemes` (`lacspace` · `ocean` · `sunset` · `forest` · `grape` · `slate`) — shorthand for `from`/`to`; explicit `from`/`to` still win |
+| `pattern` | Faint background texture: `"dots"` · `"glow"` · `"none"` (default) |
+| `author` / `date` / `readingTime` | Footer meta for `ogArticle` |
+| `price` / `currency` | Large price for `ogProduct` (e.g. `price: 49, currency: "$"` → `$49`) |
+
+`ogCard`, `ogSvg`, `ogSvgDataUri` and `fitFontSize` are unchanged and fully
+backward compatible.
+
 ## Licensing
 
 Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.

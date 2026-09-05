@@ -99,10 +99,23 @@ Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, moder
 | Flag | Meaning |
 | --- | --- |
 | `-t, --template <key>` | `personal` · `business` · `ecommerce` · `saas` · `blog` · `docs` · `dashboard` · `restaurant` |
+| `--theme <name\|hex>` | accent gradient — a preset, a `"#hex"`, or `"from,to"` (see below) |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager (default `npm`) |
 | `--no-install` | skip installing dependencies |
 | `--no-git` | skip git init |
 | `-y, --yes` | accept defaults (needs a project name) |
+
+### 🎨 Themes
+
+Recolour the whole app — gradient, OG images, favicon and PWA theme colour — at scaffold time with `--theme`:
+
+```bash
+npx create-lacspace-app my-app --template saas --theme lacspace   # a named preset
+npx create-lacspace-app my-app --theme "#ff6a00"                   # one colour → auto gradient
+npx create-lacspace-app my-app --theme "#0bb9d9,#7c3aed"           # an exact from → to pair
+```
+
+**Presets:** `lacspace` · `violet` · `indigo` · `blue` · `cyan` · `sky` · `teal` · `emerald` · `green` · `lime` · `amber` · `orange` · `red` · `rose` · `pink` · `fuchsia` · `purple` · `slate` · `sunset` · `ocean` · `forest` · `aurora` · `gold`. Give a single hex and the CLI derives a matching second stop for you.
 
 ## Licensing
 

@@ -11,7 +11,7 @@ of package is licensed. The single source of truth, always current, is the
 
 | Tier | Badge | What it covers | Terms |
 |------|-------|----------------|-------|
-| **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** | Free | The packages we publish openly on the public `@lacspace` npm scope (this repo). | MIT-equivalent freedoms — use, modify, redistribute and sell, personal or commercial, at no cost. Just keep the notice. |
+| **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** | Free | The packages we publish openly on the public `@lacspace` npm scope (this repo). | Permissive freedoms — use, modify, redistribute and sell, personal or commercial, at no cost. Just keep the notice. |
 | **[Lacspace Commercial Licence](https://lacspace.com/licenses/lacspace-commercial)** | Paid | Our advanced, paid packages. | Licensed per application or per organisation, with updates and support. Not redistributable. |
 | **[Lacspace Client Licence](https://lacspace.com/licenses/lacspace-client)** | Client | Bespoke packages built for a specific client. | Governed by the signed engagement / SOW — scope, ownership and support per contract. |
 | **[Lacspace Private (Proprietary) Licence](https://lacspace.com/licenses/lacspace-proprietary)** | Private | Internal, confidential packages that power Lacspace products. | All rights reserved. Not published, not for sale. |

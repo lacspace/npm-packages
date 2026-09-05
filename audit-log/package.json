@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/audit-log",
+  "version": "1.0.0",
+  "description": "Structured audit-trail toolkit — record who did what, when, with before/after diffs, actor attribution and redaction. Build tamper-evident activity logs. Zero-dependency, isomorphic (Node, edge, browser).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "audit-log",
+    "audit-trail",
+    "activity-log",
+    "event-log",
+    "who-did-what",
+    "attribution",
+    "diff",
+    "redact",
+    "compliance",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/audit-log",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "audit-log"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

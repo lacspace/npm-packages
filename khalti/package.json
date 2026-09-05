@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/khalti",
+  "version": "1.0.0",
+  "description": "Khalti KPG-2 (ePayment API v2, Nepal) client — initiate payments, look up status, typed errors and Key auth over global fetch. Zero-dependency, isomorphic (Node, edge, browser).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nepal",
+    "payment",
+    "payment-gateway",
+    "khalti",
+    "kpg-2",
+    "epayment",
+    "esewa",
+    "fetch",
+    "web-crypto",
+    "edge",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/khalti",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "khalti"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/coupon",
+  "version": "1.0.0",
+  "description": "Discount & coupon engine — percent, fixed and free-shipping codes with validity windows, minimum-subtotal, discount caps and usage limits. Integer minor units, no float drift. Zero-dependency, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "coupon",
+    "discount",
+    "promo-code",
+    "voucher",
+    "percent-off",
+    "free-shipping",
+    "checkout",
+    "ecommerce",
+    "minor-units",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/coupon",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "coupon"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/inventory",
+  "version": "1.0.0",
+  "description": "Stock-tracking engine that prevents overselling — reserve, release, commit & restock over a plain { onHand, reserved } state. Immutable, bring-your-own-store, throws before it oversells. Isomorphic (Node, edge, browser).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "inventory",
+    "stock",
+    "stock-management",
+    "reservation",
+    "oversell",
+    "ecommerce",
+    "warehouse",
+    "fulfilment",
+    "immutable",
+    "headless",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/inventory",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "inventory"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "name": "@lacspace/mailer",
-  "version": "1.1.0",
-  "description": "A tiny zero-dependency SMTP client for Node backends — send email over raw net/tls with STARTTLS, AUTH, attachments and provider presets (Hostinger, Gmail, Outlook, Zoho…). One-line setup.",
+  "name": "@lacspace/courier",
+  "version": "1.0.0",
+  "description": "Courier / last-mile delivery toolkit — canonical delivery state machine, Pathao (Nepal) adapter, and inbound webhook verification + status normalization. Zero-dependency, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -27,32 +27,26 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "smtp",
-    "email",
-    "mailer",
-    "send-email",
-    "nodemailer-alternative",
-    "hostinger",
-    "smtp-client",
-    "zero-dependency",
-    "transactional-email",
-    "typescript",
-    "smtp-send",
-    "smtp-pool",
-    "connection-pooling",
-    "rate-limit",
-    "tls",
-    "email-sending",
-    "node-smtp",
-    "zero-dependency-smtp"
+    "courier",
+    "logistics",
+    "delivery",
+    "pathao",
+    "nepal",
+    "last-mile",
+    "webhook",
+    "shipping",
+    "tracking",
+    "state-machine",
+    "isomorphic",
+    "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://developer.lacspace.com/packages/mailer",
+  "homepage": "https://developer.lacspace.com/packages/courier",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",
-    "directory": "mailer"
+    "directory": "courier"
   },
   "bugs": {
     "url": "https://github.com/lacspace/npm-packages/issues"
@@ -60,6 +54,7 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {},
   "publishConfig": {
     "access": "public"
   }

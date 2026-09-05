@@ -1,0 +1,60 @@
+{
+  "name": "@lacspace/fonepay",
+  "version": "1.0.0",
+  "description": "Fonepay (Nepal) merchant redirect / Request-To-Pay over Web Crypto — HMAC-SHA512 sign the request DV and verify the response DV. Zero-dep, isomorphic (Node, edge, browser).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "fonepay",
+    "nepal",
+    "payment",
+    "payment-gateway",
+    "request-to-pay",
+    "hmac",
+    "hmac-sha512",
+    "web-crypto",
+    "isomorphic",
+    "edge",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/fonepay",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "fonepay"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

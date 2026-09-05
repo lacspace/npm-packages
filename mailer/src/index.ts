@@ -30,6 +30,16 @@ export interface SmtpConfig {
   tls?: { rejectUnauthorized?: boolean; servername?: string };
   /** Log the SMTP conversation to console. */
   debug?: boolean;
+  /** Hostname announced in the SMTP HELO/EHLO greeting. Defaults to the TLS servername/host. Set to your own domain (e.g. "colournepal.com") to improve deliverability. */
+  name?: string;
+  /** Enable connection pooling. Used by `createTransport` to build a `MailerPool` instead of a plain `Mailer`. */
+  pool?: boolean;
+  /** Pool only: maximum number of simultaneous SMTP connections to keep (default 5). */
+  maxConnections?: number;
+  /** Pool only: length of the rate-limit window in ms (default 1000). */
+  rateDelta?: number;
+  /** Pool only: maximum number of messages started per `rateDelta` window. Undefined/0 = unlimited. */
+  rateLimit?: number;
 }
 
 export interface Address {
@@ -65,6 +75,17 @@ export interface SendResult {
   messageId: string;
   accepted: string[];
   response: string;
+}
+
+/**
+ * Common surface shared by {@link Mailer} and {@link MailerPool}, so callers
+ * can depend on the interface and let {@link createTransport} decide which
+ * concrete implementation to use.
+ */
+export interface Transport {
+  send(mail: Mail): Promise<SendResult>;
+  verify(): Promise<boolean>;
+  close(): Promise<void>;
 }
 
 export class SmtpError extends Error {
@@ -220,7 +241,7 @@ function dotStuff(message: string): string {
 
 /* ------------------------------ SMTP client ------------------------------ */
 
-export class Mailer {
+export class Mailer implements Transport {
   private socket: net.Socket | tls.TLSSocket | null = null;
   private buffer = "";
   private pending: {
@@ -229,6 +250,7 @@ export class Mailer {
     timer: ReturnType<typeof setTimeout>;
   } | null = null;
   private readonly timeout: number;
+  private connected = false;
 
   constructor(public readonly config: SmtpConfig) {
     this.timeout = config.timeout ?? 20000;
@@ -240,6 +262,8 @@ export class Mailer {
     const servername = this.config.tls?.servername ?? host;
     const rejectUnauthorized = this.config.tls?.rejectUnauthorized ?? true;
 
+    const helo = this.config.name ?? servername;
+
     this.socket = secure
       ? tls.connect({ host, port, servername, rejectUnauthorized })
       : net.connect({ host, port });
@@ -247,7 +271,7 @@ export class Mailer {
 
     await this.waitConnect(this.socket);
     await this.expect(220);
-    await this.ehlo(servername);
+    await this.ehlo(helo);
 
     if (!secure && !this.config.ignoreTLS) {
       await this.command("STARTTLS", 220);
@@ -256,10 +280,11 @@ export class Mailer {
       this.buffer = "";
       this.attach(upgraded);
       await this.waitSecure(upgraded);
-      await this.ehlo(servername);
+      await this.ehlo(helo);
     }
 
     if (this.config.auth) await this.authenticate();
+    this.connected = true;
   }
 
   private ehlo(name: string): Promise<{ code: number; text: string }> {
@@ -320,6 +345,46 @@ export class Mailer {
     }
   }
 
+  /** Open (and keep open) a connection if one is not already established. Used for connection reuse / pooling. */
+  async open(): Promise<void> {
+    if (!this.connected) await this.connect();
+  }
+
+  /**
+   * Send a message over a kept-alive connection. Like {@link send} but issues
+   * `RSET` instead of `QUIT` afterwards, leaving the connection open for the
+   * next message. On any error it closes the connection (so it is never left
+   * half-broken) and rethrows — the caller decides whether to retry.
+   */
+  async sendReusable(mail: Mail): Promise<SendResult> {
+    const from = toAddress(mail.from ?? this.config.from ?? "");
+    if (!from.address) throw new SmtpError("missing `from` address");
+    const recipients = [...toList(mail.to), ...toList(mail.cc), ...toList(mail.bcc)];
+    if (!recipients.length) throw new SmtpError("no recipients");
+
+    const messageId = `<${randomBytes(16).toString("hex")}@${from.address.split("@")[1] ?? hostname()}>`;
+
+    try {
+      await this.open();
+      await this.command(`MAIL FROM:<${from.address}>`, 250);
+      const accepted: string[] = [];
+      for (const r of recipients) {
+        // 250 = accepted; 251 = user not local, will forward. Both are success.
+        await this.command(`RCPT TO:<${r.address}>`, [250, 251]);
+        accepted.push(r.address);
+      }
+      await this.command("DATA", 354);
+      const message = dotStuff(buildMime(mail, from, messageId));
+      const final = await this.command(`${message}\r\n.`, 250);
+      // RSET keeps the connection open for the next message instead of QUIT.
+      await this.command("RSET", 250);
+      return { messageId, accepted, response: final.text };
+    } catch (e) {
+      await this.close();
+      throw e;
+    }
+  }
+
   private async quit(): Promise<void> {
     try {
       await this.command("QUIT", 221);
@@ -330,6 +395,7 @@ export class Mailer {
   }
 
   async close(): Promise<void> {
+    this.connected = false;
     if (this.pending) {
       clearTimeout(this.pending.timer);
       this.pending = null;
@@ -449,8 +515,176 @@ export class Mailer {
   }
 }
 
+/* ------------------------------ pool ------------------------------ */
+
+/** A poolable connection: a {@link Mailer} driven through `open()` / `sendReusable()`. */
+type PoolConnection = Transport & {
+  open(): Promise<void>;
+  sendReusable(mail: Mail): Promise<SendResult>;
+};
+
+/**
+ * A pool of reusable {@link Mailer} connections with optional send rate
+ * limiting — a drop-in `Transport` for high-throughput transactional email.
+ *
+ * Keeps up to `maxConnections` SMTP connections open, reusing idle ones and
+ * queueing callers (FIFO) when all are busy. When `rateLimit`/`rateDelta` are
+ * set, at most `rateLimit` messages are started per rolling `rateDelta` ms.
+ */
+export class MailerPool implements Transport {
+  private idle: PoolConnection[] = [];
+  /** Every live connection (idle or checked-out) this pool has created. */
+  private all = new Set<PoolConnection>();
+  /** Number of connections that currently exist (idle + checked-out). */
+  private total = 0;
+  private waiters: Array<{
+    resolve: (c: PoolConnection) => void;
+    reject: (e: Error) => void;
+  }> = [];
+  /** Start timestamps of recent sends, for the rate-limit window. */
+  private sendTimes: number[] = [];
+  /** Serializes rate-slot acquisition so concurrent sends share one limit. */
+  private rateChain: Promise<void> = Promise.resolve();
+  private closed = false;
+
+  constructor(public readonly config: SmtpConfig) {}
+
+  /**
+   * Create one poolable connection. Override point for tests — a subclass may
+   * return a fake with async `open`/`sendReusable`/`verify`/`close`.
+   */
+  protected createConnection(): PoolConnection {
+    return new Mailer(this.config);
+  }
+
+  /** Send a message using a pooled connection, respecting the rate limit. */
+  async send(mail: Mail): Promise<SendResult> {
+    if (this.closed) throw new SmtpError("pool is closed");
+    await this.rateGate();
+    const conn = await this.acquire();
+    try {
+      const result = await conn.sendReusable(mail);
+      this.release(conn);
+      return result;
+    } catch (e) {
+      // sendReusable already closed the dead connection; drop it from the pool.
+      // We do NOT retry — the caller decides whether to resend.
+      this.drop(conn);
+      throw e;
+    }
+  }
+
+  /** Open a probe connection and verify the server accepts it. */
+  async verify(): Promise<boolean> {
+    const conn = this.createConnection();
+    try {
+      return await conn.verify();
+    } finally {
+      await conn.close().catch(() => {});
+    }
+  }
+
+  /** Close every connection (idle and busy) and reject any queued waiters. */
+  async close(): Promise<void> {
+    this.closed = true;
+    const waiters = this.waiters.splice(0);
+    for (const w of waiters) w.reject(new SmtpError("pool is closed"));
+    this.idle = [];
+    const conns = [...this.all];
+    this.all.clear();
+    this.total = 0;
+    await Promise.all(conns.map((c) => c.close().catch(() => {})));
+  }
+
+  /* --------------------------- internals --------------------------- */
+
+  /** Acquire a connection: reuse an idle one, create up to max, else queue. */
+  private acquire(): Promise<PoolConnection> {
+    return new Promise<PoolConnection>((resolve, reject) => {
+      this.waiters.push({ resolve, reject });
+      this.pump();
+    });
+  }
+
+  /** Satisfy queued waiters from idle connections or by creating new ones. */
+  private pump(): void {
+    const max = this.config.maxConnections ?? 5;
+    while (this.waiters.length) {
+      const reused = this.idle.pop();
+      if (reused) {
+        this.waiters.shift()!.resolve(reused);
+        continue;
+      }
+      if (this.total < max) {
+        this.total++;
+        const conn = this.createConnection();
+        this.all.add(conn);
+        this.waiters.shift()!.resolve(conn);
+        continue;
+      }
+      break; // all connections busy — remaining waiters keep waiting
+    }
+  }
+
+  /** Return a healthy connection to the idle pool and wake the next waiter. */
+  private release(conn: PoolConnection): void {
+    if (this.closed) {
+      void conn.close().catch(() => {});
+      return;
+    }
+    this.idle.push(conn);
+    this.pump();
+  }
+
+  /** Discard a dead connection (already closed) and free its pool slot. */
+  private drop(conn: PoolConnection): void {
+    if (this.all.delete(conn)) this.total--;
+    this.pump();
+  }
+
+  /**
+   * Wait for a rate slot. At most `rateLimit` sends may start per `rateDelta`
+   * ms. Slot acquisition is serialized through `rateChain` so concurrent
+   * callers collectively respect the limit. No-op when `rateLimit` is 0/unset.
+   */
+  private rateGate(): Promise<void> {
+    const limit = this.config.rateLimit ?? 0;
+    if (!limit) return Promise.resolve();
+    const delta = this.config.rateDelta ?? 1000;
+
+    const run = this.rateChain.then(async () => {
+      for (;;) {
+        const now = Date.now();
+        while (this.sendTimes.length && now - this.sendTimes[0]! >= delta) this.sendTimes.shift();
+        if (this.sendTimes.length < limit) {
+          this.sendTimes.push(Date.now());
+          return;
+        }
+        const wait = delta - (now - this.sendTimes[0]!);
+        await new Promise((r) => setTimeout(r, Math.max(wait, 0) + 1));
+      }
+    });
+    // Keep the chain alive but never let one slot's rejection poison the next.
+    this.rateChain = run.then(
+      () => {},
+      () => {},
+    );
+    return run;
+  }
+}
+
 export function createMailer(config: SmtpConfig): Mailer {
   return new Mailer(config);
+}
+
+/** Build a connection pool (with optional rate limiting) for high-throughput sending. */
+export function createMailerPool(config: SmtpConfig): MailerPool {
+  return new MailerPool(config);
+}
+
+/** Build the right `Transport` for a config: a {@link MailerPool} when `pool` is set, else a plain {@link Mailer}. */
+export function createTransport(config: SmtpConfig): Transport {
+  return config.pool ? new MailerPool(config) : new Mailer(config);
 }
 
 /**

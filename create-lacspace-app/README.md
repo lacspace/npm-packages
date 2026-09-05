@@ -119,16 +119,21 @@ npx create-lacspace-app my-app --theme "#0bb9d9,#7c3aed"           # an exact fr
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — MIT-equivalent freedoms. Use it in personal and commercial projects at no cost; the apps you generate are entirely yours.
+Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; the apps you generate are entirely yours.
+
+<!-- LACSPACE-DEV-PLATFORM -->
 
 ---
 
-<div align="center">
+## The Lacspace Developer Platform
 
-**Part of the Lacspace ecosystem — 60+ zero-dependency, isomorphic TypeScript packages.**
+`create-lacspace-app` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
-[All packages ↗](https://lacspace.com/packages) · [Docs ↗](https://lacspace.com/docs) · [npm org ↗](https://www.npmjs.com/org/lacspace) · [GitHub ↗](https://github.com/lacspace/npm-packages)
+- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
+- 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
+- 🖥️ **Finished app templates** — https://templates.lacspace.com
+- 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-</div>
+Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 
-<div align="center"><sub>Built with care by <a href="https://lacspace.com">Lacspace</a> · Lacspace Free Licence</sub></div>

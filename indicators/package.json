@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/indicators",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Streaming technical indicators (RSI, MACD, EMA, Bollinger, ATR, Supertrend, ADX, VWAP) with O(1) incremental updates for live price feeds. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -48,7 +48,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/indicators",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

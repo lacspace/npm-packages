@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/markdown",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A small, safe Markdown → HTML renderer — headings with anchor ids, nested & task lists, fenced code, blockquotes, GFM tables, images and links. HTML in the source is escaped. Includes extractHeadings() for a table of contents. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/markdown",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

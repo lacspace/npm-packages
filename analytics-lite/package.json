@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/analytics-lite",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Privacy-first, cookieless web analytics — page views and custom events sent to your own endpoint. No cookies, no localStorage IDs, no cross-site tracking, no consent banner. Respects Do-Not-Track, auto-tracks SPA navigation, uses sendBeacon. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/analytics-lite",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

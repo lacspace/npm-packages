@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-validate",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Smart email validation — syntax, disposable/temp-mail detection, role & free-provider flags, Gmail normalization and 'did you mean?' typo suggestions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/email-validate",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

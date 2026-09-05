@@ -1,21 +1,61 @@
 {
   "name": "@lacspace/xlsx",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Write real Excel (.xlsx) files with zero dependencies and no headless browser — objects or arrays to a workbook, correct types (string/number/boolean/Date), bold headers, column widths, multiple sheets. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" } } },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
-  "keywords": ["xlsx", "excel", "excel-export", "xlsx-writer", "spreadsheet", "export-to-excel", "exceljs-alternative", "sheetjs-alternative", "zero-dependency", "no-puppeteer", "isomorphic", "ooxml", "typescript"],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "xlsx",
+    "excel",
+    "excel-export",
+    "xlsx-writer",
+    "spreadsheet",
+    "export-to-excel",
+    "exceljs-alternative",
+    "sheetjs-alternative",
+    "zero-dependency",
+    "no-puppeteer",
+    "isomorphic",
+    "ooxml",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "xlsx" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" }
+  "homepage": "https://developer.lacspace.com/packages/xlsx",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "xlsx"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

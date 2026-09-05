@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/redact",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Redact secrets & PII from strings and objects before logging — masks sensitive keys and patterns (JWTs, API keys, emails, cards, IPs). Safe AWS/Mongo logs. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/redact",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

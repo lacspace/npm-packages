@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-verify",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Best-effort email deliverability checks for Node — syntax + disposable, MX record lookup and an optional SMTP RCPT probe (no mail sent). Zero npm dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -43,7 +43,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/email-verify",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

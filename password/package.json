@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/password",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Password hashing & verification — PBKDF2-HMAC-SHA256 (OWASP iterations) with a portable PHC string + a strength estimator. Isomorphic over Web Crypto.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/password",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

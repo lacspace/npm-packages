@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/validate",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A tiny, typed schema validator — the ergonomics of zod (parse/safeParse, object/array/enum/union, coercion, type inference) in a zero-dependency, isomorphic package. Great for forms, API bodies, env and query strings.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/validate",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

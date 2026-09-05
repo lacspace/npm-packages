@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/virtual",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Headless list virtualization for React — render only the rows in view, with fixed or dynamically-measured sizes, overscan, and scroll-to-index. useVirtualizer in ~2KB. Zero-dependency, SSR-safe, fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,7 +42,7 @@
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://lacspace.com/packages",
+  "homepage": "https://developer.lacspace.com/packages/virtual",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lacspace/npm-packages.git",

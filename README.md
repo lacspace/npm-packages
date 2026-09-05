@@ -14,6 +14,19 @@ Zero-dependency · isomorphic (Node 18+, browsers, edge, React Native) · dual *
 
 ---
 
+## 🌐 The Developer Platform
+
+Everything, browsable and runnable at **[developer.lacspace.com](https://developer.lacspace.com)**:
+
+- 🗂️ **[All 63 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🧭 **[Developer handbook](https://developer.lacspace.com/handbook)** — install, use, integrate, upgrade — with real recipes
+- 🧪 **[Live playground](https://developer.lacspace.com/playground)** — run any package in your browser, no install
+- ⚖️ **[Compare](https://developer.lacspace.com/compare)** — how `@lacspace` stacks up against the usual dependencies
+- 🖥️ **[Finished app templates](https://templates.lacspace.com)** — 8 live Next.js apps you can open
+- 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
+
+---
+
 ## 📦 Packages
 
 ### Core SDK — talk to the Lacspace platform
@@ -165,7 +178,7 @@ const ok = await verifyTotp(userCode, userSecret); // ±1 step drift; null = inv
 - **Isomorphic** — one codebase for server, browser, edge and native.
 - **Typed & dual-format** — full `.d.ts`, shipped as ESM and CJS with a proper `exports` map.
 - **No surprises** — configure in code, no config files written to disk, no import-time side effects.
-- **Free & permissive** — published under the [Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0) (MIT-equivalent freedoms). Use them anywhere, commercial or not.
+- **Free & permissive** — published under the [Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0) (permissive freedoms). Use them anywhere, commercial or not.
 
 ## 🛠️ Local development
 
@@ -193,7 +206,7 @@ npm run build:sec   # crypto, password, jwt, apikey, lock, headers, redact, mfa,
 
 The packages in this repository are **free**, published under the
 **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** v1.0 —
-a permissive licence with MIT-equivalent freedoms. See [`LICENSE`](./LICENSE), or
+a permissive licence with permissive freedoms. See [`LICENSE`](./LICENSE), or
 read it online at **[lacspace.com/licenses](https://lacspace.com/licenses)**.
 
 Not every Lacspace package is free, though — we also offer **Commercial** (paid),

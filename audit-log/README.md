@@ -65,6 +65,35 @@ Renders a human-readable one-liner, e.g. `"alice updated order#42 (status: pendi
 
 Returns an auditor that builds each event, applies `redact` keys, forwards it to `sink`, and returns it.
 
+## Tamper-evident hash chain
+
+Seal events into an append-only chain where each entry's `hash` is `SHA-256(seq : prevHash : canonicalJSON(event))` and links to the one before it. Any change to a past event — or any reorder, insertion or deletion — breaks the chain, and `verifyChain` tells you exactly where. Uses Web Crypto, so these functions are **async** (Node 20+, edge, modern browsers).
+
+```ts
+import { createSealedLog, verifyChain } from "@lacspace/audit-log";
+
+const log = createSealedLog();
+await log.append(auditEvent({ actor: { id: "alice" }, action: "login" }));
+await log.append(auditEvent({ actor: { id: "alice" }, action: "delete", target: { type: "order", id: "42" } }));
+
+await log.verify();        // { valid: true, length: 2 }
+log.head();                // hash of the last entry — anchor it somewhere trusted
+
+// If anyone edits a stored entry and you re-verify:
+// { valid: false, length: 2, brokenAt: 0, reason: "hash mismatch — this entry was tampered with" }
+```
+
+Persist `log.entries()` however you like and reload with `createSealedLog(saved)` to keep appending. Prefer the pure functions? `createChain(events)`, `appendToChain(chain, event)`, `sealEvent(event, prev?)` and `verifyChain(chain)` all return/verify plain arrays.
+
+| Function | Purpose |
+| --- | --- |
+| `sealEvent(event, prev?)` | Seal one event, linking it after `prev` (omit for the first). |
+| `appendToChain(chain, event)` | Return a **new** chain with the event sealed and appended. |
+| `createChain(events?)` | Build a sealed chain from a list of events. |
+| `verifyChain(chain)` | Recompute + re-link every entry; report the first fault. |
+| `createSealedLog(initial?)` | Stateful append-only log: `append` / `entries` / `head` / `verify`. |
+| `GENESIS_HASH` | The `prevHash` anchor of a chain's first entry. |
+
 ## Types
 
 ```ts
@@ -76,6 +105,20 @@ interface AuditEvent {
   target?: { type: string; id: string };
   changes?: { field: string; from: unknown; to: unknown }[];
   meta?: Record<string, unknown>;
+}
+
+interface SealedEntry {
+  seq: number;       // 0-based position
+  event: AuditEvent;
+  prevHash: string;  // links to the previous entry (GENESIS_HASH for the first)
+  hash: string;      // SHA-256(seq : prevHash : canonicalJSON(event))
+}
+
+interface ChainVerification {
+  valid: boolean;
+  length: number;
+  brokenAt?: number; // index of the first bad entry
+  reason?: string;
 }
 ```
 

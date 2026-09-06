@@ -7,7 +7,17 @@ import {
   createAuditor,
   REDACTED,
   type AuditEvent,
+  GENESIS_HASH,
+  sealEvent,
+  appendToChain,
+  createChain,
+  verifyChain,
+  createSealedLog,
+  type SealedEntry,
 } from "./index";
+
+const ev = (action: string, meta?: Record<string, unknown>): AuditEvent =>
+  auditEvent({ actor: { id: "alice" }, action, ...(meta ? { meta } : {}) });
 
 describe("auditEvent", () => {
   it("fills id and at when missing", () => {
@@ -209,5 +219,98 @@ describe("createAuditor", () => {
     const auditor = createAuditor();
     const e = auditor.record({ actor: { id: "x" }, action: "ping" });
     expect(e.action).toBe("ping");
+  });
+});
+
+describe("tamper-evident hash chain", () => {
+  it("seals events and verifies a clean chain", async () => {
+    const chain = await createChain([ev("login"), ev("update"), ev("logout")]);
+    expect(chain.length).toBe(3);
+    expect(chain[0]!.prevHash).toBe(GENESIS_HASH);
+    expect(chain[0]!.seq).toBe(0);
+    expect(chain[1]!.prevHash).toBe(chain[0]!.hash);
+    expect(chain[2]!.prevHash).toBe(chain[1]!.hash);
+    expect((await verifyChain(chain)).valid).toBe(true);
+    expect((await verifyChain(chain)).length).toBe(3);
+  });
+
+  it("empty chain is valid", async () => {
+    const v = await verifyChain([]);
+    expect(v).toEqual({ valid: true, length: 0 });
+  });
+
+  it("hashes are deterministic regardless of meta key order", async () => {
+    const a = auditEvent({ id: "1", at: "2026-01-01T00:00:00.000Z", actor: { id: "x" }, action: "u", meta: { b: 2, a: 1 } });
+    const b = auditEvent({ id: "1", at: "2026-01-01T00:00:00.000Z", actor: { id: "x" }, action: "u", meta: { a: 1, b: 2 } });
+    const sa = await sealEvent(a);
+    const sb = await sealEvent(b);
+    expect(sa.hash).toBe(sb.hash);
+  });
+
+  it("detects a mutated past event", async () => {
+    const chain = await createChain([ev("login"), ev("delete"), ev("logout")]);
+    // Tamper: change a past event's action, leaving its stored hash in place.
+    const tampered: SealedEntry[] = chain.map((e, i) =>
+      i === 1 ? { ...e, event: { ...e.event, action: "nothing-to-see" } } : e,
+    );
+    const v = await verifyChain(tampered);
+    expect(v.valid).toBe(false);
+    expect(v.brokenAt).toBe(1);
+    expect(v.reason).toMatch(/hash mismatch/i);
+  });
+
+  it("detects a forged hash", async () => {
+    const chain = await createChain([ev("a"), ev("b")]);
+    const forged: SealedEntry[] = chain.map((e, i) =>
+      i === 0 ? { ...e, hash: "f".repeat(64) } : e,
+    );
+    const v = await verifyChain(forged);
+    expect(v.valid).toBe(false);
+    expect(v.brokenAt).toBe(0);
+  });
+
+  it("detects a deleted entry", async () => {
+    const chain = await createChain([ev("a"), ev("b"), ev("c")]);
+    const gapped = [chain[0]!, chain[2]!]; // drop the middle
+    const v = await verifyChain(gapped);
+    expect(v.valid).toBe(false);
+    expect(v.brokenAt).toBe(1);
+  });
+
+  it("detects a reordered chain", async () => {
+    const chain = await createChain([ev("a"), ev("b"), ev("c")]);
+    const swapped = [chain[0]!, chain[2]!, chain[1]!];
+    expect((await verifyChain(swapped)).valid).toBe(false);
+  });
+
+  it("appendToChain does not mutate the input chain", async () => {
+    const chain = await createChain([ev("a")]);
+    const snapshot = JSON.stringify(chain);
+    const next = await appendToChain(chain, ev("b"));
+    expect(chain.length).toBe(1);
+    expect(JSON.stringify(chain)).toBe(snapshot);
+    expect(next.length).toBe(2);
+  });
+
+  it("createSealedLog appends, exposes head and verifies; reload continues", async () => {
+    const log = createSealedLog();
+    expect(log.head()).toBe(GENESIS_HASH);
+    await log.append(ev("one"));
+    const e2 = await log.append(ev("two"));
+    expect(log.entries().length).toBe(2);
+    expect(log.head()).toBe(e2.hash);
+    expect((await log.verify()).valid).toBe(true);
+    // Persist + reload keeps appending on the same chain.
+    const reloaded = createSealedLog(log.entries());
+    await reloaded.append(ev("three"));
+    const v = await reloaded.verify();
+    expect(v.valid).toBe(true);
+    expect(v.length).toBe(3);
+  });
+
+  it("a __proto__ meta key still seals and verifies (no pollution)", async () => {
+    const chain = await createChain([ev("x", { ["__proto__"]: "danger", ok: 1 })]);
+    expect((await verifyChain(chain)).valid).toBe(true);
+    expect(({} as Record<string, unknown>).danger).toBeUndefined();
   });
 });

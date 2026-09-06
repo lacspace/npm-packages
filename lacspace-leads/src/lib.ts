@@ -28,6 +28,7 @@ export {
   type DetailedResult,
 } from "./scrape.js";
 export { searchLeadsBatch, searchLeadsMulti, type BatchQuery } from "./batch.js";
+export { runConfig, assertConfig, type LeadsConfig } from "./config.js";
 export { serialize, toRows, computeStats, rowsToLeads } from "./export.js";
 export {
   verifyEmails,

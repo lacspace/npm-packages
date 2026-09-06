@@ -159,6 +159,10 @@ export interface LeadFilters {
   hasEmail?: boolean;
   /** Keep only leads whose email passed MX verification (implies `verifyEmails`). */
   hasValidEmail?: boolean;
+  /** Keep only leads reachable by at least one of phone, email or website. */
+  hasContact?: boolean;
+  /** Drop leads whose name contains any of these (case-insensitive) terms. */
+  excludeNames?: string[];
 }
 
 /** Output formats the tool can write. */

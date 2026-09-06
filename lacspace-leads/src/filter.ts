@@ -9,6 +9,11 @@ export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
     if (filters.hasWebsite && !l.website) return false;
     if (filters.hasEmail && !l.email) return false;
     if (filters.hasValidEmail && l.emailStatus !== "valid") return false;
+    if (filters.hasContact && !(l.phone || l.email || l.website)) return false;
+    if (filters.excludeNames && filters.excludeNames.length) {
+      const name = (l.name ?? "").toLowerCase();
+      if (filters.excludeNames.some((t) => t && name.includes(t.toLowerCase()))) return false;
+    }
     return true;
   });
 }

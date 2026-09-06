@@ -93,6 +93,8 @@ npx lacspace-leads [type] [options]
 | `--has-website` | Only leads with a website |
 | `--has-email` | Only leads with an email (implies `--emails`) |
 | `--has-valid-email` | Only leads whose email passed **MX verification** (implies `--verify-emails`) |
+| `--has-contact` | Only leads reachable by **phone, email or website** |
+| `--name-exclude <list>` | Drop leads whose name contains any of these terms (comma-separated) |
 | `--dedupe <key>` | `website` · `phone` · `name` · `smart` · `none` (default `website`; `--append` uses `smart` = website→phone→name) |
 
 Run with no arguments for an interactive walkthrough.
@@ -153,6 +155,33 @@ npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" \
 ```
 
 `--verify-emails` does a DNS **MX lookup** on each email's domain (no message is sent) and adds an `emailStatus` column of `valid` · `no-mx` · `invalid-format`. `--append` reads the existing file back, merges, and de-duplicates with the **`smart`** key (website → phone → name) so even website-less businesses don't pile up on re-runs.
+
+## Saved campaigns (`--config`)
+
+Describe a repeatable set of searches plus shared options in one JSON file, and run them all with a single command — ideal for the same city sweeps every week (pair it with cron or CI):
+
+```jsonc
+// campaign.json
+{
+  "searches": [
+    { "type": "cafes", "city": "Kathmandu", "area": "Thamel,Baneshwor,Patan" },
+    { "type": "gyms",  "city": "Pokhara" }
+  ],
+  "country": "NP",
+  "verifyEmails": true,
+  "sort": "reviews",
+  "filters": { "hasContact": true, "excludeNames": ["closed"] },
+  "out": "master.xlsx",
+  "format": "xlsx",
+  "append": true
+}
+```
+
+```bash
+npx lacspace-leads --config campaign.json
+```
+
+Every search is run, merged and de-duplicated; the shared options, filters and output settings apply across the whole campaign. Programmatically: `runConfig(config)`.
 
 ## Convert your leads to any format
 

@@ -1,9 +1,10 @@
-import { writeFileSync, existsSync } from "node:fs";
+import { writeFileSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
 import { scrapeLeads as searchLeads } from "./scrape.js";
 import { searchLeadsBatch } from "./batch.js";
+import { runConfig, assertConfig } from "./config.js";
 import { serialize, computeStats, rowsToLeads } from "./export.js";
 import { convertFile, readRows } from "./convert.js";
 import { dedupeLeads } from "./filter.js";
@@ -37,7 +38,8 @@ interface Args {
   fields?: string; preset?: string; format: OutputFormat; out?: string; append: boolean;
   limit: number; total?: number; headless: boolean; details: boolean; delay: number;
   emails: boolean; socials: boolean; verifyEmails: boolean;
-  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean;
+  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean; hasContact: boolean; nameExclude?: string;
+  config?: string;
   dedupe?: SearchOptions["dedupe"]; sort?: SortKey; desc?: boolean;
   country?: string; locale?: string; region?: string; concurrency?: number; cleanUrls: boolean;
   proxy?: string; retries?: number; jitter: boolean;
@@ -49,7 +51,7 @@ function parseArgs(list: string[]): Args {
   const a: Args = {
     format: "json", append: false, limit: 60, headless: false, details: true, delay: 700,
     emails: false, socials: false, verifyEmails: false,
-    hasPhone: false, hasWebsite: false, hasEmail: false, hasValidEmail: false,
+    hasPhone: false, hasWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
     cleanUrls: true, jitter: false, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
@@ -84,6 +86,9 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--has-website") a.hasWebsite = true;
     else if (arg === "--has-email") { a.hasEmail = true; a.emails = true; }
     else if (arg === "--has-valid-email") { a.hasValidEmail = true; a.verifyEmails = true; a.emails = true; }
+    else if (arg === "--has-contact") a.hasContact = true;
+    else if (arg === "--name-exclude" || arg === "--exclude-names") a.nameExclude = next();
+    else if (arg === "--config") a.config = next();
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
     else if (arg === "--sort") a.sort = next() as SortKey;
     else if (arg === "--desc") a.desc = true;
@@ -145,10 +150,16 @@ ${c("bold", "Filters & order")}
       --has-website     Keep only leads with a website
       --has-email       Keep only leads with an email (implies --emails)
       --has-valid-email Keep only leads with an MX-verified email (implies --verify-emails)
+      --has-contact     Keep only leads reachable by phone, email OR website
+      --name-exclude <list>  Drop leads whose name contains any of these terms
       --dedupe <key>    website | phone | name | smart | none   (default website;
                         --append uses smart: website→phone→name)
       --sort <key>      rating | reviews | name | priceLevel | distance
       --desc / --asc    Sort direction (distance defaults nearest-first)
+
+${c("bold", "Campaigns")}
+      --config <file>   Run a saved JSON campaign: { "searches":[…], shared options,
+                        "out", "format", "append" }. Repeatable, schedulable.
 
 ${c("bold", "Output")}
   -f, --format <fmt>    json | ndjson | csv | xlsx      (default json)
@@ -216,12 +227,67 @@ async function runConvert(rest: string[]): Promise<void> {
   }
 }
 
+/** `lacspace-leads --config campaign.json` — run a saved multi-search campaign. */
+async function runConfigFile(args: Args): Promise<void> {
+  log(`\n${c("bold", c("magenta", "◆ lacspace-leads config"))} ${c("dim", "— running a saved campaign")}\n`);
+  let config;
+  try {
+    config = JSON.parse(readFileSync(resolve(args.config!), "utf8"));
+    assertConfig(config);
+  } catch (err) {
+    log(c("red", `\n✗ Could not load --config: ${(err as Error).message}\n`));
+    exit(1); return;
+  }
+
+  const format = (config.format ?? args.format) as OutputFormat;
+  if (!OUTPUT_FORMATS.includes(format)) { log(c("red", `\n✗ Unknown format "${format}".`)); exit(1); return; }
+
+  log(`  ${c("dim", "searches")} ${config.searches.length}   ${c("dim", "format")} ${format}${config.append ? c("dim", "  (append)") : ""}\n`);
+
+  const controller = new AbortController();
+  const onSig = (): void => controller.abort();
+  process.once("SIGINT", onSig);
+  let leads: Lead[];
+  try {
+    leads = await runConfig(config, { signal: controller.signal, onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`) });
+  } catch (err) {
+    log(c("red", `\n✗ ${(err as Error).message}`)); exit(1); return;
+  } finally {
+    process.removeListener("SIGINT", onSig);
+  }
+  if (!leads.length) { log(c("yellow", "\n  No leads collected.\n")); return; }
+
+  const fields = config.fields
+    ? normalizeFields(config.fields as string[])
+    : ALL_FIELDS.filter((f) => leads.some((l) => l[f] !== undefined));
+  let out = resolve(args.out ?? config.out ?? defaultFilename("leads-campaign", format));
+
+  if ((args.append || config.append) && existsSync(out)) {
+    try {
+      const existing = rowsToLeads(await readRows(out));
+      const before = existing.length;
+      leads = dedupeLeads([...existing, ...leads], config.dedupe ?? "smart");
+      log(`  ${c("cyan", "◷")} ${c("dim", `merged with ${before} existing → ${leads.length} total`)}`);
+    } catch (err) { log(c("yellow", `  ! couldn't append (${(err as Error).message}); overwriting`)); }
+  }
+
+  const serOpts: { sheetName?: string } = {};
+  if (args.sheet ?? config.sheet) serOpts.sheetName = (args.sheet ?? config.sheet) as string;
+  const { data, binary } = serialize(leads, format, fields, serOpts);
+  writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
+  const s = computeStats(leads);
+  log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}`);
+  log(`    ${c("dim", `${s.withPhone} with a phone · ${s.withWebsite} with a website · ${s.withEmail} with an email`)}\n`);
+}
+
 async function main(): Promise<void> {
   const raw = argv.slice(2);
   if (raw[0] === "convert") { await runConvert(raw.slice(1)); return; }
 
   const args = parseArgs(raw);
   if (args.help) { stdout.write(HELP + "\n"); return; }
+
+  if (args.config) { await runConfigFile(args); return; }
 
   log(`\n${c("bold", c("magenta", "◆ lacspace-leads"))} ${c("dim", "— Google Maps → JSON/CSV/Excel, free")}\n`);
 
@@ -297,6 +363,8 @@ async function main(): Promise<void> {
   if (args.hasWebsite) filters.hasWebsite = true;
   if (args.hasEmail) filters.hasEmail = true;
   if (args.hasValidEmail) filters.hasValidEmail = true;
+  if (args.hasContact) filters.hasContact = true;
+  if (args.nameExclude) filters.excludeNames = args.nameExclude.split(",").map((s) => s.trim()).filter(Boolean);
   const hasFilters = Object.keys(filters).length > 0;
 
   // A comma-separated type/city/area fans out into several searches.

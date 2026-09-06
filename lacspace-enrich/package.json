@@ -1,0 +1,26 @@
+{
+  "name": "lacspace-enrich",
+  "version": "0.1.0",
+  "description": "Free, open-source company + contact enrichment — turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address and tech stack, all from open sources. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
+  "type": "module",
+  "bin": { "lacspace-enrich": "dist/cli.js" },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": { "types": "./dist/lib.d.ts", "import": "./dist/lib.js", "require": "./dist/lib.cjs" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsup", "test": "vitest run", "typecheck": "tsc --noEmit", "prepublishOnly": "npm run build" },
+  "keywords": ["enrichment", "company-data", "contact-enrichment", "lead-enrichment", "email-finder", "tech-stack", "scraper", "cli", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/enrich",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-enrich" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "lacspace-scraper": "^0.1.0" },
+  "devDependencies": { "@types/node": "^20.14.0", "tsup": "^8.0.0", "typescript": "^5.5.0", "vitest": "^2.0.0" },
+  "publishConfig": { "access": "public" }
+}

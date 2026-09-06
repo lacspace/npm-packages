@@ -1,0 +1,47 @@
+{
+  "name": "lacspace-monitor",
+  "version": "0.1.0",
+  "description": "Free, open-source change monitor — watch any web page, CSS selector, JSON API field or RSS/Atom feed and get told when something moves. Snapshots + diffs on a schedule, webhook alerts, export to JSON/CSV/Excel. No API keys. Built on the lacspace-scraper engine.",
+  "type": "module",
+  "bin": {
+    "lacspace-monitor": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "monitor", "change-detection", "watcher", "website-monitor", "uptime",
+    "price-monitor", "rss", "webhook", "diff", "cli", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/monitor",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-monitor" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "lacspace-scraper": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": { "access": "public" }
+}

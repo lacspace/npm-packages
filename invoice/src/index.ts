@@ -230,6 +230,12 @@ export function recordPayment(
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new InvoiceError("Payment amount must be positive", "invalid_amount");
   }
+  if (inv.status === "void") {
+    throw new InvoiceError(
+      "Cannot record a payment on a void invoice",
+      "void",
+    );
+  }
   const amountPaid = inv.totals.amountPaid + amount;
   if (amountPaid > inv.totals.total) {
     throw new InvoiceError(

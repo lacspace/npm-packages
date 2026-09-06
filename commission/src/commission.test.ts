@@ -135,4 +135,66 @@ describe("split — exact-sum proportional allocation", () => {
   it("returns [] for no shares", () => {
     expect(split(1000, [])).toEqual([]);
   });
+
+  it("conserves a negative amount across weighted shares (clawback)", () => {
+    const parts = split(-100, [
+      { party: "a", rate: 1 },
+      { party: "b", rate: 1 },
+      { party: "c", rate: 1 },
+    ]);
+    expect(parts.reduce((s, p) => s + p.amount, 0)).toBe(-100);
+  });
+
+  it("conserves a negative amount in the even-split fallback (rates sum to 0)", () => {
+    // regression: base*n was -9 while the total should be -10 — one paisa vanished.
+    const parts = split(-10, [
+      { party: "a", rate: 0 },
+      { party: "b", rate: 0 },
+      { party: "c", rate: 0 },
+    ]);
+    expect(parts.reduce((s, p) => s + p.amount, 0)).toBe(-10);
+    expect(parts.map((p) => p.amount)).toEqual([-4, -3, -3]);
+  });
+
+  it("conserves an awkward amount across many uneven shares", () => {
+    const parts = split(1_000_003, [
+      { party: "a", rate: 0.3333 },
+      { party: "b", rate: 0.3333 },
+      { party: "c", rate: 0.3334 },
+      { party: "d", rate: 0.17 },
+      { party: "e", rate: 0.11 },
+    ]);
+    expect(parts.reduce((s, p) => s + p.amount, 0)).toBe(1_000_003);
+  });
+
+  it("does not mutate the input shares", () => {
+    const shares = [
+      { party: "a", rate: 1 },
+      { party: "b", rate: 2 },
+    ];
+    const copy = JSON.parse(JSON.stringify(shares));
+    split(999, shares);
+    expect(shares).toEqual(copy);
+  });
+});
+
+describe("commission — percent edge rates", () => {
+  it("charges nothing at 0%", () => {
+    const r = commission({ type: "percent", rate: 0 }, 1000);
+    expect(r.commission).toBe(0);
+    expect(r.net).toBe(1000);
+    expect(r.effectiveRate).toBe(0);
+  });
+
+  it("charges the whole amount at 100%", () => {
+    const r = commission({ type: "percent", rate: 1 }, 1000);
+    expect(r.commission).toBe(1000);
+    expect(r.net).toBe(0);
+  });
+
+  it("can exceed the amount above 100% (net goes negative)", () => {
+    const r = commission({ type: "percent", rate: 1.5 }, 1000);
+    expect(r.commission).toBe(1500);
+    expect(r.net).toBe(-500);
+  });
 });

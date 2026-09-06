@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/audit-log",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Structured audit-trail toolkit — record who did what, when, with before/after diffs, actor attribution and redaction. Build tamper-evident activity logs. Zero-dependency, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

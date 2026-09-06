@@ -52,7 +52,10 @@ export interface CartTotals {
 }
 
 function toInt(n: number): number {
-  return Math.trunc(n);
+  // Coerce non-finite garbage (NaN, ±Infinity) to 0 so money math stays clean
+  // integer minor units and a bad price can never poison subtotal/total to NaN.
+  const v = Math.trunc(n);
+  return Number.isFinite(v) ? v : 0;
 }
 
 /** Normalise an incoming item: coerce numeric fields to safe integers. */

@@ -56,7 +56,10 @@ export const DELIVERY_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
 
 /** `true` if `to` is a legal next state from `from`. */
 export function canTransition(from: DeliveryStatus, to: DeliveryStatus): boolean {
-  return DELIVERY_TRANSITIONS[from].includes(to);
+  // Guard against unknown/untrusted `from` values (e.g. a status derived from
+  // an inbound webhook) so we never throw on `undefined.includes`.
+  const nexts = DELIVERY_TRANSITIONS[from];
+  return nexts ? nexts.includes(to) : false;
 }
 
 /** `true` if `s` is a terminal state with no further transitions. */
@@ -194,6 +197,9 @@ export async function verifyWebhookSignature(
   signature: string,
   secret: string,
 ): Promise<boolean> {
+  // A missing / non-string / empty signature is never valid — and must not
+  // throw (the doc guarantees "never throws on a bad signature").
+  if (typeof signature !== "string" || signature.length === 0) return false;
   const expected = await hmacSha256Hex(secret, payload);
   return timingSafeEqual(expected, signature.trim().toLowerCase());
 }

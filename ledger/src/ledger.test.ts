@@ -105,3 +105,56 @@ test("statement filters to entries touching the account", () => {
   expect(statement(book, "rent")).toHaveLength(1);
   expect(statement(book, "nope")).toHaveLength(0);
 });
+
+test("post throws on a non-integer amount", () => {
+  expect(() => post(createLedger(), { debit: "a", credit: "b", amount: 100.5 })).toThrow(TypeError);
+});
+
+test("post works on a frozen ledger and never mutates it", () => {
+  const empty = Object.freeze(createLedger());
+  Object.freeze(empty.entries);
+  const next = post(empty, { debit: "cash", credit: "sales", amount: 100 });
+  expect(empty.entries).toHaveLength(0);
+  expect(next.entries).toHaveLength(1);
+  expect(next).not.toBe(empty);
+});
+
+test("postMany copies its lines so later caller mutation cannot corrupt the book", () => {
+  const lines = [
+    { account: "cash", amount: 100 },
+    { account: "sales", amount: -100 },
+  ];
+  const book = postMany(createLedger(), lines);
+  lines[0]!.amount = 999999; // mutate the caller's array afterwards
+  expect(balance(book, "cash")).toBe(100);
+});
+
+test("postMany rejects a 3-line entry that does not sum to zero", () => {
+  expect(() =>
+    postMany(createLedger(), [
+      { account: "cash", amount: 9700 },
+      { account: "fees", amount: 300 },
+      { account: "sales", amount: -9999 },
+    ])
+  ).toThrow(/unbalanced/);
+});
+
+test("accounts named like prototype members balance safely", () => {
+  let book = createLedger();
+  book = post(book, { debit: "__proto__", credit: "constructor", amount: 500 });
+  book = post(book, { debit: "constructor", credit: "__proto__", amount: 200 });
+  expect(balance(book, "__proto__")).toBe(300); // 500 - 200
+  expect(balance(book, "constructor")).toBe(-300);
+  expect(trialBalance(book).reduce((s, r) => s + r.balance, 0)).toBe(0);
+  expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+});
+
+test("statement rows follow posting order for repeated activity", () => {
+  let book = createLedger();
+  book = post(book, { debit: "cash", credit: "sales", amount: 100, memo: "a" });
+  book = post(book, { debit: "fees", credit: "cash", amount: 30, memo: "b" });
+  book = post(book, { debit: "cash", credit: "sales", amount: 50, memo: "c" });
+  const rows = statement(book, "cash");
+  expect(rows.map((r) => r.amount)).toEqual([100, -30, 50]);
+  expect(rows.reduce((s, r) => s + r.amount, 0)).toBe(balance(book, "cash"));
+});

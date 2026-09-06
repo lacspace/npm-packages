@@ -116,8 +116,12 @@ export function split(amount: number, shares: Share[]): SplitPart[] {
   // Degenerate weights: fall back to an even distribution.
   if (total <= 0) {
     const base = Math.trunc(amt / n);
+    // `rem` may be negative when `amt` is negative; hand out the leftover units
+    // one at a time in the matching direction so the parts still sum to `amt`.
     const rem = amt - base * n;
-    return shares.map((s, i) => ({ party: s.party, amount: base + (i < rem ? 1 : 0) }));
+    const step = rem >= 0 ? 1 : -1;
+    const count = Math.abs(rem);
+    return shares.map((s, i) => ({ party: s.party, amount: base + (i < count ? step : 0) }));
   }
 
   const ideals = shares.map((s) => (amt * s.rate) / total);

@@ -86,9 +86,13 @@ export function reconcile(
 ): Discrepancy[] {
   const accounts = new Set<string>([...Object.keys(expected), ...Object.keys(actual)]);
   const out: Discrepancy[] = [];
+  // Read own properties only — never fall through to an inherited member such
+  // as `constructor` or `toString` for an untrusted account key.
+  const own = (obj: Record<string, number>, key: string): number =>
+    Object.prototype.hasOwnProperty.call(obj, key) ? (obj[key] ?? 0) : 0;
   for (const account of [...accounts].sort()) {
-    const exp = expected[account] ?? 0;
-    const act = actual[account] ?? 0;
+    const exp = own(expected, account);
+    const act = own(actual, account);
     const diff = act - exp;
     if (diff !== 0 || opts.all) {
       out.push({ account, expected: exp, actual: act, diff });

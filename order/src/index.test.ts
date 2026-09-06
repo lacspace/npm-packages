@@ -3,6 +3,7 @@ import {
   createOrder,
   transition,
   addLine,
+  removeLine,
   updateQty,
   orderNumber,
   randomOrderId,
@@ -167,4 +168,78 @@ test("transition returns a new object; original is unchanged", () => {
   expect(o.history).toHaveLength(1);
   expect(next.status).toBe("placed");
   expect(next.history).toHaveLength(2);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Hardening                                                          */
+/* ------------------------------------------------------------------ */
+
+test("createOrder does not throw on a frozen input", () => {
+  const input = Object.freeze({
+    currency: "USD",
+    now: T0,
+    lines: [Object.freeze({ sku: "a", unitPrice: 100, qty: 2 })],
+  });
+  expect(() => createOrder(input as never)).not.toThrow();
+});
+
+test("mutating ops never touch a deeply frozen order", () => {
+  const o = sample();
+  Object.freeze(o);
+  Object.freeze(o.lines);
+  o.lines.forEach((l) => Object.freeze(l));
+  Object.freeze(o.history);
+  Object.freeze(o.totals);
+  const snapshot = JSON.parse(JSON.stringify(o));
+
+  const placed = transition(o, "placed", { at: T0 + 1 });
+  const added = addLine(placed, { sku: "z", unitPrice: 10, qty: 1 });
+  const q = updateQty(added, "z", 3);
+  const r = removeLine(q, "z");
+  expect(r.lines.find((l) => l.id === "z")).toBeUndefined();
+
+  // The frozen original is byte-for-byte unchanged.
+  expect(JSON.parse(JSON.stringify(o))).toEqual(snapshot);
+});
+
+test("totals always equal the sum of their parts", () => {
+  const o = sample();
+  const { subtotal, discount, tax, shipping, total } = o.totals;
+  expect(total).toBe(Math.max(0, subtotal - discount + tax + shipping));
+  expect(subtotal).toBe(o.lines.reduce((s, l) => s + l.total, 0));
+});
+
+test("empty-line order clamps to a non-negative total", () => {
+  const o = createOrder({ currency: "USD", lines: [], discount: 500, now: T0 });
+  expect(o.lines).toEqual([]);
+  expect(o.totals.subtotal).toBe(0);
+  expect(o.totals.total).toBe(0); // never negative
+});
+
+test("large quantities snapshot without float loss", () => {
+  const o = createOrder({
+    currency: "USD",
+    lines: [{ sku: "bulk", unitPrice: 199, qty: 1_000_000 }],
+    now: T0,
+  });
+  expect(o.lines[0]!.total).toBe(199_000_000);
+  expect(Number.isSafeInteger(o.totals.total)).toBe(true);
+});
+
+test("updateQty with a negative qty removes the line", () => {
+  const o = transition(sample(), "placed");
+  const next = updateQty(o, "tee", -5);
+  expect(next.lines.find((l) => l.id === "tee")).toBeUndefined();
+});
+
+test("a __proto__ sku/meta key does not pollute Object.prototype", () => {
+  createOrder({
+    currency: "USD",
+    now: T0,
+    lines: [
+      { sku: "__proto__", unitPrice: 100, qty: 1, meta: { polluted: true } },
+    ],
+  });
+  expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  expect(({} as Record<string, unknown>).sku).toBeUndefined();
 });

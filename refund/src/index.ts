@@ -276,8 +276,13 @@ export function validateReturn(
   const byId = new Map<string, { id: string; sku: string; qty: number }>();
   for (const line of order.lines) byId.set(String(line.id), line);
 
+  // Accumulate the returned qty per line so that multiple return items that
+  // map back to the same order line cannot each slip under the ordered qty
+  // while, together, exceeding it (a split over-refund).
+  const returnedByLine = new Map<string, number>();
   for (const it of items) {
-    const line = byId.get(String(it.lineId));
+    const key = String(it.lineId);
+    const line = byId.get(key);
     if (!line) {
       errors.push(`Unknown lineId "${it.lineId}"`);
       continue;
@@ -285,9 +290,16 @@ export function validateReturn(
     const qty = toInt(it.qty);
     if (qty <= 0) {
       errors.push(`Line "${it.lineId}" has non-positive qty ${qty}`);
-    } else if (qty > line.qty) {
+      continue;
+    }
+    returnedByLine.set(key, (returnedByLine.get(key) ?? 0) + qty);
+  }
+
+  for (const [key, total] of returnedByLine) {
+    const line = byId.get(key)!;
+    if (total > line.qty) {
       errors.push(
-        `Line "${it.lineId}" returns ${qty} but only ${line.qty} were ordered`,
+        `Line "${key}" returns ${total} but only ${line.qty} were ordered`,
       );
     }
   }

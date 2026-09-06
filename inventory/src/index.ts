@@ -79,13 +79,21 @@ export function release(stock: Stock, qty: number): Stock {
 /**
  * Fulfil (ship) `qty` reserved units: decrements both `onHand` and `reserved`.
  *
- * @throws {InventoryError} if `qty` exceeds the currently reserved amount.
+ * @throws {InventoryError} if `qty` exceeds the currently reserved amount, or
+ * exceeds the physical units on hand (which can happen when {@link adjust} has
+ * shrunk `onHand` below the reserved count) — committing further would drive
+ * `onHand` negative, so it fails loudly instead.
  */
 export function commit(stock: Stock, qty: number): Stock {
   const q = requireQty(qty);
   if (q > stock.reserved) {
     throw new InventoryError(
       `Cannot commit ${q}: only ${stock.reserved} reserved`,
+    );
+  }
+  if (q > stock.onHand) {
+    throw new InventoryError(
+      `Cannot commit ${q}: only ${stock.onHand} in stock`,
     );
   }
   return { onHand: stock.onHand - q, reserved: stock.reserved - q };

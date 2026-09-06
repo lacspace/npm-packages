@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/cart",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Headless, framework-agnostic shopping-cart engine — pure, immutable & serializable. Add/merge lines, set quantities, compute tax/discount/shipping totals in integer minor units. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

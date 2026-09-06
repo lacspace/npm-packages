@@ -70,7 +70,7 @@ test("buildForm returns the login action + signed TOKEN field", async () => {
   expect(form.fields.MERCHANTID).toBe("123");
   expect(form.fields.TXNAMT).toBe("100000");
   expect(typeof form.fields.TOKEN).toBe("string");
-  expect(form.fields.TOKEN.length).toBeGreaterThan(0);
+  expect(form.fields.TOKEN!.length).toBeGreaterThan(0);
 });
 
 test("buildForm defaults to the UAT (test) gateway", async () => {

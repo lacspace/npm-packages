@@ -160,3 +160,85 @@ describe("createReturn + transition", () => {
     ]);
   });
 });
+
+describe("hardening", () => {
+  it("aggregates returned qty per line so split items cannot over-refund", () => {
+    const order = { lines: [{ id: "l1", sku: "TEE", qty: 3 }] };
+    // Two items each individually within qty, but together 4 > 3 ordered.
+    const res = validateReturn(order, [
+      { lineId: "l1", sku: "TEE", qty: 2, unitPrice: 100 },
+      { lineId: "l1", sku: "TEE", qty: 2, unitPrice: 100 },
+    ]);
+    expect(res.ok).toBe(false);
+    expect(res.errors[0]).toContain("only 3 were ordered");
+  });
+
+  it("accepts split items that together stay within the ordered qty", () => {
+    const order = { lines: [{ id: "l1", sku: "TEE", qty: 3 }] };
+    const res = validateReturn(order, [
+      { lineId: "l1", sku: "TEE", qty: 1, unitPrice: 100 },
+      { lineId: "l1", sku: "TEE", qty: 2, unitPrice: 100 },
+    ]);
+    expect(res.ok).toBe(true);
+    expect(res.errors).toEqual([]);
+  });
+
+  it("refundAmount on empty items is all-zero", () => {
+    expect(refundAmount([])).toEqual({
+      subtotal: 0,
+      tax: 0,
+      restockingFee: 0,
+      shipping: 0,
+      total: 0,
+    });
+  });
+
+  it("total = subtotal + tax + shipping - restockingFee", () => {
+    const items: ReturnItem[] = [
+      { lineId: "a", sku: "A", qty: 2, unitPrice: 1000, taxRate: 0.2 },
+    ];
+    const b = refundAmount(items, { restockingFee: 150, refundShipping: 300 });
+    expect(b.total).toBe(b.subtotal + b.tax + b.shipping - b.restockingFee);
+  });
+
+  it("tax is the sum of per-line rounded taxes (no lost paisa)", () => {
+    const items: ReturnItem[] = [
+      { lineId: "a", sku: "A", qty: 1, unitPrice: 999, taxRate: 0.13 },
+      { lineId: "b", sku: "B", qty: 3, unitPrice: 333, taxRate: 0.13 },
+    ];
+    const b = refundAmount(items);
+    expect(b.tax).toBe(Math.round(999 * 0.13) + Math.round(999 * 0.13));
+  });
+
+  it("does not mutate frozen items across compute + workflow ops", () => {
+    const items: ReturnItem[] = [
+      Object.freeze({
+        lineId: "l1",
+        sku: "TEE",
+        qty: 1,
+        unitPrice: 100,
+        taxRate: 0.1,
+      }),
+    ] as ReturnItem[];
+    Object.freeze(items);
+    expect(() => refundAmount(items)).not.toThrow();
+    expect(() => restockItems(items)).not.toThrow();
+    const ret = createReturn({ orderId: "o1", items, now: 1 });
+    Object.freeze(ret);
+    Object.freeze(ret.items);
+    Object.freeze(ret.history);
+    expect(() => transition(ret, "approved", { at: 2 })).not.toThrow();
+    expect(items[0]).toEqual({
+      lineId: "l1",
+      sku: "TEE",
+      qty: 1,
+      unitPrice: 100,
+      taxRate: 0.1,
+    });
+  });
+
+  it("a __proto__ sku does not pollute Object.prototype in restockItems", () => {
+    restockItems([{ lineId: "x", sku: "__proto__", qty: 1, unitPrice: 1 }]);
+    expect(({} as Record<string, unknown>).qty).toBeUndefined();
+  });
+});

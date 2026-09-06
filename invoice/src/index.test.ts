@@ -32,11 +32,11 @@ function baseInvoice() {
 describe("createInvoice", () => {
   it("computes per-line net/tax/total with discount and taxRate", () => {
     const inv = baseInvoice();
-    expect(inv.lines[0].net).toBe(1800);
-    expect(inv.lines[0].tax).toBe(234);
-    expect(inv.lines[0].total).toBe(2034);
-    expect(inv.lines[1].net).toBe(500);
-    expect(inv.lines[1].tax).toBe(0);
+    expect(inv.lines[0]!.net).toBe(1800);
+    expect(inv.lines[0]!.tax).toBe(234);
+    expect(inv.lines[0]!.total).toBe(2034);
+    expect(inv.lines[1]!.net).toBe(500);
+    expect(inv.lines[1]!.tax).toBe(0);
   });
 
   it("sums totals correctly in minor units", () => {
@@ -166,5 +166,86 @@ describe("renderRows", () => {
     expect(columns).toEqual(["Description", "Qty", "Unit", "Tax %", "Line total"]);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual(["Widget", 2, 1000, 13, 2034]);
+  });
+});
+
+describe("hardening", () => {
+  it("cannot record a payment on a void invoice", () => {
+    const v = markVoid(baseInvoice());
+    expect(() => recordPayment(v, 100)).toThrow(InvoiceError);
+    try {
+      recordPayment(v, 100);
+    } catch (e) {
+      expect((e as InvoiceError).code).toBe("void");
+    }
+  });
+
+  it("balanceDue = total - amountPaid across a payment sequence", () => {
+    let inv = baseInvoice();
+    inv = recordPayment(inv, 1000);
+    expect(inv.status).toBe("partial");
+    expect(inv.totals.balanceDue).toBe(
+      inv.totals.total - inv.totals.amountPaid,
+    );
+    inv = recordPayment(inv, 1534);
+    expect(inv.status).toBe("paid");
+    expect(inv.totals.balanceDue).toBe(0);
+    expect(inv.totals.amountPaid).toBe(inv.totals.total);
+  });
+
+  it("taxSummary net/tax sum equals totals (no lost paisa)", () => {
+    const inv = createInvoice({
+      number: "INV-P",
+      currency: "USD",
+      seller,
+      buyer,
+      lines: [
+        { description: "a", qty: 3, unitPrice: 333, taxRate: 0.13 },
+        { description: "b", qty: 1, unitPrice: 100, taxRate: 0.13 },
+        { description: "c", qty: 2, unitPrice: 250, taxRate: 0.05 },
+      ],
+    });
+    expect(inv.taxSummary.reduce((s, r) => s + r.tax, 0)).toBe(
+      inv.totals.taxTotal,
+    );
+    expect(inv.taxSummary.reduce((s, r) => s + r.net, 0)).toBe(
+      inv.totals.subtotal,
+    );
+  });
+
+  it("total always equals subtotal + taxTotal", () => {
+    const inv = baseInvoice();
+    expect(inv.totals.total).toBe(
+      inv.totals.subtotal + inv.totals.taxTotal,
+    );
+  });
+
+  it("recordPayment/markVoid/markIssued do not mutate a frozen invoice", () => {
+    const inv = baseInvoice();
+    Object.freeze(inv);
+    Object.freeze(inv.totals);
+    Object.freeze(inv.lines);
+    Object.freeze(inv.taxSummary);
+    const snap = JSON.parse(JSON.stringify(inv));
+    expect(() => recordPayment(inv, 500)).not.toThrow();
+    expect(() => markIssued(inv, 9)).not.toThrow();
+    expect(() => markVoid(inv)).not.toThrow();
+    expect(JSON.parse(JSON.stringify(inv))).toEqual(snap);
+  });
+
+  it("a __proto__ meta key does not pollute Object.prototype", () => {
+    recordPayment(
+      createInvoice({
+        number: "INV-M",
+        currency: "USD",
+        seller,
+        buyer,
+        lines: [{ description: "x", qty: 1, unitPrice: 100 }],
+        meta: { ["__proto__"]: { polluted: true } } as Record<string, unknown>,
+      }),
+      50,
+      { at: 1 },
+    );
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });

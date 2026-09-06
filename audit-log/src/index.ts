@@ -121,7 +121,15 @@ export function redactEvent(event: AuditEvent, keys: string[]): AuditEvent {
   if (event.meta) {
     const meta: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(event.meta)) {
-      meta[k] = set.has(k) ? REDACTED : v;
+      const val = set.has(k) ? REDACTED : v;
+      // Use defineProperty so dangerous keys ("__proto__", "constructor") land
+      // as plain own properties instead of mutating the object's prototype.
+      Object.defineProperty(meta, k, {
+        value: val,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     next.meta = meta;
   }

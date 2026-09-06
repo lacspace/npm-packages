@@ -8,6 +8,7 @@ import {
   ShippingError,
   type ShippingZone,
   type ShippingMethod,
+  type RateBand,
 } from "./index";
 
 const zones: ShippingZone[] = [
@@ -201,5 +202,146 @@ describe("cheapestQuote excludeFree", () => {
     const input = { subtotal: 100000 };
     expect(cheapestQuote(methods, input)?.methodId).toBe("pickup");        // default: free wins
     expect(cheapestQuote(methods, input, { excludeFree: true })?.methodId).toBe("std"); // real rate
+  });
+
+  it("returns undefined when every method is free and excludeFree is set", () => {
+    const methods: ShippingMethod[] = [
+      { id: "pickup", label: "Pickup", strategy: "flat", flat: 0 },
+      { id: "std", label: "Standard", strategy: "flat", flat: 800, freeOver: 5000 },
+    ];
+    // subtotal clears freeOver → std is free too, so nothing charges.
+    expect(cheapestQuote(methods, { subtotal: 5000 }, { excludeFree: true })).toBeUndefined();
+    expect(cheapestQuote([], { subtotal: 5000 })).toBeUndefined();
+  });
+});
+
+describe("negative / zero cost hardening", () => {
+  it("never returns a negative cost — a negative surcharge is clamped to 0", () => {
+    const m: ShippingMethod = {
+      id: "credit",
+      label: "Credit",
+      strategy: "flat",
+      flat: 100,
+      surcharge: -500, // would make base negative
+    };
+    expect(rateForMethod(m, {}).cost).toBe(0);
+  });
+
+  it("a zero flat cost is charged as 0 but not marked free", () => {
+    const m: ShippingMethod = { id: "z", label: "Zero", strategy: "flat", flat: 0 };
+    const q = rateForMethod(m, {});
+    expect(q.cost).toBe(0);
+    expect(q.free).toBe(false);
+  });
+});
+
+describe("free threshold vs clamping precedence", () => {
+  it("free-over-threshold wins over minCost (free means 0, not the floor)", () => {
+    const m: ShippingMethod = {
+      id: "floored",
+      label: "Floored",
+      strategy: "flat",
+      flat: 100,
+      minCost: 300,
+      freeOver: 5000,
+    };
+    expect(rateForMethod(m, { subtotal: 4999 }).cost).toBe(300); // floor applies below threshold
+    const q = rateForMethod(m, { subtotal: 5000 }); // at threshold
+    expect(q.cost).toBe(0);
+    expect(q.free).toBe(true);
+  });
+
+  it("free threshold is inclusive at the exact boundary", () => {
+    const m: ShippingMethod = { id: "s", label: "S", strategy: "flat", flat: 800, freeOver: 5000 };
+    expect(rateForMethod(m, { subtotal: 4999 }).free).toBe(false);
+    expect(rateForMethod(m, { subtotal: 5000 }).free).toBe(true);
+    expect(rateForMethod(m, { subtotal: 5001 }).free).toBe(true);
+  });
+});
+
+describe("band edge cases", () => {
+  const m: ShippingMethod = {
+    id: "std",
+    label: "Standard",
+    strategy: "weight",
+    bands: [
+      { min: 0, max: 500, cost: 300 },
+      { min: 501, max: 2000, cost: 600 },
+      { min: 2001, cost: 1200 },
+    ],
+  };
+
+  it("throws a coded NO_BAND error for a gap between bands", () => {
+    const gapped: ShippingMethod = {
+      id: "g",
+      label: "G",
+      strategy: "weight",
+      bands: [
+        { min: 0, max: 500, cost: 300 },
+        { min: 600, max: 1000, cost: 600 }, // gap: 501..599 unmatched
+      ],
+    };
+    try {
+      rateForMethod(gapped, { weight: 550 });
+      throw new Error("expected to throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(ShippingError);
+      expect((e as ShippingError).code).toBe("NO_BAND");
+    }
+  });
+
+  it("negative metric matches no band and throws", () => {
+    expect(() => rateForMethod(m, { weight: -1 })).toThrow(ShippingError);
+  });
+
+  it("overlapping bands resolve to the first matching band (declaration order)", () => {
+    const overlap: ShippingMethod = {
+      id: "o",
+      label: "O",
+      strategy: "weight",
+      bands: [
+        { min: 0, max: 1000, cost: 300 },
+        { min: 500, max: 1500, cost: 999 }, // overlaps 500..1000
+      ],
+    };
+    expect(rateForMethod(overlap, { weight: 750 }).cost).toBe(300); // first wins
+  });
+
+  it("selects the open-ended top band exactly at its min boundary", () => {
+    expect(rateForMethod(m, { weight: 2001 }).cost).toBe(1200);
+  });
+});
+
+describe("freeShippingRemaining hardening", () => {
+  it("is never negative once the subtotal exceeds the threshold", () => {
+    const m: ShippingMethod = { id: "s", label: "S", strategy: "flat", flat: 800, freeOver: 5000 };
+    expect(freeShippingRemaining(m, 9999)).toBe(0);
+    expect(freeShippingRemaining(m, 5000)).toBe(0);
+    expect(freeShippingRemaining(m, 4999)).toBe(1);
+  });
+});
+
+describe("immutability of inputs", () => {
+  it("quoteShipping does not reorder or mutate the input methods array", () => {
+    const methods: ShippingMethod[] = [
+      { id: "b", label: "B", strategy: "flat", flat: 1500 },
+      { id: "a", label: "A", strategy: "flat", flat: 500 },
+    ];
+    const order = methods.map((m) => m.id);
+    const quotes = quoteShipping(methods, {});
+    expect(quotes.map((q) => q.methodId)).toEqual(["a", "b"]); // sorted output
+    expect(methods.map((m) => m.id)).toEqual(order); // input untouched
+  });
+
+  it("works on deeply frozen methods without throwing", () => {
+    const method: ShippingMethod = Object.freeze({
+      id: "std",
+      label: "Standard",
+      strategy: "weight",
+      bands: [Object.freeze({ min: 0, max: 500, cost: 300 })] as RateBand[],
+    });
+    const methods = Object.freeze([method]) as ShippingMethod[];
+    expect(() => quoteShipping(methods, { weight: 100 })).not.toThrow();
+    expect(cheapestQuote(methods, { weight: 100 })?.cost).toBe(300);
   });
 });

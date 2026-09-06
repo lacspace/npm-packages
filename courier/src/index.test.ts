@@ -9,6 +9,7 @@ import {
   parsePathaoWebhook,
   verifyWebhookSignature,
   verifyPathaoWebhook,
+  timingSafeEqual,
   createPathaoAdapter,
   PATHAO_PROD_BASE_URL,
   PATHAO_WEBHOOK_ACK_HEADER,
@@ -79,6 +80,50 @@ describe("delivery state machine", () => {
       expect((e as CourierError).code).toBe("illegal_transition");
     }
   });
+
+  it("forbids reversing the happy path (delivered → pending)", () => {
+    const order = { status: "delivered" as DeliveryStatus };
+    expect(() => transition(order, "pending")).toThrow(CourierError);
+    expect(canTransition("delivered", "pending")).toBe(false);
+  });
+
+  it("treats a same-state move as illegal — callers must guard idempotency", () => {
+    // A re-delivered webhook for the current status is not a transition.
+    expect(canTransition("confirmed", "confirmed")).toBe(false);
+    expect(canTransition("delivered", "delivered")).toBe(false);
+  });
+
+  it("returns false (never throws) for an unknown/untrusted `from` status", () => {
+    expect(canTransition("garbage" as DeliveryStatus, "confirmed")).toBe(false);
+    const order = { status: "garbage" as DeliveryStatus };
+    expect(() => transition(order, "confirmed")).toThrow(CourierError);
+  });
+
+  it("walks the full happy path", () => {
+    let order = { status: "pending" as DeliveryStatus };
+    for (const to of [
+      "confirmed",
+      "picked_up",
+      "in_transit",
+      "out_for_delivery",
+      "delivered",
+    ] as DeliveryStatus[]) {
+      order = transition(order, to);
+    }
+    expect(order.status).toBe("delivered");
+  });
+});
+
+describe("timingSafeEqual", () => {
+  it("is true for equal strings, false otherwise", () => {
+    expect(timingSafeEqual("abc", "abc")).toBe(true);
+    expect(timingSafeEqual("abc", "abd")).toBe(false);
+  });
+  it("is false for different lengths (no early return)", () => {
+    expect(timingSafeEqual("abc", "abcd")).toBe(false);
+    expect(timingSafeEqual("", "x")).toBe(false);
+    expect(timingSafeEqual("", "")).toBe(true);
+  });
 });
 
 describe("normalizePathaoStatus", () => {
@@ -129,6 +174,22 @@ describe("parsePathaoWebhook", () => {
   it("throws when event field is missing", () => {
     expect(() => parsePathaoWebhook({ consignment_id: "X1" })).toThrow(CourierError);
   });
+
+  it("ignores a non-string consignment_id / merchant_order_id", () => {
+    const parsed = parsePathaoWebhook({
+      event: "order.delivered",
+      consignment_id: 12345,
+      merchant_order_id: { nope: true },
+    });
+    expect(parsed.consignmentId).toBeUndefined();
+    expect(parsed.merchantOrderId).toBeUndefined();
+  });
+
+  it("does not pollute Object.prototype from a hostile __proto__ payload", () => {
+    const body = '{"event":"order.delivered","__proto__":{"polluted":true}}';
+    parsePathaoWebhook(body);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
 });
 
 describe("verifyWebhookSignature", () => {
@@ -145,6 +206,31 @@ describe("verifyWebhookSignature", () => {
     const wrong = await hmacHex("other_secret", payload);
     expect(await verifyWebhookSignature(payload, wrong, secret)).toBe(false);
   });
+
+  it("rejects a tampered payload (signature no longer matches)", async () => {
+    const secret = "whsec_test";
+    const payload = JSON.stringify({ event: "order.delivered", amount: 100 });
+    const sig = await hmacHex(secret, payload);
+    const tampered = JSON.stringify({ event: "order.delivered", amount: 999999 });
+    expect(await verifyWebhookSignature(tampered, sig, secret)).toBe(false);
+  });
+
+  it("accepts an uppercase / whitespace-padded hex signature", async () => {
+    const secret = "whsec_test";
+    const payload = "hello";
+    const sig = await hmacHex(secret, payload);
+    expect(await verifyWebhookSignature(payload, `  ${sig.toUpperCase()}  `, secret)).toBe(true);
+  });
+
+  it("returns false — never throws — for a missing/empty signature", async () => {
+    const secret = "whsec_test";
+    const payload = "hello";
+    expect(await verifyWebhookSignature(payload, "", secret)).toBe(false);
+    // @ts-expect-error — a missing header at runtime must be handled, not thrown
+    expect(await verifyWebhookSignature(payload, undefined, secret)).toBe(false);
+    // @ts-expect-error — a null header at runtime must be handled, not thrown
+    expect(await verifyWebhookSignature(payload, null, secret)).toBe(false);
+  });
 });
 
 describe("verifyPathaoWebhook", () => {
@@ -157,6 +243,12 @@ describe("verifyPathaoWebhook", () => {
   it("rejects a null/undefined header", () => {
     expect(verifyPathaoWebhook({ headerSecret: null, expectedSecret: "s3cr3t" })).toBe(false);
     expect(verifyPathaoWebhook({ headerSecret: undefined, expectedSecret: "s3cr3t" })).toBe(false);
+  });
+  it("rejects an empty header even against an empty expected secret", () => {
+    expect(verifyPathaoWebhook({ headerSecret: "", expectedSecret: "" })).toBe(false);
+  });
+  it("rejects a header that is a prefix of the expected secret", () => {
+    expect(verifyPathaoWebhook({ headerSecret: "s3cr", expectedSecret: "s3cr3t" })).toBe(false);
   });
   it("exposes the ack header constant", () => {
     expect(PATHAO_WEBHOOK_ACK_HEADER).toBe("X-Pathao-Merchant-Webhook-Integration-Secret");

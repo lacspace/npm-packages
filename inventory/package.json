@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/inventory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stock-tracking engine that prevents overselling — reserve, release, commit & restock over a plain { onHand, reserved } state. Immutable, bring-your-own-store, throws before it oversells. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

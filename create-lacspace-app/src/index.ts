@@ -16,6 +16,7 @@ import { join, dirname, resolve, basename } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, argv, cwd, exit } from "node:process";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 const C = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
@@ -25,7 +26,7 @@ const c = (k: keyof typeof C, s: string): string => `${C[k]}${s}${C.reset}`;
 
 /* ------------------------------ templates ------------------------------ */
 
-interface TemplateDef {
+export interface TemplateDef {
   key: string;
   label: string;
   description: string;
@@ -35,7 +36,7 @@ interface TemplateDef {
   siteDescription: string;
 }
 
-const TEMPLATES: TemplateDef[] = [
+export const TEMPLATES: TemplateDef[] = [
   { key: "personal", label: "Personal portfolio", description: "A sleek personal / developer portfolio with projects and contact.", accent: ["#6366f1", "#a855f7"], siteName: "LSFolio", siteDescription: "Developer, designer & maker. Selected work and writing." },
   { key: "business", label: "Business site", description: "A professional company / agency site with services and a CTA.", accent: ["#2563eb", "#06b6d4"], siteName: "LSStudio", siteDescription: "We design and build digital products that grow businesses." },
   { key: "ecommerce", label: "E-commerce storefront", description: "A modern product storefront home with a featured grid.", accent: ["#0d9488", "#84cc16"], siteName: "LSStore", siteDescription: "Beautiful things, thoughtfully made. Free shipping worldwide." },
@@ -49,7 +50,32 @@ const TEMPLATES: TemplateDef[] = [
 
 /* ------------------------------ shared files ------------------------------ */
 
-interface Ctx { name: string; template: TemplateDef; }
+export interface Ctx { name: string; template: TemplateDef; }
+
+/** Options accepted by the programmatic API (see `./lib`). */
+export interface GenerateOptions {
+  /** Project name — becomes the folder name and the default site name slug. Default `"my-app"`. */
+  name?: string;
+  /** Template key: one of {@link TEMPLATES} (`personal`, `business`, `ecommerce`, `saas`, `blog`, `docs`, `dashboard`, `restaurant`, `marketplace`). Default `"personal"`. */
+  template?: string;
+  /** Accent theme: a preset name, a `#hex`, or a `from,to` pair. Falls back to the template's default accent. */
+  theme?: string;
+}
+
+/**
+ * Resolve raw {@link GenerateOptions} into a concrete {@link Ctx} — normalising
+ * the project name, picking the template (falling back to the first) and
+ * applying a custom accent when a valid `theme` is given. Pure; no I/O.
+ */
+export function resolveContext(options: GenerateOptions = {}): Ctx {
+  const base = TEMPLATES.find((t) => t.key === options.template) ?? TEMPLATES[0]!;
+  const accent = resolveAccent(options.theme);
+  const template: TemplateDef = accent ? { ...base, accent } : base;
+  const raw = options.name ?? "my-app";
+  const seg = raw.split(/[\\/]/).filter(Boolean).pop() ?? "my-app";
+  const name = seg.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") || "my-app";
+  return { name, template };
+}
 
 const pkgJson = (ctx: Ctx): string => JSON.stringify({
   name: ctx.name,
@@ -1969,7 +1995,7 @@ Check the [first post](/blog/welcome) for the full Markdown reference.
 
 /* ------------------------------ file plan ------------------------------ */
 
-function buildFiles(ctx: Ctx): Record<string, string> {
+export function buildFiles(ctx: Ctx): Record<string, string> {
   const isBlog = ctx.template.key === "blog";
   const isDocs = ctx.template.key === "docs";
   const files: Record<string, string> = {
@@ -4860,7 +4886,7 @@ ${c("bold", "Add sections to an existing app")}
 
 // Prebuilt, drop-in page SECTIONS. `npx create-lacspace-app add pricing faq` writes
 // these into components/sections/ so you can compose new pages after scaffolding.
-const SECTIONS: Record<string, string> = {
+export const SECTIONS: Record<string, string> = {
   hero: `import Link from "next/link";
 import { Pill } from "@/components/ui";
 
@@ -5211,7 +5237,13 @@ async function main(): Promise<void> {
   stdout.write(`\n  ${c("green", "Happy building!")} ${c("dim", "https://lacspace.com/packages")}\n\n`);
 }
 
-main().catch((err: unknown) => {
-  stdout.write(c("red", `\n✗ ${err instanceof Error ? err.message : String(err)}\n\n`));
-  exit(1);
-});
+// Only run the interactive CLI when this file is executed directly (as the
+// `create-lacspace-app` bin), NOT when it is imported by the library entry
+// (`./lib`) — importing must be free of side effects.
+const invokedAsCli = argv[1] ? import.meta.url === pathToFileURL(argv[1]).href : false;
+if (invokedAsCli) {
+  main().catch((err: unknown) => {
+    stdout.write(c("red", `\n✗ ${err instanceof Error ? err.message : String(err)}\n\n`));
+    exit(1);
+  });
+}

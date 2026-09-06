@@ -120,6 +120,41 @@ npx create-lacspace-app my-app --theme "#0bb9d9,#7c3aed"           # an exact fr
 
 **Presets:** `lacspace` · `violet` · `indigo` · `blue` · `cyan` · `sky` · `teal` · `emerald` · `green` · `lime` · `amber` · `orange` · `red` · `rose` · `pink` · `fuchsia` · `purple` · `slate` · `sunset` · `ocean` · `forest` · `aurora` · `gold`. Give a single hex and the CLI derives a matching second stop for you.
 
+## 📦 Use it as a library
+
+The same generator is exported as a programmatic API, so you can scaffold Lacspace projects from your own code — build tools, custom CLIs, CI jobs, tests, a playground, or a server-side **"download as ZIP"** button. It ships dual **ESM + CJS** with full TypeScript types.
+
+```ts
+import {
+  generateProject,   // pure: returns an in-memory file map — no disk I/O
+  scaffold,          // Node: writes a project to disk
+  listTemplates,     // the 9 templates + their metadata
+  listSections,      // the 15 prebuilt sections
+} from "create-lacspace-app";
+
+// 1. Pure — get the whole project as { "path": "contents" }. Runs anywhere.
+const files = generateProject({ name: "acme", template: "saas", theme: "#ff6a00" });
+files["app/page.tsx"];        // → the generated home page source
+Object.keys(files).length;    // → ~70 files
+
+// 2. Write it to disk (Node).
+const { dir, files: written } = await scaffold({ name: "acme", template: "saas" });
+console.log(`Scaffolded ${written.length} files → ${dir}`);
+```
+
+`generateProject` is **pure** (no I/O), so it's perfect for previews, snapshot tests, zipping in a server route, or post-processing files before you write them. `scaffold` is the thin Node wrapper that writes the map to disk.
+
+| Export | What it does |
+| --- | --- |
+| `generateProject(options)` | Returns the project as an in-memory `{ path: contents }` map. Pure, isomorphic. |
+| `scaffold(options)` | Generates **and writes** the project to disk (`options.dir`, or `<cwd>/<name>`). Node only. |
+| `listTemplates()` / `templates` | The built-in templates with metadata (`key`, `label`, `description`, `accent`, defaults). |
+| `getTemplate(key)` | One template's metadata, or `undefined`. |
+| `listSections()` / `getSection(name)` | The prebuilt section names, and one section's source. |
+| `templateKeys` | Every valid `template` key. |
+
+`options`: `{ name?, template?, theme? }` — the same choices as the CLI flags above.
+
 ## Licensing
 
 Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; the apps you generate are entirely yours.

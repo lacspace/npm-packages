@@ -155,6 +155,34 @@ console.log(`Scaffolded ${written.length} files → ${dir}`);
 
 `options`: `{ name?, template?, theme? }` — the same choices as the CLI flags above.
 
+## ❓ FAQ
+
+More questions — about the packages, tools and this CLI — are answered at **[developer.lacspace.com/faq](https://developer.lacspace.com/faq)**.
+
+**What is create-lacspace-app?**
+A scaffolding CLI that writes a complete, production-ready **Next.js 15 + Tailwind** app in seconds — pre-wired with Lacspace SEO, security headers, robots.txt, a sitemap, a working contact form, a ⌘K command palette, dynamic Open Graph images and a CI workflow.
+
+**How do I scaffold a new app?**
+`npx create-lacspace-app`, or pass a name and template up front: `npx create-lacspace-app my-site --template saas`. It installs dependencies and hands you a running app.
+
+**Which templates are included?**
+Personal, business, ecommerce, SaaS, blog (a real Markdown blog), docs (a real Markdown docs site) and marketplace — each a complete, deployable Next.js app. Preview them all at [templates.lacspace.com](https://templates.lacspace.com).
+
+**What comes pre-wired in a generated app?**
+SEO metadata + JSON-LD via `@lacspace/seo`, a dynamic OG image endpoint via `@lacspace/og`, security headers, `robots.txt` and a sitemap, a typed contact form with a honeypot, a ⌘K command palette, and a GitHub Actions workflow that gates on an SEO crawl grade.
+
+**Do I need to know the Lacspace packages to use it?**
+No — the generated app works out of the box and you can build normally. The packages are wired in where they help; lean on them as much or as little as you like.
+
+**Which Node version do I need?**
+Node.js **20 or newer**.
+
+**Is it really free — for commercial projects too?**
+Yes. It's free under the permissive **Lacspace Free Licence v1.0**, commercial use included, and the apps you generate are entirely yours.
+
+**Where do I report a bug or request a feature?**
+Open an issue at [github.com/lacspace/npm-packages/issues](https://github.com/lacspace/npm-packages/issues).
+
 ## Licensing
 
 Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; the apps you generate are entirely yours.

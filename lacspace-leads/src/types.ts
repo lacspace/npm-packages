@@ -21,6 +21,7 @@ export type LeadField =
   | "plusCode"
   | "latitude"
   | "longitude"
+  | "distanceKm"
   | "hours"
   | "mapsUrl";
 
@@ -50,9 +51,13 @@ export const ALL_FIELDS: LeadField[] = [
   "plusCode",
   "latitude",
   "longitude",
+  "distanceKm",
   "hours",
   "mapsUrl",
 ];
+
+/** Fields that are computed only in certain modes (e.g. distance in `near` search). */
+export const DERIVED_FIELDS: LeadField[] = ["distanceKm"];
 
 /** Fields that require visiting the business website (via `enrich`). */
 export const ENRICHED_FIELDS: LeadField[] = [
@@ -79,7 +84,7 @@ export const FIELD_PRESETS: Record<string, LeadField[]> = {
   /** Map/geo columns for plotting. */
   geo: ["name", "address", "latitude", "longitude", "plusCode", "mapsUrl"],
   /** Everything Maps shows, no website enrichment. */
-  full: ALL_FIELDS.filter((f) => !ENRICHED_FIELDS.includes(f)),
+  full: ALL_FIELDS.filter((f) => !ENRICHED_FIELDS.includes(f) && !DERIVED_FIELDS.includes(f)),
   /** Every field, including enriched ones. */
   everything: [...ALL_FIELDS],
 };
@@ -89,7 +94,9 @@ export const FIELD_PRESETS: Record<string, LeadField[]> = {
  * {@link ALL_FIELDS} minus the {@link ENRICHED_FIELDS} that need a website visit.
  * Ask for the enriched ones explicitly (or via `enrich`) to opt into that work.
  */
-export const DEFAULT_FIELDS: LeadField[] = ALL_FIELDS.filter((f) => !ENRICHED_FIELDS.includes(f));
+export const DEFAULT_FIELDS: LeadField[] = ALL_FIELDS.filter(
+  (f) => !ENRICHED_FIELDS.includes(f) && !DERIVED_FIELDS.includes(f),
+);
 
 /** A single collected business lead. Every field is optional — Maps listings vary. */
 export interface Lead {
@@ -130,6 +137,8 @@ export interface Lead {
   latitude?: number;
   /** Longitude, parsed from the listing's Maps URL. */
   longitude?: number;
+  /** Distance in km from the `near` point (set only in radius search). */
+  distanceKm?: number;
   /** Opening-hours summary, when shown. */
   hours?: string;
   /** Canonical Google Maps URL for the listing. */
@@ -156,7 +165,7 @@ export interface LeadFilters {
 export type OutputFormat = "json" | "ndjson" | "csv" | "xlsx";
 
 /** How to sort collected leads before export. */
-export type SortKey = "rating" | "reviews" | "name" | "priceLevel";
+export type SortKey = "rating" | "reviews" | "name" | "priceLevel" | "distance";
 
 /** Options for a lead search. */
 export interface SearchOptions {
@@ -168,6 +177,13 @@ export interface SearchOptions {
   type: string;
   /** A ready-made query, used verbatim instead of composing city/area/type. */
   query?: string;
+  /**
+   * Centre the search on a coordinate. Results are biased to this point, and —
+   * when `radiusM` is set — filtered to within it. Each lead gets `distanceKm`.
+   */
+  near?: { lat: number; lng: number };
+  /** Keep only leads within this many metres of `near`. Requires `near`. */
+  radiusM?: number;
   /** Max number of leads to collect. Default 60. */
   limit?: number;
   /** Fields to collect. Default: all of {@link ALL_FIELDS}. */

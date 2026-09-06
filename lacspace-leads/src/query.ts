@@ -22,13 +22,21 @@ export function composeQuery(opts: {
 
 /**
  * The Google Maps search URL for a query. `hl` (interface language) keeps the
- * scraped aria-labels predictable; `gl` biases results to a region.
+ * scraped aria-labels predictable; `gl` biases results to a region; `center`
+ * (`{lat,lng,zoom}`) points the map at a location for a radius search.
  */
-export function mapsSearchUrl(query: string, opts: { hl?: string; gl?: string } = {}): string {
+export function mapsSearchUrl(
+  query: string,
+  opts: { hl?: string; gl?: string; center?: { lat: number; lng: number; zoom?: number } } = {},
+): string {
   const hl = (opts.hl ?? "en").split("-")[0] || "en";
   const params = new URLSearchParams({ hl });
   if (opts.gl) params.set("gl", opts.gl.toLowerCase());
-  return `https://www.google.com/maps/search/${encodeURIComponent(query)}?${params.toString()}`;
+  const base = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  const at = opts.center
+    ? `/@${opts.center.lat},${opts.center.lng},${Math.round(opts.center.zoom ?? 14)}z`
+    : "";
+  return `${base}${at}?${params.toString()}`;
 }
 
 /**

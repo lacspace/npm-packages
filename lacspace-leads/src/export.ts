@@ -25,6 +25,7 @@ const HEADERS: Record<LeadField, string> = {
   plusCode: "Plus Code",
   latitude: "Latitude",
   longitude: "Longitude",
+  distanceKm: "Distance (km)",
   hours: "Hours",
   mapsUrl: "Maps URL",
 };
@@ -110,7 +111,7 @@ const FIELD_BY_KEY: Map<string, LeadField> = (() => {
   return m;
 })();
 
-const NUMERIC_FIELDS = new Set<LeadField>(["rating", "reviews", "latitude", "longitude"]);
+const NUMERIC_FIELDS = new Set<LeadField>(["rating", "reviews", "latitude", "longitude", "distanceKm"]);
 
 /**
  * Map arbitrary rows (as read back from a JSON/CSV/Excel export, keyed by field

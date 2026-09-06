@@ -100,20 +100,25 @@ function plausible(digits: string): boolean {
 }
 
 /** Keys a lead list can be sorted by. */
-export type SortKey = "rating" | "reviews" | "name" | "priceLevel";
+export type SortKey = "rating" | "reviews" | "name" | "priceLevel" | "distance";
 
 const priceRank = (p?: string): number => (p ? p.replace(/[^$€£₹¥₩]/g, "").length : 0);
 
+// Keys that read low-to-high by default (name alphabetically, distance nearest-first).
+const ASC_BY_DEFAULT = new Set<SortKey>(["name", "distance"]);
+
 /**
  * Sort leads by a key, missing values always last. Stable, pure, new array.
- * `dir` defaults to descending for numeric keys and ascending for `name`.
+ * `dir` defaults to descending for numeric quality keys, ascending for `name`
+ * and `distance` (nearest first).
  */
 export function sortLeads(leads: Lead[], by?: SortKey, dir?: "asc" | "desc"): Lead[] {
   if (!by) return [...leads];
-  const desc = dir ? dir === "desc" : by !== "name";
+  const desc = dir ? dir === "desc" : !ASC_BY_DEFAULT.has(by);
   const val = (l: Lead): number | string | undefined => {
     if (by === "name") return l.name?.toLowerCase();
     if (by === "priceLevel") return l.priceLevel ? priceRank(l.priceLevel) : undefined;
+    if (by === "distance") return l.distanceKm;
     return l[by] as number | undefined;
   };
   return [...leads]

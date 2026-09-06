@@ -12,6 +12,7 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 
 - **Free & keyless** — uses a real browser (via [Playwright](https://playwright.dev)), not a paid Places API.
 - **Sweep a whole city** — comma-separate areas and it runs each search, then **merges and de-duplicates** into one list: `--area "Thamel,Baneshwor,Patan"`.
+- **Search by radius** — centre on a coordinate and keep only what's within range: `--near "27.72,85.32" --radius 2km`. Each lead gets a `distanceKm`, sorted nearest-first.
 - **Accumulate a master list** — `--append` merges each run into your existing file and de-duplicates, so daily runs build one clean database.
 - **Rich enrichment** — visit each website to pull an **email** and links for **Facebook, Instagram, WhatsApp, LinkedIn, X, YouTube, TikTok and Telegram** — a few sites in parallel.
 - **Verified emails** — `--verify-emails` checks each address's domain has **MX records** (no message sent) and tags it `valid`/`no-mx`; `--has-valid-email` keeps only deliverable ones.
@@ -42,7 +43,9 @@ npx lacspace-leads [type] [options]
 | `--city <text>` | City, e.g. `Kathmandu`. Comma-separate for several. |
 | `--area <text>` | Area / neighbourhood, e.g. `Baneshwor`. Comma-separate to **sweep a whole city**. |
 | `-q, --query <text>` | Raw query, used verbatim (overrides city/area/type) |
-| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,emailStatus,plusCode,latitude,longitude,hours,mapsUrl` |
+| `--near <lat,lng>` | Centre the search on a coordinate (radius search) |
+| `--radius <dist>` | Keep only leads within this of `--near`, e.g. `2km`, `500m`, `1mi` |
+| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,emailStatus,plusCode,latitude,longitude,distanceKm,hours,mapsUrl` |
 | `--preset <name>` | Field bundle: `minimal` · `outreach` · `contact` · `geo` · `full` · `everything` |
 | `-f, --format <fmt>` | `json` · `ndjson` · `csv` · `xlsx` (default `json`) |
 | `-o, --out <file>` | Output file, or `-` for **stdout** (default: a slug + date) |
@@ -51,8 +54,8 @@ npx lacspace-leads [type] [options]
 | `-n, --limit <n>` | Max listings **per search** (default `60`) |
 | `--total <n>` | Cap the merged result when sweeping several searches |
 | `--no-details` | Skip opening each listing — names + Maps URLs only, much faster |
-| `--sort <key>` | `rating` · `reviews` · `name` · `priceLevel` (missing values last) |
-| `--desc` / `--asc` | Sort direction (default: `desc` for numbers, `asc` for name) |
+| `--sort <key>` | `rating` · `reviews` · `name` · `priceLevel` · `distance` (missing values last) |
+| `--desc` / `--asc` | Sort direction (default: `desc` for quality keys, `asc` for name/distance) |
 | `--delay <ms>` | Pause between listings (default `700`) |
 | `--jitter` | Randomise the delay ±40% (more human) |
 | `--retries <n>` | Retry a listing that fails to open (default `1`) |
@@ -107,6 +110,17 @@ npx lacspace-leads "coffee shop" \
 # Two business types at once, capped at 100 unique leads total
 npx lacspace-leads --type "gym,fitness studio" --city Pokhara --total 100 -f csv
 ```
+
+## Search by radius
+
+Centre the search on a coordinate and keep only what's within range — precise catchment-area targeting for delivery zones, field sales or store-radius research:
+
+```bash
+# Restaurants within 2 km of a point, nearest first, with a distance column
+npx lacspace-leads restaurants --near "27.7172,85.3240" --radius 2km -f csv
+```
+
+Every kept lead gains a `distanceKm` column and results are sorted **nearest-first** by default (override with `--sort`). `--radius` accepts `km`, `m` or `mi` (a bare number is metres); omit it to just centre the search without a hard cutoff. Under the hood it points Google Maps at the coordinate, then filters by real great-circle (haversine) distance.
 
 ## Field presets
 
@@ -213,6 +227,7 @@ const leads = await searchLeadsBatch(
 | `toRows(leads, fields?)` | Header-keyed rows, for your own exporter. |
 | `enrichContacts(website)` / `extractEmails` / `extractSocials` | Website enrichment, on tap. |
 | `cleanWebsite` / `normalizePhone` / `sortLeads` | Pure data-cleaning helpers (unit-tested). |
+| `haversineMeters` / `parseLatLngPair` / `parseDistance` | Pure geo helpers for radius search. |
 | `filterLeads` / `dedupeLeads` | Pure post-processing over any `Lead[]`. |
 | `expandQueries` / `resolvePreset` / `FIELD_PRESETS` | Batch expansion + field presets. |
 | `composeQuery` / `mapsSearchUrl` / `normalizeFields` / `defaultFilename` | Query + helper utilities. |

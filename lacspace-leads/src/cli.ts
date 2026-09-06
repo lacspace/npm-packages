@@ -7,6 +7,7 @@ import { searchLeadsBatch } from "./batch.js";
 import { serialize, computeStats, rowsToLeads } from "./export.js";
 import { convertFile, readRows } from "./convert.js";
 import { dedupeLeads } from "./filter.js";
+import { parseLatLngPair, parseDistance } from "./geo.js";
 import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
 import type { Lead } from "./types.js";
 import {
@@ -32,7 +33,7 @@ const c = (k: keyof typeof C, s: string): string => `${C[k]}${s}${C.reset}`;
 const log = (s = ""): void => void stderr.write(s + "\n");
 
 interface Args {
-  city?: string; area?: string; type?: string; query?: string;
+  city?: string; area?: string; type?: string; query?: string; near?: string; radius?: string;
   fields?: string; preset?: string; format: OutputFormat; out?: string; append: boolean;
   limit: number; total?: number; headless: boolean; details: boolean; delay: number;
   emails: boolean; socials: boolean; verifyEmails: boolean;
@@ -58,6 +59,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--area" || arg === "--areas") a.area = next();
     else if (arg === "-t" || arg === "--type" || arg === "--types") a.type = next();
     else if (arg === "-q" || arg === "--query") a.query = next();
+    else if (arg === "--near") a.near = next();
+    else if (arg === "--radius") a.radius = next();
     else if (arg === "--fields") a.fields = next();
     else if (arg === "--preset") a.preset = next();
     else if (arg === "-f" || arg === "--format") a.format = next() as OutputFormat;
@@ -114,6 +117,8 @@ ${c("bold", "Search options")}
       --area <text>     Area/neighbourhood. Comma-separate to sweep a whole
                         city, e.g. --area "Baneshwor,Thamel,Patan"
   -q, --query <text>    Raw query verbatim (overrides city/area/type)
+      --near <lat,lng>  Centre the search on a coordinate (radius search)
+      --radius <dist>   Keep only leads within this of --near, e.g. 2km, 500m, 1mi
       --fields <list>   Columns: ${ALL_FIELDS.join(",")}
       --preset <name>   Field bundle: ${Object.keys(FIELD_PRESETS).join(" | ")}
   -n, --limit <n>       Max listings per search   (default 60)
@@ -142,8 +147,8 @@ ${c("bold", "Filters & order")}
       --has-valid-email Keep only leads with an MX-verified email (implies --verify-emails)
       --dedupe <key>    website | phone | name | smart | none   (default website;
                         --append uses smart: website→phone→name)
-      --sort <key>      rating | reviews | name | priceLevel
-      --desc / --asc    Sort direction
+      --sort <key>      rating | reviews | name | priceLevel | distance
+      --desc / --asc    Sort direction (distance defaults nearest-first)
 
 ${c("bold", "Output")}
   -f, --format <fmt>    json | ndjson | csv | xlsx      (default json)
@@ -171,6 +176,7 @@ ${c("bold", "Examples")}
   npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv -o -
   npx lacspace-leads dentists --city Pokhara --verify-emails --has-valid-email -f csv
   npx lacspace-leads cafes --city Kathmandu -o master.csv --append   # accumulate daily
+  npx lacspace-leads restaurants --near "27.7172,85.3240" --radius 2km -f csv
   npx lacspace-leads convert leads.json -f xlsx
 
 ${c("dim", "Please scrape responsibly: keep volumes small, respect Google's Terms of")}
@@ -247,6 +253,25 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Radius search: parse the centre point and (optional) radius up front.
+  const nearPoint = args.near ? parseLatLngPair(args.near) : undefined;
+  if (args.near && !nearPoint) {
+    log(c("red", `\n✗ --near must be "lat,lng", e.g. --near "27.7172,85.3240".`));
+    exit(1);
+    return;
+  }
+  const radiusM = args.radius ? parseDistance(args.radius) : undefined;
+  if (args.radius && radiusM === undefined) {
+    log(c("red", `\n✗ --radius must be a distance like 2km, 500m or 1mi.`));
+    exit(1);
+    return;
+  }
+  if (args.radius && !nearPoint) {
+    log(c("red", `\n✗ --radius needs a centre — add --near "lat,lng".`));
+    exit(1);
+    return;
+  }
+
   // Resolve the field set: explicit list wins, else a preset, else defaults;
   // then fold in any enrichment opt-ins.
   const base = args.fields
@@ -256,6 +281,7 @@ async function main(): Promise<void> {
   if (args.emails) wanted.add("email");
   if (args.socials) for (const f of SOCIAL_FIELDS) wanted.add(f);
   if (args.verifyEmails) { wanted.add("email"); wanted.add("emailStatus"); }
+  if (nearPoint) wanted.add("distanceKm");
   const fields = ALL_FIELDS.filter((f) => wanted.has(f));
   const toStdout = args.out === "-";
   const out = toStdout ? "-" : resolve(args.out ?? defaultFilename(query, args.format));
@@ -284,7 +310,9 @@ async function main(): Promise<void> {
   if (args.emails || args.socials) log(`  ${c("dim", "enrich")}  ${[args.emails && "emails", args.socials && "socials"].filter(Boolean).join(" + ")} ${c("dim", `(${args.concurrency ?? 3}× parallel, visits each website)`)}`);
   if (args.verifyEmails) log(`  ${c("dim", "verify")}  email domains (MX lookup)`);
   if (hasFilters) log(`  ${c("dim", "filters")} ${Object.entries(filters).map(([k, v]) => `${k}=${v}`).join(", ")}`);
+  if (nearPoint) log(`  ${c("dim", "near")}    ${nearPoint.lat},${nearPoint.lng}${radiusM !== undefined ? c("dim", ` (within ${args.radius})`) : c("dim", " (centred, no radius filter)")}`);
   if (args.sort) log(`  ${c("dim", "sort")}    ${args.sort} ${args.desc === false ? "asc" : "desc"}`);
+  else if (nearPoint) log(`  ${c("dim", "sort")}    distance (nearest first)`);
   if (args.country) log(`  ${c("dim", "phones")}  E.164 for ${args.country}`);
   if (args.proxy) log(`  ${c("dim", "proxy")}   ${args.proxy.replace(/\/\/[^@]+@/, "//***@")}`);
   log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}${args.append ? c("dim", " (append)") : ""}`);
@@ -317,7 +345,11 @@ async function main(): Promise<void> {
   };
   if (hasFilters) opts.filters = filters;
   if (args.dedupe) opts.dedupe = args.dedupe;
+  if (nearPoint) opts.near = { lat: nearPoint.lat, lng: nearPoint.lng };
+  if (radiusM !== undefined) opts.radiusM = radiusM;
+  // Nearest-first is the natural default for a radius search.
   if (args.sort) opts.sort = args.sort;
+  else if (nearPoint) opts.sort = "distance";
   if (args.desc !== undefined) opts.sortDir = args.desc ? "desc" : "asc";
   if (args.country) opts.country = args.country;
   if (args.locale) opts.locale = args.locale;

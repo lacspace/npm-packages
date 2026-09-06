@@ -53,6 +53,13 @@ export {
 } from "./normalize.js";
 export { enrichContacts, extractEmails, extractSocials, type Contacts } from "./enrich.js";
 export {
+  haversineMeters,
+  parseLatLngPair,
+  parseDistance,
+  zoomForRadius,
+  type LatLng,
+} from "./geo.js";
+export {
   convertFile,
   readRows,
   serializeRows,

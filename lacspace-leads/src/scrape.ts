@@ -4,6 +4,7 @@ import { enrichContacts, type Contacts } from "./enrich.js";
 import { dedupeLeads, filterLeads } from "./filter.js";
 import { cleanWebsite, normalizePhone, sortLeads } from "./normalize.js";
 import { verifyEmails } from "./verify.js";
+import { haversineMeters, zoomForRadius } from "./geo.js";
 import { computeStats } from "./export.js";
 import { DEFAULT_FIELDS, ENRICHED_FIELDS, type Lead, type LeadField, type LeadStats, type SearchOptions } from "./types.js";
 
@@ -274,8 +275,12 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
     ENRICHED_FIELDS.some((f) => fields.has(f)) ||
     Boolean(opts.filters?.hasEmail) ||
     wantVerify;
+  const near = opts.near;
   const collect = new Set<LeadField>(fields);
   if (wantEnrich) collect.add("website");
+  // A radius search needs coordinates to measure distance, even if the user
+  // didn't ask for the lat/long columns.
+  if (near) { collect.add("latitude"); collect.add("longitude"); }
   // Details are needed unless the user only wants name/mapsUrl and no enrichment.
   const detailOnly: LeadField[] = ["name", "mapsUrl"];
   const wantDetails =
@@ -291,8 +296,9 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       locale,
     });
     const page = await context.newPage();
-    const urlOpts: { hl?: string; gl?: string } = { hl: locale };
+    const urlOpts: { hl?: string; gl?: string; center?: { lat: number; lng: number; zoom?: number } } = { hl: locale };
     if (opts.region) urlOpts.gl = opts.region;
+    if (near) urlOpts.center = { lat: near.lat, lng: near.lng, zoom: zoomForRadius(opts.radiusM ?? 2000, near.lat) };
     await page.goto(mapsSearchUrl(query, urlOpts), { waitUntil: "domcontentloaded", timeout: 45000 });
     await dismissConsent(page);
 
@@ -376,6 +382,22 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       }
     }
 
+    // Radius search: measure each lead's distance from the centre, and drop
+    // anything beyond the radius before we spend time enriching.
+    if (near) {
+      for (const lead of leads) {
+        if (typeof lead.latitude === "number" && typeof lead.longitude === "number") {
+          const m = haversineMeters(near, { lat: lead.latitude, lng: lead.longitude });
+          lead.distanceKm = Math.round((m / 1000) * 100) / 100;
+        }
+      }
+      if (opts.radiusM !== undefined) {
+        const r = opts.radiusM;
+        leads = leads.filter((l) => l.distanceKm !== undefined && l.distanceKm * 1000 <= r);
+        onProgress?.(`within ${Math.round(r)} m: ${leads.length} listing${leads.length === 1 ? "" : "s"}.`);
+      }
+    }
+
     // Dedupe before the expensive enrichment step.
     leads = dedupeLeads(leads, opts.dedupe ?? "website");
 
@@ -428,6 +450,18 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
 
     // Drop the derived status column unless the user actually asked for it.
     if (wantVerify && !fields.has("emailStatus")) for (const l of leads) delete l.emailStatus;
+
+    // Drop coordinate/distance helpers we only collected for the radius search.
+    if (near) {
+      const keepLat = fields.has("latitude");
+      const keepLng = fields.has("longitude");
+      const keepDist = fields.has("distanceKm");
+      for (const l of leads) {
+        if (!keepLat) delete l.latitude;
+        if (!keepLng) delete l.longitude;
+        if (!keepDist) delete l.distanceKm;
+      }
+    }
 
     onProgress?.(`collected ${leads.length} lead${leads.length === 1 ? "" : "s"}.`);
     return leads;

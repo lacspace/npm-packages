@@ -108,7 +108,7 @@ ${c("bold", c("magenta", "◆ lacspace-leads"))} ${c("dim", "— free local-busi
 
 ${c("bold", "Usage")}
   npx lacspace-leads [type] [options]
-  npx lacspace-leads convert <file> [-f json|csv|xlsx] [-o out]
+  npx lacspace-leads convert <file> [-f json|ndjson|csv|xlsx] [-o out]
 
 ${c("bold", "Search options")}
   -t, --type <text>     Business type/keyword. Comma-separate for several,
@@ -198,6 +198,10 @@ async function runConvert(rest: string[]): Promise<void> {
   const a = parseArgs(rest);
   const input = rest.find((x) => !x.startsWith("-") && x !== a.format && x !== a.out && x !== a.sheet);
   if (!input) { log(c("red", "\n✗ convert needs an input file: lacspace-leads convert <file> [-f fmt] [-o out]\n")); exit(1); return; }
+  if ((rest.includes("-f") || rest.includes("--format")) && !OUTPUT_FORMATS.includes(a.format)) {
+    log(c("red", `\n✗ Unknown format "${a.format}". Use: ${OUTPUT_FORMATS.join(", ")}.\n`));
+    exit(1); return;
+  }
   log(`\n${c("bold", c("magenta", "◆ lacspace-leads convert"))}\n`);
   try {
     const opts: { format?: OutputFormat; out?: string; sheetName?: string } = {};

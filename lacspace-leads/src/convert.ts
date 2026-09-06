@@ -17,12 +17,13 @@ export type DataRow = Record<string, unknown>;
 export function detectFormat(file: string): OutputFormat {
   const ext = extname(file).toLowerCase().replace(/^\./, "");
   if (ext === "json") return "json";
+  if (ext === "ndjson" || ext === "jsonl") return "ndjson";
   if (ext === "csv" || ext === "tsv") return "csv";
   if (ext === "xlsx" || ext === "xls") return "xlsx";
-  throw new Error(`Cannot infer a format from ".${ext}" — pass an explicit --format (json|csv|xlsx).`);
+  throw new Error(`Cannot infer a format from ".${ext}" — pass an explicit --format (json|ndjson|csv|xlsx).`);
 }
 
-/** Read a JSON / CSV / Excel file into an array of rows. */
+/** Read a JSON / NDJSON / CSV / Excel file into an array of rows. */
 export async function readRows(file: string, format?: OutputFormat): Promise<DataRow[]> {
   const fmt = format ?? detectFormat(file);
   if (fmt === "xlsx") {
@@ -32,6 +33,20 @@ export async function readRows(file: string, format?: OutputFormat): Promise<Dat
   const text = await readFile(file, "utf8");
   if (fmt === "csv") {
     return csvParse<DataRow>(text, { header: true });
+  }
+  if (fmt === "ndjson") {
+    // One JSON object per line; blank lines ignored.
+    return text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l, i) => {
+        try {
+          return JSON.parse(l) as DataRow;
+        } catch {
+          throw new Error(`Invalid NDJSON on line ${i + 1}.`);
+        }
+      });
   }
   // json
   const parsed = JSON.parse(text);
@@ -63,6 +78,9 @@ export function serializeRows(
 ): { data: string | Uint8Array; binary: boolean } {
   if (format === "json") {
     return { data: JSON.stringify(rows, null, 2), binary: false };
+  }
+  if (format === "ndjson") {
+    return { data: rows.map((r) => JSON.stringify(r)).join("\n") + (rows.length ? "\n" : ""), binary: false };
   }
   const cols = columnsOf(rows);
   const flat = rows.map((row) => {

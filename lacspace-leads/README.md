@@ -154,29 +154,90 @@ npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" \
 
 `--verify-emails` does a DNS **MX lookup** on each email's domain (no message is sent) and adds an `emailStatus` column of `valid` · `no-mx` · `invalid-format`. `--append` reads the existing file back, merges, and de-duplicates with the **`smart`** key (website → phone → name) so even website-less businesses don't pile up on re-runs.
 
-## Convert anything (JSON ↔ CSV ↔ Excel)
+## Convert your leads to any format
 
-A general converter is built in — it works on any tabular file, not just leads:
+Collected leads as JSON and now need them in Excel? A general converter is built in — it reads and writes **JSON · NDJSON · CSV · Excel** in any direction, and works on *any* tabular file, not just leads:
 
 ```bash
-npx lacspace-leads convert leads.json -f xlsx        # JSON → Excel
-npx lacspace-leads convert data.csv  -o data.json    # CSV → JSON
-npx lacspace-leads convert sheet.xlsx -f csv         # Excel → CSV
+npx lacspace-leads convert leads.json  -f xlsx          # JSON  → Excel
+npx lacspace-leads convert leads.json  -o leads.csv     # JSON  → CSV   (format from the -o extension)
+npx lacspace-leads convert data.csv    -o data.json     # CSV   → JSON
+npx lacspace-leads convert sheet.xlsx  -f csv           # Excel → CSV
+npx lacspace-leads convert leads.ndjson -f xlsx         # NDJSON → Excel
+npx lacspace-leads convert big.csv     -f ndjson        # CSV → NDJSON (stream-friendly)
 ```
 
-Programmatically: `convertFile(input, { format, out, sheetName })`, or `readRows(file)` + `serializeRows(rows, format)`.
+The output format comes from `-f` (or is inferred from the `-o` filename's extension); if you give neither, it defaults to JSON. Use `--sheet "My Leads"` to name the Excel tab.
 
-### Examples
+**What converts to what** — every combination works, both ways:
+
+| From \ To | JSON | NDJSON | CSV | Excel |
+| --- | :---: | :---: | :---: | :---: |
+| **JSON** | – | ✓ | ✓ | ✓ |
+| **NDJSON** | ✓ | – | ✓ | ✓ |
+| **CSV** | ✓ | ✓ | – | ✓ |
+| **Excel** | ✓ | ✓ | ✓ | – |
+
+**Sample.** `leads.json` in:
+
+```json
+[
+  { "name": "Himalayan Java", "phone": "+9779801234567", "rating": 4.6, "website": "https://himalayanjava.com" },
+  { "name": "Cafe Soma", "phone": "+9779807654321", "rating": 4.4 }
+]
+```
+
+`npx lacspace-leads convert leads.json -o leads.csv` → `leads.csv` out (missing cells become blank; `+` is escaped so spreadsheets don't treat it as a formula):
+
+```csv
+name,phone,rating,website
+Himalayan Java,'+9779801234567,4.6,https://himalayanjava.com
+Cafe Soma,'+9779807654321,4.4,
+```
+
+**In code** — convert a file, or turn any `Lead[]` into a downloadable buffer:
+
+```ts
+import { convertFile, readRows, serializeRows, serialize } from "lacspace-leads";
+
+// 1. Convert a file on disk (returns { out, format, count }).
+await convertFile("leads.json", { format: "xlsx", sheetName: "Prospects" });
+
+// 2. Read rows from any format, transform, write to another.
+const rows = await readRows("leads.csv");                 // → array of objects
+const filtered = rows.filter((r) => Number(r.Rating) >= 4.5);
+const { data, binary } = serializeRows(filtered, "xlsx"); // → bytes for xlsx
+// (write `data` yourself, or in a server route send it as a download)
+
+// 3. Serialize Lead[] straight from a search — pick the columns and order.
+const { data: csv } = serialize(leads, "csv", ["name", "phone", "email"]);
+```
+
+## Recipes
 
 ```bash
 # Excel of restaurants in a specific area
 npx lacspace-leads restaurants --city Kathmandu --area Baneshwor -f xlsx
 
-# Just the essentials for outreach, as CSV
-npx lacspace-leads --type "dental clinic" --city Pokhara --fields name,phone,website -f csv -n 40
+# Outreach list: name/phone/email/website/address, MX-verified, deliverable only
+npx lacspace-leads "dental clinic" --city Pokhara --preset outreach \
+  --verify-emails --has-valid-email --country NP -f csv
 
-# Fast name + URL sweep, no per-listing opening
+# Cover a whole city, sorted best-reviewed first, into one Excel file
+npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" \
+  --sort reviews --desc -f xlsx
+
+# Everything within 1.5 km of a point, nearest first
+npx lacspace-leads salons --near "27.7172,85.3240" --radius 1.5km -f csv
+
+# Build a master list you top up daily (accumulate + dedupe)
+npx lacspace-leads gyms --city Lalitpur -o gyms-master.xlsx --append
+
+# Fast name + Maps-URL sweep, no per-listing opening
 npx lacspace-leads gyms --city Lalitpur --no-details -n 100
+
+# Pipe straight into jq (JSON on stdout, logs on stderr)
+npx lacspace-leads bakeries --city Pokhara -f json -o - -y | jq '.[].phone'
 ```
 
 ## Library

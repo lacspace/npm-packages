@@ -12,6 +12,11 @@ export type LeadField =
   | "facebook"
   | "instagram"
   | "whatsapp"
+  | "linkedin"
+  | "twitter"
+  | "youtube"
+  | "tiktok"
+  | "telegram"
   | "plusCode"
   | "latitude"
   | "longitude"
@@ -32,6 +37,11 @@ export const ALL_FIELDS: LeadField[] = [
   "facebook",
   "instagram",
   "whatsapp",
+  "linkedin",
+  "twitter",
+  "youtube",
+  "tiktok",
+  "telegram",
   "plusCode",
   "latitude",
   "longitude",
@@ -40,7 +50,33 @@ export const ALL_FIELDS: LeadField[] = [
 ];
 
 /** Fields that require visiting the business website (via `enrich`). */
-export const ENRICHED_FIELDS: LeadField[] = ["email", "facebook", "instagram", "whatsapp"];
+export const ENRICHED_FIELDS: LeadField[] = [
+  "email",
+  "facebook",
+  "instagram",
+  "whatsapp",
+  "linkedin",
+  "twitter",
+  "youtube",
+  "tiktok",
+  "telegram",
+];
+
+/** Named field bundles for common jobs — pass via `preset` / `--preset`. */
+export const FIELD_PRESETS: Record<string, LeadField[]> = {
+  /** Just enough to place a business: name, phone, website. */
+  minimal: ["name", "phone", "website"],
+  /** Cold-outreach columns: who, how to reach them, where. */
+  outreach: ["name", "phone", "email", "website", "address"],
+  /** Contact-book columns incl. socials (implies enrichment). */
+  contact: ["name", "phone", "email", "website", "facebook", "instagram", "whatsapp"],
+  /** Map/geo columns for plotting. */
+  geo: ["name", "address", "latitude", "longitude", "plusCode", "mapsUrl"],
+  /** Everything Maps shows, no website enrichment. */
+  full: ALL_FIELDS.filter((f) => !ENRICHED_FIELDS.includes(f)),
+  /** Every field, including enriched ones. */
+  everything: [...ALL_FIELDS],
+};
 
 /**
  * Fields collected by default — everything Google Maps shows directly, i.e.
@@ -70,6 +106,16 @@ export interface Lead {
   instagram?: string;
   /** WhatsApp number/link, from the website (needs enrichment). */
   whatsapp?: string;
+  /** LinkedIn company/profile URL, from the website (needs enrichment). */
+  linkedin?: string;
+  /** Twitter / X URL, from the website (needs enrichment). */
+  twitter?: string;
+  /** YouTube channel URL, from the website (needs enrichment). */
+  youtube?: string;
+  /** TikTok URL, from the website (needs enrichment). */
+  tiktok?: string;
+  /** Telegram link, from the website (needs enrichment). */
+  telegram?: string;
   /** Google Plus Code, when shown. */
   plusCode?: string;
   /** Latitude, parsed from the listing's Maps URL. */
@@ -97,7 +143,10 @@ export interface LeadFilters {
 }
 
 /** Output formats the tool can write. */
-export type OutputFormat = "json" | "csv" | "xlsx";
+export type OutputFormat = "json" | "ndjson" | "csv" | "xlsx";
+
+/** How to sort collected leads before export. */
+export type SortKey = "rating" | "reviews" | "name" | "priceLevel";
 
 /** Options for a lead search. */
 export interface SearchOptions {
@@ -133,6 +182,27 @@ export interface SearchOptions {
   filters?: LeadFilters;
   /** Drop duplicate leads by this key. Default "website" when present else "name". */
   dedupe?: "website" | "phone" | "name" | "none";
+  /** Sort the results by this key before returning. */
+  sort?: SortKey;
+  /** Sort direction. Defaults to "desc" for numbers, "asc" for name. */
+  sortDir?: "asc" | "desc";
+  /**
+   * Normalise phone numbers to E.164 using this default country — an ISO-2 code
+   * (`"NP"`, `"US"`) or a raw calling code (`"977"`). Best-effort; numbers that
+   * can't be parsed are left as-is.
+   */
+  country?: string;
+  /**
+   * Tidy website URLs — unwrap Google redirects and strip tracking params.
+   * Default true.
+   */
+  cleanUrls?: boolean;
+  /** How many websites to enrich in parallel. Default 3. */
+  concurrency?: number;
+  /** Browser/UI locale, e.g. "en-US", "ne-NP". Default "en-US". */
+  locale?: string;
+  /** Google region bias (ccTLD-style), e.g. "np", "us". Sets Maps `gl`. */
+  region?: string;
   /** Stop collecting after this many milliseconds (best-effort). */
   maxMs?: number;
   /** Called with a short progress message as the search runs. */

@@ -25,9 +25,24 @@ export {
   parseReviewCount,
   parseLatLng,
 } from "./scrape.js";
+export { searchLeadsBatch, searchLeadsMulti, type BatchQuery } from "./batch.js";
 export { serialize, toRows } from "./export.js";
-export { composeQuery, mapsSearchUrl, normalizeFields, defaultFilename } from "./query.js";
+export {
+  composeQuery,
+  mapsSearchUrl,
+  normalizeFields,
+  defaultFilename,
+  expandQueries,
+  resolvePreset,
+} from "./query.js";
 export { filterLeads, dedupeLeads } from "./filter.js";
+export {
+  cleanWebsite,
+  normalizePhone,
+  callingCode,
+  sortLeads,
+  CALLING_CODES,
+} from "./normalize.js";
 export { enrichContacts, extractEmails, extractSocials, type Contacts } from "./enrich.js";
 export {
   convertFile,
@@ -37,5 +52,12 @@ export {
   columnsOf,
   type DataRow,
 } from "./convert.js";
-export { ALL_FIELDS, ENRICHED_FIELDS } from "./types.js";
-export type { Lead, LeadField, LeadFilters, OutputFormat, SearchOptions } from "./types.js";
+export { ALL_FIELDS, ENRICHED_FIELDS, DEFAULT_FIELDS, FIELD_PRESETS } from "./types.js";
+export type {
+  Lead,
+  LeadField,
+  LeadFilters,
+  OutputFormat,
+  SortKey,
+  SearchOptions,
+} from "./types.js";

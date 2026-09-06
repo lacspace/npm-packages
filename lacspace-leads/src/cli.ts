@@ -3,17 +3,24 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
 import { scrapeLeads as searchLeads } from "./scrape.js";
+import { searchLeadsBatch } from "./batch.js";
 import { serialize } from "./export.js";
 import { convertFile } from "./convert.js";
-import { composeQuery, defaultFilename, normalizeFields } from "./query.js";
+import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
 import {
   ALL_FIELDS,
   DEFAULT_FIELDS,
+  ENRICHED_FIELDS,
+  FIELD_PRESETS,
   type LeadField,
   type LeadFilters,
   type OutputFormat,
   type SearchOptions,
+  type SortKey,
 } from "./types.js";
+
+const SOCIAL_FIELDS = ENRICHED_FIELDS.filter((f) => f !== "email");
+const OUTPUT_FORMATS: OutputFormat[] = ["json", "ndjson", "csv", "xlsx"];
 
 const C = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
@@ -24,11 +31,13 @@ const log = (s = ""): void => void stderr.write(s + "\n");
 
 interface Args {
   city?: string; area?: string; type?: string; query?: string;
-  fields?: string; format: OutputFormat; out?: string;
-  limit: number; headless: boolean; details: boolean; delay: number;
+  fields?: string; preset?: string; format: OutputFormat; out?: string;
+  limit: number; total?: number; headless: boolean; details: boolean; delay: number;
   emails: boolean; socials: boolean;
   minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean;
-  dedupe?: SearchOptions["dedupe"]; sheet?: string; maxTime?: number;
+  dedupe?: SearchOptions["dedupe"]; sort?: SortKey; desc?: boolean;
+  country?: string; locale?: string; region?: string; concurrency?: number; cleanUrls: boolean;
+  sheet?: string; maxTime?: number;
   yes: boolean; help: boolean;
 }
 
@@ -36,19 +45,21 @@ function parseArgs(list: string[]): Args {
   const a: Args = {
     format: "json", limit: 60, headless: false, details: true, delay: 700,
     emails: false, socials: false, hasPhone: false, hasWebsite: false, hasEmail: false,
-    yes: false, help: false,
+    cleanUrls: true, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
     const next = (): string => list[++i] ?? "";
-    if (arg === "--city") a.city = next();
-    else if (arg === "--area") a.area = next();
-    else if (arg === "-t" || arg === "--type") a.type = next();
+    if (arg === "--city" || arg === "--cities") a.city = next();
+    else if (arg === "--area" || arg === "--areas") a.area = next();
+    else if (arg === "-t" || arg === "--type" || arg === "--types") a.type = next();
     else if (arg === "-q" || arg === "--query") a.query = next();
     else if (arg === "--fields") a.fields = next();
+    else if (arg === "--preset") a.preset = next();
     else if (arg === "-f" || arg === "--format") a.format = next() as OutputFormat;
     else if (arg === "-o" || arg === "--out") a.out = next();
     else if (arg === "-n" || arg === "--limit") a.limit = parseInt(next(), 10) || a.limit;
+    else if (arg === "--total") a.total = parseInt(next(), 10) || a.total;
     else if (arg === "--headless") a.headless = true;
     else if (arg === "--no-details") a.details = false;
     else if (arg === "--delay") a.delay = parseInt(next(), 10) || a.delay;
@@ -61,6 +72,14 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--has-website") a.hasWebsite = true;
     else if (arg === "--has-email") { a.hasEmail = true; a.emails = true; }
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
+    else if (arg === "--sort") a.sort = next() as SortKey;
+    else if (arg === "--desc") a.desc = true;
+    else if (arg === "--asc") a.desc = false;
+    else if (arg === "--country") a.country = next();
+    else if (arg === "--lang" || arg === "--locale") a.locale = next();
+    else if (arg === "--region" || arg === "--gl") a.region = next();
+    else if (arg === "--concurrency") a.concurrency = parseInt(next(), 10) || a.concurrency;
+    else if (arg === "--no-clean-urls") a.cleanUrls = false;
     else if (arg === "--sheet") a.sheet = next();
     else if (arg === "--max-time") a.maxTime = parseInt(next(), 10);
     else if (arg === "-y" || arg === "--yes") a.yes = true;
@@ -79,35 +98,50 @@ ${c("bold", "Usage")}
   npx lacspace-leads convert <file> [-f json|csv|xlsx] [-o out]
 
 ${c("bold", "Search options")}
-  -t, --type <text>     Business type / keyword, e.g. "restaurants"
-      --city <text>     City, e.g. "Kathmandu"
-      --area <text>     Area / neighbourhood, e.g. "Baneshwor"
+  -t, --type <text>     Business type/keyword. Comma-separate for several,
+                        e.g. "restaurants,cafes"
+      --city <text>     City. Comma-separate for several.
+      --area <text>     Area/neighbourhood. Comma-separate to sweep a whole
+                        city, e.g. --area "Baneshwor,Thamel,Patan"
   -q, --query <text>    Raw query verbatim (overrides city/area/type)
       --fields <list>   Columns: ${ALL_FIELDS.join(",")}
-  -n, --limit <n>       Max listings to collect   (default 60)
+      --preset <name>   Field bundle: ${Object.keys(FIELD_PRESETS).join(" | ")}
+  -n, --limit <n>       Max listings per search   (default 60)
+      --total <n>       Cap the merged result (batch searches)
       --no-details      Names + Maps URLs only (fast, no per-listing open)
 
 ${c("bold", "Enrichment (visits each website)")}
       --emails          Also find an email from each website
-      --socials         Also find Facebook / Instagram / WhatsApp
+      --socials         Also find Facebook/Instagram/WhatsApp/LinkedIn/X/
+                        YouTube/TikTok/Telegram
       --enrich          Both of the above
+      --concurrency <n> Websites to enrich in parallel   (default 3)
 
-${c("bold", "Filters")}
+${c("bold", "Clean-up")}
+      --country <c>     Normalise phones to E.164 for this country
+                        (ISO-2 like NP/US, or a calling code like 977)
+      --no-clean-urls   Don't tidy website URLs (redirects/tracking params)
+
+${c("bold", "Filters & order")}
       --min-rating <n>  Keep only ratings ≥ n
       --min-reviews <n> Keep only ≥ n reviews
       --has-phone       Keep only leads with a phone
       --has-website     Keep only leads with a website
       --has-email       Keep only leads with an email (implies --emails)
       --dedupe <key>    website | phone | name | none   (default website)
+      --sort <key>      rating | reviews | name | priceLevel
+      --desc / --asc    Sort direction
 
 ${c("bold", "Output")}
-  -f, --format <fmt>    json | csv | xlsx        (default json)
-  -o, --out <file>      Output file (default: a slug + date)
+  -f, --format <fmt>    json | ndjson | csv | xlsx      (default json)
+  -o, --out <file>      Output file, or "-" for stdout (default: slug + date)
       --sheet <name>    Excel sheet name         (default "Leads")
 
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
       --max-time <s>    Stop collecting after n seconds
+      --lang <locale>   Browser locale, e.g. en-US, ne-NP   (default en-US)
+      --region <cc>     Region bias for results, e.g. np, us
       --headless        Run the browser without a window
   -y, --yes             Skip prompts + the browser-open confirmation
   -h, --help            Show this help
@@ -115,7 +149,9 @@ ${c("bold", "Runtime")}
 ${c("bold", "Examples")}
   npx lacspace-leads restaurants --city Kathmandu --area Baneshwor -f xlsx
   npx lacspace-leads "dental clinic" --city Pokhara --emails --has-email -f csv -n 40
-  npx lacspace-leads gyms --city Lalitpur --min-rating 4 --no-details -n 100
+  npx lacspace-leads gyms --city Lalitpur --min-rating 4 --sort reviews --desc
+  npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" --country NP
+  npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv -o -
   npx lacspace-leads convert leads.json -f xlsx
 
 ${c("dim", "Please scrape responsibly: keep volumes small, respect Google's Terms of")}
@@ -181,13 +217,28 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Resolve the field set: user list, else defaults, plus any enrichment opt-ins.
-  const base = args.fields ? normalizeFields(args.fields) : [...DEFAULT_FIELDS];
+  if (!OUTPUT_FORMATS.includes(args.format)) {
+    log(c("red", `\n✗ Unknown format "${args.format}". Use: ${OUTPUT_FORMATS.join(", ")}.`));
+    exit(1);
+    return;
+  }
+  if (args.preset && !resolvePreset(args.preset)) {
+    log(c("red", `\n✗ Unknown preset "${args.preset}". Use: ${Object.keys(FIELD_PRESETS).join(", ")}.`));
+    exit(1);
+    return;
+  }
+
+  // Resolve the field set: explicit list wins, else a preset, else defaults;
+  // then fold in any enrichment opt-ins.
+  const base = args.fields
+    ? normalizeFields(args.fields)
+    : resolvePreset(args.preset) ?? [...DEFAULT_FIELDS];
   const wanted = new Set<LeadField>(base);
   if (args.emails) wanted.add("email");
-  if (args.socials) { wanted.add("facebook"); wanted.add("instagram"); wanted.add("whatsapp"); }
+  if (args.socials) for (const f of SOCIAL_FIELDS) wanted.add(f);
   const fields = ALL_FIELDS.filter((f) => wanted.has(f));
-  const out = resolve(args.out ?? defaultFilename(query, args.format));
+  const toStdout = args.out === "-";
+  const out = toStdout ? "-" : resolve(args.out ?? defaultFilename(query, args.format));
 
   const filters: LeadFilters = {};
   if (args.minRating !== undefined) filters.minRating = args.minRating;
@@ -197,11 +248,23 @@ async function main(): Promise<void> {
   if (args.hasEmail) filters.hasEmail = true;
   const hasFilters = Object.keys(filters).length > 0;
 
-  log(`\n  ${c("dim", "search")}  ${c("bold", query)}`);
+  // A comma-separated type/city/area fans out into several searches.
+  const queries = expandQueries({
+    type: args.type ?? "",
+    city: args.city ?? "",
+    area: args.area ?? "",
+    query: args.query ?? "",
+  });
+  const isBatch = queries.length > 1;
+
+  if (isBatch) log(`\n  ${c("dim", "searches")} ${c("bold", String(queries.length))} ${c("dim", "→")} ${queries.map((q) => { try { return composeQuery(q); } catch { return "?"; } }).join("  ·  ")}`);
+  else log(`\n  ${c("dim", "search")}  ${c("bold", query)}`);
   log(`  ${c("dim", "fields")}  ${fields.join(", ")}`);
-  if (args.emails || args.socials) log(`  ${c("dim", "enrich")}  ${[args.emails && "emails", args.socials && "socials"].filter(Boolean).join(" + ")} ${c("dim", "(visits each website)")}`);
+  if (args.emails || args.socials) log(`  ${c("dim", "enrich")}  ${[args.emails && "emails", args.socials && "socials"].filter(Boolean).join(" + ")} ${c("dim", `(${args.concurrency ?? 3}× parallel, visits each website)`)}`);
   if (hasFilters) log(`  ${c("dim", "filters")} ${Object.entries(filters).map(([k, v]) => `${k}=${v}`).join(", ")}`);
-  log(`  ${c("dim", "limit")}   ${args.limit}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${out}`);
+  if (args.sort) log(`  ${c("dim", "sort")}    ${args.sort} ${args.desc === false ? "asc" : "desc"}`);
+  if (args.country) log(`  ${c("dim", "phones")}  E.164 for ${args.country}`);
+  log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}`);
   if (!args.yes) {
     const ok = await prompt(`\n${c("yellow", "!")} This opens a browser and searches Google Maps. Continue? ${c("dim", "[y/N]")} `);
     if (!/^y(es)?$/i.test(ok)) { log(c("dim", "\n  cancelled.\n")); return; }
@@ -222,17 +285,30 @@ async function main(): Promise<void> {
     headless: args.headless,
     details: args.details,
     delayMs: args.delay,
+    cleanUrls: args.cleanUrls,
     enrich: args.emails || args.socials,
     signal: controller.signal,
     onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`),
   };
   if (hasFilters) opts.filters = filters;
   if (args.dedupe) opts.dedupe = args.dedupe;
+  if (args.sort) opts.sort = args.sort;
+  if (args.desc !== undefined) opts.sortDir = args.desc ? "desc" : "asc";
+  if (args.country) opts.country = args.country;
+  if (args.locale) opts.locale = args.locale;
+  if (args.region) opts.region = args.region;
+  if (args.concurrency !== undefined) opts.concurrency = args.concurrency;
   if (args.maxTime !== undefined) opts.maxMs = args.maxTime * 1000;
 
   let leads;
   try {
-    leads = await searchLeads(opts);
+    if (isBatch) {
+      const batchOpts = { ...opts } as SearchOptions & { total?: number };
+      if (args.total !== undefined) batchOpts.total = args.total;
+      leads = await searchLeadsBatch(queries, batchOpts);
+    } else {
+      leads = await searchLeads(opts);
+    }
   } catch (err) {
     log(c("red", `\n✗ ${(err as Error).message}`));
     exit(1);
@@ -249,14 +325,25 @@ async function main(): Promise<void> {
   const serOpts: { sheetName?: string } = {};
   if (args.sheet) serOpts.sheetName = args.sheet;
   const { data, binary } = serialize(leads, args.format, fields, serOpts);
+
+  if (toStdout) {
+    // Write the payload to real stdout so it can be piped; keep logs on stderr.
+    stdout.write(binary ? Buffer.from(data as Uint8Array) : (data as string));
+    if (!binary) stdout.write("\n");
+    log(`\n  ${c("green", "✔")} ${c("bold", String(leads.length))} leads written to stdout ${c("dim", `(${args.format})`)}\n`);
+    return;
+  }
+
   writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
 
   const withPhone = leads.filter((l) => l.phone).length;
   const withSite = leads.filter((l) => l.website).length;
   const withEmail = leads.filter((l) => l.email).length;
+  const withSocial = leads.filter((l) => l.facebook || l.instagram || l.linkedin || l.twitter).length;
   log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}`);
   const stats = [`${withPhone} with a phone`, `${withSite} with a website`];
   if (args.emails) stats.push(`${withEmail} with an email`);
+  if (args.socials) stats.push(`${withSocial} with a social link`);
   log(`    ${c("dim", stats.join(" · "))}\n`);
 }
 

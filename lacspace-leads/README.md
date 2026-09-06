@@ -1,6 +1,6 @@
 # lacspace-leads
 
-**Free, open-source local-business lead finder.** Name a city, area and business type — it drives a real browser over Google Maps and collects each listing's **name, category, rating, reviews, address, phone, website** and more, then exports to **JSON, CSV or Excel**. No API keys, no paid services.
+**Free, open-source local-business lead finder.** Name a city, area and business type — it drives a real browser over Google Maps and collects each listing's **name, category, rating, reviews, address, phone, website, email and social links**, then exports to **JSON, NDJSON, CSV or Excel**. No API keys, no paid services.
 
 ```bash
 npx lacspace-leads restaurants --city Kathmandu --area Baneshwor -f xlsx
@@ -11,10 +11,14 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 ## Why it's different
 
 - **Free & keyless** — uses a real browser (via [Playwright](https://playwright.dev)), not a paid Places API.
-- **Any format** — JSON, CSV or Excel out of the box (Excel/CSV via `@lacspace/xlsx` + `@lacspace/csv`).
-- **Pick your fields** — only collect what you need.
+- **Sweep a whole city** — comma-separate areas and it runs each search, then **merges and de-duplicates** into one list: `--area "Thamel,Baneshwor,Patan"`.
+- **Rich enrichment** — visit each website to pull an **email** and links for **Facebook, Instagram, WhatsApp, LinkedIn, X, YouTube, TikTok and Telegram** — a few sites in parallel.
+- **CRM-ready data** — normalise phones to **E.164** (`--country NP` → `+9779…`), and tidy website URLs (unwrap Google redirects, strip `utm_*`/`fbclid`).
+- **Any format** — JSON, NDJSON, CSV or Excel; write to a file or pipe to `stdout` with `-o -`.
+- **Pick your fields** — choose exactly what you collect, or a ready-made **preset** (`--preset outreach`).
+- **Sort & filter** — `--sort reviews --desc`, `--min-rating`, `--has-email`, and more.
 - **Permission-first** — it tells you what it's about to do and asks before opening a browser.
-- **Library too** — `import { searchLeads } from "lacspace-leads"`.
+- **Library too** — `import { searchLeads, searchLeadsBatch } from "lacspace-leads"`.
 
 ## Install
 
@@ -32,18 +36,24 @@ npx lacspace-leads [type] [options]
 
 | Option | Meaning |
 | --- | --- |
-| `-t, --type <text>` | Business type / keyword, e.g. `"dental clinic"` |
-| `--city <text>` | City, e.g. `Kathmandu` |
-| `--area <text>` | Area / neighbourhood, e.g. `Baneshwor` |
+| `-t, --type <text>` | Business type / keyword, e.g. `"dental clinic"`. Comma-separate for several. |
+| `--city <text>` | City, e.g. `Kathmandu`. Comma-separate for several. |
+| `--area <text>` | Area / neighbourhood, e.g. `Baneshwor`. Comma-separate to **sweep a whole city**. |
 | `-q, --query <text>` | Raw query, used verbatim (overrides city/area/type) |
-| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,plusCode,latitude,longitude,hours,mapsUrl` |
-| `-f, --format <fmt>` | `json` · `csv` · `xlsx` (default `json`) |
-| `-o, --out <file>` | Output file (default: a slug + date) |
+| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,plusCode,latitude,longitude,hours,mapsUrl` |
+| `--preset <name>` | Field bundle: `minimal` · `outreach` · `contact` · `geo` · `full` · `everything` |
+| `-f, --format <fmt>` | `json` · `ndjson` · `csv` · `xlsx` (default `json`) |
+| `-o, --out <file>` | Output file, or `-` for **stdout** (default: a slug + date) |
 | `--sheet <name>` | Excel sheet name (default `Leads`) |
-| `-n, --limit <n>` | Max listings to collect (default `60`) |
+| `-n, --limit <n>` | Max listings **per search** (default `60`) |
+| `--total <n>` | Cap the merged result when sweeping several searches |
 | `--no-details` | Skip opening each listing — names + Maps URLs only, much faster |
+| `--sort <key>` | `rating` · `reviews` · `name` · `priceLevel` (missing values last) |
+| `--desc` / `--asc` | Sort direction (default: `desc` for numbers, `asc` for name) |
 | `--delay <ms>` | Pause between listings (default `700`) |
 | `--max-time <s>` | Stop collecting after n seconds |
+| `--lang <locale>` | Browser locale, e.g. `en-US`, `ne-NP` (default `en-US`) |
+| `--region <cc>` | Region bias for results, e.g. `np`, `us` |
 | `--headless` | Run the browser without a visible window |
 | `-y, --yes` | Skip prompts and the browser-open confirmation |
 
@@ -52,8 +62,16 @@ npx lacspace-leads [type] [options]
 | Option | Meaning |
 | --- | --- |
 | `--emails` | Also find an email from each website |
-| `--socials` | Also find Facebook / Instagram / WhatsApp |
+| `--socials` | Also find Facebook / Instagram / WhatsApp / LinkedIn / X / YouTube / TikTok / Telegram |
 | `--enrich` | Both of the above |
+| `--concurrency <n>` | How many websites to enrich in parallel (default `3`) |
+
+**Clean-up** (data quality):
+
+| Option | Meaning |
+| --- | --- |
+| `--country <c>` | Normalise phones to **E.164** for this country — an ISO-2 code (`NP`, `US`) or a calling code (`977`) |
+| `--no-clean-urls` | Don't tidy website URLs (by default it unwraps Google redirects and strips tracking params) |
 
 **Filters** (drop leads that don't qualify):
 
@@ -67,6 +85,37 @@ npx lacspace-leads [type] [options]
 | `--dedupe <key>` | `website` · `phone` · `name` · `none` (default `website`) |
 
 Run with no arguments for an interactive walkthrough.
+
+## Sweep a whole city
+
+Comma-separate areas (and/or types) and `lacspace-leads` runs each search in turn, then **merges and de-duplicates** into a single list — sorted and filtered across the whole set:
+
+```bash
+# Every coffee shop across three neighbourhoods, phones as +977…, best-reviewed first
+npx lacspace-leads "coffee shop" \
+  --city Kathmandu --area "Thamel,Baneshwor,Patan" \
+  --country NP --sort reviews --desc -f xlsx
+
+# Two business types at once, capped at 100 unique leads total
+npx lacspace-leads --type "gym,fitness studio" --city Pokhara --total 100 -f csv
+```
+
+## Field presets
+
+Skip spelling out `--fields` with a ready-made bundle:
+
+| Preset | Columns |
+| --- | --- |
+| `minimal` | name, phone, website |
+| `outreach` | name, phone, email, website, address |
+| `contact` | name, phone, email, website, facebook, instagram, whatsapp |
+| `geo` | name, address, latitude, longitude, plusCode, mapsUrl |
+| `full` | everything Maps shows (no website enrichment) |
+| `everything` | every field, including enriched ones |
+
+```bash
+npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv
+```
 
 ## Convert anything (JSON ↔ CSV ↔ Excel)
 
@@ -113,12 +162,35 @@ const { data, binary } = serialize(leads, "xlsx");
 writeFileSync("leads.xlsx", binary ? Buffer.from(data as Uint8Array) : data);
 ```
 
+Sweep several areas and merge them yourself:
+
+```ts
+import { searchLeadsBatch } from "lacspace-leads";
+
+const leads = await searchLeadsBatch(
+  [
+    { type: "coffee shop", city: "Kathmandu", area: "Thamel" },
+    { type: "coffee shop", city: "Kathmandu", area: "Baneshwor" },
+  ],
+  { limit: 40, country: "NP", sort: "reviews", enrich: true, headless: true },
+);
+// → one de-duplicated, sorted, E.164-normalised list
+```
+
 | Export | Purpose |
 | --- | --- |
-| `searchLeads(options)` | Run the search, resolve to `Lead[]`. |
-| `serialize(leads, format, fields?)` | Serialize to `{ data, binary }` for `json` / `csv` / `xlsx`. |
+| `searchLeads(options)` | Run one search, resolve to `Lead[]`. |
+| `searchLeadsBatch(queries, options)` | Run several searches and merge/dedupe/sort into one `Lead[]`. |
+| `searchLeadsMulti(options)` | Expand comma-separated `type`/`city`/`area` and run as a batch. |
+| `serialize(leads, format, fields?)` | Serialize to `{ data, binary }` for `json` / `ndjson` / `csv` / `xlsx`. |
 | `toRows(leads, fields?)` | Header-keyed rows, for your own exporter. |
+| `enrichContacts(website)` / `extractEmails` / `extractSocials` | Website enrichment, on tap. |
+| `cleanWebsite` / `normalizePhone` / `sortLeads` | Pure data-cleaning helpers (unit-tested). |
+| `filterLeads` / `dedupeLeads` | Pure post-processing over any `Lead[]`. |
+| `expandQueries` / `resolvePreset` / `FIELD_PRESETS` | Batch expansion + field presets. |
 | `composeQuery` / `mapsSearchUrl` / `normalizeFields` / `defaultFilename` | Query + helper utilities. |
+
+Everything is fully typed (`Lead`, `LeadField`, `SearchOptions`, `SortKey`, `OutputFormat`, `Contacts` …) and ships dual **ESM + CJS**.
 
 ## Please use it responsibly
 

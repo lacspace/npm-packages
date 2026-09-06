@@ -1,4 +1,4 @@
-import { ALL_FIELDS, type LeadField } from "./types.js";
+import { ALL_FIELDS, FIELD_PRESETS, type LeadField } from "./types.js";
 
 /**
  * Compose the human search query from options: an explicit `query` wins,
@@ -20,9 +20,55 @@ export function composeQuery(opts: {
   return where ? `${type} in ${where}` : type;
 }
 
-/** The Google Maps search URL for a query. `hl=en` keeps labels predictable. */
-export function mapsSearchUrl(query: string): string {
-  return `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
+/**
+ * The Google Maps search URL for a query. `hl` (interface language) keeps the
+ * scraped aria-labels predictable; `gl` biases results to a region.
+ */
+export function mapsSearchUrl(query: string, opts: { hl?: string; gl?: string } = {}): string {
+  const hl = (opts.hl ?? "en").split("-")[0] || "en";
+  const params = new URLSearchParams({ hl });
+  if (opts.gl) params.set("gl", opts.gl.toLowerCase());
+  return `https://www.google.com/maps/search/${encodeURIComponent(query)}?${params.toString()}`;
+}
+
+/**
+ * Expand a possibly-multi search request into individual `{type, city, area}`
+ * queries — the cross-product of comma-separated types × cities × areas. An
+ * explicit `query` short-circuits to a single verbatim search. Used for batch.
+ */
+export function expandQueries(opts: {
+  type?: string;
+  city?: string;
+  area?: string;
+  query?: string;
+}): { type?: string; city?: string; area?: string; query?: string }[] {
+  if (opts.query && opts.query.trim()) return [{ query: opts.query.trim() }];
+  const split = (s?: string): (string | undefined)[] => {
+    const parts = (s ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+    return parts.length ? parts : [undefined];
+  };
+  const types = split(opts.type);
+  const cities = split(opts.city);
+  const areas = split(opts.area);
+  const out: { type?: string; city?: string; area?: string }[] = [];
+  for (const type of types) {
+    for (const city of cities) {
+      for (const area of areas) {
+        const entry: { type?: string; city?: string; area?: string } = {};
+        if (type) entry.type = type;
+        if (city) entry.city = city;
+        if (area) entry.area = area;
+        out.push(entry);
+      }
+    }
+  }
+  return out;
+}
+
+/** Resolve a preset name to its field list, case-insensitively. */
+export function resolvePreset(name?: string): LeadField[] | undefined {
+  if (!name) return undefined;
+  return FIELD_PRESETS[name.trim().toLowerCase()];
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "lacspace-leads",
-  "version": "0.2.1",
-  "description": "Free, open-source local-business lead finder — name a city, area and business type, and it drives a real browser over Google Maps to collect names, phones, websites, ratings and addresses, then exports to JSON, CSV or Excel. No API keys.",
+  "version": "0.3.0",
+  "description": "Free, open-source local-business lead finder — name a city, area and business type, and it drives a real browser over Google Maps to collect names, phones, websites, ratings, addresses, emails and social links, then exports to JSON, NDJSON, CSV or Excel. Sweep multiple areas at once, normalise phones to E.164, and enrich in parallel. No API keys.",
   "type": "module",
   "bin": {
     "lacspace-leads": "dist/cli.js"
@@ -35,11 +35,14 @@
     "local-business",
     "prospecting",
     "b2b",
+    "email-finder",
     "csv",
     "excel",
+    "ndjson",
     "playwright",
     "cli",
     "osint",
+    "e164",
     "nepal",
     "typescript"
   ],

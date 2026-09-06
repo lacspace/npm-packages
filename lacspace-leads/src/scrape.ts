@@ -1,8 +1,27 @@
 import { chromium, type Browser, type Page } from "playwright-core";
 import { composeQuery, mapsSearchUrl, normalizeFields } from "./query.js";
-import { enrichContacts } from "./enrich.js";
+import { enrichContacts, type Contacts } from "./enrich.js";
 import { dedupeLeads, filterLeads } from "./filter.js";
+import { cleanWebsite, normalizePhone, sortLeads } from "./normalize.js";
 import { DEFAULT_FIELDS, ENRICHED_FIELDS, type Lead, type LeadField, type SearchOptions } from "./types.js";
+
+/** Run async `fn` over `items` with at most `n` in flight. Honours `signal`. */
+async function pool<T>(
+  items: T[],
+  n: number,
+  fn: (item: T, index: number) => Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  let next = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(n, items.length)) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length || signal?.aborted) return;
+      await fn(items[i]!, i);
+    }
+  });
+  await Promise.all(workers);
+}
 
 /** Error thrown by the scraper. Carries a machine `code` and optional cause. */
 export class LeadsError extends Error {
@@ -173,7 +192,14 @@ async function extractDetail(
           .first()
           .getAttribute("aria-label")
           .catch(() => null);
-        lead.reviews = parseReviewCount(rv);
+        let count = parseReviewCount(rv);
+        if (count === undefined) {
+          // Fallback: Maps sometimes shows the count only as "(1,810)" text.
+          const boxText = await box.innerText().catch(() => "");
+          const m = boxText.match(/\(([\d.,\s]+)\)/);
+          if (m) count = parseReviewCount(m[1]);
+        }
+        lead.reviews = count;
       }
     }
   }
@@ -248,12 +274,15 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
   onProgress?.(`searching Google Maps for "${query}"…`);
   const browser = await launchBrowser(headless);
   try {
+    const locale = opts.locale ?? "en-US";
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
-      locale: "en-US",
+      locale,
     });
     const page = await context.newPage();
-    await page.goto(mapsSearchUrl(query), { waitUntil: "domcontentloaded", timeout: 45000 });
+    const urlOpts: { hl?: string; gl?: string } = { hl: locale };
+    if (opts.region) urlOpts.gl = opts.region;
+    await page.goto(mapsSearchUrl(query, urlOpts), { waitUntil: "domcontentloaded", timeout: 45000 });
     await dismissConsent(page);
 
     await loadResults(page, limit, delayMs, onProgress, signal);
@@ -312,28 +341,53 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
     }
     onProgress?.(`collected ${leads.length} listing${leads.length === 1 ? "" : "s"}.`);
 
-    // Dedupe before the expensive enrichment step.
-    leads = dedupeLeads(leads, opts.dedupe ?? "website");
-
-    // Enrich from each website (email + socials).
-    if (wantEnrich) {
-      for (let i = 0; i < leads.length; i++) {
-        if (signal?.aborted || overBudget()) break;
-        const site = leads[i]!.website;
-        if (!site) continue;
-        onProgress?.(`enriching ${i + 1}/${leads.length}: ${leads[i]!.name ?? site}…`);
-        const c = await enrichContacts(site);
-        if (fields.has("email") && c.email) leads[i]!.email = c.email;
-        if (fields.has("facebook") && c.facebook) leads[i]!.facebook = c.facebook;
-        if (fields.has("instagram") && c.instagram) leads[i]!.instagram = c.instagram;
-        if (fields.has("whatsapp") && c.whatsapp) leads[i]!.whatsapp = c.whatsapp;
-        // Drop the internal-only website when the user didn't ask for it.
-        if (!fields.has("website")) delete leads[i]!.website;
+    // Tidy website URLs (unwrap redirects, strip tracking) — improves dedupe
+    // and enrichment fetches. On by default.
+    if (opts.cleanUrls ?? true) {
+      for (const lead of leads) {
+        if (lead.website) lead.website = cleanWebsite(lead.website);
       }
     }
 
-    // Apply filters last (so hasEmail sees enriched data).
+    // Dedupe before the expensive enrichment step.
+    leads = dedupeLeads(leads, opts.dedupe ?? "website");
+
+    // Enrich from each website (email + socials), a few in parallel.
+    if (wantEnrich) {
+      const socialFields = ENRICHED_FIELDS.filter((f) => f !== "email");
+      let done = 0;
+      await pool(
+        leads,
+        Math.max(1, Math.trunc(opts.concurrency ?? 3)),
+        async (lead) => {
+          if (overBudget()) return;
+          const site = lead.website;
+          if (site) {
+            onProgress?.(`enriching ${++done}/${leads.length}: ${lead.name ?? site}…`);
+            const c = await enrichContacts(site);
+            if (fields.has("email") && c.email) lead.email = c.email;
+            for (const f of socialFields) {
+              const v = c[f as keyof Contacts];
+              if (fields.has(f) && v) (lead as Record<string, unknown>)[f] = v;
+            }
+          }
+          // Drop the internal-only website when the user didn't ask for it.
+          if (!fields.has("website")) delete lead.website;
+        },
+        signal,
+      );
+    }
+
+    // Normalise phone numbers to E.164 when a default country is given.
+    if (opts.country && fields.has("phone")) {
+      for (const lead of leads) {
+        if (lead.phone) lead.phone = normalizePhone(lead.phone, opts.country);
+      }
+    }
+
+    // Apply filters (so hasEmail sees enriched data), then sort.
     if (opts.filters) leads = filterLeads(leads, opts.filters);
+    if (opts.sort) leads = sortLeads(leads, opts.sort, opts.sortDir);
 
     onProgress?.(`collected ${leads.length} lead${leads.length === 1 ? "" : "s"}.`);
     return leads;

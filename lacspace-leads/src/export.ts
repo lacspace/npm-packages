@@ -16,6 +16,11 @@ const HEADERS: Record<LeadField, string> = {
   facebook: "Facebook",
   instagram: "Instagram",
   whatsapp: "WhatsApp",
+  linkedin: "LinkedIn",
+  twitter: "Twitter/X",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  telegram: "Telegram",
   plusCode: "Plus Code",
   latitude: "Latitude",
   longitude: "Longitude",
@@ -45,13 +50,17 @@ export function serialize(
   fields: LeadField[] = ALL_FIELDS,
   opts: { sheetName?: string } = {},
 ): { data: string | Uint8Array; binary: boolean } {
-  if (format === "json") {
+  if (format === "json" || format === "ndjson") {
     const picked = leads.map((lead) => {
       const o: Record<string, unknown> = {};
       for (const f of fields) if (lead[f] !== undefined) o[f] = lead[f];
       return o;
     });
-    return { data: JSON.stringify(picked, null, 2), binary: false };
+    const data =
+      format === "ndjson"
+        ? picked.map((o) => JSON.stringify(o)).join("\n") + (picked.length ? "\n" : "")
+        : JSON.stringify(picked, null, 2);
+    return { data, binary: false };
   }
 
   const rows = toRows(leads, fields);

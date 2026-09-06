@@ -10,6 +10,11 @@ export interface Contacts {
   facebook?: string;
   instagram?: string;
   whatsapp?: string;
+  linkedin?: string;
+  twitter?: string;
+  youtube?: string;
+  tiktok?: string;
+  telegram?: string;
 }
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -36,18 +41,32 @@ export function extractEmails(html: string): string | undefined {
   return [...found.entries()].sort((a, b) => b[1] - a[1])[0]![0];
 }
 
-/** Extract Facebook / Instagram / WhatsApp links from HTML. Pure. */
+/**
+ * Extract social links (Facebook, Instagram, WhatsApp, LinkedIn, Twitter/X,
+ * YouTube, TikTok, Telegram) from HTML. Skips share/intent/widget links. Pure.
+ */
 export function extractSocials(html: string): Omit<Contacts, "email"> {
   const out: Omit<Contacts, "email"> = {};
   const hrefs = [...html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1] ?? "");
   for (const href of hrefs) {
     const u = href.trim();
-    if (!out.facebook && /(^|\/\/|\.)facebook\.com\//i.test(u) && !/sharer|plugins|\/tr\?/i.test(u)) {
+    if (!u) continue;
+    if (!out.facebook && /(^|\/\/|\.)facebook\.com\//i.test(u) && !/sharer|plugins|\/tr\?|dialog\//i.test(u)) {
       out.facebook = absolutize(u);
-    } else if (!out.instagram && /(^|\/\/|\.)instagram\.com\//i.test(u)) {
+    } else if (!out.instagram && /(^|\/\/|\.)instagram\.com\//i.test(u) && !/\/(share|p)\//i.test(u)) {
       out.instagram = absolutize(u);
     } else if (!out.whatsapp && /(wa\.me\/|api\.whatsapp\.com\/|whatsapp:\/\/)/i.test(u)) {
       out.whatsapp = u.startsWith("http") || u.startsWith("whatsapp") ? u : `https:${u}`;
+    } else if (!out.linkedin && /(^|\/\/|\.)linkedin\.com\/(company|in|school)\//i.test(u) && !/sharing|shareArticle/i.test(u)) {
+      out.linkedin = absolutize(u);
+    } else if (!out.twitter && /(^|\/\/|\.)(twitter|x)\.com\//i.test(u) && !/(intent|share|widgets|hashtag)\b/i.test(u)) {
+      out.twitter = absolutize(u);
+    } else if (!out.youtube && /(youtube\.com\/(channel|c|user|@)|youtu\.be\/)/i.test(u)) {
+      out.youtube = absolutize(u);
+    } else if (!out.tiktok && /(^|\/\/|\.)tiktok\.com\/@/i.test(u)) {
+      out.tiktok = absolutize(u);
+    } else if (!out.telegram && /(t\.me\/|telegram\.me\/)/i.test(u) && !/\/share\b/i.test(u)) {
+      out.telegram = absolutize(u);
     }
   }
   return out;
@@ -112,11 +131,9 @@ export async function enrichContacts(
         const email = extractEmails(page);
         if (email) {
           contacts.email = email;
-          if (!contacts.facebook || !contacts.instagram || !contacts.whatsapp) {
-            const s = extractSocials(page);
-            if (!contacts.facebook && s.facebook) contacts.facebook = s.facebook;
-            if (!contacts.instagram && s.instagram) contacts.instagram = s.instagram;
-            if (!contacts.whatsapp && s.whatsapp) contacts.whatsapp = s.whatsapp;
+          const s = extractSocials(page);
+          for (const k of Object.keys(s) as (keyof typeof s)[]) {
+            if (!contacts[k] && s[k]) contacts[k] = s[k];
           }
           break;
         }

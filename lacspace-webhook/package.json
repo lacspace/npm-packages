@@ -1,7 +1,7 @@
 {
   "name": "lacspace-webhook",
-  "version": "0.1.0",
-  "description": "A local webhook receiver, inspector and replayer — capture incoming webhooks, pretty-print and save them, verify signatures, forward to localhost, and replay any captured request. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "A local webhook receiver, inspector and replayer — capture incoming webhooks in a live web dashboard, verify GitHub/Stripe/Shopify/Slack/Svix/HMAC signatures (with auto-detect), mock responses with rules, fan-out forward to localhost, export/import as curl, and replay with filters, transforms and CI assertions. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-webhook": "dist/cli.js"
@@ -26,8 +26,9 @@
   },
   "keywords": [
     "webhook", "webhook-receiver", "webhook-inspector", "webhook-replay",
-    "signature-verification", "github-webhook", "stripe-webhook", "hmac",
-    "http", "localhost", "cli", "typescript"
+    "webhook-mock", "webhook-testing", "signature-verification",
+    "github-webhook", "stripe-webhook", "shopify-webhook", "slack-webhook",
+    "svix", "hmac", "curl", "sse", "http", "localhost", "cli", "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

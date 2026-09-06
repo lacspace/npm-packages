@@ -2,8 +2,8 @@
  * Turn a parsed cron expression into a human-readable English sentence, e.g.
  * `0 9 * * 1-5` → "At 09:00, Monday through Friday."
  */
-import { parseCron } from "./parse.js";
-import type { CronFields } from "./parse.js";
+import { parseSchedule } from "./parse.js";
+import type { CronFields, ParseOptions, DomSpecial, DowSpecial } from "./parse.js";
 
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH_NAMES = [
@@ -126,12 +126,46 @@ function hourWords(hour: number[]): string {
   return `hours ${humanList(hour, (n) => pad(n))}`;
 }
 
+function domSpecialPhrase(s: DomSpecial): string {
+  switch (s.type) {
+    case "last": return "the last day of the month";
+    case "lastOffset":
+      return s.offset === 0
+        ? "the last day of the month"
+        : `${s.offset} day${s.offset === 1 ? "" : "s"} before the end of the month`;
+    case "lastWeekday": return "the last weekday of the month";
+    case "nearestWeekday": return `the weekday nearest the ${ordinal(s.day ?? 1)}`;
+  }
+}
+
+function dowSpecialPhrase(s: DowSpecial): string {
+  const name = WEEKDAY_NAMES[s.weekday]!;
+  if (s.type === "last") return `the last ${name} of the month`;
+  return `the ${ordinal(s.nth ?? 1)} ${name} of the month`;
+}
+
+/** Build the day-of-month clause (numeric days + advanced tokens). */
+function domClause(f: CronFields): string {
+  const parts: string[] = [];
+  if (f.dayOfMonth.length) parts.push(`the ${humanList(f.dayOfMonth, ordinal)} of the month`);
+  for (const s of f.dayOfMonthSpecial) parts.push(domSpecialPhrase(s));
+  return parts.length ? `on ${joinAnd(parts)}` : "";
+}
+
+/** Build the day-of-week clause (numeric weekdays + advanced tokens). */
+function dowClause(f: CronFields): string {
+  const parts: string[] = [];
+  if (f.dayOfWeek.length) parts.push(weekdayList(f.dayOfWeek));
+  for (const s of f.dayOfWeekSpecial) parts.push(dowSpecialPhrase(s));
+  return joinAnd(parts.filter(Boolean));
+}
+
 function describeDays(f: CronFields): string {
   const segs: string[] = [];
   const monthRestricted = !isFull(f.month, 1, 12);
 
-  const domPhrase = `on the ${humanList(f.dayOfMonth, ordinal)} of the month`;
-  const dowPhrase = weekdayList(f.dayOfWeek);
+  const domPhrase = domClause(f);
+  const dowPhrase = dowClause(f);
 
   if (f.domRestricted && f.dowRestricted) {
     // Standard cron OR-rule: a day matches if EITHER field matches.
@@ -143,16 +177,34 @@ function describeDays(f: CronFields): string {
   }
 
   if (monthRestricted) segs.push(`in ${monthList(f.month)}`);
-  return segs.join(", ");
+  return segs.filter(Boolean).join(", ");
+}
+
+/** Describe an `@every` interval in plain English, e.g. "Every 2 hours and 30 minutes". */
+function describeEvery(intervalMs: number): string {
+  const units: Array<[string, number]> = [
+    ["day", 86_400_000], ["hour", 3_600_000], ["minute", 60_000],
+    ["second", 1_000], ["millisecond", 1],
+  ];
+  const parts: string[] = [];
+  let rest = intervalMs;
+  for (const [name, ms] of units) {
+    const n = Math.floor(rest / ms);
+    if (n > 0) { parts.push(`${n} ${name}${n === 1 ? "" : "s"}`); rest -= n * ms; }
+  }
+  const body = parts.length ? joinAnd(parts) : "0 seconds";
+  return `Every ${body}.`;
 }
 
 function capitalize(s: string): string {
   return s.length ? s[0]!.toUpperCase() + s.slice(1) : s;
 }
 
-/** Explain a cron expression as a plain-English sentence. Throws {@link CronError} if invalid. */
-export function explainCron(expr: string): string {
-  const f = parseCron(expr);
+/** Explain a cron (or `@every`) expression as a plain-English sentence. Throws {@link CronError} if invalid. */
+export function explainCron(expr: string, opts: ParseOptions = {}): string {
+  const sched = parseSchedule(expr, opts);
+  if (sched.kind === "every") return describeEvery(sched.intervalMs);
+  const f = sched;
   const time = describeTime(f);
   const days = describeDays(f);
   const sentence = days ? `${time}, ${days}` : time;

@@ -1,7 +1,7 @@
 {
   "name": "lacspace-icon",
-  "version": "0.1.0",
-  "description": "Generate a complete favicon, PWA and Apple-touch icon set plus a web manifest, an .ico, an Open Graph image and the HTML snippet — from one source image. No web service, no dependencies.",
+  "version": "0.2.0",
+  "description": "Generate a complete favicon, PWA and Apple-touch icon set plus a web manifest, an .ico, an Open Graph image, Apple splash screens and the HTML snippet — from one PNG or baseline JPEG. Shape controls, dominant-colour theming, dark variants and a setup auditor. No web service, no dependencies.",
   "type": "module",
   "bin": {
     "lacspace-icon": "dist/cli.js"
@@ -26,7 +26,8 @@
   },
   "keywords": [
     "favicon", "favicon-generator", "pwa", "web-manifest", "apple-touch-icon",
-    "ico", "png", "open-graph", "og-image", "icons", "cli", "typescript", "zero-dependency"
+    "ico", "png", "jpeg", "jpeg-decoder", "open-graph", "og-image", "apple-splash",
+    "splash-screen", "maskable", "icons", "cli", "typescript", "zero-dependency"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

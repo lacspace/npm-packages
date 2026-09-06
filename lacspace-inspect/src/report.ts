@@ -51,6 +51,9 @@ function categoryBlock(cat: Category, verbose: boolean): string {
     if (f.detail && f.status !== "ok") {
       for (const d of String(f.detail).split("\n").slice(0, 8)) lines.push(`         ${c("dim", d)}`);
     }
+    if (f.fix && (f.status === "warn" || f.status === "fail")) {
+      lines.push(`         ${c("cyan", "→ fix:")} ${c("dim", f.fix)}`);
+    }
   }
   if (!verbose && okCount > 0) lines.push(`     ${c("dim", `+ ${okCount} passing check${okCount === 1 ? "" : "s"}`)}`);
   return lines.join("\n");

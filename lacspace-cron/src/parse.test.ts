@@ -67,10 +67,16 @@ describe("parseCron — invalid", () => {
     expect(() => parseCron("0 0 * * FOO")).toThrow(/unknown name/i);
   });
 
-  it("rejects unsupported L/W/# with a clear message", () => {
-    expect(() => parseCron("0 0 L * *")).toThrow(/not supported/i);
-    expect(() => parseCron("0 0 15W * *")).toThrow(/not supported/i);
-    expect(() => parseCron("0 0 * * 5#2")).toThrow(/not supported/i);
+  it("parses advanced day tokens L/W/# (v0.2.0)", () => {
+    expect(parseCron("0 0 L * *").dayOfMonthSpecial).toEqual([{ type: "last" }]);
+    expect(parseCron("0 0 15W * *").dayOfMonthSpecial).toEqual([{ type: "nearestWeekday", day: 15 }]);
+    expect(parseCron("0 0 * * 5#2").dayOfWeekSpecial).toEqual([{ type: "nth", weekday: 5, nth: 2 }]);
+    expect(parseCron("0 0 * * 5L").dayOfWeekSpecial).toEqual([{ type: "last", weekday: 5 }]);
+  });
+
+  it("still rejects L/W/# in non-day fields", () => {
+    expect(() => parseCron("L 0 * * *")).toThrow(/not valid here/i);
+    expect(() => parseCron("0 0 * 5W *")).toThrow(/not valid here/i);
   });
 
   it("rejects @reboot with a clear message", () => {

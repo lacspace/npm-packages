@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
-import { toRecord, createReceiver } from "./receiver.js";
+import { toRecord, createReceiver, normalizeForward } from "./receiver.js";
 
 function fakeReq(method: string, url: string, headers: Record<string, string>): IncomingMessage {
   const req = new Readable() as unknown as IncomingMessage;
@@ -62,6 +62,40 @@ describe("createReceiver (integration, ephemeral port)", () => {
     if (typeof addr !== "object" || addr === null) throw new Error("no address");
     const resp = await fetch(`http://127.0.0.1:${addr.port}/elsewhere`, { method: "POST" });
     expect(resp.status).toBe(404);
+    await close();
+  });
+});
+
+describe("normalizeForward", () => {
+  it("splits comma lists and arrays, trims, drops blanks", () => {
+    expect(normalizeForward(undefined)).toEqual([]);
+    expect(normalizeForward("http://a")).toEqual(["http://a"]);
+    expect(normalizeForward("http://a, http://b")).toEqual(["http://a", "http://b"]);
+    expect(normalizeForward(["http://a,http://b", " http://c "])).toEqual(["http://a", "http://b", "http://c"]);
+  });
+});
+
+describe("createReceiver — rules + UI (integration, ephemeral port)", () => {
+  it("answers from a matching mock rule and serves the inspector page", async () => {
+    const { server, close } = createReceiver({
+      ui: true,
+      rules: [{ match: { path: "/pay", method: "POST" }, response: { status: 201, json: { paid: true }, headers: { "x-mock": "1" } } }],
+    });
+    await new Promise<void>((res) => server.listen(0, res));
+    const addr = server.address();
+    if (typeof addr !== "object" || addr === null) throw new Error("no address");
+    const base = `http://127.0.0.1:${addr.port}`;
+
+    const mock = await fetch(`${base}/pay`, { method: "POST", body: "{}" });
+    expect(mock.status).toBe(201);
+    expect(mock.headers.get("x-mock")).toBe("1");
+    expect((await mock.json()).paid).toBe(true);
+
+    const page = await fetch(`${base}/__inspector`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toMatch(/text\/html/);
+    expect(await page.text()).toContain("lacspace-webhook");
+
     await close();
   });
 });

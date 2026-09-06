@@ -18,6 +18,16 @@ export interface BatchQuery {
   query?: string;
 }
 
+/** Optional hooks for resumable sweeps — see {@link searchLeadsBatch}. */
+export interface BatchResumeHooks {
+  /** Return true to skip a sub-query entirely (already collected on a prior run). */
+  skip?: (query: BatchQuery) => boolean;
+  /** Leads carried over from a previous, interrupted run — merged into the result. */
+  seedLeads?: Lead[];
+  /** Called after each completed sub-query with the leads it found (for checkpointing). */
+  onQueryDone?: (query: BatchQuery, found: Lead[]) => void;
+}
+
 /**
  * Run each `{type, city, area}` search in turn and merge the results, applying
  * a single cross-search dedupe and sort at the end. Per-search `limit` is the
@@ -25,10 +35,14 @@ export interface BatchQuery {
  *
  * Filtering and sorting are applied once, globally, here — so pass them via
  * `opts` rather than relying on the per-search pass.
+ *
+ * For long sweeps, pass {@link BatchResumeHooks} (`skip`, `seedLeads`,
+ * `onQueryDone`) to make the run resumable — the CLI's `--resume` wires these
+ * to a checkpoint file.
  */
 export async function searchLeadsBatch(
   queries: BatchQuery[],
-  opts: Omit<SearchOptions, "type" | "city" | "area" | "query"> & { total?: number } = {},
+  opts: Omit<SearchOptions, "type" | "city" | "area" | "query"> & { total?: number } & BatchResumeHooks = {},
 ): Promise<Lead[]> {
   // Strip any per-query keys that may have leaked in via a spread `opts`, so a
   // comma-separated city/area on the parent never overrides a sub-search.
@@ -36,14 +50,17 @@ export async function searchLeadsBatch(
     total,
     onProgress,
     signal,
+    skip,
+    seedLeads,
+    onQueryDone,
     type: _t,
     city: _c,
     area: _a,
     query: _q,
     ...shared
-  } = opts as SearchOptions & { total?: number };
+  } = opts as SearchOptions & { total?: number } & BatchResumeHooks;
   void _t; void _c; void _a; void _q;
-  let merged: Lead[] = [];
+  let merged: Lead[] = seedLeads ? [...seedLeads] : [];
   const seenDedupe = shared.dedupe ?? "website";
 
   for (let i = 0; i < queries.length; i++) {
@@ -56,6 +73,10 @@ export async function searchLeadsBatch(
         return q.query ?? q.type ?? "search";
       }
     })();
+    if (skip?.(q)) {
+      onProgress?.(`[${i + 1}/${queries.length}] ${label} — skipped (resumed from checkpoint)`);
+      continue;
+    }
     onProgress?.(`[${i + 1}/${queries.length}] ${label}`);
 
     const subOpts: SearchOptions = {
@@ -73,6 +94,7 @@ export async function searchLeadsBatch(
     try {
       const found = await scrapeLeads(subOpts);
       merged = merged.concat(found);
+      onQueryDone?.(q, found);
     } catch (err) {
       onProgress?.(`  ! skipped "${label}": ${(err as Error).message}`);
     }

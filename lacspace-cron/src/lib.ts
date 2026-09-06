@@ -17,11 +17,46 @@
  *
  * Supports 5-field cron (`min hour day-of-month month day-of-week`) and 6-field
  * cron with a leading seconds field, plus `@yearly`/`@monthly`/`@weekly`/
- * `@daily`/`@hourly` macros. The `L`, `W`, `#` modifiers and `@reboot` are not
- * supported (they throw a clear message).
+ * `@daily`/`@hourly` macros. v0.2.0 adds the advanced day tokens `L`/`L-n`/`LW`/
+ * `nW` (day-of-month) and `dL`/`d#n` (day-of-week), Jenkins-style hashed `H`
+ * tokens, `@every <dur>` interval schedules, previous runs, windowed runs,
+ * relative-time phrasing, `.ics` export and schedule overlap detection.
+ * `@reboot` is still unsupported (it throws a clear message).
  */
-export { parseCron, isValidCron, CronError } from "./parse.js";
-export type { CronFields } from "./parse.js";
+export {
+  parseCron,
+  parseSchedule,
+  parseDuration,
+  isValidCron,
+  isValidSchedule,
+  CronError,
+} from "./parse.js";
+export type {
+  CronFields,
+  EveryFields,
+  Schedule,
+  ParseOptions,
+  DomSpecial,
+  DowSpecial,
+} from "./parse.js";
 export { explainCron } from "./explain.js";
-export { nextRuns, matchesCron, matchesFields } from "./schedule.js";
-export type { NextRunsOptions } from "./schedule.js";
+export {
+  nextRuns,
+  prevRuns,
+  runsBetween,
+  countBetween,
+  overlaps,
+  dstWarnings,
+  matchesCron,
+  matchesFields,
+} from "./schedule.js";
+export type {
+  NextRunsOptions,
+  RunsBetweenOptions,
+  OverlapOptions,
+  OverlapResult,
+  DstOptions,
+  DstWarning,
+} from "./schedule.js";
+export { describeRelative, toICS } from "./format.js";
+export type { ICSOptions } from "./format.js";

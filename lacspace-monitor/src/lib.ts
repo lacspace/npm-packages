@@ -20,6 +20,25 @@
 export { checkWatch, runChecks, loadState, saveState, sendWebhook, type CheckOptions } from "./check.js";
 export {
   hashValue, getByPath, toValueString, feedItemIds, inferType, watchId,
-  snapshotValue, snapshotItems, diffSnapshots,
+  snapshotValue, snapshotItems, diffSnapshots, retainHistory,
+  // condition evaluator
+  parseCondition, parseNumeric, evalCondition, evalWhen,
+  type Condition, type ConditionOp, type ConditionContext,
+  // richer diffs
+  lineDiff, wordDiff, jsonDiff, type DiffOp, type JsonChange,
+  // ssl
+  sslDaysUntil,
 } from "./core.js";
-export type { Watch, WatchType, Snapshot, CheckResult, MonitorState, MonitorConfig } from "./types.js";
+export {
+  notify, changeSummary,
+  formatText, formatSlack, formatDiscord, formatTelegram, formatEmail,
+  sendWebhookPayload, sendSlack, sendDiscord, sendTelegram, sendEmail,
+} from "./notify.js";
+export {
+  appendHistory, readHistory, summarizeHistory, resultToHistory,
+  type HistorySummary,
+} from "./history.js";
+export type {
+  Watch, WatchType, Snapshot, CheckResult, MonitorState, MonitorConfig,
+  NotifyChannel, SmtpConfig, HistoryEntry,
+} from "./types.js";

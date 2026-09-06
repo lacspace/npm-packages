@@ -22,15 +22,29 @@
  * page (and, with `--links`, a bounded set of its links) — respect each site's
  * Terms and robots policy.
  */
-export { inspectUrl, checkLinksCategory, crawlabilityCategory } from "./inspect.js";
+export { inspectUrl, checkLinksCategory, crawlabilityCategory, crawlSite } from "./inspect.js";
 export {
   analyzeHtml,
   seoChecks, socialChecks, structuredChecks, contentChecks,
   linkChecks, performanceChecks, securityChecks, detectTech,
 } from "./checks.js";
+export {
+  seoExtraChecks, contentExtraChecks, performanceExtraChecks, securityExtraChecks,
+} from "./extra.js";
 export { gradeOf, scoreFindings, makeCategory, overallScore } from "./grade.js";
 export { formatReport } from "./report.js";
+export {
+  formatMarkdown, formatHtml, formatSiteReport, formatSiteMarkdown,
+  formatLeaderboard, formatRegressions,
+} from "./formats.js";
+export { FIXES, fixFor, attachFixes, attachFixesToCategories } from "./fixes.js";
+export { auditPage, analyzeSite, normUrl } from "./site.js";
+export {
+  parseBudget, parseBudgetDetailed, evaluateBudget, budgetExceeded, metricValue,
+} from "./budget.js";
+export { diffReports } from "./baseline.js";
 export type {
   Report, Category, CategoryKey, Finding, FindingStatus, Grade,
-  AnalyzeContext, InspectOptions, LinkStatus,
+  AnalyzeContext, InspectOptions, CrawlOptions, LinkStatus,
+  PageAudit, SiteReport, Budget, Regression,
 } from "./types.js";

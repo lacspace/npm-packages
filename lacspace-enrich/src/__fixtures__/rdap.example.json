@@ -1,0 +1,38 @@
+{
+  "objectClassName": "domain",
+  "handle": "2336799_DOMAIN_COM-VRSN",
+  "ldhName": "EXAMPLE.COM",
+  "status": ["client delete prohibited", "client transfer prohibited"],
+  "events": [
+    { "eventAction": "registration", "eventDate": "1995-08-14T04:00:00Z" },
+    { "eventAction": "expiration", "eventDate": "2026-08-13T04:00:00Z" },
+    { "eventAction": "last changed", "eventDate": "2024-08-14T07:01:44Z" },
+    { "eventAction": "last update of RDAP database", "eventDate": "2026-09-06T10:00:00Z" }
+  ],
+  "nameservers": [
+    { "objectClassName": "nameserver", "ldhName": "A.IANA-SERVERS.NET" },
+    { "objectClassName": "nameserver", "ldhName": "B.IANA-SERVERS.NET" }
+  ],
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "handle": "376",
+      "roles": ["registrar"],
+      "publicIds": [{ "type": "IANA Registrar ID", "identifier": "376" }],
+      "vcardArray": [
+        "vcard",
+        [
+          ["version", {}, "text", "4.0"],
+          ["fn", {}, "text", "RESERVED-Internet Assigned Numbers Authority"]
+        ]
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "roles": ["abuse"],
+          "vcardArray": ["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Abuse Contact"]]]
+        }
+      ]
+    }
+  ]
+}

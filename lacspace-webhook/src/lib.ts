@@ -20,16 +20,28 @@
  * This is a local-only tool: it binds to your machine. To receive webhooks from
  * a public service, pair it with a tunnel (cloudflared, ngrok, …).
  */
-export { createReceiver, toRecord } from "./receiver.js";
-export type { ReceiverOptions, Receiver } from "./receiver.js";
+export { createReceiver, toRecord, normalizeForward } from "./receiver.js";
+export type { ReceiverOptions, Receiver, ForwardResult } from "./receiver.js";
 
-export { verifySignature } from "./verify.js";
-export type { SignatureScheme, VerifyArgs, VerifyResult } from "./verify.js";
+export { verifySignature, detectScheme } from "./verify.js";
+export type { SignatureScheme, ConcreteScheme, VerifyArgs, VerifyResult } from "./verify.js";
 
-export { replayRequests, resolveTarget, buildHeaders } from "./replay.js";
-export type { ReplayOptions, ReplayResult } from "./replay.js";
+export {
+  replayRequests, resolveTarget, buildHeaders,
+  parseFilter, matchFilter, parseRewrite, applyReplayTransform,
+} from "./replay.js";
+export type { ReplayOptions, ReplayResult, ReplayFilter, Rewrite } from "./replay.js";
 
 export { serializeCapture, parseCaptureLine, parseCaptureFile, parseBody, parseQuery } from "./capture.js";
 export type { CapturedRequest, ParsedBody, ParsedBodyKind } from "./capture.js";
 
 export { formatCapture, summaryLine, humanBytes } from "./format.js";
+
+export { matchRule, findRule, resolveResponse, normalizeRules } from "./rules.js";
+export type { Rule, RuleMatch, RuleResponse, RulesFile, ResolvedResponse } from "./rules.js";
+
+export { toCurl, fromCurl, tokenizeCurl } from "./curl.js";
+export type { ToCurlOptions } from "./curl.js";
+
+export { inspectorHtml, sseFrame, UI_PREFIX, UI_PAGE, UI_EVENTS } from "./ui.js";
+export type { UiEvent } from "./ui.js";

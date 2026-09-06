@@ -15,7 +15,7 @@
  * }
  * ```
  */
-import { searchLeadsBatch, type BatchQuery } from "./batch.js";
+import { searchLeadsBatch, type BatchQuery, type BatchResumeHooks } from "./batch.js";
 import type { Lead, LeadFilters, OutputFormat, SearchOptions } from "./types.js";
 
 /** A leads campaign config (the JSON file passed to `--config`). */
@@ -44,15 +44,18 @@ export interface LeadsConfig
  */
 export async function runConfig(
   config: LeadsConfig,
-  hooks: { onProgress?: (m: string) => void; signal?: AbortSignal } = {},
+  hooks: { onProgress?: (m: string) => void; signal?: AbortSignal } & BatchResumeHooks = {},
 ): Promise<Lead[]> {
   const { searches, filters, total, out, format, append, sheet, ...shared } = config;
   void out; void format; void append; void sheet;
-  const opts = { ...shared } as SearchOptions & { total?: number };
+  const opts = { ...shared } as SearchOptions & { total?: number } & BatchResumeHooks;
   if (filters) opts.filters = filters;
   if (total !== undefined) opts.total = total;
   if (hooks.onProgress) opts.onProgress = hooks.onProgress;
   if (hooks.signal) opts.signal = hooks.signal;
+  if (hooks.skip) opts.skip = hooks.skip;
+  if (hooks.seedLeads) opts.seedLeads = hooks.seedLeads;
+  if (hooks.onQueryDone) opts.onQueryDone = hooks.onQueryDone;
   return searchLeadsBatch(Array.isArray(searches) ? searches : [], opts);
 }
 

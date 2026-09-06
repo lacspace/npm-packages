@@ -1,7 +1,7 @@
 {
   "name": "lacspace-extract",
-  "version": "0.1.0",
-  "description": "Free, open-source data extraction — pull text and tables out of PDFs, HTML pages and spreadsheets into clean JSON, NDJSON, CSV or Excel. Zero-dependency PDF text engine (no OCR), HTML table extraction, and CSV/Excel reading. No API keys.",
+  "version": "0.2.0",
+  "description": "Free, open-source data extraction — pull text, tables and metadata out of PDFs, Office docs (DOCX/PPTX/EPUB), HTML pages and spreadsheets into clean JSON, NDJSON, CSV, Excel or Markdown. Zero-dependency PDF text engine (no OCR) + ZIP reader, HTML readability, page ranges and grep. No API keys.",
   "type": "module",
   "bin": { "lacspace-extract": "dist/cli.js" },
   "main": "./dist/lib.cjs",
@@ -13,7 +13,7 @@
   },
   "files": ["dist", "README.md"],
   "scripts": { "build": "tsup", "test": "vitest run", "typecheck": "tsc --noEmit", "prepublishOnly": "npm run build" },
-  "keywords": ["pdf", "pdf-text", "table-extraction", "extract", "documents", "csv", "excel", "html-tables", "data-extraction", "cli", "typescript"],
+  "keywords": ["pdf", "pdf-text", "pdf-metadata", "docx", "pptx", "epub", "office", "zip", "table-extraction", "extract", "documents", "markdown", "readability", "csv", "excel", "html-tables", "data-extraction", "cli", "typescript"],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/tools/extract",

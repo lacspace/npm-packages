@@ -35,6 +35,46 @@ describe("detectSecrets", () => {
     expect(kinds({ H: "true" })).toEqual([]);
   });
 
+  // ── 0.2.0 detectors — every fixture is split across concatenation so this
+  // file never contains a contiguous token for GitHub push-protection to see.
+  it("flags a Google API key", () => {
+    expect(kinds({ G: "AIza" + "SyD" + "0123456789abcdef0123456789abcdef" })).toEqual(["Google API key"]);
+    expect(kinds({ G: "AIzaShort" })).toEqual([]);
+  });
+
+  it("flags a Stripe live secret key", () => {
+    expect(kinds({ S: "sk_live_" + "4eC39HqLyjWDarjtT1zdp7dc" })).toEqual(["Stripe secret key"]);
+    expect(kinds({ S: "rk_live_" + "4eC39HqLyjWDarjtT1zdp7dc" })).toEqual(["Stripe secret key"]);
+    expect(kinds({ S: "sk_test_" + "abc" })).toEqual([]);
+  });
+
+  it("flags an OpenAI API key", () => {
+    expect(kinds({ O: "sk-" + "proj-" + "a1b2c3d4e5f6g7h8i9j0k1l2" })).toEqual(["OpenAI API key"]);
+    expect(kinds({ O: "sk-" + "short" })).toEqual([]);
+  });
+
+  it("flags a SendGrid API key", () => {
+    expect(kinds({ S: "SG." + "a1b2c3d4e5f6g7h8" + "." + "i9j0k1l2m3n4o5p6q7r8s9t0" })).toEqual(["SendGrid API key"]);
+    expect(kinds({ S: "SG.short" })).toEqual([]);
+  });
+
+  it("flags a Twilio SID/key", () => {
+    expect(kinds({ T: "AC" + "0123456789abcdef0123456789abcdef" })).toEqual(["Twilio key"]);
+    expect(kinds({ T: "AC" + "tooshort" })).toEqual([]);
+  });
+
+  it("flags a database connection string with an embedded password", () => {
+    expect(kinds({ D: "postgres://" + "user:s3cr3t@" + "db.host:5432/app" })).toEqual(["database connection string"]);
+    expect(kinds({ D: "mysql://" + "user:pw@" + "localhost/app" })).toEqual(["database connection string"]);
+    // no password (no `user:pass@`) → not flagged as a connection secret
+    expect(kinds({ D: "postgres://" + "localhost:5432/app" })).toEqual([]);
+  });
+
+  it("honours the allowlist", () => {
+    expect(detectSecrets({ PUBLIC: "AKIAIOSFODNN7EXAMPLE" }, { allow: ["PUBLIC"] })).toEqual([]);
+    expect(detectSecrets({ PUBLIC: "AKIAIOSFODNN7EXAMPLE" })).toEqual([{ key: "PUBLIC", kind: "AWS access key" }]);
+  });
+
   it("ignores empty values", () => {
     expect(detectSecrets({ A: "", B: "AKIAIOSFODNN7EXAMPLE" })).toEqual([
       { key: "B", kind: "AWS access key" },

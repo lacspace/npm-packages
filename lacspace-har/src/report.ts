@@ -2,8 +2,16 @@
  * Render a {@link HarReport} as a clean, sectioned terminal report.
  * Pure string building — the CLI writes it out.
  */
-import type { HarReport, RequestSummary } from "./types.js";
+import type { HarReport, Recommendation, RequestSummary } from "./types.js";
 import { fmtBytes } from "./analyze.js";
+
+/** Extra sections {@link formatReport} can render (all optional, backward-compatible). */
+export interface FormatOptions {
+  /** Recommendations to render in a dedicated section (from {@link recommend}). */
+  recommendations?: Recommendation[];
+  /** How many recommendations to list (default 8). */
+  maxRecommendations?: number;
+}
 
 const C = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
@@ -58,7 +66,11 @@ function requestRows(rows: RequestSummary[], value: (r: RequestSummary) => strin
 }
 
 /** Build the whole terminal report as a string. */
-export function formatReport(report: HarReport, by: "type" | "domain" | "status" = "domain"): string {
+export function formatReport(
+  report: HarReport,
+  by: "type" | "domain" | "status" = "domain",
+  opts: FormatOptions = {},
+): string {
   const { totals, wins, timings, issues } = report;
   const out: string[] = [];
   const h = (s: string): string => c("bold", s);
@@ -135,6 +147,39 @@ export function formatReport(report: HarReport, by: "type" | "domain" | "status"
   const errColor = wins.errors > 0 ? "red" : "dim";
   out.push(`  ${c(redColor, String(wins.redirects))} redirect${wins.redirects === 1 ? "" : "s"} (3xx) · ${c(errColor, String(wins.errors))} error${wins.errors === 1 ? "" : "s"} (4xx/5xx)`);
   out.push("");
+
+  // ── Estimates (HAR-derived web-vitals-ish) ──
+  const v = report.vitals;
+  if (v) {
+    out.push(h("Estimates") + c("dim", "  (HAR-derived, not field metrics)"));
+    const bits: string[] = [];
+    if (v.ttfbMs !== undefined) bits.push(`TTFB ${c("cyan", fmtMs(v.ttfbMs))}`);
+    bits.push(`download ${c("cyan", fmtMs(v.totalDownloadMs))}`);
+    if (v.lcpCandidateMs !== undefined) bits.push(`LCP-candidate ${c("cyan", fmtMs(v.lcpCandidateMs))}`);
+    bits.push(`${c(v.renderBlocking > 0 ? "yellow" : "dim", String(v.renderBlocking))} render-blocking`);
+    out.push(`  ${bits.join(" · ")}`);
+    if (v.lcpCandidateUrl) out.push(`  ${c("dim", "LCP candidate: " + shortUrl(v.lcpCandidateUrl, 54))}`);
+    out.push(`  ${c("dim", v.note)}`);
+    out.push("");
+  }
+
+  // ── Recommendations (with estimated savings) ──
+  const recs = opts.recommendations ?? [];
+  if (recs.length) {
+    const max = opts.maxRecommendations ?? 8;
+    out.push(h("Recommendations") + c("dim", `  (${recs.length}, by impact)`));
+    for (const r of recs.slice(0, max)) {
+      const save: string[] = [];
+      if (r.savingBytes) save.push(c("green", "~" + fmtBytes(r.savingBytes)));
+      if (r.savingMs) save.push(c("green", "~" + fmtMs(r.savingMs)));
+      const saveStr = save.length ? c("dim", " [save ") + save.join(c("dim", " / ")) + c("dim", "]") : "";
+      const where = r.url ? c("dim", "  " + shortUrl(r.url, 44)) : "";
+      out.push(`  ${c("magenta", "→")} ${r.message}${saveStr}`);
+      if (r.url) out.push(`   ${where}`);
+    }
+    if (recs.length > max) out.push(`  ${c("dim", `…and ${recs.length - max} more`)}`);
+    out.push("");
+  }
 
   // ── Issues ──
   out.push(h("Issues") + c("dim", `  (${issues.length})`));

@@ -19,6 +19,8 @@ import {
 import type { ElNode } from "lacspace-scraper";
 import type { AnalyzeContext, Category, Finding, Report } from "./types.js";
 import { gradeOf, makeCategory, overallScore } from "./grade.js";
+import { seoExtraChecks, contentExtraChecks, performanceExtraChecks, securityExtraChecks } from "./extra.js";
+import { attachFixesToCategories } from "./fixes.js";
 
 // ---------- small DOM helpers ----------
 
@@ -391,14 +393,21 @@ export function detectTech(root: ElNode, html: string): string[] {
 export function analyzeHtml(html: string, ctx: AnalyzeContext): Report {
   const root = parseHTML(html);
 
+  // Existing checks keep their exact behavior; the v0.2 extras are appended
+  // onto the matching category before it is scored.
+  const seo = [...seoChecks(root), ...seoExtraChecks(root, html, ctx)];
+  const content = [...contentChecks(root), ...contentExtraChecks(root)];
+  const performance = [...performanceChecks(root, html), ...performanceExtraChecks(root, ctx)];
+  const security = [...securityChecks(root, ctx), ...securityExtraChecks(root, ctx)];
+
   const categories: Category[] = [
-    makeCategory("seo", "SEO & Meta", 3, seoChecks(root)),
+    makeCategory("seo", "SEO & Meta", 3, seo),
     makeCategory("social", "Social / Open Graph", 1.5, socialChecks(root)),
     makeCategory("structured", "Structured Data", 1, structuredChecks(root)),
-    makeCategory("content", "Content & Accessibility", 2, contentChecks(root)),
+    makeCategory("content", "Content & Accessibility", 2, content),
     makeCategory("links", "Links", 1.5, linkChecks(root, ctx)),
-    makeCategory("performance", "Performance (static)", 1.5, performanceChecks(root, html)),
-    makeCategory("security", "Security", 2, securityChecks(root, ctx)),
+    makeCategory("performance", "Performance (static)", 1.5, performance),
+    makeCategory("security", "Security", 2, security),
   ];
 
   const tech = detectTech(root, html);
@@ -411,9 +420,11 @@ export function analyzeHtml(html: string, ctx: AnalyzeContext): Report {
       : [{ id: "tech.none", status: "info" as const, message: "No known technologies detected" }],
   ));
 
+  attachFixesToCategories(categories);
   const score = overallScore(categories);
 
   const titleEl = first(root, "title");
+  const metaDesc = metaContent(root, 'meta[name="description"]');
   const links = extractLinks(root, ctx.url);
   const origin = safeOrigin(ctx.url);
   let internalLinks = 0;
@@ -437,6 +448,9 @@ export function analyzeHtml(html: string, ctx: AnalyzeContext): Report {
     },
   };
   if (titleEl) report.stats.title = innerText(titleEl);
+  if (metaDesc) report.stats.metaDescription = metaDesc;
+  if (ctx.responseTimeMs !== undefined) report.stats.responseTimeMs = ctx.responseTimeMs;
+  if (ctx.contentEncoding !== undefined) report.stats.contentEncoding = ctx.contentEncoding;
   if (ctx.status !== undefined) report.httpStatus = ctx.status;
   return report;
 }

@@ -20,10 +20,10 @@ export { parseEnv } from "./parse.js";
 export type { EnvEntry, ParseError, ParseResult } from "./parse.js";
 
 export { lintEnv } from "./lint.js";
-export type { Issue, IssueLevel } from "./lint.js";
+export type { Issue, IssueLevel, LintOptions } from "./lint.js";
 
 export { detectSecrets, maskSecret } from "./secrets.js";
-export type { SecretHit } from "./secrets.js";
+export type { SecretHit, DetectOptions } from "./secrets.js";
 
 export { diffEnvs, appendKeys } from "./diff.js";
 export type { EnvDiff } from "./diff.js";
@@ -33,3 +33,24 @@ export type { GenTypesOptions } from "./types-gen.js";
 
 export { checkEnv } from "./check.js";
 export type { CheckResult } from "./check.js";
+
+// ── 0.2.0 additions ─────────────────────────────────────────────────────────
+
+export { resolveEnv, replaceRefs, hasRefs } from "./interpolate.js";
+export type { ResolveResult, UndefinedRef } from "./interpolate.js";
+
+export { encryptEnv, decryptEnv, isEncrypted } from "./crypto.js";
+
+export { envMatrix } from "./matrix.js";
+export type { EnvMatrix, NamedEnv } from "./matrix.js";
+
+export { toExample, redactEnv } from "./example.js";
+export type { ToExampleOptions, RedactEnvOptions } from "./example.js";
+
+export { toJSON, fromJSON, toYAML, fromYAML, renderEnv } from "./convert.js";
+
+export { mergeEnv, runWith } from "./run.js";
+export type { MergeEnvOptions, RunResult } from "./run.js";
+
+export { hookScript, installHook, HOOK_MARKER } from "./hook.js";
+export type { InstallHookOptions, InstallHookResult } from "./hook.js";

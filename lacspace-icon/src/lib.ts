@@ -21,14 +21,35 @@
  * PNG is best-effort and needs an installed browser (`playwright-core`).
  */
 export { decodePng, encodePng, crc32, isPng, type ImageData } from "./png.js";
+export { decodeJpeg, isJpeg } from "./jpeg.js";
 export { resizeRgba } from "./resize.js";
 export { makeIco, type IcoEntry } from "./ico.js";
 export { hexToRgba, createCanvas, compositeOver, drawIconOnCanvas } from "./compose.js";
-export { buildManifest, type IconOptions, type WebManifest, type ManifestIcon } from "./manifest.js";
+export { dominantColor, rgbToHex } from "./color.js";
+export { pad, roundCorners, circleMask, invert } from "./shape.js";
+export { quantizeColors, encodePngIndexed } from "./quantize.js";
+export { generateSplash, type SplashEntry } from "./splash.js";
+export {
+  check,
+  checkDir,
+  checkUrl,
+  type CheckReport,
+  type CheckItem,
+} from "./check.js";
+export {
+  buildManifest,
+  type IconOptions,
+  type WebManifest,
+  type ManifestIcon,
+  type ManifestShortcut,
+} from "./manifest.js";
 export {
   generateIcons,
   generateIconsFromImage,
+  decodeSource,
   buildSnippet,
   rasterizeSvg,
   type GenerateResult,
+  type GenerateStats,
+  type SnippetExtras,
 } from "./generate.js";

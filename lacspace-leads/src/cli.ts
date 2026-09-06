@@ -7,7 +7,20 @@ import { searchLeadsBatch } from "./batch.js";
 import { runConfig, assertConfig } from "./config.js";
 import { serialize, computeStats, rowsToLeads } from "./export.js";
 import { convertFile, readRows } from "./convert.js";
-import { dedupeLeads } from "./filter.js";
+import { dedupeLeads, subtractLeads } from "./filter.js";
+import {
+  checkpointPath,
+  loadCheckpoint,
+  saveCheckpoint,
+  clearCheckpoint,
+  recordQuery,
+  isDone,
+  emptyCheckpoint,
+  type Checkpoint,
+} from "./checkpoint.js";
+import { summarize, formatSummary } from "./summary.js";
+import { leadsToEnrichInput } from "./pipe.js";
+import type { BatchQuery } from "./batch.js";
 import { parseLatLngPair, parseDistance } from "./geo.js";
 import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
 import type { Lead } from "./types.js";
@@ -39,11 +52,13 @@ interface Args {
   limit: number; total?: number; headless: boolean; details: boolean; delay: number;
   emails: boolean; socials: boolean; verifyEmails: boolean;
   minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean; hasContact: boolean; nameExclude?: string;
+  openNow: boolean; price?: number; category?: string; businessStatus?: string;
   config?: string;
   dedupe?: SearchOptions["dedupe"]; sort?: SortKey; desc?: boolean;
   country?: string; locale?: string; region?: string; concurrency?: number; cleanUrls: boolean;
   proxy?: string; retries?: number; jitter: boolean;
   sheet?: string; maxTime?: number;
+  resume: boolean; summary: boolean; dedupeAcross?: string; enrichOut?: string;
   yes: boolean; help: boolean;
 }
 
@@ -52,7 +67,8 @@ function parseArgs(list: string[]): Args {
     format: "json", append: false, limit: 60, headless: false, details: true, delay: 700,
     emails: false, socials: false, verifyEmails: false,
     hasPhone: false, hasWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
-    cleanUrls: true, jitter: false, yes: false, help: false,
+    openNow: false,
+    cleanUrls: true, jitter: false, resume: false, summary: false, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -87,7 +103,15 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--has-email") { a.hasEmail = true; a.emails = true; }
     else if (arg === "--has-valid-email") { a.hasValidEmail = true; a.verifyEmails = true; a.emails = true; }
     else if (arg === "--has-contact") a.hasContact = true;
+    else if (arg === "--open-now") a.openNow = true;
+    else if (arg === "--price") a.price = parseInt(next(), 10);
+    else if (arg === "--category") a.category = next();
+    else if (arg === "--business-status") a.businessStatus = next();
     else if (arg === "--name-exclude" || arg === "--exclude-names") a.nameExclude = next();
+    else if (arg === "--resume") a.resume = true;
+    else if (arg === "--summary") a.summary = true;
+    else if (arg === "--dedupe-across") a.dedupeAcross = next();
+    else if (arg === "--enrich-out") a.enrichOut = next();
     else if (arg === "--config") a.config = next();
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
     else if (arg === "--sort") a.sort = next() as SortKey;
@@ -151,9 +175,14 @@ ${c("bold", "Filters & order")}
       --has-email       Keep only leads with an email (implies --emails)
       --has-valid-email Keep only leads with an MX-verified email (implies --verify-emails)
       --has-contact     Keep only leads reachable by phone, email OR website
+      --open-now        Keep only leads open at scrape time
+      --price <1-4>     Keep only leads at this price tier ($=1 … $$$$=4)
+      --category <text> Keep only leads whose category/tags contain this text
+      --business-status <s>  Keep only this status (operational | closed | temporarily-closed)
       --name-exclude <list>  Drop leads whose name contains any of these terms
       --dedupe <key>    website | phone | name | smart | none   (default website;
                         --append uses smart: website→phone→name)
+      --dedupe-across <file>  Drop leads already present in an existing master file
       --sort <key>      rating | reviews | name | priceLevel | distance
       --desc / --asc    Sort direction (distance defaults nearest-first)
 
@@ -166,6 +195,9 @@ ${c("bold", "Output")}
   -o, --out <file>      Output file, or "-" for stdout (default: slug + date)
       --append          Merge into an existing output file (accumulate + dedupe)
       --sheet <name>    Excel sheet name         (default "Leads")
+      --summary         Print run stats (rating bands, % with contact, top categories)
+      --enrich-out <f>  Also write { name, website, domain } NDJSON for lacspace-enrich
+      --resume          Resume an interrupted city sweep from its checkpoint file
 
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
@@ -188,6 +220,10 @@ ${c("bold", "Examples")}
   npx lacspace-leads dentists --city Pokhara --verify-emails --has-valid-email -f csv
   npx lacspace-leads cafes --city Kathmandu -o master.csv --append   # accumulate daily
   npx lacspace-leads restaurants --near "27.7172,85.3240" --radius 2km -f csv
+  npx lacspace-leads bars --city Pokhara --open-now --price 2 --summary
+  npx lacspace-leads cafes --city Kathmandu --area "Thamel,Patan,Baneshwor" --resume -o sweep.csv
+  npx lacspace-leads gyms --city Lalitpur --dedupe-across master.csv -o new.csv --append
+  npx lacspace-leads clinics --city Pokhara --enrich-out sites.ndjson   # feed lacspace-enrich
   npx lacspace-leads convert leads.json -f xlsx
 
 ${c("dim", "Please scrape responsibly: keep volumes small, respect Google's Terms of")}
@@ -242,25 +278,55 @@ async function runConfigFile(args: Args): Promise<void> {
   const format = (config.format ?? args.format) as OutputFormat;
   if (!OUTPUT_FORMATS.includes(format)) { log(c("red", `\n✗ Unknown format "${format}".`)); exit(1); return; }
 
-  log(`  ${c("dim", "searches")} ${config.searches.length}   ${c("dim", "format")} ${format}${config.append ? c("dim", "  (append)") : ""}\n`);
+  log(`  ${c("dim", "searches")} ${config.searches.length}   ${c("dim", "format")} ${format}${config.append ? c("dim", "  (append)") : ""}${args.resume ? c("dim", "  (resume)") : ""}\n`);
+
+  const out = resolve(args.out ?? config.out ?? defaultFilename("leads-campaign", format));
+
+  // Resume support for scheduled/long campaigns: checkpoint next to `out`.
+  let cpFile: string | undefined;
+  let checkpoint: Checkpoint | undefined;
+  const resumeHooks: {
+    skip?: (q: BatchQuery) => boolean;
+    seedLeads?: Lead[];
+    onQueryDone?: (q: BatchQuery, found: Lead[]) => void;
+  } = {};
+  if (args.resume) {
+    cpFile = checkpointPath(out);
+    checkpoint = loadCheckpoint(cpFile) ?? emptyCheckpoint();
+    const cp = checkpoint;
+    const file = cpFile;
+    if (cp.done.length) log(`  ${c("cyan", "◷")} ${c("dim", `resuming — ${cp.done.length} searches already done, ${cp.leads.length} leads carried over`)}`);
+    resumeHooks.seedLeads = cp.leads;
+    resumeHooks.skip = (q) => isDone(cp, q);
+    resumeHooks.onQueryDone = (q, found) => { recordQuery(cp, q, found); saveCheckpoint(file, cp); };
+  }
 
   const controller = new AbortController();
   const onSig = (): void => controller.abort();
   process.once("SIGINT", onSig);
   let leads: Lead[];
   try {
-    leads = await runConfig(config, { signal: controller.signal, onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`) });
+    leads = await runConfig(config, { signal: controller.signal, onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`), ...resumeHooks });
   } catch (err) {
     log(c("red", `\n✗ ${(err as Error).message}`)); exit(1); return;
   } finally {
     process.removeListener("SIGINT", onSig);
   }
-  if (!leads.length) { log(c("yellow", "\n  No leads collected.\n")); return; }
+  if (!leads.length) { log(c("yellow", "\n  No leads collected.\n")); if (cpFile) clearCheckpoint(cpFile); return; }
 
   const fields = config.fields
     ? normalizeFields(config.fields as string[])
     : ALL_FIELDS.filter((f) => leads.some((l) => l[f] !== undefined));
-  let out = resolve(args.out ?? config.out ?? defaultFilename("leads-campaign", format));
+
+  // Cross-file dedupe (drop leads already in a master file), same as the main path.
+  if (args.dedupeAcross && existsSync(args.dedupeAcross)) {
+    try {
+      const master = rowsToLeads(await readRows(args.dedupeAcross));
+      const before = leads.length;
+      leads = subtractLeads(leads, master, (config.dedupe ?? "smart") as NonNullable<SearchOptions["dedupe"]>);
+      log(`  ${c("cyan", "◷")} ${c("dim", `dropped ${before - leads.length} already in ${args.dedupeAcross} → ${leads.length} new`)}`);
+    } catch (err) { log(c("yellow", `  ! couldn't read --dedupe-across (${(err as Error).message})`)); }
+  }
 
   if ((args.append || config.append) && existsSync(out)) {
     try {
@@ -271,13 +337,29 @@ async function runConfigFile(args: Args): Promise<void> {
     } catch (err) { log(c("yellow", `  ! couldn't append (${(err as Error).message}); overwriting`)); }
   }
 
+  if (args.enrichOut) {
+    const inputs = leadsToEnrichInput(leads);
+    const nd = inputs.map((o) => JSON.stringify(o)).join("\n") + (inputs.length ? "\n" : "");
+    const enrichPath = resolve(args.enrichOut);
+    writeFileSync(enrichPath, nd);
+    log(`  ${c("cyan", "◷")} ${c("dim", `wrote ${inputs.length} enrich input${inputs.length === 1 ? "" : "s"} → ${enrichPath}`)}`);
+  }
+
   const serOpts: { sheetName?: string } = {};
   if (args.sheet ?? config.sheet) serOpts.sheetName = (args.sheet ?? config.sheet) as string;
   const { data, binary } = serialize(leads, format, fields, serOpts);
   writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
+  if (cpFile) clearCheckpoint(cpFile);
   const s = computeStats(leads);
   log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}`);
-  log(`    ${c("dim", `${s.withPhone} with a phone · ${s.withWebsite} with a website · ${s.withEmail} with an email`)}\n`);
+  log(`    ${c("dim", `${s.withPhone} with a phone · ${s.withWebsite} with a website · ${s.withEmail} with an email`)}`);
+  if (args.summary) {
+    log("");
+    formatSummary(summarize(leads)).split("\n").forEach((line, i) => {
+      log("  " + (i === 0 ? c("bold", c("magenta", line)) : c("dim", line)));
+    });
+  }
+  log("");
 }
 
 async function main(): Promise<void> {
@@ -352,6 +434,12 @@ async function main(): Promise<void> {
   if (args.socials) for (const f of SOCIAL_FIELDS) wanted.add(f);
   if (args.verifyEmails) { wanted.add("email"); wanted.add("emailStatus"); }
   if (nearPoint) wanted.add("distanceKm");
+  // Make sure a filter always has the column it needs to judge, even under a
+  // narrow --fields / --preset.
+  if (args.openNow) wanted.add("openNow");
+  if (args.price !== undefined) wanted.add("priceLevel");
+  if (args.businessStatus) wanted.add("businessStatus");
+  if (args.category) { wanted.add("category"); wanted.add("categories"); }
   const fields = ALL_FIELDS.filter((f) => wanted.has(f));
   const toStdout = args.out === "-";
   const out = toStdout ? "-" : resolve(args.out ?? defaultFilename(query, args.format));
@@ -364,6 +452,17 @@ async function main(): Promise<void> {
   if (args.hasEmail) filters.hasEmail = true;
   if (args.hasValidEmail) filters.hasValidEmail = true;
   if (args.hasContact) filters.hasContact = true;
+  if (args.openNow) filters.openNow = true;
+  if (args.price !== undefined) {
+    if (!(args.price >= 1 && args.price <= 4)) {
+      log(c("red", `\n✗ --price must be 1–4 ($ … $$$$).`));
+      exit(1);
+      return;
+    }
+    filters.priceLevel = args.price;
+  }
+  if (args.category) filters.category = args.category;
+  if (args.businessStatus) filters.businessStatus = args.businessStatus;
   if (args.nameExclude) filters.excludeNames = args.nameExclude.split(",").map((s) => s.trim()).filter(Boolean);
   const hasFilters = Object.keys(filters).length > 0;
 
@@ -431,11 +530,38 @@ async function main(): Promise<void> {
   if (args.retries !== undefined) opts.retries = args.retries;
   if (args.maxTime !== undefined) opts.maxMs = args.maxTime * 1000;
 
+  // Resume support: for a multi-search sweep, persist progress to a checkpoint
+  // next to the output file and skip queries already collected on a prior run.
+  let cpFile: string | undefined;
+  let checkpoint: Checkpoint | undefined;
+  if (args.resume && !toStdout) {
+    if (isBatch) {
+      cpFile = checkpointPath(out);
+      checkpoint = loadCheckpoint(cpFile) ?? emptyCheckpoint();
+      if (checkpoint.done.length) {
+        log(`  ${c("cyan", "◷")} ${c("dim", `resuming — ${checkpoint.done.length} of ${queries.length} searches already done, ${checkpoint.leads.length} leads carried over`)}`);
+      }
+    } else {
+      log(c("dim", "  (--resume applies to multi-search sweeps; ignored for a single search)"));
+    }
+  }
+
   let leads;
   try {
     if (isBatch) {
-      const batchOpts = { ...opts } as SearchOptions & { total?: number };
+      const batchOpts = { ...opts } as SearchOptions & { total?: number } & {
+        skip?: (q: BatchQuery) => boolean;
+        seedLeads?: Lead[];
+        onQueryDone?: (q: BatchQuery, found: Lead[]) => void;
+      };
       if (args.total !== undefined) batchOpts.total = args.total;
+      if (checkpoint && cpFile) {
+        const cp = checkpoint;
+        const file = cpFile;
+        batchOpts.seedLeads = cp.leads;
+        batchOpts.skip = (q) => isDone(cp, q);
+        batchOpts.onQueryDone = (q, found) => { recordQuery(cp, q, found); saveCheckpoint(file, cp); };
+      }
       leads = await searchLeadsBatch(queries, batchOpts);
     } else {
       leads = await searchLeads(opts);
@@ -450,7 +576,26 @@ async function main(): Promise<void> {
 
   if (leads.length === 0) {
     log(c("yellow", "\n  No leads collected. Try a broader area, looser filters, or a smaller --limit.\n"));
+    if (cpFile) clearCheckpoint(cpFile);
     return;
+  }
+
+  // Cross-file dedupe: drop leads already present in an existing master file, so
+  // this run only writes what's genuinely new.
+  if (args.dedupeAcross && existsSync(args.dedupeAcross)) {
+    try {
+      const master = rowsToLeads(await readRows(args.dedupeAcross));
+      const before = leads.length;
+      leads = subtractLeads(leads, master, args.dedupe ?? "smart");
+      log(`  ${c("cyan", "◷")} ${c("dim", `dropped ${before - leads.length} already in ${args.dedupeAcross} → ${leads.length} new`)}`);
+    } catch (err) {
+      log(c("yellow", `  ! couldn't read --dedupe-across "${args.dedupeAcross}" (${(err as Error).message}); keeping all`));
+    }
+    if (leads.length === 0) {
+      log(c("yellow", "\n  Nothing new — every lead was already in the master file.\n"));
+      if (cpFile) clearCheckpoint(cpFile);
+      return;
+    }
   }
 
   // Append mode: merge the new leads onto whatever's already in the file, then
@@ -469,6 +614,25 @@ async function main(): Promise<void> {
     }
   }
 
+  // Optional: write the enrich-pipeline input (name/website/domain) as NDJSON,
+  // ready to feed to lacspace-enrich. No hard dependency on that package.
+  if (args.enrichOut) {
+    const inputs = leadsToEnrichInput(leads);
+    const nd = inputs.map((o) => JSON.stringify(o)).join("\n") + (inputs.length ? "\n" : "");
+    const enrichPath = resolve(args.enrichOut);
+    writeFileSync(enrichPath, nd);
+    log(`  ${c("cyan", "◷")} ${c("dim", `wrote ${inputs.length} enrich input${inputs.length === 1 ? "" : "s"} → ${enrichPath} (feed to lacspace-enrich)`)}`);
+  }
+
+  // Optional: a headline summary of the run (rating bands, contact %, top cats).
+  const printSummary = (): void => {
+    if (!args.summary) return;
+    log("");
+    formatSummary(summarize(leads)).split("\n").forEach((line, i) => {
+      log("  " + (i === 0 ? c("bold", c("magenta", line)) : c("dim", line)));
+    });
+  };
+
   const serOpts: { sheetName?: string } = {};
   if (args.sheet) serOpts.sheetName = args.sheet;
   const { data, binary } = serialize(leads, args.format, fields, serOpts);
@@ -478,10 +642,12 @@ async function main(): Promise<void> {
     stdout.write(binary ? Buffer.from(data as Uint8Array) : (data as string));
     if (!binary) stdout.write("\n");
     log(`\n  ${c("green", "✔")} ${c("bold", String(leads.length))} leads written to stdout ${c("dim", `(${args.format})`)}\n`);
+    printSummary();
     return;
   }
 
   writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
+  if (cpFile) clearCheckpoint(cpFile); // sweep finished cleanly — drop the checkpoint
 
   const s = computeStats(leads);
   log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}${args.append && fresh !== leads.length ? c("dim", ` (${fresh} new)`) : ""}`);
@@ -490,7 +656,9 @@ async function main(): Promise<void> {
   if (args.verifyEmails) parts.push(`${s.withValidEmail} MX-valid`);
   if (args.socials) parts.push(`${s.withSocial} with a social link`);
   if (s.avgRating !== undefined) parts.push(`avg ★ ${s.avgRating}`);
-  log(`    ${c("dim", parts.join(" · "))}\n`);
+  log(`    ${c("dim", parts.join(" · "))}`);
+  printSummary();
+  log("");
 }
 
 main().catch((err: unknown) => {

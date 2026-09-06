@@ -6,9 +6,13 @@ import { ALL_FIELDS, type Lead, type LeadField, type LeadStats, type OutputForma
 const HEADERS: Record<LeadField, string> = {
   name: "Name",
   category: "Category",
+  categories: "Categories",
   rating: "Rating",
   reviews: "Reviews",
   priceLevel: "Price",
+  businessStatus: "Status",
+  claimed: "Claimed",
+  openNow: "Open Now",
   address: "Address",
   phone: "Phone",
   website: "Website",
@@ -38,11 +42,18 @@ export function toRows(
   return leads.map((lead) => {
     const row: Record<string, string | number> = {};
     for (const f of fields) {
-      const v = lead[f];
-      row[HEADERS[f]] = v === undefined || v === null ? "" : (v as string | number);
+      row[HEADERS[f]] = cellValue(lead[f]);
     }
     return row;
   });
+}
+
+/** Flatten a Lead value into a spreadsheet-safe cell (arrays joined, booleans yes/no). */
+function cellValue(v: unknown): string | number {
+  if (v === undefined || v === null) return "";
+  if (Array.isArray(v)) return v.join("; ");
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  return v as string | number;
 }
 
 /** Serialize leads to a UTF-8 string or bytes in the chosen format. */
@@ -112,6 +123,17 @@ const FIELD_BY_KEY: Map<string, LeadField> = (() => {
 })();
 
 const NUMERIC_FIELDS = new Set<LeadField>(["rating", "reviews", "latitude", "longitude", "distanceKm"]);
+const BOOLEAN_FIELDS = new Set<LeadField>(["claimed", "openNow"]);
+const ARRAY_FIELDS = new Set<LeadField>(["categories"]);
+
+/** Parse a stored boolean cell (true/false, yes/no, 1/0). Undefined if unclear. */
+function coerceBool(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  const s = String(raw).trim().toLowerCase();
+  if (/^(yes|true|1|y|open)$/.test(s)) return true;
+  if (/^(no|false|0|n|closed)$/.test(s)) return false;
+  return undefined;
+}
 
 /**
  * Map arbitrary rows (as read back from a JSON/CSV/Excel export, keyed by field
@@ -127,6 +149,14 @@ export function rowsToLeads(rows: Record<string, unknown>[]): Lead[] {
       if (NUMERIC_FIELDS.has(field)) {
         const n = typeof raw === "number" ? raw : parseFloat(String(raw));
         if (Number.isFinite(n)) (lead as Record<string, unknown>)[field] = n;
+      } else if (BOOLEAN_FIELDS.has(field)) {
+        const b = coerceBool(raw);
+        if (b !== undefined) (lead as Record<string, unknown>)[field] = b;
+      } else if (ARRAY_FIELDS.has(field)) {
+        const arr = Array.isArray(raw)
+          ? raw.map((x) => String(x).trim()).filter(Boolean)
+          : String(raw).split(/[;,]/).map((x) => x.trim()).filter(Boolean);
+        if (arr.length) (lead as Record<string, unknown>)[field] = arr;
       } else {
         (lead as Record<string, unknown>)[field] = String(raw);
       }

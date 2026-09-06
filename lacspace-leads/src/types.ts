@@ -2,9 +2,13 @@
 export type LeadField =
   | "name"
   | "category"
+  | "categories"
   | "rating"
   | "reviews"
   | "priceLevel"
+  | "businessStatus"
+  | "claimed"
+  | "openNow"
   | "address"
   | "phone"
   | "website"
@@ -28,13 +32,20 @@ export type LeadField =
 /** Deliverability verdict for a discovered email (see `verifyEmails`). */
 export type EmailStatus = "valid" | "no-mx" | "invalid-format" | "unknown";
 
+/** Operating state of a business, as read from its Maps listing. */
+export type BusinessStatus = "operational" | "closed" | "temporarily-closed";
+
 /** Every field, in a sensible column order for exports. */
 export const ALL_FIELDS: LeadField[] = [
   "name",
   "category",
+  "categories",
   "rating",
   "reviews",
   "priceLevel",
+  "businessStatus",
+  "claimed",
+  "openNow",
   "address",
   "phone",
   "website",
@@ -101,13 +112,22 @@ export const DEFAULT_FIELDS: LeadField[] = ALL_FIELDS.filter(
 /** A single collected business lead. Every field is optional — Maps listings vary. */
 export interface Lead {
   name?: string;
+  /** Primary category, e.g. "Restaurant". */
   category?: string;
+  /** Additional category tags shown on the listing, e.g. ["Cafe", "Bakery"]. */
+  categories?: string[];
   /** Star rating, 0–5. */
   rating?: number;
   /** Number of reviews. */
   reviews?: number;
   /** Price level as shown on Maps, e.g. "$$" or "₹₹". */
   priceLevel?: string;
+  /** Operating state: operational, closed (permanently) or temporarily-closed. */
+  businessStatus?: BusinessStatus;
+  /** Whether the listing appears claimed/verified by its owner (best-effort). */
+  claimed?: boolean;
+  /** Whether the business is open at scrape time (from the hours widget). */
+  openNow?: boolean;
   address?: string;
   phone?: string;
   website?: string;
@@ -161,6 +181,14 @@ export interface LeadFilters {
   hasValidEmail?: boolean;
   /** Keep only leads reachable by at least one of phone, email or website. */
   hasContact?: boolean;
+  /** Keep only leads that are open at scrape time (needs the hours widget). */
+  openNow?: boolean;
+  /** Keep only leads at exactly this price tier, 1–4 ($ … $$$$). */
+  priceLevel?: number;
+  /** Keep only leads whose primary or tag category contains this (case-insensitive) substring. */
+  category?: string;
+  /** Keep only leads with this business status, e.g. "operational". */
+  businessStatus?: string;
   /** Drop leads whose name contains any of these (case-insensitive) terms. */
   excludeNames?: string[];
 }

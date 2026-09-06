@@ -1,6 +1,6 @@
 {
   "name": "lacspace-cron",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Explain, validate and preview cron expressions in plain English — with the next N run times in any IANA timezone. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -26,7 +26,9 @@
   },
   "keywords": [
     "cron", "crontab", "cron-parser", "cron-expression", "schedule",
-    "cron-explain", "next-run", "timezone", "cli", "typescript"
+    "cron-explain", "next-run", "previous-run", "timezone", "cli", "typescript",
+    "jenkins-cron", "cron-hash", "every", "interval", "ics", "icalendar",
+    "dst", "cron-overlap", "last-day-of-month", "nth-weekday", "zero-dependency"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

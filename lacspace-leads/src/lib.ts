@@ -27,9 +27,44 @@ export {
   parseLatLng,
   type DetailedResult,
 } from "./scrape.js";
-export { searchLeadsBatch, searchLeadsMulti, type BatchQuery } from "./batch.js";
+export { searchLeadsBatch, searchLeadsMulti, type BatchQuery, type BatchResumeHooks } from "./batch.js";
 export { runConfig, assertConfig, type LeadsConfig } from "./config.js";
 export { serialize, toRows, computeStats, rowsToLeads } from "./export.js";
+export {
+  parsePriceLevel,
+  priceLevelValue,
+  parseBusinessStatus,
+  parseClaimed,
+  parseOpenNow,
+  parseCategoryTags,
+} from "./parse.js";
+export {
+  queryKey,
+  isDone,
+  pendingQueries,
+  recordQuery,
+  emptyCheckpoint,
+  loadCheckpoint,
+  saveCheckpoint,
+  clearCheckpoint,
+  checkpointPath,
+  type Checkpoint,
+} from "./checkpoint.js";
+export {
+  summarize,
+  formatSummary,
+  type LeadSummary,
+  type RatingBand,
+  type CategoryCount,
+} from "./summary.js";
+export {
+  pipeToEnrich,
+  leadToEnrichInput,
+  leadsToEnrichInput,
+  leadDomains,
+  leadDomain,
+  type EnrichInput,
+} from "./pipe.js";
 export {
   verifyEmails,
   verifyEmail,
@@ -44,7 +79,7 @@ export {
   expandQueries,
   resolvePreset,
 } from "./query.js";
-export { filterLeads, dedupeLeads } from "./filter.js";
+export { filterLeads, dedupeLeads, subtractLeads } from "./filter.js";
 export {
   cleanWebsite,
   normalizePhone,
@@ -75,6 +110,7 @@ export type {
   LeadFilters,
   LeadStats,
   EmailStatus,
+  BusinessStatus,
   OutputFormat,
   SortKey,
   SearchOptions,

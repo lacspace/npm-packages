@@ -9,6 +9,28 @@ import { inflateSync, inflateRawSync } from "node:zlib";
 export interface PdfText {
   text: string;
   pageCount: number;
+  /** True when the PDF is encrypted (text may be empty/garbled — see README). */
+  encrypted?: boolean;
+}
+
+/** A single page's extracted text. */
+export interface PdfPage {
+  page: number;
+  text: string;
+}
+
+/** Document metadata pulled from the Info dict (or XMP as a fallback). */
+export interface PdfMeta {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string;
+  creator?: string;
+  producer?: string;
+  created?: string;
+  modified?: string;
+  pageCount: number;
+  encrypted: boolean;
 }
 
 const OCTAL: Record<string, string> = {};
@@ -121,10 +143,30 @@ function contentStreams(latin: string, buf: Buffer): string[] {
   return streams;
 }
 
+/**
+ * Tidy raw extracted text: trim trailing space, drop leading indent, collapse
+ * repeated blank lines — but PRESERVE internal multi-spaces so column layouts
+ * survive for best-effort table detection.
+ */
+function cleanText(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\t/g, "    ").replace(/\s+$/, "").replace(/^\s+/, ""))
+    .filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""))
+    .join("\n")
+    .trim();
+}
+
+/** True if the trailer declares an `/Encrypt` dictionary. */
+export function pdfIsEncrypted(latin: string): boolean {
+  return /\/Encrypt\s+\d+\s+\d+\s+R/.test(latin) || /\/Encrypt\s*<</.test(latin);
+}
+
 /** Extract readable text from a PDF byte buffer. Never throws. */
 export function extractPdfText(bytes: Uint8Array): PdfText {
   const buf = Buffer.from(bytes);
   const latin = buf.toString("latin1");
+  const encrypted = pdfIsEncrypted(latin);
   let text = "";
   try {
     for (const s of contentStreams(latin, buf)) {
@@ -135,15 +177,184 @@ export function extractPdfText(bytes: Uint8Array): PdfText {
     /* return whatever we got */
   }
   const pageCount = (latin.match(/\/Type\s*\/Page[^s]/g) ?? []).length || 1;
-  // Tidy: trim trailing space, drop leading indent, collapse repeated blank
-  // lines — but PRESERVE internal multi-spaces so column layouts survive for
-  // best-effort table detection.
-  const cleaned = text
-    .split(/\r?\n/)
-    .map((l) => l.replace(/\t/g, "    ").replace(/\s+$/, "").replace(/^\s+/, ""))
-    .filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""))
-    .join("\n")
-    .trim();
   void OCTAL;
-  return { text: cleaned, pageCount };
+  const out: PdfText = { text: cleanText(text), pageCount };
+  if (encrypted) out.encrypted = true;
+  return out;
+}
+
+// ── Object model (for per-page extraction & metadata) ────────────────────────
+
+interface PdfObj { num: number; dict: string; stream?: Buffer; flate: boolean }
+
+/** Parse every `N G obj … endobj` into a map keyed by object number. */
+function parseObjects(latin: string, buf: Buffer): Map<number, PdfObj> {
+  const objs = new Map<number, PdfObj>();
+  const re = /(\d+)\s+(\d+)\s+obj\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(latin))) {
+    const num = Number(m[1]);
+    const bodyStart = m.index + m[0].length;
+    const end = latin.indexOf("endobj", bodyStart);
+    if (end === -1) continue;
+    const streamKw = latin.indexOf("stream", bodyStart);
+    const hasStream = streamKw !== -1 && streamKw < end;
+    const dict = latin.slice(bodyStart, hasStream ? streamKw : end);
+    const obj: PdfObj = { num, dict, flate: /\/FlateDecode/.test(dict) };
+    if (hasStream) {
+      let ds = streamKw + 6;
+      if (latin[ds] === "\r") ds++;
+      if (latin[ds] === "\n") ds++;
+      const se = latin.indexOf("endstream", ds);
+      if (se !== -1) obj.stream = buf.subarray(ds, se);
+    }
+    if (!objs.has(num)) objs.set(num, obj);
+  }
+  return objs;
+}
+
+function refsIn(s: string, key: string): number[] {
+  // Match "/Key N 0 R" or "/Key [ N 0 R M 0 R ]".
+  const single = s.match(new RegExp(`/${key}\\s+(\\d+)\\s+\\d+\\s+R`));
+  const arr = s.match(new RegExp(`/${key}\\s*\\[([^\\]]*)\\]`));
+  const out: number[] = [];
+  if (arr) { const r = /(\d+)\s+\d+\s+R/g; let mm: RegExpExecArray | null; while ((mm = r.exec(arr[1]!))) out.push(Number(mm[1])); }
+  else if (single) out.push(Number(single[1]));
+  return out;
+}
+
+/** Resolve the ordered list of Page object numbers by walking the page tree. */
+function pageOrder(objs: Map<number, PdfObj>, latin: string): number[] {
+  const order: number[] = [];
+  const seen = new Set<number>();
+  const rootRef = latin.match(/\/Root\s+(\d+)\s+\d+\s+R/);
+  let pagesRoot: number | undefined;
+  if (rootRef) { const cat = objs.get(Number(rootRef[1])); if (cat) pagesRoot = refsIn(cat.dict, "Pages")[0]; }
+  const walk = (num: number, depth: number): void => {
+    if (depth > 50 || seen.has(num)) return;
+    seen.add(num);
+    const obj = objs.get(num);
+    if (!obj) return;
+    if (/\/Type\s*\/Pages\b/.test(obj.dict)) { for (const kid of refsIn(obj.dict, "Kids")) walk(kid, depth + 1); }
+    else if (/\/Type\s*\/Page\b/.test(obj.dict)) order.push(num);
+  };
+  if (pagesRoot !== undefined) walk(pagesRoot, 0);
+  if (order.length) return order;
+  // Fallback: every /Type /Page object in numeric order.
+  return [...objs.values()].filter((o) => /\/Type\s*\/Page\b/.test(o.dict) && !/\/Type\s*\/Pages\b/.test(o.dict)).map((o) => o.num);
+}
+
+/** Decode a page's concatenated content streams into text. */
+function pageText(pageNum: number, objs: Map<number, PdfObj>): string {
+  const page = objs.get(pageNum);
+  if (!page) return "";
+  let content = "";
+  for (const ref of refsIn(page.dict, "Contents")) {
+    const c = objs.get(ref);
+    if (!c?.stream) continue;
+    const decoded = c.flate ? inflate(c.stream) : c.stream;
+    if (decoded) content += decoded.toString("latin1") + "\n";
+  }
+  return cleanText(parseContent(content));
+}
+
+/**
+ * Parse a page-range spec like "2-5", "3", "2,4,6", "3-" (open-ended) into a
+ * sorted, de-duplicated, 1-based page-number list bounded by `total`.
+ */
+export function parsePageRange(spec: string, total: number): number[] {
+  const set = new Set<number>();
+  for (const part of spec.split(",").map((p) => p.trim()).filter(Boolean)) {
+    const m = part.match(/^(\d+)(?:\s*-\s*(\d+)?)?$/);
+    if (!m) continue;
+    const from = Number(m[1]);
+    const to = m[2] !== undefined ? Number(m[2]) : (part.includes("-") ? total : from);
+    for (let i = from; i <= Math.min(to, total); i++) if (i >= 1) set.add(i);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/**
+ * Extract text page-by-page. Pass `range` (e.g. "2-5") to limit which pages.
+ * Falls back to a single whole-document page if the page tree can't be parsed.
+ */
+export function extractPdfPages(bytes: Uint8Array, opts: { range?: string } = {}): PdfPage[] {
+  const buf = Buffer.from(bytes);
+  const latin = buf.toString("latin1");
+  let order: number[] = [];
+  try { order = pageOrder(parseObjects(latin, buf), latin); } catch { /* fall through */ }
+  const objs = (() => { try { return parseObjects(latin, buf); } catch { return new Map<number, PdfObj>(); } })();
+  if (!order.length) {
+    // Couldn't resolve the tree — return the whole document as one page.
+    const whole = extractPdfText(bytes);
+    const single: PdfPage[] = [{ page: 1, text: whole.text }];
+    return opts.range ? single.filter((_, i) => parsePageRange(opts.range!, 1).includes(i + 1)) : single;
+  }
+  const wanted = opts.range ? new Set(parsePageRange(opts.range, order.length)) : null;
+  const pages: PdfPage[] = [];
+  order.forEach((num, i) => {
+    const pageNo = i + 1;
+    if (wanted && !wanted.has(pageNo)) return;
+    pages.push({ page: pageNo, text: pageText(num, objs) });
+  });
+  return pages;
+}
+
+// ── Metadata ─────────────────────────────────────────────────────────────────
+
+function dictString(dict: string, key: string): string | undefined {
+  const re = new RegExp(`/${key}\\s*(\\((?:[^()\\\\]|\\\\.)*\\)|<[0-9A-Fa-f\\s]*>)`);
+  const m = dict.match(re);
+  if (!m) return undefined;
+  const tok = m[1]!;
+  const val = tok[0] === "(" ? decodeLiteral(tok) : decodeHex(tok);
+  return val.trim() || undefined;
+}
+
+/** Normalise a PDF date `D:YYYYMMDDHHmmSS` → ISO-ish `YYYY-MM-DD HH:mm:SS`. */
+function pdfDate(v?: string): string | undefined {
+  if (!v) return undefined;
+  const m = v.match(/D?:?(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/);
+  if (!m) return v;
+  const [, y, mo = "01", d = "01", h, mi, s] = m;
+  const date = `${y}-${mo}-${d}`;
+  return h ? `${date} ${h}:${mi ?? "00"}:${s ?? "00"}` : date;
+}
+
+/** Read document metadata from the Info dict, with an XMP fallback. */
+export function pdfMeta(bytes: Uint8Array): PdfMeta {
+  const buf = Buffer.from(bytes);
+  const latin = buf.toString("latin1");
+  const meta: PdfMeta = {
+    pageCount: (latin.match(/\/Type\s*\/Page[^s]/g) ?? []).length || 1,
+    encrypted: pdfIsEncrypted(latin),
+  };
+  try {
+    const infoRef = latin.match(/\/Info\s+(\d+)\s+\d+\s+R/);
+    if (infoRef) {
+      const objs = parseObjects(latin, buf);
+      const info = objs.get(Number(infoRef[1]));
+      if (info) {
+        meta.title = dictString(info.dict, "Title");
+        meta.author = dictString(info.dict, "Author");
+        meta.subject = dictString(info.dict, "Subject");
+        meta.keywords = dictString(info.dict, "Keywords");
+        meta.creator = dictString(info.dict, "Creator");
+        meta.producer = dictString(info.dict, "Producer");
+        meta.created = pdfDate(dictString(info.dict, "CreationDate"));
+        meta.modified = pdfDate(dictString(info.dict, "ModDate"));
+      }
+    }
+    // XMP fallback for any still-missing fields.
+    const xmp = latin.match(/<x:xmpmeta[\s\S]*?<\/x:xmpmeta>/)?.[0];
+    if (xmp) {
+      meta.title ??= xmp.match(/<dc:title>[\s\S]*?<rdf:li[^>]*>([\s\S]*?)<\/rdf:li>/)?.[1]?.trim();
+      meta.author ??= xmp.match(/<dc:creator>[\s\S]*?<rdf:li[^>]*>([\s\S]*?)<\/rdf:li>/)?.[1]?.trim();
+      meta.producer ??= xmp.match(/<pdf:Producer>([\s\S]*?)<\/pdf:Producer>/)?.[1]?.trim();
+      meta.creator ??= xmp.match(/<xmp:CreatorTool>([\s\S]*?)<\/xmp:CreatorTool>/)?.[1]?.trim();
+      meta.created ??= pdfDate(xmp.match(/<xmp:CreateDate>([\s\S]*?)<\/xmp:CreateDate>/)?.[1]?.trim());
+      meta.modified ??= pdfDate(xmp.match(/<xmp:ModifyDate>([\s\S]*?)<\/xmp:ModifyDate>/)?.[1]?.trim());
+    }
+  } catch { /* best-effort */ }
+  return meta;
 }

@@ -1,7 +1,7 @@
 {
   "name": "lacspace-enrich",
-  "version": "0.1.0",
-  "description": "Free, open-source company + contact enrichment — turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address and tech stack, all from open sources. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
+  "version": "0.2.0",
+  "description": "Free, open-source company + contact enrichment — turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address, tech stack, DNS/SPF/DMARC/DKIM deliverability, RDAP registration, key-page discovery and email-pattern guesses — all from open sources / DNS. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
   "type": "module",
   "bin": { "lacspace-enrich": "dist/cli.js" },
   "main": "./dist/lib.cjs",
@@ -13,7 +13,7 @@
   },
   "files": ["dist", "README.md"],
   "scripts": { "build": "tsup", "test": "vitest run", "typecheck": "tsc --noEmit", "prepublishOnly": "npm run build" },
-  "keywords": ["enrichment", "company-data", "contact-enrichment", "lead-enrichment", "email-finder", "tech-stack", "scraper", "cli", "typescript"],
+  "keywords": ["enrichment", "company-data", "contact-enrichment", "lead-enrichment", "email-finder", "email-permutator", "tech-stack", "tech-detection", "dns", "spf", "dmarc", "dkim", "rdap", "whois", "deliverability", "scraper", "cli", "typescript"],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/tools/enrich",

@@ -1,6 +1,6 @@
 {
   "name": "lacspace-sql",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Run SQL over your CSV, JSON, NDJSON and Excel files — SELECT, WHERE, ORDER BY, GROUP BY, aggregates — no database, no API keys. Built on the lacspace-scraper file engine.",
   "type": "module",
   "bin": {

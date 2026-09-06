@@ -1,7 +1,7 @@
 {
   "name": "lacspace-inspect",
-  "version": "0.1.0",
-  "description": "One-command website audit — SEO, meta, Open Graph, structured data, headings, images, links, security headers and tech stack, graded A–F, and a CI gate that fails below your minimum grade. No API keys. Built on the lacspace-scraper engine.",
+  "version": "0.2.0",
+  "description": "One-command website audit — SEO, meta, Open Graph, structured data, headings, images, links, security headers and tech stack, graded A–F with concrete fix suggestions. Crawl a whole site, set performance budgets, diff against a baseline for CI, and export Markdown/HTML reports. No API keys. Built on the lacspace-scraper engine.",
   "type": "module",
   "bin": {
     "lacspace-inspect": "dist/cli.js"

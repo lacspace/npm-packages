@@ -5,6 +5,13 @@ import { dedupeLeads, filterLeads } from "./filter.js";
 import { cleanWebsite, normalizePhone, sortLeads } from "./normalize.js";
 import { verifyEmails } from "./verify.js";
 import { haversineMeters, zoomForRadius } from "./geo.js";
+import {
+  parsePriceLevel,
+  parseBusinessStatus,
+  parseClaimed,
+  parseOpenNow,
+  parseCategoryTags,
+} from "./parse.js";
 import { computeStats } from "./export.js";
 import { DEFAULT_FIELDS, ENRICHED_FIELDS, type Lead, type LeadField, type LeadStats, type SearchOptions } from "./types.js";
 
@@ -180,6 +187,16 @@ async function extractDetail(
     lead.category = (await text('button[jsaction*="category"]')) ?? undefined;
   }
 
+  if (fields.has("categories")) {
+    // The panel can carry several category chips; gather and tidy them.
+    const chips = await page
+      .locator('button[jsaction*="category"]')
+      .allInnerTexts()
+      .catch(() => [] as string[]);
+    const tags = parseCategoryTags([lead.category, ...chips]);
+    if (tags) lead.categories = tags;
+  }
+
   if (fields.has("rating") || fields.has("reviews")) {
     const box = page.locator("div.F7nice").first();
     if (await box.count()) {
@@ -224,8 +241,7 @@ async function extractDetail(
   if (fields.has("priceLevel")) {
     const priceText = await text('span[aria-label^="Price"], span[aria-label*="Price:"]');
     lead.priceLevel =
-      (priceText && /^[$€£₹¥₩]+$/.test(priceText.trim()) ? priceText.trim() : undefined) ??
-      stripPrefix(await aria('span[aria-label^="Price"]'), "Price: ");
+      parsePriceLevel(priceText) ?? parsePriceLevel(await aria('span[aria-label^="Price"]'));
   }
   if (fields.has("latitude") || fields.has("longitude")) {
     const geo = parseLatLng(page.url());
@@ -235,10 +251,34 @@ async function extractDetail(
   if (fields.has("plusCode")) {
     lead.plusCode = stripPrefix(await aria('button[data-item-id="oloc"]'), "Plus code:");
   }
-  if (fields.has("hours")) {
-    lead.hours =
-      stripPrefix(await aria('div[jsaction*="openhours"]'), "") ??
+  // The open-hours widget's label doubles as the open-now signal.
+  let hoursLabel: string | undefined;
+  if (fields.has("hours") || fields.has("openNow")) {
+    hoursLabel =
+      (await aria('div[jsaction*="openhours"]')) ??
       (await text('div[jsaction*="openhours"]'));
+    if (fields.has("hours")) lead.hours = hoursLabel;
+    if (fields.has("openNow")) {
+      const open = parseOpenNow(hoursLabel);
+      if (open !== undefined) lead.openNow = open;
+    }
+  }
+  if (fields.has("businessStatus")) {
+    // Maps surfaces closure banners near the title/hours; default a loaded,
+    // non-closed listing to operational.
+    const banner =
+      (await text('span[style*="rgb(217, 48, 37)"], span.fCEvvc, div.o0Svhf')) ?? hoursLabel;
+    lead.businessStatus =
+      parseBusinessStatus(banner) ?? parseBusinessStatus(hoursLabel) ??
+      (lead.name || fallbackName ? "operational" : undefined);
+  }
+  if (fields.has("claimed")) {
+    // A "Claim this business" affordance means unclaimed; otherwise best-effort claimed.
+    const claimText = await text(
+      'a[href*="business.google.com"], button[aria-label*="Claim"], a[aria-label*="Claim"]',
+    );
+    const c = parseClaimed(claimText);
+    lead.claimed = c ?? (lead.name || fallbackName ? true : undefined);
   }
   if (fields.has("mapsUrl")) lead.mapsUrl = page.url();
 

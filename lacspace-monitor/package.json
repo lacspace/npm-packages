@@ -1,7 +1,7 @@
 {
   "name": "lacspace-monitor",
-  "version": "0.1.0",
-  "description": "Free, open-source change monitor — watch any web page, CSS selector, JSON API field or RSS/Atom feed and get told when something moves. Snapshots + diffs on a schedule, webhook alerts, export to JSON/CSV/Excel. No API keys. Built on the lacspace-scraper engine.",
+  "version": "0.2.0",
+  "description": "Free, open-source change monitor — watch any web page, CSS selector, JSON API field, RSS/Atom feed, HTTP status, header, response time, SSL expiry or uptime and get told when something moves. Condition-based alerts (price drops, thresholds), Slack/Discord/Telegram/e-mail/webhook notifiers, change history and rich diffs. No API keys. Built on the lacspace-scraper engine.",
   "type": "module",
   "bin": {
     "lacspace-monitor": "dist/cli.js"
@@ -26,7 +26,9 @@
   },
   "keywords": [
     "monitor", "change-detection", "watcher", "website-monitor", "uptime",
-    "price-monitor", "rss", "webhook", "diff", "cli", "typescript"
+    "price-monitor", "rss", "webhook", "diff", "cli", "typescript",
+    "ssl-monitor", "status-monitor", "response-time", "availability",
+    "slack", "discord", "telegram", "alerts", "cron", "ci"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

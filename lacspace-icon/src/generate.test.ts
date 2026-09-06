@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { buildManifest } from "./manifest.js";
 import { hexToRgba, createCanvas, compositeOver } from "./compose.js";
-import { generateIcons, buildSnippet } from "./generate.js";
+import { generateIcons, generateIconsFromImage, buildSnippet } from "./generate.js";
 import { encodePng, isPng, decodePng } from "./png.js";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 /** A small colourful source PNG (8x8) with a transparent border. */
 function sourcePng(): Uint8Array {
@@ -41,6 +46,33 @@ describe("buildManifest", () => {
 
   it("defaults short_name to name", () => {
     expect(buildManifest({ name: "Solo" }).short_name).toBe("Solo");
+  });
+
+  it("carries the richer v0.2.0 options through", () => {
+    const m = buildManifest({
+      display: "fullscreen",
+      orientation: "portrait",
+      scope: "/app/",
+      startUrl: "/app/?src=pwa",
+      id: "my-app",
+      categories: ["productivity", "utilities"],
+      shortcuts: [{ name: "New", url: "/new" }],
+    });
+    expect(m.display).toBe("fullscreen");
+    expect(m.orientation).toBe("portrait");
+    expect(m.scope).toBe("/app/");
+    expect(m.start_url).toBe("/app/?src=pwa");
+    expect(m.id).toBe("my-app");
+    expect(m.categories).toEqual(["productivity", "utilities"]);
+    expect(m.shortcuts).toEqual([{ name: "New", url: "/new" }]);
+  });
+
+  it("omits optional fields when not provided (backward compatible)", () => {
+    const m = buildManifest({ name: "App" });
+    expect(m.orientation).toBeUndefined();
+    expect(m.scope).toBeUndefined();
+    expect(m.shortcuts).toBeUndefined();
+    expect(m.display).toBe("standalone");
   });
 });
 
@@ -132,5 +164,72 @@ describe("generateIcons", () => {
 
   it("buildSnippet uses the default theme colour", () => {
     expect(buildSnippet()).toContain("#4d9fff");
+  });
+});
+
+describe("v0.2.0 generation upgrades", () => {
+  it("auto-derives theme_color from the dominant colour when --theme is absent", () => {
+    // A solid orange source → theme should be that orange, not the old default.
+    const size = 8;
+    const rgba = new Uint8Array(size * size * 4);
+    for (let p = 0; p < size * size; p++) {
+      rgba[p * 4] = 0xff; rgba[p * 4 + 1] = 0x77; rgba[p * 4 + 2] = 0x00; rgba[p * 4 + 3] = 255;
+    }
+    const { manifest, snippet, stats } = generateIconsFromImage({ width: size, height: size, rgba });
+    expect(stats.dominantColor).toBe("#ff7700");
+    expect(manifest.theme_color).toBe("#ff7700");
+    expect(snippet).toContain("#ff7700");
+  });
+
+  it("emits dark favicon variants + prefers-color-scheme links with --auto-dark", () => {
+    const { files, snippet } = generateIcons(sourcePng(), { autoDark: true });
+    expect(files["favicon-dark-16x16.png"]).toBeDefined();
+    expect(files["favicon-dark-32x32.png"]).toBeDefined();
+    expect(snippet).toContain("prefers-color-scheme: dark");
+  });
+
+  it("generates the Apple splash set + startup-image links with --splash", () => {
+    const { files, snippet, stats } = generateIcons(sourcePng(), { splash: true });
+    expect(stats.splashCount).toBeGreaterThan(10);
+    expect(files["apple-splash-1290-2796.png"]).toBeDefined();
+    expect(snippet).toContain("apple-touch-startup-image");
+  });
+
+  it("reports palette bytes saved on the small favicons by default", () => {
+    const { stats } = generateIcons(sourcePng(), {});
+    expect(stats.bytesSaved).toBeGreaterThanOrEqual(0);
+  });
+
+  it("keeps favicons decodable when palette-optimized", () => {
+    const { files } = generateIcons(sourcePng(), {});
+    const fav = decodePng(files["favicon-16x16.png"]!);
+    expect(fav.width).toBe(16);
+    expect(fav.height).toBe(16);
+  });
+
+  it("scale shrinks the apple-touch icon but keeps the tile opaque", () => {
+    const { files } = generateIcons(sourcePng(), { scale: 60, bg: "#101010" });
+    const apple = decodePng(files["apple-touch-icon.png"]!);
+    expect(apple.width).toBe(180);
+    // Corner is the opaque bg colour (icon shrank away from the edges).
+    expect(apple.rgba[3]).toBe(255);
+    expect(Array.from(apple.rgba.subarray(0, 3))).toEqual([0x10, 0x10, 0x10]);
+  });
+
+  it("accepts a baseline JPEG source", () => {
+    const jpg = new Uint8Array(readFileSync(resolve(here, "__fixtures__", "solid.jpg")));
+    const { files } = generateIcons(jpg, { name: "Jpg" });
+    expect(isPng(files["favicon-32x32.png"]!)).toBe(true);
+    const icon512 = decodePng(files["icon-512.png"]!);
+    expect(icon512.width).toBe(512);
+  });
+
+  it("adds manifest shortcuts + categories end-to-end", () => {
+    const { manifest } = generateIcons(sourcePng(), {
+      shortcuts: [{ name: "New", url: "/new" }],
+      categories: ["tools"],
+    });
+    expect(manifest.shortcuts?.[0]?.url).toBe("/new");
+    expect(manifest.categories).toEqual(["tools"]);
   });
 });

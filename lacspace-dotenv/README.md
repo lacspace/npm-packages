@@ -1,6 +1,6 @@
 # lacspace-dotenv
 
-**Lint, diff, sync and type your `.env` files.** Catch missing keys, duplicate keys, syntax slips and **committed secrets**, keep `.env` and `.env.example` in lockstep, and generate a **typed env accessor** for TypeScript. A robust zero-dependency `.env` parser under the hood. No API keys, nothing phones home, secret values are always masked.
+**Lint, diff, sync, type, run, encrypt and protect your `.env` files.** Catch missing keys, duplicate keys, syntax slips, unresolved `${refs}` and **committed secrets**; keep `.env` and `.env.example` in lockstep; **run commands** with a merged environment; **encrypt** a `.env` so it's safe to commit; compare environments; generate `.env.example`; export/import JSON + YAML; and install a git **pre-commit hook** that blocks secrets. A robust zero-dependency `.env` parser under the hood. No API keys, nothing phones home, secret values are always masked.
 
 ```bash
 npx lacspace-dotenv lint .env
@@ -20,11 +20,20 @@ npx lacspace-dotenv <command>
 
 | Command | Default args | Does |
 | --- | --- | --- |
-| `lint [file]` | `.env` | duplicates, spacing, naming, empty values, syntax, **secrets** |
+| `lint [file]` | `.env` | duplicates, spacing, naming, empty values, syntax, **secrets**, undefined & circular `${refs}` (`--expand` prints the resolved file) |
 | `diff [a] [b]` | `.env` `.env.example` | keys missing in either file, both directions |
 | `sync [a] [b]` | `.env` `.env.example` | add keys from `<a>` missing in `<b>` (placeholders only) |
 | `types [file]` | `.env` | emit a typed `Env` interface + fail-fast runtime accessor |
 | `check [example]` | `.env.example` | verify `process.env` has every example key (CI gate) |
+| `run -e <f> -- <cmd>` | `.env` | load env file(s) then run a command with them (later files win) |
+| `encrypt <file>` | — | encrypt a `.env` → `.env.enc` (AES-256-GCM), needs `--key` |
+| `decrypt <file.enc>` | — | decrypt a `.env.enc` back to plaintext, needs `--key` |
+| `matrix <a> <b> …` | — | table of which keys exist in which environment |
+| `init [file]` | `.env` | generate a `.env.example` from a `.env` (values blanked) |
+| `redact [file]` | `.env` | print the file with every value masked (safe to paste) |
+| `export <file>` | — | print the env as `--json` or `--yaml` |
+| `import <file>` | — | convert a `.json` / `.yaml` file back to `.env` |
+| `install-hook` | — | install a git pre-commit hook that blocks committed secrets |
 
 ## Usage
 
@@ -95,6 +104,90 @@ $ lacspace-dotenv check .env.example
 # exit code 1 → fails the build
 ```
 
+### `${VAR}` interpolation
+
+References of the form `${OTHER}` and `${OTHER:-default}` (use the default when the variable is unset) are resolved against the rest of the file. `lint` reports **undefined references** and **circular references**; `--expand` prints the fully-resolved file.
+
+```bash
+# .env
+HOST=localhost
+PORT=3000
+URL=http://${HOST}:${PORT}
+API=${URL}/api
+FALLBACK=${REGION:-us-east-1}
+
+$ lacspace-dotenv lint .env          # warns on a dangling ${REF}, errors on a cycle
+$ lacspace-dotenv lint --expand .env
+HOST=localhost
+PORT=3000
+URL=http://localhost:3000
+API=http://localhost:3000/api
+FALLBACK=us-east-1
+```
+
+Only the **braced** form is a reference — a bare `$VAR` is left alone, so a password like `p$ssw0rd` is never mangled. Escape a literal with a backslash: `\${NOT_A_REF}`.
+
+### Run a command with the env loaded
+
+```bash
+# later -e files win; the child inherits your shell env plus the files
+$ lacspace-dotenv run -e .env -e .env.local -- node server.js
+$ lacspace-dotenv run -e .env --expand -- npm start   # resolve ${refs} first
+```
+
+The command's exit code is passed straight through, so it drops cleanly into scripts and CI. By default file values override existing `process.env`; pass `--no-override` to keep what's already set.
+
+### Encrypt / decrypt (safe-to-commit secrets)
+
+```bash
+$ lacspace-dotenv encrypt .env --key "$DOTENV_KEY"      # → .env.enc
+$ lacspace-dotenv decrypt .env.enc --key "$DOTENV_KEY"  # → stdout (or -o .env)
+```
+
+`.env.enc` is UTF-8 text (a header comment plus one `LSENC1:` base64 line) so it diffs and commits cleanly. The payload is `salt(16) ‖ iv(12) ‖ authTag(16) ‖ ciphertext`, encrypted with **AES-256-GCM** using a key derived from your passphrase via **scrypt** over a random salt. Because it's authenticated, a wrong passphrase or any tampering fails loudly instead of returning garbage. Keep the passphrase out of the repo (an env var or your secrets manager).
+
+### Compare environments (matrix)
+
+```bash
+$ lacspace-dotenv matrix .env.development .env.staging .env.production
+
+  KEY          development  staging  production
+  -----------  -----------  -------  ----------
+  DATABASE_URL  ✓            ✓        ✓
+  DEBUG         ✓            ✓        ·
+  STRIPE_KEY    ·            ✓        ✓
+
+  ▲ development is missing: STRIPE_KEY
+  ▲ production is missing: DEBUG
+# exit code 1 when any environment is missing a key another has
+```
+
+### Generate `.env.example` & redact for pasting
+
+```bash
+$ lacspace-dotenv init .env > .env.example      # keys + comments kept, values blanked
+$ lacspace-dotenv init .env -o .env.example      # write it (add --force to overwrite)
+$ lacspace-dotenv redact .env                    # every value masked — safe to paste
+```
+
+`init` never emits a real value; `redact` masks each value to a short hint that reveals neither its length precisely nor its middle. Both preserve comments, blank lines and ordering.
+
+### Export / import JSON & YAML
+
+```bash
+$ lacspace-dotenv export .env --json > env.json
+$ lacspace-dotenv export .env --yaml > env.yaml
+$ lacspace-dotenv import env.json > .env         # format inferred from extension
+```
+
+### Git pre-commit hook
+
+```bash
+$ lacspace-dotenv install-hook        # writes .git/hooks/pre-commit (--force to replace)
+```
+
+The hook runs `lacspace-dotenv lint --deny-secrets` on any staged `.env`-family file (skipping `*.example`/`*.sample`/`*.enc`) and **blocks the commit** if a secret or syntax error is found. Override a one-off with `git commit --no-verify`.
+
 ## Library API
 
 Everything the CLI does is exported from the package. Dual ESM + CJS.
@@ -132,15 +225,41 @@ const { parseEnv } = require("lacspace-dotenv");
 | `maskSecret` | `(value: string) => string` |
 | `genTypes` | `(keys: string[], opts?: { interfaceName?: string; accessor?: boolean }) => string` |
 | `checkEnv` | `(exampleText: string, source?: Record<string,string\|undefined>) => { missing: string[]; ok: boolean }` |
+| `resolveEnv` | `(map: Record<string,string>) => { resolved; undefinedRefs: {key,ref}[]; circular: string[][] }` |
+| `replaceRefs` | `(input: string, onRef: (name, def, hasDefault) => string) => string` |
+| `hasRefs` | `(value: string) => boolean` |
+| `encryptEnv` | `(plaintext: string, passphrase: string) => string` (the `.env.enc` text) |
+| `decryptEnv` | `(encText: string, passphrase: string) => string` (throws on wrong key/tamper) |
+| `isEncrypted` | `(text: string) => boolean` |
+| `envMatrix` | `(envs: { name: string; map }[]) => { envs; keys; present; missing; common }` |
+| `toExample` | `(text: string, opts?: { placeholder?: string \| ((key)=>string) }) => string` |
+| `redactEnv` | `(text: string, opts?: { mask?: (value)=>string }) => string` |
+| `toJSON` / `fromJSON` | `(map) => string` / `(json: string) => Record<string,string>` |
+| `toYAML` / `fromYAML` | `(map) => string` / `(yaml: string) => Record<string,string>` (flat mapping) |
+| `renderEnv` | `(map: Record<string,string>) => string` (`.env` text, quoting as needed) |
+| `mergeEnv` | `(files: Record<string,string>[], base?, opts?: { override?; expand? }) => Record<string,string>` |
+| `runWith` | `(command: string, args: string[], env: Record<string,string>) => { code: number }` |
+| `hookScript` | `() => string` (the pre-commit hook body) |
+| `installHook` | `(opts?: { cwd?: string; force?: boolean }) => { path: string; replaced: boolean }` |
+
+`detectSecrets` also takes an optional allowlist: `detectSecrets(map, { allow: ["PUBLIC_KEY"] })`, and `lintEnv(text, { allow })` forwards it.
 
 ## CLI reference
 
 ```
-lacspace-dotenv <lint|diff|sync|types|check> [args] [options]
+lacspace-dotenv <lint|diff|sync|types|check|run|encrypt|decrypt|matrix|init|redact|export|import|install-hook> [args] [options]
 
-  --write, --fix     Actually mutate the target (sync)
-  -o, --out <file>   Write output to a file (types); default stdout
+  --write, --fix     Actually mutate the target (sync, init)
+  -o, --out <file>   Write output to a file instead of stdout
   --name <Name>      Interface name for types (default Env)
+  -k, --key <pass>   Passphrase for encrypt / decrypt
+  -e, --env <file>   Env file for run (repeatable; later files win)
+  --allow <KEY>      Silence a known-safe value for the secret scanner (repeatable)
+  --json / --yaml    Output format for export
+  --expand           lint: print the fully-resolved file; run: expand ${refs}
+  --deny-secrets     lint: exit non-zero if any secret is found
+  --no-override      run: keep existing process.env over file values
+  -f, --force        Overwrite an existing file / git hook
   -h, --help         Show help
   -v, --version      Print version
 ```
@@ -149,14 +268,17 @@ lacspace-dotenv <lint|diff|sync|types|check> [args] [options]
 
 The parser understands the shapes you actually find in `.env` files: `KEY=VALUE`, `export KEY=…`, single- and double-quoted values (with `\n`/`\t`/`\\` escapes in double quotes), unquoted values, `#` comments (full-line, and trailing on unquoted values), empty values (`KEY=`), values containing `=`, and basic multiline double-quoted strings. Syntax problems are **reported with line numbers**, never thrown.
 
-Secret detection is a set of heuristics: AWS access keys (`AKIA…`), PEM private-key blocks, JWTs (`eyJ…`), Slack (`xox…`) and GitHub (`ghp_…`) tokens, and a general **long high-entropy** base64/hex catch-all. Detected values are always **masked** — the full secret is never printed or returned.
+Secret detection is a set of heuristics: AWS access keys (`AKIA…`), PEM private-key blocks, JWTs (`eyJ…`), Slack (`xox…`) and GitHub (`ghp_…`) tokens, Google API keys (`AIza…`), Stripe (`sk_live_`/`rk_live_`), OpenAI (`sk-…`), SendGrid (`SG.…`) and Twilio (`SK…`/`AC…`) keys, database connection strings that carry an embedded password (`postgres://user:pass@…`, `mysql://…`, `mongodb+srv://…`, `redis://…`), and a general **long high-entropy** base64/hex catch-all. Detected values are always **masked** — the full secret is never printed or returned. Pass `--allow KEY` (repeatable) to silence a value you've vetted as safe.
 
 ## Limitations (honest)
 
 - Secret detection is heuristic: it can miss a cleverly-shaped secret and can occasionally flag an innocent long, random-looking value. Treat findings as a prompt to look, not proof.
-- Variable interpolation / expansion (`${OTHER}`) is **not** resolved — values are kept literal.
-- `sync --write` appends missing keys at the end of the example file (it does not reorder or merge comments).
+- Interpolation resolves the **braced** `${VAR}` / `${VAR:-default}` form only — a bare `$VAR` is left literal, and nested braces inside a default (`${A:-${B}}`) are not expanded (use `${A:-$B}` or a plain literal).
+- `sync --write` appends missing keys at the end of the example file (it does not reorder or merge comments); `init` rewrites values in place but likewise does not reflow the file.
 - Multiline values are supported for **double-quoted** strings only; single-quoted values are single-line and literal.
+- YAML support is a **flat** `KEY: value` mapping only — nested mappings, anchors, block scalars and flow collections are out of scope (a `.env` is flat by nature).
+- `encrypt` protects **confidentiality and integrity** of the file's contents; it is only as strong as your passphrase, and it does not hide which keys exist from anyone who holds it. Keep the passphrase out of the repository.
+- The pre-commit hook is a convenience gate, not a security boundary — it can be bypassed with `--no-verify` and only sees files that are staged.
 
 ## Licence
 

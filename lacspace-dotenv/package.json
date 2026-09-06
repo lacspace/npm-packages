@@ -1,7 +1,7 @@
 {
   "name": "lacspace-dotenv",
-  "version": "0.1.0",
-  "description": "Lint, diff, sync and type your .env files — catch missing keys, duplicates, syntax slips and committed secrets, and generate a typed env accessor. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Lint, diff, sync, type, run, encrypt and protect your .env files — catch missing keys, duplicates, syntax slips, unresolved ${refs} and committed secrets; run commands with a merged env; encrypt/decrypt, compare environments, generate .env.example, export/import JSON+YAML, and install a git pre-commit hook. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-dotenv": "dist/cli.js"
@@ -26,7 +26,9 @@
   },
   "keywords": [
     "dotenv", "env", "environment-variables", "lint", "linter", "diff",
-    "secrets", "secret-scanner", "typescript", "codegen", "cli", "ci"
+    "secrets", "secret-scanner", "typescript", "codegen", "cli", "ci",
+    "interpolation", "expand", "encrypt", "decrypt", "aes-256-gcm",
+    "dotenv-cli", "run", "pre-commit", "yaml", "json", "redact"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

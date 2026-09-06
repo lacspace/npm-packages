@@ -1,7 +1,7 @@
 {
   "name": "lacspace-har",
-  "version": "0.1.0",
-  "description": "Read a browser .har export offline — waterfall totals, slowest and largest requests, third-party and MIME breakdowns, cache and compression wins, and flagged performance issues. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Read a browser .har export offline — ASCII + HTML waterfalls, diff two HARs, performance budgets (CI gate), filters, savings-quantified recommendations, HAR-derived web-vitals estimates, redaction and CSV/JSON export. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-har": "dist/cli.js"
@@ -25,9 +25,9 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "har", "har-analyzer", "har-viewer", "waterfall", "performance",
-    "web-performance", "network", "devtools", "page-weight", "third-party",
-    "cli", "typescript"
+    "har", "har-analyzer", "har-viewer", "har-diff", "waterfall", "performance",
+    "web-performance", "performance-budget", "network", "devtools", "page-weight",
+    "third-party", "web-vitals", "redact", "cli", "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

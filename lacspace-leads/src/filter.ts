@@ -1,7 +1,10 @@
+import { priceLevelValue } from "./parse.js";
 import type { Lead, LeadFilters, SearchOptions } from "./types.js";
 
 /** Keep only leads that satisfy every set filter. Pure; returns a new array. */
 export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
+  const category = filters.category?.trim().toLowerCase();
+  const businessStatus = filters.businessStatus?.trim().toLowerCase();
   return leads.filter((l) => {
     if (filters.minRating !== undefined && !(typeof l.rating === "number" && l.rating >= filters.minRating)) return false;
     if (filters.minReviews !== undefined && !(typeof l.reviews === "number" && l.reviews >= filters.minReviews)) return false;
@@ -10,6 +13,13 @@ export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
     if (filters.hasEmail && !l.email) return false;
     if (filters.hasValidEmail && l.emailStatus !== "valid") return false;
     if (filters.hasContact && !(l.phone || l.email || l.website)) return false;
+    if (filters.openNow && l.openNow !== true) return false;
+    if (filters.priceLevel !== undefined && priceLevelValue(l.priceLevel) !== filters.priceLevel) return false;
+    if (category) {
+      const hay = [l.category ?? "", ...(l.categories ?? [])].join(" ").toLowerCase();
+      if (!hay.includes(category)) return false;
+    }
+    if (businessStatus && (l.businessStatus ?? "").toLowerCase() !== businessStatus) return false;
     if (filters.excludeNames && filters.excludeNames.length) {
       const name = (l.name ?? "").toLowerCase();
       if (filters.excludeNames.some((t) => t && name.includes(t.toLowerCase()))) return false;
@@ -39,6 +49,30 @@ function normalizeHost(url?: string): string | undefined {
   } catch {
     return url.trim().toLowerCase() || undefined;
   }
+}
+
+/**
+ * Drop leads from `leads` that are already present in `against` (an existing
+ * master list), by the given identity key — so a run only writes what's genuinely
+ * new. Leads with no key are always kept. Pure; returns a new array.
+ *
+ * This is the engine behind `--dedupe-across <file>`.
+ */
+export function subtractLeads(
+  leads: Lead[],
+  against: Lead[],
+  by: NonNullable<SearchOptions["dedupe"]> = "smart",
+): Lead[] {
+  if (by === "none") return [...leads];
+  const known = new Set<string>();
+  for (const l of against) {
+    const k = dedupeKey(l, by);
+    if (k !== undefined) known.add(k);
+  }
+  return leads.filter((l) => {
+    const k = dedupeKey(l, by);
+    return k === undefined || !known.has(k);
+  });
 }
 
 /**

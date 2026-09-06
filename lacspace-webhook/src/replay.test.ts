@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { replayRequests, resolveTarget, buildHeaders } from "./replay.js";
+import {
+  replayRequests, resolveTarget, buildHeaders,
+  parseFilter, matchFilter, parseRewrite, applyReplayTransform,
+} from "./replay.js";
 import type { CapturedRequest } from "./capture.js";
 
 function rec(over: Partial<CapturedRequest> = {}): CapturedRequest {
@@ -71,5 +74,82 @@ describe("replayRequests", () => {
 
     expect(seen).toEqual(["POST", "PUT"]);
     expect(out).toEqual([{ status: 200 }, { status: 500 }]);
+  });
+});
+
+describe("parseFilter + matchFilter", () => {
+  it("parses a comma expression", () => {
+    expect(parseFilter("method=POST,path=/x")).toEqual({ method: "POST", path: "/x" });
+    expect(parseFilter("body=charge,pathPrefix=/api")).toEqual({ bodyContains: "charge", pathPrefix: "/api" });
+  });
+  it("matches method/path/prefix/body, with a path glob", () => {
+    expect(matchFilter(rec(), { method: "POST" })).toBe(true);
+    expect(matchFilter(rec(), { method: "GET" })).toBe(false);
+    expect(matchFilter(rec({ path: "/hooks/a" }), { path: "/hooks/*" })).toBe(true);
+    expect(matchFilter(rec(), { pathPrefix: "/ho" })).toBe(true);
+    expect(matchFilter(rec({ body: "charge me" }), { bodyContains: "charge" })).toBe(true);
+    expect(matchFilter(rec(), undefined)).toBe(true);
+  });
+});
+
+describe("parseRewrite + applyReplayTransform", () => {
+  it("parses a=>b and a::b", () => {
+    expect(parseRewrite("old=>new")).toEqual({ find: "old", replace: "new" });
+    expect(parseRewrite("old::new")).toEqual({ find: "old", replace: "new" });
+  });
+  it("replaces the body and applies rewrites without mutating the input", () => {
+    const original = rec({ body: '{"env":"prod"}' });
+    const out = applyReplayTransform(original, { rewrite: [{ find: "prod", replace: "test" }] });
+    expect(out.body).toBe('{"env":"test"}');
+    expect(out.bytes).toBe(Buffer.byteLength(out.body));
+    expect(original.body).toBe('{"env":"prod"}'); // unchanged
+  });
+  it("sets a whole body and overrides headers case-insensitively", () => {
+    const out = applyReplayTransform(rec(), { setBody: "hello", headers: { "Content-Type": "text/plain" } });
+    expect(out.body).toBe("hello");
+    const keys = Object.keys(out.headers).filter((k) => k.toLowerCase() === "content-type");
+    expect(keys).toHaveLength(1);
+    expect(out.headers[keys[0]!]).toBe("text/plain");
+  });
+});
+
+describe("replayRequests — filter, transform, assertions, retry", () => {
+  it("only sends filtered records", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await replayRequests(
+      [rec({ method: "GET", body: "" }), rec({ method: "POST" })],
+      { to: "http://localhost:3000", filter: { method: "POST" } },
+    );
+    expect(out).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies a body transform before sending", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal("fetch", fetchMock);
+    await replayRequests([rec({ body: "prod" })], { to: "http://localhost:3000", rewrite: [{ find: "prod", replace: "test" }] });
+    expect(fetchMock.mock.calls[0]![1].body).toBe("test");
+  });
+
+  it("asserts expected status and contained text", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200, text: () => Promise.resolve('{"ok":true}') });
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await replayRequests([rec()], { to: "http://localhost:3000", expectStatus: 200, expectContains: "ok" });
+    expect(out[0]!.ok).toBe(true);
+
+    const out2 = await replayRequests([rec()], { to: "http://localhost:3000", expectStatus: 201 });
+    expect(out2[0]!.ok).toBe(false);
+    expect(out2[0]!.reason).toMatch(/expected status 201/);
+  });
+
+  it("retries a 500 then succeeds, recording attempts", async () => {
+    let n = 0;
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve({ status: ++n < 2 ? 500 : 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await replayRequests([rec()], { to: "http://localhost:3000", retry: 2, backoff: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(out[0]!.status).toBe(200);
+    expect(out[0]!.attempts).toBe(2);
   });
 });

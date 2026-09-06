@@ -1,6 +1,6 @@
 # lacspace-leads
 
-**Free, open-source local-business lead finder.** Name a city, area and business type — it drives a real browser over Google Maps and collects each listing's **name, category, rating, reviews, address, phone, website, email and social links**, then exports to **JSON, NDJSON, CSV or Excel**. No API keys, no paid services.
+**Free, open-source local-business lead finder.** Name a city, area and business type — it drives a real browser over Google Maps and collects each listing's **name, category & tags, rating, reviews, price level, opening hours, open-now/business status, address, phone, website, email and social links**, then exports to **JSON, NDJSON, CSV or Excel**. No API keys, no paid services.
 
 ```bash
 npx lacspace-leads restaurants --city Kathmandu --area Baneshwor -f xlsx
@@ -19,7 +19,11 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 - **CRM-ready data** — normalise phones to **E.164** (`--country NP` → `+9779…`), and tidy website URLs (unwrap Google redirects, strip `utm_*`/`fbclid`).
 - **Any format** — JSON, NDJSON, CSV or Excel; write to a file or pipe to `stdout` with `-o -`.
 - **Pick your fields** — choose exactly what you collect, or a ready-made **preset** (`--preset outreach`).
-- **Sort & filter** — `--sort reviews --desc`, `--min-rating`, `--has-valid-email`, and more.
+- **Sort & filter** — `--sort reviews --desc`, `--min-rating`, `--open-now`, `--price 2`, `--category coffee`, `--business-status operational`, `--has-valid-email`, and more.
+- **Resumable sweeps** — `--resume` checkpoints a long city sweep after every search, so a crash or CAPTCHA doesn't lose the run — just re-run and it continues.
+- **Run summary** — `--summary` prints rating bands, contactability (% with phone/website/email) and the top categories after a run.
+- **Cross-file dedupe** — `--dedupe-across master.csv` writes only leads you don't already have.
+- **Pipe to enrich** — `--enrich-out sites.ndjson` (or the `pipeToEnrich` hook) hands websites straight to [`lacspace-enrich`](https://www.npmjs.com/package/lacspace-enrich) for full company profiles — no hard dependency.
 - **Robust & polite** — `--proxy`, `--retries`, `--jitter`, per-listing delays and a permission-first prompt before it opens a browser.
 - **Library too** — `import { searchLeads, searchLeadsBatch, searchLeadsDetailed } from "lacspace-leads"`.
 
@@ -45,11 +49,15 @@ npx lacspace-leads [type] [options]
 | `-q, --query <text>` | Raw query, used verbatim (overrides city/area/type) |
 | `--near <lat,lng>` | Centre the search on a coordinate (radius search) |
 | `--radius <dist>` | Keep only leads within this of `--near`, e.g. `2km`, `500m`, `1mi` |
-| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,emailStatus,plusCode,latitude,longitude,distanceKm,hours,mapsUrl` |
+| `--fields <list>` | Columns: `name,category,categories,rating,reviews,priceLevel,businessStatus,claimed,openNow,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,emailStatus,plusCode,latitude,longitude,distanceKm,hours,mapsUrl` |
 | `--preset <name>` | Field bundle: `minimal` · `outreach` · `contact` · `geo` · `full` · `everything` |
 | `-f, --format <fmt>` | `json` · `ndjson` · `csv` · `xlsx` (default `json`) |
 | `-o, --out <file>` | Output file, or `-` for **stdout** (default: a slug + date) |
 | `--append` | Merge into an existing output file — **accumulate + dedupe** across runs |
+| `--dedupe-across <file>` | Drop leads already present in an existing master file before writing (only new ones) |
+| `--summary` | Print run stats after collecting — rating bands, % with phone/website/email, top categories |
+| `--enrich-out <file>` | Also write `{ name, website, domain }` NDJSON, ready to feed [`lacspace-enrich`](https://www.npmjs.com/package/lacspace-enrich) |
+| `--resume` | Resume an interrupted **multi-search sweep** from its checkpoint file (`<out>.checkpoint.json`) |
 | `--sheet <name>` | Excel sheet name (default `Leads`) |
 | `-n, --limit <n>` | Max listings **per search** (default `60`) |
 | `--total <n>` | Cap the merged result when sweeping several searches |
@@ -94,6 +102,10 @@ npx lacspace-leads [type] [options]
 | `--has-email` | Only leads with an email (implies `--emails`) |
 | `--has-valid-email` | Only leads whose email passed **MX verification** (implies `--verify-emails`) |
 | `--has-contact` | Only leads reachable by **phone, email or website** |
+| `--open-now` | Only leads **open at scrape time** (from the hours widget) |
+| `--price <1-4>` | Only leads at this price tier — `$`=1 … `$$$$`=4 |
+| `--category <text>` | Only leads whose **primary or tag category** contains this text (case-insensitive) |
+| `--business-status <s>` | Only this status — `operational` · `closed` · `temporarily-closed` |
 | `--name-exclude <list>` | Drop leads whose name contains any of these terms (comma-separated) |
 | `--dedupe <key>` | `website` · `phone` · `name` · `smart` · `none` (default `website`; `--append` uses `smart` = website→phone→name) |
 
@@ -141,6 +153,8 @@ Skip spelling out `--fields` with a ready-made bundle:
 npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv
 ```
 
+> **Honest note on the extra listing fields.** `priceLevel`, `businessStatus`, `claimed`, `openNow`, `hours` and category `categories` are read from whatever Google renders on the listing panel — they're **best-effort** and simply left blank when Maps doesn't show them (`claimed`/`businessStatus` fall back to `true`/`operational` for a normally-loaded listing). The parsing itself is pure and unit-tested, but Google's markup shifts over time; treat these as helpful hints, not guarantees. `--open-now` reflects the state *at scrape time*.
+
 ## Verify emails & build a master list
 
 Chase down deliverable contacts and accumulate them over time:
@@ -182,6 +196,75 @@ npx lacspace-leads --config campaign.json
 ```
 
 Every search is run, merged and de-duplicated; the shared options, filters and output settings apply across the whole campaign. Programmatically: `runConfig(config)`.
+
+## Resume a long sweep (`--resume`)
+
+Sweeping a whole city one neighbourhood at a time can take a while, and Google may throw a CAPTCHA halfway through. Add `--resume` and every completed sub-search is checkpointed to `<out>.checkpoint.json` — the leads gathered so far plus which searches are done. Re-run the exact same command and it **skips the areas already collected** and picks up where it stopped; when the sweep finishes cleanly the checkpoint is deleted.
+
+```bash
+npx lacspace-leads cafes --city Kathmandu \
+  --area "Thamel,Baneshwor,Patan,Jhamsikhel,Boudha,Kirtipur" \
+  --resume -o sweep.csv
+# crashes after Patan? just run it again — Thamel/Baneshwor/Patan are skipped.
+```
+
+`--resume` applies to multi-search sweeps and `--config` campaigns (it's a no-op for a single search). The checkpoint key normalises case/whitespace, so the same area sweep always lines up.
+
+## Run summary (`--summary`)
+
+Add `--summary` for a quick read on what you got — coverage, rating bands and the top categories — printed after the run:
+
+```bash
+npx lacspace-leads bars --city Pokhara --open-now --price 2 --summary
+```
+
+```text
+Summary — 43 leads
+  contactable: 88% phone · 51% website · 23% email (12 with a social link)
+  avg rating: 4.3 ★
+  rating bands: 4.5+ ×14 · 4.0–4.4 ×19 · 3.0–3.9 ×8 · unrated ×2
+  open now: 43
+  top categories: Bar (18), Restaurant (11), Pub (7), Night club (4)
+```
+
+In code, `summarize(leads)` returns the structured stats and `formatSummary(summary)` renders the text.
+
+## Only what's new (`--dedupe-across`)
+
+Already have a master list and only want the businesses you *don't* have yet? Point `--dedupe-across` at it and any lead whose identity (by `--dedupe` key, default `smart`) is already in that file is dropped **before** writing:
+
+```bash
+# Collect gyms, but write only the ones missing from master.csv, then append them
+npx lacspace-leads gyms --city Lalitpur --dedupe-across master.csv -o new.csv --append
+```
+
+This differs from `--append` (which merges everything into one file): `--dedupe-across` filters *this run* against a **separate** reference file, so `new.csv` holds only genuinely new prospects. In code: `subtractLeads(leads, master, "smart")`.
+
+## Pipe into `lacspace-enrich`
+
+lacspace-leads finds businesses and their websites; its sibling [`lacspace-enrich`](https://www.npmjs.com/package/lacspace-enrich) turns a domain into a full company + contact + tech-stack profile. Bridge the two **without a hard dependency**:
+
+```bash
+# Write one { name, website, domain } object per line, ready for enrich
+npx lacspace-leads clinics --city Pokhara --enrich-out sites.ndjson -o clinics.csv
+```
+
+Or stream websites into your own enrich pipeline as leads are found, using the `onLead`-compatible `pipeToEnrich` factory:
+
+```ts
+import { searchLeads, pipeToEnrich, leadsToEnrichInput } from "lacspace-leads";
+// import { enrich } from "lacspace-enrich"; // install separately, optional
+
+const queue: { website: string; domain?: string }[] = [];
+const leads = await searchLeads({
+  type: "cafes", city: "Kathmandu",
+  onLead: pipeToEnrich((input) => queue.push(input)), // { name, website, domain }
+});
+
+// or after the fact — one unique input per domain:
+const inputs = leadsToEnrichInput(leads);
+// for (const { domain } of inputs) await enrich(domain);
+```
 
 ## Convert your leads to any format
 
@@ -318,7 +401,11 @@ const leads = await searchLeadsBatch(
 | `enrichContacts(website)` / `extractEmails` / `extractSocials` | Website enrichment, on tap. |
 | `cleanWebsite` / `normalizePhone` / `sortLeads` | Pure data-cleaning helpers (unit-tested). |
 | `haversineMeters` / `parseLatLngPair` / `parseDistance` | Pure geo helpers for radius search. |
-| `filterLeads` / `dedupeLeads` | Pure post-processing over any `Lead[]`. |
+| `filterLeads` / `dedupeLeads` / `subtractLeads` | Pure post-processing — filter, in-list dedupe, and cross-file dedupe. |
+| `summarize(leads)` / `formatSummary(s)` | Rating bands, contact coverage %, top categories — the `--summary` engine. |
+| `parsePriceLevel` / `priceLevelValue` / `parseBusinessStatus` / `parseClaimed` / `parseOpenNow` / `parseCategoryTags` | Pure field parsers (unit-tested against HTML/aria snippets). |
+| `pipeToEnrich(handler)` / `leadsToEnrichInput` / `leadDomains` / `leadDomain` | Bridge collected leads to `lacspace-enrich` (no hard dep). |
+| `queryKey` / `pendingQueries` / `recordQuery` / `loadCheckpoint` / `saveCheckpoint` / `clearCheckpoint` | Resume/checkpoint primitives; pass `skip`/`seedLeads`/`onQueryDone` to `searchLeadsBatch`. |
 | `expandQueries` / `resolvePreset` / `FIELD_PRESETS` | Batch expansion + field presets. |
 | `composeQuery` / `mapsSearchUrl` / `normalizeFields` / `defaultFilename` | Query + helper utilities. |
 

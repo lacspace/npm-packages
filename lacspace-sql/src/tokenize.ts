@@ -11,6 +11,7 @@ export type TokenType =
   | "number"
   | "string"
   | "op" // comparison operators: = != <> < <= > >=
+  | "arith" // arithmetic operators: + - % (also `*` via `star`, `/` via a lone ident)
   | "star"
   | "comma"
   | "lparen"
@@ -40,6 +41,11 @@ const KEYWORDS = new Set([
   "select", "distinct", "from", "where", "group", "by", "having", "order",
   "limit", "offset", "and", "or", "not", "in", "is", "null", "like", "as",
   "asc", "desc",
+  // v0.2.0 additions
+  "join", "inner", "left", "right", "outer", "cross", "on",
+  "union", "all", "between", "escape",
+  "case", "when", "then", "else", "end",
+  "nulls", "first", "last",
 ]);
 
 const isDigit = (ch: string): boolean => ch >= "0" && ch <= "9";
@@ -82,6 +88,7 @@ export function tokenize(sql: string): Token[] {
     if (ch === ")") { tokens.push({ type: "rparen", value: ")", pos: start }); i++; continue; }
     if (ch === ",") { tokens.push({ type: "comma", value: ",", pos: start }); i++; continue; }
     if (ch === "*") { tokens.push({ type: "star", value: "*", pos: start }); i++; continue; }
+    if (ch === "%") { tokens.push({ type: "arith", value: "%", pos: start }); i++; continue; }
 
     // comparison operators
     if (ch === "<") {
@@ -149,6 +156,13 @@ export function tokenize(sql: string): Token[] {
       if (!Number.isFinite(num)) throw new SqlError(`Invalid number '${numStr}'`, start);
       tokens.push({ type: "number", value: numStr, num, pos: start });
       continue;
+    }
+
+    // arithmetic `+` / `-` that isn't a numeric sign (an operator between values).
+    // (`*` is a `star` token, `%` is an `arith` token above, and division `/`
+    //  arrives as a lone `/` identifier — the parser recognises each in context.)
+    if (ch === "+" || ch === "-") {
+      tokens.push({ type: "arith", value: ch, pos: start }); i++; continue;
     }
 
     // identifier / keyword

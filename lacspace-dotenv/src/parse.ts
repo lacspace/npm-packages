@@ -14,6 +14,13 @@ export interface EnvEntry {
   value: string;
   /** 1-based line where the key is declared. */
   line: number;
+  /**
+   * 1-based line where the assignment ends. Equal to {@link line} for the usual
+   * single-line assignment; larger for a multiline double-quoted value. Added in
+   * 0.2.0 so consumers (redact / example generation) can rewrite an entry in
+   * place without disturbing the lines a multiline value spans.
+   */
+  endLine: number;
 }
 
 /** A syntax problem found while parsing. */
@@ -116,6 +123,7 @@ export function parseEnv(text: string): ParseResult {
     const firstCh = vstart[0];
 
     let value: string;
+    let endLineNo = lineNo;
     if (firstCh === '"') {
       const r = readDoubleQuoted(lines, i, startCol + eq + 1 + vlead + 1);
       if (!r) {
@@ -123,6 +131,7 @@ export function parseEnv(text: string): ParseResult {
         value = vstart.slice(1);
       } else {
         value = r.value;
+        endLineNo = r.endLine + 1;
         i = r.endLine;
       }
     } else if (firstCh === "'") {
@@ -137,7 +146,7 @@ export function parseEnv(text: string): ParseResult {
       value = stripInlineComment(afterEq).trim();
     }
 
-    entries.push({ key, value, line: lineNo });
+    entries.push({ key, value, line: lineNo, endLine: endLineNo });
     map[key] = value;
   }
 

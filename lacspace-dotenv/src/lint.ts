@@ -5,8 +5,15 @@
  */
 import { parseEnv } from "./parse.js";
 import { detectSecrets, maskSecret } from "./secrets.js";
+import { resolveEnv } from "./interpolate.js";
 
 export type IssueLevel = "error" | "warn";
+
+/** Options for {@link lintEnv}. */
+export interface LintOptions {
+  /** Keys to skip during secret detection (see {@link detectSecrets}). */
+  allow?: string[];
+}
 
 /** A single lint finding. */
 export interface Issue {
@@ -22,7 +29,7 @@ export interface Issue {
 const NAME_RE = /^[A-Z][A-Z0-9_]*$/;
 
 /** Lint a `.env` file's text. Returns findings sorted by line. */
-export function lintEnv(text: string): Issue[] {
+export function lintEnv(text: string, opts: LintOptions = {}): Issue[] {
   const issues: Issue[] = [];
   const { entries, errors, map } = parseEnv(text);
   const lines = text.split(/\r?\n/);
@@ -81,11 +88,27 @@ export function lintEnv(text: string): Issue[] {
     }
   }
 
-  for (const s of detectSecrets(map)) {
+  for (const s of detectSecrets(map, { allow: opts.allow })) {
     const line = firstSeen.get(s.key) ?? 0;
     issues.push({
       line, level: "warn", rule: "secret", key: s.key,
       message: `possible ${s.kind} committed in ${s.key} (${maskSecret(map[s.key] ?? "")})`,
+    });
+  }
+
+  // `${VAR}` interpolation problems: dangling references and cycles.
+  const { undefinedRefs, circular } = resolveEnv(map);
+  for (const u of undefinedRefs) {
+    issues.push({
+      line: firstSeen.get(u.key) ?? 0, level: "warn", rule: "undefined-ref", key: u.key,
+      message: `${u.key} references undefined variable \${${u.ref}}`,
+    });
+  }
+  for (const cycle of circular) {
+    const head = cycle[0]!;
+    issues.push({
+      line: firstSeen.get(head) ?? 0, level: "error", rule: "circular-ref", key: head,
+      message: `circular reference: ${cycle.join(" → ")}`,
     });
   }
 

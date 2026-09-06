@@ -586,7 +586,8 @@ function homePage(ctx: Ctx): string {
     restaurant: { t: "Join us for dinner", s: "We fill up fast on weekends — book your table ahead.", l: "Reserve a table", h: "/reservations" },
   };
   const cc = ctaCopy[ctx.template.key] ?? ctaCopy.business!;
-  return `import { site } from "@/lib/site";
+  return `import Link from "next/link";
+import { site } from "@/lib/site";
 import { LiveStats } from "@/components/live-stats";
 import { Aurora } from "@/components/aurora";
 import { HeroArt } from "@/components/hero-art";
@@ -620,13 +621,13 @@ export default function Home() {
         <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <a href="#work" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">View my work</a>
-          <a href="/contact" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">Get in touch</a>
+          <Link href="/contact" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">Get in touch</Link>
         </div>
       </section>
       <section id="work" className="mx-auto max-w-6xl px-6 py-20">
         <div className="mb-12 flex items-end justify-between">
           <div><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Selected work</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Things I've shipped</h2></div>
-          <a href="/work" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">All projects →</a>
+          <Link href="/work" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">All projects →</Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -637,12 +638,12 @@ export default function Home() {
             { t: "Cadence Marketing", d: "A brand and site refresh that doubled qualified inbound leads.", tag: "Brand", e: "✨" },
             { t: "Meadow Docs", d: "A fast, searchable docs platform teams actually enjoy reading.", tag: "Web", e: "📚" },
           ].map((p) => (
-            <a key={p.t} href="/work" className="card group flex flex-col p-6">
+            <Link key={p.t} href="/work" className="card group flex flex-col p-6">
               <div className="mb-5 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl gradient-bg text-5xl on-accent">{p.e}</div>
               <span className="text-xs font-semibold uppercase tracking-widest gradient-text">{p.tag}</span>
               <h3 className="mt-1.5 font-semibold tracking-tight">{p.t}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">{p.d}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </section>`);
@@ -654,8 +655,8 @@ export default function Home() {
         <h1 className="text-display mt-7">We build products <span className="gradient-text">that grow businesses</span></h1>
         <p className="lead mx-auto mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <a href="/contact" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start a project</a>
-          <a href="/work" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">See our work</a>
+          <Link href="/contact" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start a project</Link>
+          <Link href="/work" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">See our work</Link>
         </div>
       </section>
       <section id="services" className="mx-auto max-w-6xl px-6 py-20">
@@ -682,14 +683,14 @@ export default function Home() {
         <h1 className="text-display mt-7"><span className="gradient-text">${n}</span></h1>
         <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <a href="/shop" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Shop the collection</a>
-          <a href="/collections" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">Browse collections</a>
+          <Link href="/shop" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Shop the collection</Link>
+          <Link href="/collections" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">Browse collections</Link>
         </div>
       </section>
       <section id="shop" className="mx-auto max-w-6xl px-6 py-20">
         <div className="mb-12 flex items-end justify-between">
           <div><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Featured</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">This week's edit</h2></div>
-          <a href="/shop" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">Shop all →</a>
+          <Link href="/shop" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">Shop all →</Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -697,12 +698,12 @@ export default function Home() {
             { n: "Linen Waffle Throw", p: "$65", e: "🧺" }, { n: "Oak Monitor Stand", p: "$120", e: "🪵" },
           ].map((prod) => (
             <div key={prod.n} className="card group flex flex-col p-4">
-              <a href="/shop" className="mb-4 flex aspect-square items-center justify-center overflow-hidden rounded-xl gradient-bg text-6xl on-accent transition group-hover:scale-[1.03]">{prod.e}</a>
+              <Link href="/shop" className="mb-4 flex aspect-square items-center justify-center overflow-hidden rounded-xl gradient-bg text-6xl on-accent transition group-hover:scale-[1.03]">{prod.e}</Link>
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold tracking-tight">{prod.n}</h3>
                 <span className="shrink-0 font-semibold text-muted">{prod.p}</span>
               </div>
-              <a href="/shop" className="mt-4 block w-full rounded-full gradient-bg py-2.5 text-center text-sm font-semibold on-accent transition hover:-translate-y-0.5">Add to cart</a>
+              <Link href="/shop" className="mt-4 block w-full rounded-full gradient-bg py-2.5 text-center text-sm font-semibold on-accent transition hover:-translate-y-0.5">Add to cart</Link>
             </div>
           ))}
         </div>
@@ -714,10 +715,10 @@ export default function Home() {
         <p className="text-sm font-semibold uppercase tracking-widest gradient-text">The Journal</p>
         <h1 className="text-display mt-4"><span className="gradient-text">${n}</span></h1>
         <p className="lead mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
-        <a href="/blog" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-fg underline-offset-4 hover:underline">Read the archive →</a>
+        <Link href="/blog" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-fg underline-offset-4 hover:underline">Read the archive →</Link>
       </section>
       <section id="latest" className="mx-auto max-w-5xl px-6 pb-8">
-        <a href="/blog" className="card group grid gap-6 overflow-hidden p-6 sm:grid-cols-[1.2fr_1fr] sm:p-8">
+        <Link href="/blog" className="card group grid gap-6 overflow-hidden p-6 sm:grid-cols-[1.2fr_1fr] sm:p-8">
           <div className="flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl gradient-bg text-6xl on-accent transition group-hover:scale-[1.02]">📮</div>
           <div className="flex flex-col justify-center">
             <span className="text-xs font-semibold uppercase tracking-widest gradient-text">Featured</span>
@@ -725,7 +726,7 @@ export default function Home() {
             <p className="mt-3 leading-relaxed text-muted">Most teams polish the wrong things. Here's the single unglamorous check that separates a launch that lands from one that limps.</p>
             <span className="mt-5 text-sm text-faint">8 min read · Product</span>
           </div>
-        </a>
+        </Link>
       </section>
       <section className="mx-auto max-w-5xl px-6 py-16">
         <div className="grid gap-8 sm:grid-cols-2">
@@ -735,12 +736,12 @@ export default function Home() {
             { t: "Building in the open, one year in", d: "What we learned shipping every week where anyone could watch.", tag: "Culture", e: "🌱" },
             { t: "Design systems for teams of one", d: "You don't need a committee to move fast and stay consistent.", tag: "Design", e: "🎨" },
           ].map((p) => (
-            <a key={p.t} href="/blog" className="group">
+            <Link key={p.t} href="/blog" className="group">
               <div className="mb-4 flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl gradient-bg text-5xl on-accent transition group-hover:scale-[1.02]">{p.e}</div>
               <span className="text-xs font-semibold uppercase tracking-widest gradient-text">{p.tag}</span>
               <h3 className="mt-1.5 text-xl font-semibold tracking-tight transition group-hover:text-[color:var(--accent-to)]">{p.t}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">{p.d}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </section>`);
@@ -753,7 +754,7 @@ export default function Home() {
         <h1 className="text-display mt-7">Build with <span className="gradient-text">${n}</span></h1>
         <p className="lead mx-auto mt-6 max-w-2xl">Guides, API references and copy-paste examples — everything you need, in one fast, searchable place.</p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <a href="/docs" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Read the docs</a>
+          <Link href="/docs" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Read the docs</Link>
           <div className="glass inline-flex items-center gap-3 rounded-full px-5 py-3 font-mono text-sm text-muted"><span className="gradient-text font-bold">$</span> npm i ${pkg}</div>
         </div>
       </section>
@@ -764,11 +765,11 @@ export default function Home() {
             { t: "Guides", d: "Task-focused walkthroughs for the paths you'll actually take.", e: "🧭", href: "/guides" },
             { t: "API reference", d: "Every endpoint, fully typed, with copy-paste examples in each language.", e: "🔌", href: "/api-reference" },
           ].map((c) => (
-            <a key={c.t} href={c.href} className="card group p-8">
+            <Link key={c.t} href={c.href} className="card group p-8">
               <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl gradient-bg text-2xl accent-glow">{c.e}</div>
               <h3 className="text-xl font-bold tracking-tight">{c.t} <span className="inline-block transition group-hover:translate-x-1">→</span></h3>
               <p className="mt-2 leading-relaxed text-muted">{c.d}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </section>`);
@@ -780,8 +781,8 @@ export default function Home() {
         <h1 className="text-display mt-5"><span className="gradient-text">${n}</span></h1>
         <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <a href="/reservations" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Reserve a table</a>
-          <a href="/menu" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">View the menu</a>
+          <Link href="/reservations" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Reserve a table</Link>
+          <Link href="/menu" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">View the menu</Link>
         </div>
       </section>
       <section id="menu" className="mx-auto max-w-4xl px-6 py-20">
@@ -809,8 +810,8 @@ export default function Home() {
         <h1 className="text-display mt-7">Ship faster with <span className="gradient-text">${n}</span></h1>
         <p className="lead mx-auto mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <a href="/pricing" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start free</a>
-          <a href="/features" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">See features</a>
+          <Link href="/pricing" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start free</Link>
+          <Link href="/features" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">See features</Link>
         </div>
         <p className="mt-5 text-sm text-faint">No credit card · Free forever plan · SOC 2-ready</p>
       </section>
@@ -1066,7 +1067,7 @@ const careersPage = (ctx: Ctx): string => {
           ].map((j) => (
             <div key={j.role} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-surface p-5">
               <div><h3 className="font-semibold">{j.role}</h3><p className="text-sm text-muted">{j.team}</p></div>
-              <div className="flex items-center gap-3"><Badge>{j.type}</Badge><a href="/contact" className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent">Apply</a></div>
+              <div className="flex items-center gap-3"><Badge>{j.type}</Badge><Link href="/contact" className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent">Apply</Link></div>
             </div>
           ))}
         </div>
@@ -1163,7 +1164,7 @@ const reservationsPage = (ctx: Ctx): string => {
         <div className="mx-auto max-w-2xl rounded-3xl border border-hairline bg-surface p-8 text-center">
           <h2 className="text-2xl font-bold">Book by phone or online</h2>
           <p className="mt-3 text-muted">Call us on <span className="font-semibold text-fg">+1 (555) 012-3456</span> or reserve online in seconds.</p>
-          <a href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold on-accent">Reserve a table</a>
+          <Link href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold on-accent">Reserve a table</Link>
         </div>
       </Section>`,
     cta: { title: "Planning something special?", subtitle: "Ask us about private dining and set menus.", label: "Enquire now", href: "/contact" },

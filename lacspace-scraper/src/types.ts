@@ -11,12 +11,16 @@ export type Engine = "http" | "browser";
  *   `@attribute`, or a bare attribute name.
  * - `all` — collect every match as an array (default: first match only).
  * - `trim` — collapse/trim whitespace (default true for text).
+ * - `transform` — an optional post-processing pipe applied to the value, e.g.
+ *   `"number"`, `"absolute"`, or `["date", "trim"]`. See {@link ./transform.ts}.
  */
 export interface FieldSpec {
   selector?: string;
   attr?: string;
   all?: boolean;
   trim?: boolean;
+  /** Transform pipe applied to the extracted value (string or list of tokens). */
+  transform?: string | string[];
 }
 
 /**
@@ -91,6 +95,8 @@ export interface ScrapeOptions {
   engine?: Engine;
   /** Extra request headers (http engine). */
   headers?: Record<string, string>;
+  /** Cookies sent with every request, as a `{ name: value }` map (http engine). */
+  cookies?: Record<string, string>;
   /** User-Agent string. */
   userAgent?: string;
   /** Per-request timeout in ms. Default 15000. */
@@ -103,14 +109,49 @@ export interface ScrapeOptions {
   jitter?: boolean;
   /** Proxy URL, e.g. "http://user:pass@host:port". */
   proxy?: string;
+  /**
+   * A pool of proxy URLs rotated per request (http engine). Takes precedence
+   * over `proxy`. The browser engine uses the first entry for the session.
+   * Note: routing the http engine through a proxy needs the optional `undici`
+   * package installed; the browser engine needs nothing extra.
+   */
+  proxies?: string[];
+  /** Minimum delay in ms between requests to the SAME host (politeness). */
+  rateMs?: number;
   /** How many URLs to fetch in parallel. Default 4. */
   concurrency?: number;
   /** Respect robots.txt (default true). */
   robots?: boolean;
   /** Browser engine: CSS selector to wait for before extracting. */
   waitFor?: string;
+  /** Browser engine: extra fixed wait in ms after load (e.g. for animations). */
+  waitMs?: number;
+  /** Browser engine: auto-scroll this many passes to trigger lazy content. */
+  scroll?: number;
+  /** Browser engine: save a full-page PNG screenshot to this path. */
+  screenshot?: string;
+  /** Browser engine: save the page as a PDF to this path (headless only). */
+  pdf?: string;
   /** Browser engine: run headless. Default true. */
   headless?: boolean;
+  /**
+   * Follow a "next page" link and accumulate records across pages. Value is a
+   * CSS selector for the next-page anchor; paging stops when it's gone or
+   * `maxPages` is reached. Sequential and polite (reuses delay/rate/robots).
+   */
+  paginate?: string;
+  /** Cap on pages followed by `paginate` (per seed URL). */
+  maxPages?: number;
+  /**
+   * After scraping a list, visit each record's link and merge in fields from the
+   * detail page. Value is a field NAME already in the record (e.g. one produced
+   * by a schema field) or a CSS selector giving a URL. Pair with `detailSchema`.
+   */
+  follow?: string;
+  /** Extraction schema applied to each followed detail page (see `follow`). */
+  detailSchema?: Schema;
+  /** Seed the URL list from this sitemap (or sitemap index) before scraping. */
+  sitemap?: string;
   /** Called with a short progress message. */
   onProgress?: (message: string) => void;
   /** Called with each record as it's scraped. */
@@ -133,8 +174,7 @@ export interface CrawlOptions extends ScrapeOptions {
   exclude?: string[];
   /** CSS selector for the links to follow. Default "a[href]". */
   linkSelector?: string;
-  /** Seed the crawl from this sitemap URL (in addition to link-following). */
-  sitemap?: string;
+  // `sitemap` is inherited from ScrapeOptions (seed the crawl from a sitemap).
 }
 
 /** The result of a scrape, with a little metadata. */

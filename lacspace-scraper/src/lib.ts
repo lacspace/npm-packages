@@ -20,8 +20,11 @@
  * Terms, and local data-protection law; keep volumes modest and identify your
  * bot honestly.
  */
-export { scrape, recordsFromHtml, ScraperError } from "./scrape.js";
+export { scrape, recordsFromHtml, resolveNextLink, buildFollowPlan, ScraperError } from "./scrape.js";
 export { crawl } from "./crawl.js";
+export { applyTransform, parseFieldSpec, splitPipes, type TransformCtx } from "./transform.js";
+export { dedupeRecords, type DedupeOptions } from "./dedupe.js";
+export { parseFeed, type FeedItem } from "./feed.js";
 export { parseHTML, textContent, innerText, descendants, childElements, decodeEntities, type ElNode, type TextNode, type Node } from "./html.js";
 export { queryAll, queryOne } from "./select.js";
 export {
@@ -45,7 +48,7 @@ export {
 export { fetchPage, type FetchResult, type FetchOptions } from "./fetch.js";
 export { parseRobots, fetchRobots, type Robots } from "./robots.js";
 export { fetchSitemap } from "./sitemap.js";
-export { launchSession, type BrowserSession } from "./browser.js";
+export { launchSession, type BrowserSession, type RenderOptions } from "./browser.js";
 export {
   serializeRows,
   readRows,

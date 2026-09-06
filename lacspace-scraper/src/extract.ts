@@ -6,6 +6,7 @@
  */
 import { type ElNode, type Node, innerText, textContent, childElements, descendants } from "./html.js";
 import { queryAll, queryOne } from "./select.js";
+import { applyTransform } from "./transform.js";
 import type { AutoData, AutoOptions, FieldSpec, LinkInfo, Schema, ScrapeRecord } from "./types.js";
 
 const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
@@ -56,8 +57,9 @@ export function resolveField(scope: ElNode, spec: string | FieldSpec, base?: str
   const s = normalizeSpec(spec);
   const els = s.selector ? queryAll(scope, s.selector) : [scope];
   const read = (el: ElNode): string => readValue(el, s.attr, s.trim ?? true, base);
-  if (s.all) return els.map(read).filter((v) => v !== "");
-  return els.length ? read(els[0]!) : undefined;
+  let value: unknown = s.all ? els.map(read).filter((v) => v !== "") : (els.length ? read(els[0]!) : undefined);
+  if (s.transform) value = applyTransform(value, s.transform, base ? { base } : {});
+  return value;
 }
 
 /** Apply a schema to a root, producing one record. */

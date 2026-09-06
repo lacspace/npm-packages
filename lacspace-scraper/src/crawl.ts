@@ -48,7 +48,19 @@ export async function crawl(seed: string | string[], opts: CrawlOptions = {}): P
   const errors: { url: string; error: string }[] = [];
   const visited = new Set<string>();
   const robotsCache = new Map<string, Robots>();
+  const lastHit = new Map<string, number>();
   let pagesFetched = 0;
+
+  const proxies = opts.proxies?.length ? opts.proxies : (opts.proxy ? [opts.proxy] : []);
+  let proxyIdx = 0;
+  const nextProxy = (): string | undefined => (proxies.length ? proxies[proxyIdx++ % proxies.length] : undefined);
+  const rateWait = async (host: string): Promise<void> => {
+    const min = Math.max(0, opts.rateMs ?? 0);
+    if (!min) return;
+    const wait = (lastHit.get(host) ?? 0) + min - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastHit.set(host, Date.now());
+  };
 
   const getRobots = async (origin: string): Promise<Robots> => {
     let r = robotsCache.get(origin);
@@ -99,19 +111,27 @@ export async function crawl(seed: string | string[], opts: CrawlOptions = {}): P
             }
           }
           opts.onProgress?.(`depth ${depth} · ${pagesFetched + 1}/${limit}: ${url}`);
+          await rateWait(u.host);
 
           let html: string;
           let status: number;
           let finalUrl = url;
           if (session) {
-            const r = await session.render(url, { ...(opts.waitFor ? { waitFor: opts.waitFor } : {}) });
+            const r = await session.render(url, {
+              ...(opts.waitFor ? { waitFor: opts.waitFor } : {}),
+              ...(opts.waitMs ? { waitMs: opts.waitMs } : {}),
+              ...(opts.scroll ? { scroll: opts.scroll } : {}),
+            });
             html = r.html; status = r.status; finalUrl = r.url;
           } else {
+            const px = nextProxy();
             const r = await fetchPage(url, {
               ...(opts.headers ? { headers: opts.headers } : {}),
+              ...(opts.cookies ? { cookies: opts.cookies } : {}),
               ...(opts.userAgent ? { userAgent: opts.userAgent } : {}),
               ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
               ...(opts.retries !== undefined ? { retries: opts.retries } : {}),
+              ...(px ? { proxy: px } : {}),
             });
             html = r.html; status = r.status; finalUrl = r.url;
           }

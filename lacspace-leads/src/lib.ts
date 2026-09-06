@@ -20,13 +20,21 @@
 export {
   scrapeLeads as searchLeads,
   scrapeLeads,
+  searchLeadsDetailed,
   LeadsError,
   parseRating,
   parseReviewCount,
   parseLatLng,
+  type DetailedResult,
 } from "./scrape.js";
 export { searchLeadsBatch, searchLeadsMulti, type BatchQuery } from "./batch.js";
-export { serialize, toRows } from "./export.js";
+export { serialize, toRows, computeStats, rowsToLeads } from "./export.js";
+export {
+  verifyEmails,
+  verifyEmail,
+  emailFormatValid,
+  emailDomain,
+} from "./verify.js";
 export {
   composeQuery,
   mapsSearchUrl,
@@ -57,6 +65,8 @@ export type {
   Lead,
   LeadField,
   LeadFilters,
+  LeadStats,
+  EmailStatus,
   OutputFormat,
   SortKey,
   SearchOptions,

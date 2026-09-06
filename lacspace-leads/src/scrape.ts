@@ -3,7 +3,9 @@ import { composeQuery, mapsSearchUrl, normalizeFields } from "./query.js";
 import { enrichContacts, type Contacts } from "./enrich.js";
 import { dedupeLeads, filterLeads } from "./filter.js";
 import { cleanWebsite, normalizePhone, sortLeads } from "./normalize.js";
-import { DEFAULT_FIELDS, ENRICHED_FIELDS, type Lead, type LeadField, type SearchOptions } from "./types.js";
+import { verifyEmails } from "./verify.js";
+import { computeStats } from "./export.js";
+import { DEFAULT_FIELDS, ENRICHED_FIELDS, type Lead, type LeadField, type LeadStats, type SearchOptions } from "./types.js";
 
 /** Run async `fn` over `items` with at most `n` in flight. Honours `signal`. */
 async function pool<T>(
@@ -77,17 +79,19 @@ export function parseLatLng(url: string): { latitude?: number; longitude?: numbe
 }
 
 /** Try to launch a browser: system Chrome, then Edge, then a bundled Chromium. */
-async function launchBrowser(headless: boolean): Promise<Browser> {
+async function launchBrowser(headless: boolean, proxy?: string): Promise<Browser> {
   let lastErr: unknown;
+  const base: Parameters<typeof chromium.launch>[0] = { headless };
+  if (proxy) base.proxy = { server: proxy };
   for (const channel of ["chrome", "msedge"] as const) {
     try {
-      return await chromium.launch({ headless, channel });
+      return await chromium.launch({ ...base, channel });
     } catch (e) {
       lastErr = e;
     }
   }
   try {
-    return await chromium.launch({ headless });
+    return await chromium.launch(base);
   } catch (e) {
     lastErr = e;
   }
@@ -252,17 +256,24 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
   const fields = new Set(normalizeFields(opts.fields ?? DEFAULT_FIELDS));
   const delayMs = Math.max(0, Math.trunc(opts.delayMs ?? 700));
   const headless = opts.headless ?? false;
+  const retries = Math.max(0, Math.trunc(opts.retries ?? 1));
   const onProgress = opts.onProgress;
+  const onLead = opts.onLead;
   const signal = opts.signal;
   const startedAt = Date.now();
   const overBudget = (): boolean => opts.maxMs !== undefined && Date.now() - startedAt > opts.maxMs;
+  // A politeness pause in ms, optionally jittered ±40% to look more human.
+  const pauseMs = (): number =>
+    opts.jitter ? Math.round(delayMs * (0.6 + Math.random() * 0.8)) : delayMs;
 
   // Enrichment (email/socials) needs a website, so extract it even if the user
   // didn't ask for the website column.
+  const wantVerify = Boolean(opts.verifyEmails) || Boolean(opts.filters?.hasValidEmail) || fields.has("emailStatus");
   const wantEnrich =
     Boolean(opts.enrich) ||
     ENRICHED_FIELDS.some((f) => fields.has(f)) ||
-    Boolean(opts.filters?.hasEmail);
+    Boolean(opts.filters?.hasEmail) ||
+    wantVerify;
   const collect = new Set<LeadField>(fields);
   if (wantEnrich) collect.add("website");
   // Details are needed unless the user only wants name/mapsUrl and no enrichment.
@@ -272,7 +283,7 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
     ([...collect].some((f) => !detailOnly.includes(f)) || wantEnrich);
 
   onProgress?.(`searching Google Maps for "${query}"…`);
-  const browser = await launchBrowser(headless);
+  const browser = await launchBrowser(headless, opts.proxy);
   try {
     const locale = opts.locale ?? "en-US";
     const context = await browser.newContext({
@@ -318,25 +329,41 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
         }
         return lead;
       });
+      for (const lead of leads) {
+        try { onLead?.(lead); } catch { /* ignore */ }
+      }
     } else {
       for (let i = 0; i < cards.length; i++) {
         if (signal?.aborted || overBudget()) break;
         const card = cards[i]!;
         onProgress?.(`reading ${i + 1}/${cards.length}: ${card.name ?? "listing"}…`);
-        try {
-          await page.goto(card.href, { waitUntil: "domcontentloaded", timeout: 30000 });
-          await page.locator("h1.DUwDvf").first().waitFor({ timeout: 8000 }).catch(() => {});
-          leads.push(await extractDetail(page, collect, card.name));
-        } catch {
-          // Skip a listing that fails to load, keep the run going.
-          if (card.name && (collect.has("name") || collect.has("mapsUrl"))) {
-            const partial: Lead = {};
-            if (collect.has("name")) partial.name = card.name;
-            if (collect.has("mapsUrl")) partial.mapsUrl = card.href;
-            leads.push(partial);
+        let lead: Lead | undefined;
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          try {
+            await page.goto(card.href, { waitUntil: "domcontentloaded", timeout: 30000 });
+            await page.locator("h1.DUwDvf").first().waitFor({ timeout: 8000 }).catch(() => {});
+            lead = await extractDetail(page, collect, card.name);
+            break;
+          } catch {
+            if (attempt < retries && !signal?.aborted) {
+              onProgress?.(`  retrying ${i + 1}/${cards.length} (attempt ${attempt + 2})…`);
+              if (delayMs) await page.waitForTimeout(pauseMs());
+            }
           }
         }
-        if (delayMs) await page.waitForTimeout(delayMs);
+        if (!lead) {
+          // Keep a partial rather than losing the listing entirely.
+          if (card.name && (collect.has("name") || collect.has("mapsUrl"))) {
+            lead = {};
+            if (collect.has("name")) lead.name = card.name;
+            if (collect.has("mapsUrl")) lead.mapsUrl = card.href;
+          }
+        }
+        if (lead) {
+          leads.push(lead);
+          try { onLead?.(lead); } catch { /* a bad onLead never breaks the run */ }
+        }
+        if (delayMs) await page.waitForTimeout(pauseMs());
       }
     }
     onProgress?.(`collected ${leads.length} listing${leads.length === 1 ? "" : "s"}.`);
@@ -378,6 +405,16 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       );
     }
 
+    // Verify discovered emails (MX lookup) when asked.
+    if (wantVerify && !signal?.aborted) {
+      onProgress?.("verifying email domains…");
+      const vOpts: { concurrency: number; onProgress?: (m: string) => void } = {
+        concurrency: Math.max(1, Math.trunc(opts.concurrency ?? 5)),
+      };
+      if (onProgress) vOpts.onProgress = (m) => onProgress(m);
+      await verifyEmails(leads, vOpts);
+    }
+
     // Normalise phone numbers to E.164 when a default country is given.
     if (opts.country && fields.has("phone")) {
       for (const lead of leads) {
@@ -385,13 +422,34 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       }
     }
 
-    // Apply filters (so hasEmail sees enriched data), then sort.
+    // Apply filters (so hasEmail/hasValidEmail see enriched+verified data), then sort.
     if (opts.filters) leads = filterLeads(leads, opts.filters);
     if (opts.sort) leads = sortLeads(leads, opts.sort, opts.sortDir);
+
+    // Drop the derived status column unless the user actually asked for it.
+    if (wantVerify && !fields.has("emailStatus")) for (const l of leads) delete l.emailStatus;
 
     onProgress?.(`collected ${leads.length} lead${leads.length === 1 ? "" : "s"}.`);
     return leads;
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+/** A search result with aggregate stats and timing. */
+export interface DetailedResult {
+  leads: Lead[];
+  stats: LeadStats;
+  /** Wall-clock time of the search, in milliseconds. */
+  elapsedMs: number;
+}
+
+/**
+ * Like {@link scrapeLeads}, but also returns aggregate {@link LeadStats} and the
+ * elapsed time — handy for dashboards, reports and CI summaries.
+ */
+export async function searchLeadsDetailed(opts: SearchOptions): Promise<DetailedResult> {
+  const started = Date.now();
+  const leads = await scrapeLeads(opts);
+  return { leads, stats: computeStats(leads), elapsedMs: Date.now() - started };
 }

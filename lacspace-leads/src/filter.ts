@@ -8,6 +8,7 @@ export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
     if (filters.hasPhone && !l.phone) return false;
     if (filters.hasWebsite && !l.website) return false;
     if (filters.hasEmail && !l.email) return false;
+    if (filters.hasValidEmail && l.emailStatus !== "valid") return false;
     return true;
   });
 }
@@ -17,7 +18,13 @@ function dedupeKey(lead: Lead, by: NonNullable<SearchOptions["dedupe"]>): string
   if (by === "none") return undefined;
   if (by === "website") return normalizeHost(lead.website);
   if (by === "phone") return lead.phone?.replace(/[^0-9]/g, "") || undefined;
-  return lead.name?.trim().toLowerCase() || undefined; // "name"
+  if (by === "name") return lead.name?.trim().toLowerCase() || undefined;
+  // "smart": the strongest identity available — website, else phone, else name.
+  return (
+    normalizeHost(lead.website) ??
+    (lead.phone?.replace(/[^0-9]/g, "") || undefined) ??
+    (lead.name?.trim().toLowerCase() || undefined)
+  );
 }
 
 function normalizeHost(url?: string): string | undefined {

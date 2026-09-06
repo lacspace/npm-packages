@@ -1,12 +1,14 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
 import { scrapeLeads as searchLeads } from "./scrape.js";
 import { searchLeadsBatch } from "./batch.js";
-import { serialize } from "./export.js";
-import { convertFile } from "./convert.js";
+import { serialize, computeStats, rowsToLeads } from "./export.js";
+import { convertFile, readRows } from "./convert.js";
+import { dedupeLeads } from "./filter.js";
 import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
+import type { Lead } from "./types.js";
 import {
   ALL_FIELDS,
   DEFAULT_FIELDS,
@@ -31,21 +33,23 @@ const log = (s = ""): void => void stderr.write(s + "\n");
 
 interface Args {
   city?: string; area?: string; type?: string; query?: string;
-  fields?: string; preset?: string; format: OutputFormat; out?: string;
+  fields?: string; preset?: string; format: OutputFormat; out?: string; append: boolean;
   limit: number; total?: number; headless: boolean; details: boolean; delay: number;
-  emails: boolean; socials: boolean;
-  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean;
+  emails: boolean; socials: boolean; verifyEmails: boolean;
+  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean;
   dedupe?: SearchOptions["dedupe"]; sort?: SortKey; desc?: boolean;
   country?: string; locale?: string; region?: string; concurrency?: number; cleanUrls: boolean;
+  proxy?: string; retries?: number; jitter: boolean;
   sheet?: string; maxTime?: number;
   yes: boolean; help: boolean;
 }
 
 function parseArgs(list: string[]): Args {
   const a: Args = {
-    format: "json", limit: 60, headless: false, details: true, delay: 700,
-    emails: false, socials: false, hasPhone: false, hasWebsite: false, hasEmail: false,
-    cleanUrls: true, yes: false, help: false,
+    format: "json", append: false, limit: 60, headless: false, details: true, delay: 700,
+    emails: false, socials: false, verifyEmails: false,
+    hasPhone: false, hasWebsite: false, hasEmail: false, hasValidEmail: false,
+    cleanUrls: true, jitter: false, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -58,6 +62,7 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--preset") a.preset = next();
     else if (arg === "-f" || arg === "--format") a.format = next() as OutputFormat;
     else if (arg === "-o" || arg === "--out") a.out = next();
+    else if (arg === "--append") a.append = true;
     else if (arg === "-n" || arg === "--limit") a.limit = parseInt(next(), 10) || a.limit;
     else if (arg === "--total") a.total = parseInt(next(), 10) || a.total;
     else if (arg === "--headless") a.headless = true;
@@ -66,11 +71,16 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--emails" || arg === "--email") a.emails = true;
     else if (arg === "--socials" || arg === "--social") a.socials = true;
     else if (arg === "--enrich") { a.emails = true; a.socials = true; }
+    else if (arg === "--verify-emails" || arg === "--verify") { a.verifyEmails = true; a.emails = true; }
+    else if (arg === "--proxy") a.proxy = next();
+    else if (arg === "--retries") a.retries = parseInt(next(), 10);
+    else if (arg === "--jitter") a.jitter = true;
     else if (arg === "--min-rating") a.minRating = parseFloat(next());
     else if (arg === "--min-reviews") a.minReviews = parseInt(next(), 10);
     else if (arg === "--has-phone") a.hasPhone = true;
     else if (arg === "--has-website") a.hasWebsite = true;
     else if (arg === "--has-email") { a.hasEmail = true; a.emails = true; }
+    else if (arg === "--has-valid-email") { a.hasValidEmail = true; a.verifyEmails = true; a.emails = true; }
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
     else if (arg === "--sort") a.sort = next() as SortKey;
     else if (arg === "--desc") a.desc = true;
@@ -115,6 +125,7 @@ ${c("bold", "Enrichment (visits each website)")}
       --socials         Also find Facebook/Instagram/WhatsApp/LinkedIn/X/
                         YouTube/TikTok/Telegram
       --enrich          Both of the above
+      --verify-emails   Check each email's domain has MX records (implies --emails)
       --concurrency <n> Websites to enrich in parallel   (default 3)
 
 ${c("bold", "Clean-up")}
@@ -128,18 +139,24 @@ ${c("bold", "Filters & order")}
       --has-phone       Keep only leads with a phone
       --has-website     Keep only leads with a website
       --has-email       Keep only leads with an email (implies --emails)
-      --dedupe <key>    website | phone | name | none   (default website)
+      --has-valid-email Keep only leads with an MX-verified email (implies --verify-emails)
+      --dedupe <key>    website | phone | name | smart | none   (default website;
+                        --append uses smart: website→phone→name)
       --sort <key>      rating | reviews | name | priceLevel
       --desc / --asc    Sort direction
 
 ${c("bold", "Output")}
   -f, --format <fmt>    json | ndjson | csv | xlsx      (default json)
   -o, --out <file>      Output file, or "-" for stdout (default: slug + date)
+      --append          Merge into an existing output file (accumulate + dedupe)
       --sheet <name>    Excel sheet name         (default "Leads")
 
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
+      --jitter          Randomise the delay ±40% (more human)
+      --retries <n>     Retry a listing that fails to open   (default 1)
       --max-time <s>    Stop collecting after n seconds
+      --proxy <url>     Route the browser via a proxy (http://user:pass@host:port)
       --lang <locale>   Browser locale, e.g. en-US, ne-NP   (default en-US)
       --region <cc>     Region bias for results, e.g. np, us
       --headless        Run the browser without a window
@@ -152,6 +169,8 @@ ${c("bold", "Examples")}
   npx lacspace-leads gyms --city Lalitpur --min-rating 4 --sort reviews --desc
   npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" --country NP
   npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv -o -
+  npx lacspace-leads dentists --city Pokhara --verify-emails --has-valid-email -f csv
+  npx lacspace-leads cafes --city Kathmandu -o master.csv --append   # accumulate daily
   npx lacspace-leads convert leads.json -f xlsx
 
 ${c("dim", "Please scrape responsibly: keep volumes small, respect Google's Terms of")}
@@ -236,6 +255,7 @@ async function main(): Promise<void> {
   const wanted = new Set<LeadField>(base);
   if (args.emails) wanted.add("email");
   if (args.socials) for (const f of SOCIAL_FIELDS) wanted.add(f);
+  if (args.verifyEmails) { wanted.add("email"); wanted.add("emailStatus"); }
   const fields = ALL_FIELDS.filter((f) => wanted.has(f));
   const toStdout = args.out === "-";
   const out = toStdout ? "-" : resolve(args.out ?? defaultFilename(query, args.format));
@@ -246,6 +266,7 @@ async function main(): Promise<void> {
   if (args.hasPhone) filters.hasPhone = true;
   if (args.hasWebsite) filters.hasWebsite = true;
   if (args.hasEmail) filters.hasEmail = true;
+  if (args.hasValidEmail) filters.hasValidEmail = true;
   const hasFilters = Object.keys(filters).length > 0;
 
   // A comma-separated type/city/area fans out into several searches.
@@ -261,10 +282,12 @@ async function main(): Promise<void> {
   else log(`\n  ${c("dim", "search")}  ${c("bold", query)}`);
   log(`  ${c("dim", "fields")}  ${fields.join(", ")}`);
   if (args.emails || args.socials) log(`  ${c("dim", "enrich")}  ${[args.emails && "emails", args.socials && "socials"].filter(Boolean).join(" + ")} ${c("dim", `(${args.concurrency ?? 3}× parallel, visits each website)`)}`);
+  if (args.verifyEmails) log(`  ${c("dim", "verify")}  email domains (MX lookup)`);
   if (hasFilters) log(`  ${c("dim", "filters")} ${Object.entries(filters).map(([k, v]) => `${k}=${v}`).join(", ")}`);
   if (args.sort) log(`  ${c("dim", "sort")}    ${args.sort} ${args.desc === false ? "asc" : "desc"}`);
   if (args.country) log(`  ${c("dim", "phones")}  E.164 for ${args.country}`);
-  log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}`);
+  if (args.proxy) log(`  ${c("dim", "proxy")}   ${args.proxy.replace(/\/\/[^@]+@/, "//***@")}`);
+  log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}${args.append ? c("dim", " (append)") : ""}`);
   if (!args.yes) {
     const ok = await prompt(`\n${c("yellow", "!")} This opens a browser and searches Google Maps. Continue? ${c("dim", "[y/N]")} `);
     if (!/^y(es)?$/i.test(ok)) { log(c("dim", "\n  cancelled.\n")); return; }
@@ -287,6 +310,8 @@ async function main(): Promise<void> {
     delayMs: args.delay,
     cleanUrls: args.cleanUrls,
     enrich: args.emails || args.socials,
+    verifyEmails: args.verifyEmails,
+    jitter: args.jitter,
     signal: controller.signal,
     onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`),
   };
@@ -298,6 +323,8 @@ async function main(): Promise<void> {
   if (args.locale) opts.locale = args.locale;
   if (args.region) opts.region = args.region;
   if (args.concurrency !== undefined) opts.concurrency = args.concurrency;
+  if (args.proxy) opts.proxy = args.proxy;
+  if (args.retries !== undefined) opts.retries = args.retries;
   if (args.maxTime !== undefined) opts.maxMs = args.maxTime * 1000;
 
   let leads;
@@ -322,6 +349,22 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Append mode: merge the new leads onto whatever's already in the file, then
+  // dedupe — so repeated runs accumulate one master list.
+  let fresh = leads.length;
+  if (args.append && !toStdout && existsSync(out)) {
+    try {
+      const existing = rowsToLeads(await readRows(out));
+      const before = existing.length;
+      const merged: Lead[] = dedupeLeads([...existing, ...leads], args.dedupe ?? "smart");
+      fresh = merged.length - before;
+      log(`  ${c("cyan", "◷")} ${c("dim", `merged with ${before} existing → ${merged.length} total (${fresh} new)`)}`);
+      leads = merged;
+    } catch (err) {
+      log(c("yellow", `  ! couldn't read "${out}" to append (${(err as Error).message}); overwriting instead`));
+    }
+  }
+
   const serOpts: { sheetName?: string } = {};
   if (args.sheet) serOpts.sheetName = args.sheet;
   const { data, binary } = serialize(leads, args.format, fields, serOpts);
@@ -336,15 +379,14 @@ async function main(): Promise<void> {
 
   writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
 
-  const withPhone = leads.filter((l) => l.phone).length;
-  const withSite = leads.filter((l) => l.website).length;
-  const withEmail = leads.filter((l) => l.email).length;
-  const withSocial = leads.filter((l) => l.facebook || l.instagram || l.linkedin || l.twitter).length;
-  log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}`);
-  const stats = [`${withPhone} with a phone`, `${withSite} with a website`];
-  if (args.emails) stats.push(`${withEmail} with an email`);
-  if (args.socials) stats.push(`${withSocial} with a social link`);
-  log(`    ${c("dim", stats.join(" · "))}\n`);
+  const s = computeStats(leads);
+  log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}${args.append && fresh !== leads.length ? c("dim", ` (${fresh} new)`) : ""}`);
+  const parts = [`${s.withPhone} with a phone`, `${s.withWebsite} with a website`];
+  if (args.emails) parts.push(`${s.withEmail} with an email`);
+  if (args.verifyEmails) parts.push(`${s.withValidEmail} MX-valid`);
+  if (args.socials) parts.push(`${s.withSocial} with a social link`);
+  if (s.avgRating !== undefined) parts.push(`avg ★ ${s.avgRating}`);
+  log(`    ${c("dim", parts.join(" · "))}\n`);
 }
 
 main().catch((err: unknown) => {

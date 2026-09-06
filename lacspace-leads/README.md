@@ -12,13 +12,15 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 
 - **Free & keyless** — uses a real browser (via [Playwright](https://playwright.dev)), not a paid Places API.
 - **Sweep a whole city** — comma-separate areas and it runs each search, then **merges and de-duplicates** into one list: `--area "Thamel,Baneshwor,Patan"`.
+- **Accumulate a master list** — `--append` merges each run into your existing file and de-duplicates, so daily runs build one clean database.
 - **Rich enrichment** — visit each website to pull an **email** and links for **Facebook, Instagram, WhatsApp, LinkedIn, X, YouTube, TikTok and Telegram** — a few sites in parallel.
+- **Verified emails** — `--verify-emails` checks each address's domain has **MX records** (no message sent) and tags it `valid`/`no-mx`; `--has-valid-email` keeps only deliverable ones.
 - **CRM-ready data** — normalise phones to **E.164** (`--country NP` → `+9779…`), and tidy website URLs (unwrap Google redirects, strip `utm_*`/`fbclid`).
 - **Any format** — JSON, NDJSON, CSV or Excel; write to a file or pipe to `stdout` with `-o -`.
 - **Pick your fields** — choose exactly what you collect, or a ready-made **preset** (`--preset outreach`).
-- **Sort & filter** — `--sort reviews --desc`, `--min-rating`, `--has-email`, and more.
-- **Permission-first** — it tells you what it's about to do and asks before opening a browser.
-- **Library too** — `import { searchLeads, searchLeadsBatch } from "lacspace-leads"`.
+- **Sort & filter** — `--sort reviews --desc`, `--min-rating`, `--has-valid-email`, and more.
+- **Robust & polite** — `--proxy`, `--retries`, `--jitter`, per-listing delays and a permission-first prompt before it opens a browser.
+- **Library too** — `import { searchLeads, searchLeadsBatch, searchLeadsDetailed } from "lacspace-leads"`.
 
 ## Install
 
@@ -40,10 +42,11 @@ npx lacspace-leads [type] [options]
 | `--city <text>` | City, e.g. `Kathmandu`. Comma-separate for several. |
 | `--area <text>` | Area / neighbourhood, e.g. `Baneshwor`. Comma-separate to **sweep a whole city**. |
 | `-q, --query <text>` | Raw query, used verbatim (overrides city/area/type) |
-| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,plusCode,latitude,longitude,hours,mapsUrl` |
+| `--fields <list>` | Columns: `name,category,rating,reviews,priceLevel,address,phone,website,email,facebook,instagram,whatsapp,linkedin,twitter,youtube,tiktok,telegram,emailStatus,plusCode,latitude,longitude,hours,mapsUrl` |
 | `--preset <name>` | Field bundle: `minimal` · `outreach` · `contact` · `geo` · `full` · `everything` |
 | `-f, --format <fmt>` | `json` · `ndjson` · `csv` · `xlsx` (default `json`) |
 | `-o, --out <file>` | Output file, or `-` for **stdout** (default: a slug + date) |
+| `--append` | Merge into an existing output file — **accumulate + dedupe** across runs |
 | `--sheet <name>` | Excel sheet name (default `Leads`) |
 | `-n, --limit <n>` | Max listings **per search** (default `60`) |
 | `--total <n>` | Cap the merged result when sweeping several searches |
@@ -51,7 +54,10 @@ npx lacspace-leads [type] [options]
 | `--sort <key>` | `rating` · `reviews` · `name` · `priceLevel` (missing values last) |
 | `--desc` / `--asc` | Sort direction (default: `desc` for numbers, `asc` for name) |
 | `--delay <ms>` | Pause between listings (default `700`) |
+| `--jitter` | Randomise the delay ±40% (more human) |
+| `--retries <n>` | Retry a listing that fails to open (default `1`) |
 | `--max-time <s>` | Stop collecting after n seconds |
+| `--proxy <url>` | Route the browser via a proxy (`http://user:pass@host:port`) |
 | `--lang <locale>` | Browser locale, e.g. `en-US`, `ne-NP` (default `en-US`) |
 | `--region <cc>` | Region bias for results, e.g. `np`, `us` |
 | `--headless` | Run the browser without a visible window |
@@ -64,6 +70,7 @@ npx lacspace-leads [type] [options]
 | `--emails` | Also find an email from each website |
 | `--socials` | Also find Facebook / Instagram / WhatsApp / LinkedIn / X / YouTube / TikTok / Telegram |
 | `--enrich` | Both of the above |
+| `--verify-emails` | Check each email domain has **MX records** (implies `--emails`); adds an `emailStatus` column |
 | `--concurrency <n>` | How many websites to enrich in parallel (default `3`) |
 
 **Clean-up** (data quality):
@@ -82,7 +89,8 @@ npx lacspace-leads [type] [options]
 | `--has-phone` | Only leads with a phone |
 | `--has-website` | Only leads with a website |
 | `--has-email` | Only leads with an email (implies `--emails`) |
-| `--dedupe <key>` | `website` · `phone` · `name` · `none` (default `website`) |
+| `--has-valid-email` | Only leads whose email passed **MX verification** (implies `--verify-emails`) |
+| `--dedupe <key>` | `website` · `phone` · `name` · `smart` · `none` (default `website`; `--append` uses `smart` = website→phone→name) |
 
 Run with no arguments for an interactive walkthrough.
 
@@ -116,6 +124,21 @@ Skip spelling out `--fields` with a ready-made bundle:
 ```bash
 npx lacspace-leads salons --city Pokhara --preset outreach --country NP -f csv
 ```
+
+## Verify emails & build a master list
+
+Chase down deliverable contacts and accumulate them over time:
+
+```bash
+# Only businesses with an MX-verified email, as CSV
+npx lacspace-leads dentists --city Pokhara --verify-emails --has-valid-email -f csv
+
+# Run this daily — each run merges into master.csv and de-duplicates (smart key)
+npx lacspace-leads cafes --city Kathmandu --area "Thamel,Baneshwor,Patan" \
+  -o master.csv --append
+```
+
+`--verify-emails` does a DNS **MX lookup** on each email's domain (no message is sent) and adds an `emailStatus` column of `valid` · `no-mx` · `invalid-format`. `--append` reads the existing file back, merges, and de-duplicates with the **`smart`** key (website → phone → name) so even website-less businesses don't pile up on re-runs.
 
 ## Convert anything (JSON ↔ CSV ↔ Excel)
 
@@ -180,9 +203,13 @@ const leads = await searchLeadsBatch(
 | Export | Purpose |
 | --- | --- |
 | `searchLeads(options)` | Run one search, resolve to `Lead[]`. |
+| `searchLeadsDetailed(options)` | Same, plus aggregate `stats` and `elapsedMs`. |
 | `searchLeadsBatch(queries, options)` | Run several searches and merge/dedupe/sort into one `Lead[]`. |
 | `searchLeadsMulti(options)` | Expand comma-separated `type`/`city`/`area` and run as a batch. |
 | `serialize(leads, format, fields?)` | Serialize to `{ data, binary }` for `json` / `ndjson` / `csv` / `xlsx`. |
+| `computeStats(leads)` | Aggregate counts (`withPhone`, `withValidEmail`, `avgRating` …). |
+| `verifyEmails(leads)` / `verifyEmail(email)` | MX-verify emails; also `emailFormatValid` / `emailDomain`. |
+| `rowsToLeads(rows)` | Turn read-back rows (CSV/Excel/JSON) into `Lead[]` — powers `--append`. |
 | `toRows(leads, fields?)` | Header-keyed rows, for your own exporter. |
 | `enrichContacts(website)` / `extractEmails` / `extractSocials` | Website enrichment, on tap. |
 | `cleanWebsite` / `normalizePhone` / `sortLeads` | Pure data-cleaning helpers (unit-tested). |
@@ -190,7 +217,7 @@ const leads = await searchLeadsBatch(
 | `expandQueries` / `resolvePreset` / `FIELD_PRESETS` | Batch expansion + field presets. |
 | `composeQuery` / `mapsSearchUrl` / `normalizeFields` / `defaultFilename` | Query + helper utilities. |
 
-Everything is fully typed (`Lead`, `LeadField`, `SearchOptions`, `SortKey`, `OutputFormat`, `Contacts` …) and ships dual **ESM + CJS**.
+The `onProgress` and `onLead` callbacks stream progress and each lead as it's found — handy for live UIs or crash-safe writing. Everything is fully typed (`Lead`, `LeadField`, `SearchOptions`, `LeadStats`, `EmailStatus`, `SortKey`, `OutputFormat`, `Contacts` …) and ships dual **ESM + CJS**.
 
 ## Please use it responsibly
 

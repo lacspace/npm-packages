@@ -17,11 +17,15 @@ export type LeadField =
   | "youtube"
   | "tiktok"
   | "telegram"
+  | "emailStatus"
   | "plusCode"
   | "latitude"
   | "longitude"
   | "hours"
   | "mapsUrl";
+
+/** Deliverability verdict for a discovered email (see `verifyEmails`). */
+export type EmailStatus = "valid" | "no-mx" | "invalid-format" | "unknown";
 
 /** Every field, in a sensible column order for exports. */
 export const ALL_FIELDS: LeadField[] = [
@@ -42,6 +46,7 @@ export const ALL_FIELDS: LeadField[] = [
   "youtube",
   "tiktok",
   "telegram",
+  "emailStatus",
   "plusCode",
   "latitude",
   "longitude",
@@ -60,6 +65,7 @@ export const ENRICHED_FIELDS: LeadField[] = [
   "youtube",
   "tiktok",
   "telegram",
+  "emailStatus",
 ];
 
 /** Named field bundles for common jobs — pass via `preset` / `--preset`. */
@@ -116,6 +122,8 @@ export interface Lead {
   tiktok?: string;
   /** Telegram link, from the website (needs enrichment). */
   telegram?: string;
+  /** Email deliverability verdict (set by `verifyEmails`). */
+  emailStatus?: EmailStatus;
   /** Google Plus Code, when shown. */
   plusCode?: string;
   /** Latitude, parsed from the listing's Maps URL. */
@@ -140,6 +148,8 @@ export interface LeadFilters {
   hasWebsite?: boolean;
   /** Keep only leads that have an email (implies enrichment). */
   hasEmail?: boolean;
+  /** Keep only leads whose email passed MX verification (implies `verifyEmails`). */
+  hasValidEmail?: boolean;
 }
 
 /** Output formats the tool can write. */
@@ -180,8 +190,12 @@ export interface SearchOptions {
   enrich?: boolean;
   /** Drop leads that don't pass these filters. */
   filters?: LeadFilters;
-  /** Drop duplicate leads by this key. Default "website" when present else "name". */
-  dedupe?: "website" | "phone" | "name" | "none";
+  /**
+   * Drop duplicate leads by this key. `"smart"` uses the strongest identity
+   * available per lead (website → phone → name) and is best for accumulating
+   * across runs. Default "website".
+   */
+  dedupe?: "website" | "phone" | "name" | "smart" | "none";
   /** Sort the results by this key before returning. */
   sort?: SortKey;
   /** Sort direction. Defaults to "desc" for numbers, "asc" for name. */
@@ -199,14 +213,41 @@ export interface SearchOptions {
   cleanUrls?: boolean;
   /** How many websites to enrich in parallel. Default 3. */
   concurrency?: number;
+  /**
+   * Verify each discovered email by checking its domain has MX records (DNS,
+   * no message is sent). Populates `emailStatus`. Implies `enrich`. Default off.
+   */
+  verifyEmails?: boolean;
   /** Browser/UI locale, e.g. "en-US", "ne-NP". Default "en-US". */
   locale?: string;
   /** Google region bias (ccTLD-style), e.g. "np", "us". Sets Maps `gl`. */
   region?: string;
+  /** Route the browser through this proxy, e.g. "http://user:pass@host:port". */
+  proxy?: string;
+  /** Retry a listing that fails to open, up to this many times. Default 1. */
+  retries?: number;
+  /** Randomise the delay between listings by ±40% to look more human. */
+  jitter?: boolean;
   /** Stop collecting after this many milliseconds (best-effort). */
   maxMs?: number;
   /** Called with a short progress message as the search runs. */
   onProgress?: (message: string) => void;
+  /**
+   * Called with each lead as it's collected (before enrichment), for live UIs
+   * or crash-safe incremental writing. Never throws into the run.
+   */
+  onLead?: (lead: Lead) => void;
   /** An AbortSignal to cancel a running search. */
   signal?: AbortSignal;
+}
+
+/** Aggregate counts over a lead list — see `computeStats`. */
+export interface LeadStats {
+  total: number;
+  withPhone: number;
+  withWebsite: number;
+  withEmail: number;
+  withValidEmail: number;
+  withSocial: number;
+  avgRating?: number;
 }

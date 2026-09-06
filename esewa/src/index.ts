@@ -144,12 +144,29 @@ export async function signPayment(fields: SignFields, secret: string): Promise<s
  * Form building
  * ------------------------------------------------------------------ */
 
+/**
+ * Convert integer paisa (minor units — as used across the @lacspace commerce
+ * packages: cart, order, tax, invoice, money…) to rupees for eSewa's amount
+ * fields. `paisaToRupees(12345)` → `123.45`.
+ *
+ * eSewa expects amounts in **rupees**, while the rest of the suite stores
+ * **paisa** — convert at this boundary so a Rs 123.45 order isn't charged as
+ * Rs 12,345.
+ */
+export function paisaToRupees(paisa: number): number {
+  return Math.round(paisa) / 100;
+}
+
 export interface BuildFormInput {
-  /** Base product amount. */
+  /**
+   * Base product amount, **in rupees** — eSewa's unit, NOT paisa. If you keep
+   * integer minor units (paisa) like the other @lacspace commerce packages,
+   * convert here with `paisaToRupees(paisa)`. Passing paisa overcharges 100×.
+   */
   amount: number;
-  /** Tax amount. Default 0. */
+  /** Tax amount, in rupees (see `amount`). Default 0. */
   taxAmount?: number;
-  /** Grand total. Defaults to amount + tax + service + delivery. */
+  /** Grand total, in rupees (see `amount`). Defaults to amount + tax + service + delivery. */
   totalAmount?: number;
   /** Unique transaction id you generate. */
   transactionUuid: string;

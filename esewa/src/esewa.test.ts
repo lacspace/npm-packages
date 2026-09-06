@@ -8,6 +8,7 @@ import {
   ESEWA_TEST_PRODUCT_CODE,
   ESEWA_SIGNED_FIELD_NAMES,
   ESEWA_STATUS_URLS,
+  paisaToRupees,
 } from "./index";
 
 /** Encode an object to the base64 JSON payload eSewa returns as `data`. */
@@ -191,3 +192,12 @@ async function signMessage(message: string, secret: string): Promise<string> {
   for (const b of bytes) bin += String.fromCharCode(b);
   return typeof btoa === "function" ? btoa(bin) : Buffer.from(bytes).toString("base64");
 }
+
+describe("paisaToRupees", () => {
+  it("converts integer paisa (minor units) to rupees for eSewa amounts", () => {
+    expect(paisaToRupees(12345)).toBe(123.45);
+    expect(paisaToRupees(100000)).toBe(1000);
+    expect(paisaToRupees(0)).toBe(0);
+    expect(paisaToRupees(1)).toBe(0.01);
+  });
+});

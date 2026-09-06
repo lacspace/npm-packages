@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/ledger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A tiny double-entry ledger & wallet — balanced transactions, per-account balances and a trial balance that always sums to zero. Integer minor units, immutable ops, crypto-random ids. Isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

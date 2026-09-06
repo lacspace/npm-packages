@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/signed-url",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "HMAC-signed, expiring URLs & tokens over Web Crypto — secure download links, magic-login links, unsubscribe links and one-time-action tokens. Tamper-proof, timing-safe, zero-config. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

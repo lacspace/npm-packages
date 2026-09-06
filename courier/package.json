@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/courier",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Courier / last-mile delivery toolkit — canonical delivery state machine, Pathao (Nepal) adapter, and inbound webhook verification + status normalization. Zero-dependency, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

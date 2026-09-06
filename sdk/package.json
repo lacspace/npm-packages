@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sdk",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "High-level TypeScript SDK for Lacspace — api, auth, analytics and e-commerce in one client.",
   "type": "module",
   "main": "./dist/index.cjs",

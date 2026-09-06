@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/tax",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "VAT & sales-tax done right — exact integer minor-unit arithmetic (no float cents bugs), add/extract tax, inclusive & exclusive prices, compound taxes, half-up/bankers rounding. Isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

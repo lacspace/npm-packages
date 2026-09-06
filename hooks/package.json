@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/hooks",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Essential, SSR-safe React hooks — useLocalStorage, useDebounce, useMediaQuery, useOnClickOutside, useCopyToClipboard and 20+ more. Zero-dependency, fully typed, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

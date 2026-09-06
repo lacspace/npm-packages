@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/settlement",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Settlement, netting & reconciliation for multi-party payouts — net signed ledger entries per account, reconcile expected vs actual, and list payable positive balances. Integer minor units, pure functions. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

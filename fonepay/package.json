@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/fonepay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fonepay (Nepal) merchant redirect / Request-To-Pay over Web Crypto — HMAC-SHA512 sign the request DV and verify the response DV. Zero-dep, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",

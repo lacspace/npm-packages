@@ -256,6 +256,133 @@ Each package lives in its own folder with a `package.json`, `src/`, `tsup.config
 
 > **Note:** `lacspace-leads` lives in this repo but is **not** a zero-dep workspace member (it needs Playwright), so it is excluded from the root `workspaces`, tests and typecheck, and builds/tests independently from its own folder.
 
+## ❓ Frequently asked questions
+
+More answers — and rich, searchable versions — at **[developer.lacspace.com/faq](https://developer.lacspace.com/faq)**.
+
+### Getting started
+
+**What is the Lacspace developer platform?**
+A free ecosystem for JavaScript and TypeScript developers: a library of 75+ zero-dependency `@lacspace` packages, a set of standalone command-line tools, and `create-lacspace-app` — a CLI that scaffolds a finished Next.js app. Everything is documented at developer.lacspace.com and published openly to npm.
+
+**Are the Lacspace packages and tools really free?**
+Yes. Every open package and tool is published under the permissive **Lacspace Free Licence v1.0** — free to use, ship, modify and use commercially, with no fees, seats or usage metering.
+
+**Do I need an API key, account or sign-up?**
+No. There are no API keys, tokens, accounts or dashboards. Install a package or run a tool with `npx` and it works offline.
+
+**What's the difference between the packages, the tools and create-lacspace-app?**
+The `@lacspace/*` packages are libraries you import into your code. The tools are standalone programs you run from your terminal. `create-lacspace-app` scaffolds a complete Next.js project pre-wired with the best of both.
+
+**Which runtimes are supported?**
+The `@lacspace` libraries are isomorphic — Node.js, the browser, edge runtimes and serverless. The command-line tools and CLIs need **Node.js 20+**.
+
+**Are the packages written in TypeScript and fully typed?**
+Yes — strict TypeScript with hand-checked type declarations, so you get autocomplete and type safety whether you write TS or JS.
+
+**Do the packages add dependencies or bloat my bundle?**
+The `@lacspace` libraries are zero-dependency and tree-shakeable. The tools keep dependencies minimal too — most are zero-dependency; a few build on the shared scraper engine, and only `lacspace-leads` drives a real browser.
+
+**ESM or CommonJS?**
+Both — every library ships a dual ESM + CommonJS build with correct `exports` maps.
+
+### The @lacspace packages
+
+**How many packages are there and what do they cover?**
+75+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting and more.
+
+**How do I install a package?**
+`npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.
+
+**Which package should I use for a given job?**
+The handbook and per-package reference at developer.lacspace.com/docs include a "which package for what" guide.
+
+**Are the packages production-ready?**
+Yes — semver-versioned, tested, and already powering Lacspace's own products and this platform (which dogfoods the SEO, OG, sitemap, robots and RSS packages).
+
+**Do they work with Next.js, React and other frameworks?**
+Yes — framework-agnostic and isomorphic, so they work with Next.js, Remix, Astro, SvelteKit, Express, plain Node and the browser. The React Kit adds React hooks/components; a dedicated Next.js helper exists too.
+
+**Is there documentation for each package?**
+Yes — a reference page per package, a full handbook with runnable recipes, a downloadable PDF handbook, and a live in-browser playground, all at developer.lacspace.com/docs.
+
+**How do they compare to popular alternatives?**
+Many are focused, zero-dependency takes on well-known libraries (a Zod-style validator, a Dinero-style money package, an SWR-style data hook, a jsonwebtoken-style JWT package). The /compare page lines them up side by side.
+
+### The developer tools
+
+**What developer tools does Lacspace offer?**
+Twelve free, keyless tools: `lacspace-leads`, `lacspace-scraper`, `lacspace-monitor`, `lacspace-enrich`, `lacspace-extract`, `lacspace-sql`, `lacspace-inspect`, `lacspace-cron`, `lacspace-dotenv`, `lacspace-webhook`, `lacspace-har` and `lacspace-icon`.
+
+**How do I run a tool without installing it?**
+Use `npx`, e.g. `npx lacspace-inspect example.com`. Each tool's page lists its commands; you can also `npm i -g <tool>`.
+
+**Are the tools a CLI or a library?**
+Both — a command-line program and a fully-typed library sharing the same engine.
+
+**Which formats can they export?**
+JSON, NDJSON, CSV and Excel, with a built-in converter between all four. Several also emit Markdown, HTML reports, `.ics` calendars or images.
+
+**Can I try a tool without installing anything?**
+Yes — the scraper has a hosted live tester at developer.lacspace.com/tools/scraper/try that runs in your browser exactly as it would locally.
+
+**Do the tools send my data anywhere?**
+No — they run on your machine, use only the open web and open data, and have no telemetry or accounts.
+
+**Why is lacspace-leads local-only?**
+It drives a real browser over Google Maps, so it runs on your own machine — hosting it publicly would breach Google's Terms and can't run in a serverless function.
+
+**Is scraping and lead-finding done responsibly?**
+The tools are robots.txt-aware where it matters and support polite delays, jitter, rate-limits, retries and a custom User-Agent. You're responsible for using them within each site's terms and applicable law.
+
+**Can I use the tools in CI/CD?**
+Yes — `lacspace-inspect` has `--min-grade`/`--budget`, `lacspace-har` has budgets, `lacspace-monitor` has `--fail-on-change`, and `lacspace-dotenv` has a `check` gate and pre-commit hook, all exiting non-zero on failure.
+
+### create-lacspace-app
+
+**What is create-lacspace-app?**
+A scaffolding CLI that writes a complete, production-ready Next.js 15 + Tailwind app in seconds — pre-wired with Lacspace SEO, security headers, robots.txt, a sitemap, a contact form, a ⌘K palette, dynamic OG images and a CI workflow.
+
+**How do I scaffold a new app?**
+`npx create-lacspace-app`, or pass a name and template: `npx create-lacspace-app my-site --template saas`.
+
+**What templates are included?**
+Personal, business, ecommerce, SaaS, blog (a real Markdown blog), docs (a real Markdown docs site) and marketplace — each a complete, deployable Next.js app.
+
+**What comes pre-wired?**
+SEO metadata + JSON-LD (@lacspace/seo), a dynamic OG endpoint (@lacspace/og), security headers, robots.txt and sitemap, a typed contact form with honeypot, a ⌘K palette, and a GitHub Actions workflow that gates on an SEO crawl grade.
+
+**Do I need to know the Lacspace packages to use it?**
+No — the app works out of the box; the packages are wired in where they help and you can lean on them as much or as little as you like.
+
+### Licensing & usage
+
+**What licence are the packages and tools under?**
+The **Lacspace Free Licence v1.0** — short, permissive and own-branded. Full text: developer.lacspace.com/licenses/lacspace-free-1.0.
+
+**Can I use them in commercial and closed-source projects?**
+Yes — commercial, private, closed-source, modification and redistribution are all permitted, royalty-free. Just keep the licence notice.
+
+**How does it compare to MIT?**
+Permissive in the same spirit as MIT and BSD — use, modify and ship freely, including commercially — but it's Lacspace's own branded licence. In practice it imposes no more restrictions than a typical permissive open-source licence.
+
+**Will Lacspace start charging later?**
+No — the open packages and tools are free, and a published version stays under the licence it shipped with.
+
+### Support & staying updated
+
+**Where are the docs and source code?**
+Docs at developer.lacspace.com/docs (plus a PDF handbook); source at github.com/lacspace/npm-packages.
+
+**How do I report a bug or request a feature?**
+Open an issue at github.com/lacspace/npm-packages/issues with the package/tool name, version and a minimal reproduction.
+
+**How do I keep up with new packages and versions?**
+Watch the GitHub repo, follow the [@lacspace org on npm](https://www.npmjs.com/org/lacspace), and check the developer platform.
+
+**Can I contribute or suggest a new package or tool?**
+Yes — ideas and contributions are welcome via GitHub issues and pull requests.
+
 ## 🌐 Links
 
 - Developer platform → **[developer.lacspace.com](https://developer.lacspace.com)**

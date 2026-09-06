@@ -1,6 +1,18 @@
+<div align="center">
+
 # @lacspace/theme
 
-**SSR-safe dark / light / system theming for React in ~1 KB.** A tiny `ThemeProvider`, a `useTheme` hook, and a no-flash inline script — persists to storage, follows the OS, and toggles a class or a `data-*` attribute. Zero dependencies, framework-agnostic, fully typed. Think `next-themes`, distilled.
+**SSR-safe dark / light / system theming for React in ~1 KB — `next-themes`, distilled.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/theme?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/theme)
+[![install size](https://packagephobia.com/badge?p=@lacspace/theme)](https://packagephobia.com/result?p=@lacspace/theme)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/theme?label=minzip)](https://bundlephobia.com/package/@lacspace/theme)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/theme)
+[![license](https://img.shields.io/npm/l/@lacspace/theme?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> A tiny `ThemeProvider`, a `useTheme` hook, and a no-flash inline script — persists to storage, follows the OS, and toggles a class or a `data-*` attribute on `<html>`. Ships `"use client"`; zero dependencies, framework-agnostic, fully typed.
 
 - **No flash of the wrong theme** — a self-contained script paints the theme before hydration.
 - **SSR-safe** — never touches `window`/`document`/`localStorage` during render; the server markup is untouched.
@@ -152,7 +164,7 @@ Returns a self-contained, `try/catch`-wrapped IIFE string (no external reference
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -160,14 +172,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/theme` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/theme` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/theme
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

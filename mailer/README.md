@@ -18,6 +18,7 @@
 - 🏨 Presets: **Hostinger**, Gmail, Outlook/Office365, Zoho, Brevo, SMTP2GO, Mailgun, custom
 - 🔒 Implicit TLS (465) **and** STARTTLS (587) · unicode subjects · bulletproof MIME
 - 🌱 `mailerFromEnv()` reads `SMTP_*` — perfect for backends
+- 🏊 `createMailerPool()` — connection pool with rate limiting for bulk/high-throughput sending
 - ⚡ **Zero dependencies** · 🟢 Node 18+ (uses TCP sockets — server-side only)
 
 ## Install
@@ -103,13 +104,45 @@ await mail.verify(); // resolves true if the server accepts the connection + cre
 createMailer({ host: "127.0.0.1", port: 1025, secure: false, ignoreTLS: true });
 ```
 
+## Bulk sending — a connection pool
+
+Reuse a handful of SMTP connections and cap your send rate instead of opening a fresh socket per message. `MailerPool` implements the same `Transport` interface as `Mailer`, so `send()` / `verify()` are identical:
+
+```ts
+import { createMailerPool } from "@lacspace/mailer";
+
+const pool = createMailerPool({
+  ...presets.hostinger({ user, pass }),
+  maxConnections: 5,   // simultaneous SMTP connections (default 5)
+  rateLimit: 20,       // at most 20 messages started…
+  rateDelta: 1000,     // …per 1000ms window
+});
+
+// Fan out — the pool queues and throttles for you
+await Promise.all(recipients.map((to) =>
+  pool.send({ to, subject: "Newsletter", html }),
+));
+
+await pool.close(); // drain and close all sockets when done
+```
+
+Prefer `createTransport(config)` when you want the config to decide: it returns a `MailerPool` when `pool: true` is set, otherwise a plain `Mailer` — both typed as `Transport`.
+
+```ts
+import { createTransport } from "@lacspace/mailer";
+const mail = createTransport({ ...presets.gmail({ user, pass }), pool: true });
+```
+
 ## API
 
 | Member | Description |
 | --- | --- |
-| `createMailer(config)` | make a `Mailer` |
+| `createMailer(config)` | make a `Mailer` (one connection per send) |
+| `createMailerPool(config)` | make a `MailerPool` — pooled connections + rate limiting |
+| `createTransport(config)` | `MailerPool` when `config.pool`, else `Mailer` — typed `Transport` |
 | `mail.send(message)` | send; returns `{ messageId, accepted, response }` |
-| `mail.verify()` | test connection + auth |
+| `mail.verify()` | test connection + auth → `boolean` |
+| `mail.close()` | close sockets (pool: drain all connections) |
 | `mailerFromEnv(env?)` | build config from `SMTP_*` vars |
 | `presets.*` | one-line provider configs |
 
@@ -126,7 +159,7 @@ createMailer({ host: "127.0.0.1", port: 1025, secure: false, ignoreTLS: true });
 
 ## Licensing
 
-This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
 
 Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
@@ -136,14 +169,14 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 ## The Lacspace Developer Platform
 
-`@lacspace/mailer` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/mailer` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/mailer
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

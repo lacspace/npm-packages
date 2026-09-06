@@ -5,11 +5,19 @@
 **Markdown → HTML in a few KB — safe by default, with a table-of-contents extractor.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/markdown?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/markdown)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/markdown?label=minzip)](https://bundlephobia.com/package/@lacspace/markdown)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/markdown)
 [![license](https://img.shields.io/npm/l/@lacspace/markdown?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > Everything a blog or docs page needs — headings with anchor ids, nested & task lists, fenced code, blockquotes, GFM tables, images and links — rendering to clean HTML with **source HTML escaped by default**. No dependencies, isomorphic.
+
+- ✍️ Headings (anchor ids), nested & task lists, fenced code, blockquotes, **GFM tables**
+- 🔒 **Safe by default** — raw HTML in the source is escaped; `javascript:` / `data:` URLs neutralized
+- 🧭 `extractHeadings()` builds a table of contents; `slugify()` for anchor links
+- 🎛️ Options — `headingIds`, `headingOffset`, `openLinksInNewTab`
+- ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
 ## Install
 
@@ -20,7 +28,12 @@ npm i @lacspace/markdown
 ## Use it
 
 ```ts
-import { markdownToHtml, extractHeadings, slugify } from "@lacspace/markdown";
+import { markdownToHtml } from "@lacspace/markdown";
+
+markdownToHtml("# Hello\n\nSome **bold** text & a <script>alert(1)</script>.");
+// <h1 id="hello">Hello</h1>
+// <p>Some <strong>bold</strong> text &amp; a &lt;script&gt;alert(1)&lt;/script&gt;.</p>
+//   ↑ headings get anchor ids; raw HTML is escaped, never executed
 
 const html = markdownToHtml(`
 # Getting started
@@ -71,7 +84,7 @@ Perfect for a Markdown-powered blog — it's what the `blog` template in [`creat
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -79,14 +92,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/markdown` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/markdown` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/markdown
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

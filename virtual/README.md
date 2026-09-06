@@ -1,8 +1,24 @@
+<div align="center">
+
 # @lacspace/virtual
 
-**Headless list virtualization for React — render 100k rows smoothly.** Only the items in view are mounted, with fixed or dynamically-measured sizes, overscan, gaps, horizontal lists, and scroll-to-index. `useVirtualizer` in ~2KB. Zero runtime dependencies, SSR-safe, fully typed.
+**Headless list virtualization for React — render 100k rows smoothly.**
 
-You own the markup; the hook owns the math. No components, no styling, no opinions — just geometry.
+[![npm version](https://img.shields.io/npm/v/@lacspace/virtual?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/virtual)
+[![install size](https://packagephobia.com/badge?p=@lacspace/virtual)](https://packagephobia.com/result?p=@lacspace/virtual)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/virtual?label=minzip)](https://bundlephobia.com/package/@lacspace/virtual)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/virtual)
+[![license](https://img.shields.io/npm/l/@lacspace/virtual?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> `useVirtualizer` mounts only the rows in view, so a list of any size stays smooth. Fixed or dynamically-measured sizes, overscan, gaps, horizontal lists and scroll-to-index — in ~2 KB. You own the markup; the hook owns the math.
+
+- 📜 Render 100k+ rows — only the visible window (plus overscan) is mounted
+- 📏 Fixed **or** dynamically-measured item sizes (`measureElement` + `data-index`)
+- ↔️ Vertical or horizontal · gaps · padding · `scrollMargin` for window scrolling
+- 🎯 `scrollToIndex` / `scrollToOffset` with alignment and smooth behaviour
+- ⚡ ~2 KB · headless (no components/CSS) · 🌍 SSR-safe · 📦 ESM + CJS · fully typed
 
 ## Install
 
@@ -145,7 +161,7 @@ interface VirtualItem {
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -153,14 +169,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/virtual` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/virtual` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/virtual
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

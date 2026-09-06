@@ -5,11 +5,19 @@
 **A tiny, typed schema validator — zod's ergonomics, zero dependencies.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/validate?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/validate)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/validate?label=minzip)](https://bundlephobia.com/package/@lacspace/validate)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/validate)
 [![license](https://img.shields.io/npm/l/@lacspace/validate?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > `parse` / `safeParse`, objects, arrays, enums, unions, coercion and full type inference — in a package small enough to drop into any function, edge runtime or bundle. No dependencies, isomorphic, fully typed.
+
+- 🧩 Chainable schemas — `v.string().email()`, `v.number().int()`, `v.object({...})`, `v.array()`, `v.union()`, `v.enum()`
+- 🧠 `Infer<typeof Schema>` — the static type is derived from the schema, one source of truth
+- 🔀 `v.coerce.*` — turn stringy `FormData` / query / env values into numbers & booleans before validating
+- ✅ `parse` throws a `ValidationError`; `safeParse` returns `{ success, data | error }`, with `error.flatten()` for forms
+- 🌍 Zero dependencies · isomorphic · fully typed
 
 ## Install
 
@@ -75,7 +83,7 @@ Pairs perfectly with [`@lacspace/form`](https://www.npmjs.com/package/@lacspace/
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -83,14 +91,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/validate` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/validate` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/validate
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

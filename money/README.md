@@ -5,11 +5,20 @@
 **Money without the floating-point bugs — integer cents, safe math, localized formatting.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/money?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/money)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/money?label=minzip)](https://bundlephobia.com/package/@lacspace/money)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/money)
 [![license](https://img.shields.io/npm/l/@lacspace/money?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > `0.1 + 0.2 !== 0.3` — so never store money as a float. `@lacspace/money` keeps amounts as **integer minor units**, refuses to add different currencies, splits a bill without losing a cent, and formats with `Intl`. Tiny, typed, isomorphic.
+
+- 🪙 **Integer minor units** — no floating-point cent bugs, ever
+- 🧮 Currency-checked arithmetic — adding `USD` to `EUR` throws
+- ➗ `allocate` / `split` distribute without losing a cent (remainder-preserving)
+- 🌍 Localized `Intl` formatting · zero-decimal (JPY) & 3-decimal (BHD) currencies handled
+- 🧊 Immutable — every operation returns a new `Money`
+- ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
 ## Install
 
@@ -66,7 +75,7 @@ All operations return a new `Money` — instances are immutable.
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -74,14 +83,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/money` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/money` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/money
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

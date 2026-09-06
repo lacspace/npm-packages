@@ -215,7 +215,7 @@ qaPage([{ question: "Is it free?", acceptedAnswer: "Yes.", suggestedAnswers: ["F
 imageObject({ url: "https://x.com/hero.png", width: 1200, height: 630, caption: "Hero" });
 
 // SoftwareSourceCode — for open-source package / library pages
-softwareSourceCode({ name: "@lacspace/seo", codeRepository: "https://github.com/lacspace/npm-packages", programmingLanguage: "TypeScript", license: "https://lacspace.com/licenses/lacspace-free-1.0", runtimePlatform: "Node.js" });
+softwareSourceCode({ name: "@lacspace/seo", codeRepository: "https://github.com/lacspace/npm-packages", programmingLanguage: "TypeScript", license: "https://developer.lacspace.com/licenses/lacspace-free-1.0", runtimePlatform: "Node.js" });
 
 // ProfilePage — a page about a single person (wraps a Person as mainEntity)
 profilePage({ person: { name: "Lumi AI", url: "https://lacspace.com", jobTitle: "AI" }, dateModified: "2026-09-05" });
@@ -245,7 +245,7 @@ site.meta({
 
 ## Licensing
 
-This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
 
 Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
@@ -255,14 +255,14 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 ## The Lacspace Developer Platform
 
-`@lacspace/seo` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/seo` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/seo
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

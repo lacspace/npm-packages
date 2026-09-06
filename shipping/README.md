@@ -59,6 +59,10 @@ quoteShipping(methods, { zoneId: "us", weight: 300, subtotal: 4000 });
 
 cheapestQuote(methods, { zoneId: "us", weight: 300, subtotal: 5000 });
 // → std is free (subtotal ≥ freeOver) → { methodId: "std", cost: 0, free: true }
+
+// skip zero-cost methods (store pickup / a hit free-shipping threshold) to show a real rate:
+cheapestQuote(methods, { zoneId: "us", weight: 300, subtotal: 5000 }, { excludeFree: true });
+// → cheapest method that actually charges → { methodId: "global", cost: 900, free: false }
 ```
 
 ## Free-shipping nudge
@@ -77,7 +81,7 @@ freeShippingRemaining(std, 3800); // → 1200  ("spend $12.00 more for free ship
 | `resolveZone(dest, zones)` | match a destination to a zone — region first, then country, case-insensitive |
 | `rateForMethod(method, input)` | compute one method's `ShippingQuote` (base by strategy + surcharge + handling, clamped, free-over applied) |
 | `quoteShipping(methods, input)` | filter by zone & quote every applicable method, sorted by cost ascending |
-| `cheapestQuote(methods, input)` | the single lowest quote, or `undefined` |
+| `cheapestQuote(methods, input, { excludeFree? })` | the single lowest quote, or `undefined`; `{ excludeFree: true }` skips zero-cost methods and returns the cheapest that actually charges |
 | `freeShippingRemaining(method, subtotal)` | minor units still needed to hit `freeOver` (`0` if none / already free) |
 | `ShippingError` | thrown when a method can't be rated (no matching band or missing metric) |
 
@@ -89,9 +93,9 @@ All amounts are integer **minor units**; a method with no `zoneId` applies to ev
 
 ## Licensing
 
-This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
 
-Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://developer.lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -99,7 +103,7 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 ## The Lacspace Developer Platform
 
-`@lacspace/shipping` is part of **63+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
+`@lacspace/shipping` is part of **80+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
 
 - 🗂️ **All packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — https://developer.lacspace.com/handbook
@@ -107,4 +111,4 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.

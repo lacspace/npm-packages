@@ -126,7 +126,7 @@ interface ChainVerification {
 
 ## The Lacspace Developer Platform
 
-`@lacspace/audit-log` is part of **63+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
+`@lacspace/audit-log` is part of **80+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
 
 - 🗂️ **All packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — https://developer.lacspace.com/handbook
@@ -134,4 +134,4 @@ interface ChainVerification {
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.

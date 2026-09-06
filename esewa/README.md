@@ -49,6 +49,17 @@ const form = await buildForm(
 
 `total_amount` defaults to `amount + taxAmount + productServiceCharge + productDeliveryCharge`.
 
+> **eSewa amounts are in RUPEES, not paisa.** The rest of the @lacspace commerce suite (cart, order, tax, invoice, money…) stores integer **paisa**. Convert at this boundary with `paisaToRupees` — passing paisa straight through overcharges the customer 100×.
+>
+> ```ts
+> import { buildForm, paisaToRupees } from "@lacspace/esewa";
+>
+> paisaToRupees(12345); // → 123.45
+>
+> // a Rs 123.45 order stored as 12345 paisa:
+> await buildForm({ amount: paisaToRupees(12345), transactionUuid, productCode, successUrl, failureUrl }, { secret, env: "test" });
+> ```
+
 ## Verify the success redirect
 
 ```ts
@@ -80,6 +91,7 @@ const status = await checkStatus(
 | Export | Description |
 | --- | --- |
 | `signPayment({ total_amount, transaction_uuid, product_code }, secret)` | base64 HMAC-SHA256 signature |
+| `paisaToRupees(paisa)` | convert integer paisa → rupees for eSewa's amount fields (`12345` → `123.45`) |
 | `buildForm(input, { secret, env? })` | `{ action, method, fields }` ready to POST |
 | `verifyResponse(base64Data, secret)` | `{ valid, data }` — decode + timing-safe verify |
 | `checkStatus(params, { env?, fetch? })` | GET the status API, returns parsed JSON |
@@ -91,9 +103,9 @@ const status = await checkStatus(
 
 ## Licensing
 
-This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
 
-Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://developer.lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -101,7 +113,7 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 ## The Lacspace Developer Platform
 
-`@lacspace/esewa` is part of **63+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
+`@lacspace/esewa` is part of **80+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
 
 - 🗂️ **All packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — https://developer.lacspace.com/handbook
@@ -109,4 +121,4 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.

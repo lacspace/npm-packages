@@ -5,6 +5,7 @@
 **A stock-tracking engine that prevents overselling — reserve, commit & restock over a plain state object.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/inventory?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/inventory)
+[![install size](https://packagephobia.com/badge?p=@lacspace/inventory)](https://packagephobia.com/result?p=@lacspace/inventory)
 [![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/inventory?label=minzip)](https://bundlephobia.com/package/@lacspace/inventory)
 [![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/inventory)
 [![license](https://img.shields.io/npm/l/@lacspace/inventory?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
@@ -84,7 +85,7 @@ stock = release(stock, 18); // cart abandoned → put them back
 
 ## Licensing
 
-This package is **free** under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
 
 Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
@@ -94,7 +95,7 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 ## The Lacspace Developer Platform
 
-`@lacspace/inventory` is part of **63+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
+`@lacspace/inventory` is part of **80+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
 
 - 🗂️ **All packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — https://developer.lacspace.com/handbook
@@ -102,4 +103,4 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.

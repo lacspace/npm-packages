@@ -1,6 +1,24 @@
+<div align="center">
+
 # @lacspace/store
 
-**Minimal global state for React in ~1 KB — create a store, use selectors, no provider.** Built on `useSyncExternalStore` with a `persist` middleware and shallow equality. Zero-dependency, SSR-safe, fully typed. A Zustand-lite.
+**Minimal global state for React in ~1 KB — create a store, use selectors, no provider.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/store?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/store)
+[![install size](https://packagephobia.com/badge?p=@lacspace/store)](https://packagephobia.com/result?p=@lacspace/store)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/store?label=minzip)](https://bundlephobia.com/package/@lacspace/store)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/store)
+[![license](https://img.shields.io/npm/l/@lacspace/store?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> A **Zustand-lite** store built on React's own `useSyncExternalStore` — define state and actions in one `create` call, then select slices anywhere. No provider, no context, no reducer boilerplate. Zero dependencies, SSR-safe, fully typed.
+
+- 🪝 `create` — a store that **is** its own hook `useStore(selector?, equalityFn?)`
+- 🧩 `createStore` — a vanilla, framework-agnostic store (drive it outside React)
+- 💾 `persist` — hydrate from / write to `localStorage` or `sessionStorage`
+- 🎯 `shallow` — one-level equality so same-shaped selections skip re-renders
+- ⚡ ~1 KB · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · React peer dep only
 
 ## Install
 
@@ -131,7 +149,7 @@ vanilla.setState({ ready: true });
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -139,14 +157,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/store` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/store` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/store
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

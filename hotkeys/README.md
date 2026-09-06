@@ -1,6 +1,18 @@
+<div align="center">
+
 # @lacspace/hotkeys
 
-**Ergonomic keyboard shortcuts for React** — combos (`mod+k`), key sequences (`g then d`), scopes, and pretty display formatting (`⌘K`). SSR-safe, respects form fields, zero-dependency, fully typed.
+**Ergonomic keyboard shortcuts for React — combos, sequences, scopes and `⌘K` formatting.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/hotkeys?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/hotkeys)
+[![install size](https://packagephobia.com/badge?p=@lacspace/hotkeys)](https://packagephobia.com/result?p=@lacspace/hotkeys)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/hotkeys?label=minzip)](https://bundlephobia.com/package/@lacspace/hotkeys)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/hotkeys)
+[![license](https://img.shields.io/npm/l/@lacspace/hotkeys?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> `useHotkeys` for combos (`mod+k`), key sequences (`g then d`), named scopes, and pretty display formatting (`⌘K`). SSR-safe, respects form fields, zero-dependency, fully typed.
 
 - **`mod` does the right thing** — Cmd on macOS, Ctrl everywhere else.
 - **Sequences** — Gmail-style `g then d` chords with a rolling timeout.
@@ -162,7 +174,7 @@ No dependencies. No context providers. Combos and sequences are matched by compa
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -170,14 +182,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/hotkeys` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/hotkeys` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/hotkeys
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

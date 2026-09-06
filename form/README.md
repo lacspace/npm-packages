@@ -5,11 +5,19 @@
 **Typed, validated, spam-protected form handling — built for Next.js Server Actions.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/form?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/form)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/form?label=minzip)](https://bundlephobia.com/package/@lacspace/form)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/form)
 [![license](https://img.shields.io/npm/l/@lacspace/form?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > Take a `FormData`, validate it against a schema, block bots with a honeypot + timing check, and get back **either your typed data or per-field errors ready to re-render**. Framework-agnostic, zero dependencies.
+
+- 📥 `formDataToObject(fd)` — `FormData` → plain object (repeated keys → arrays, files passed through)
+- ✅ `createForm({ schema })` → `{ handle, action }` — `action` drops straight into React's `useActionState`
+- 🍯 Spam guard — a `honeypot` field + `minSubmitMs` timing check, internal fields stripped before validation
+- 🎯 Typed result — `{ ok: true, data }` or `{ ok: false, errors, values, spam? }` to re-render with input intact
+- 🌍 Zero dependencies · isomorphic · fully typed
 
 ## Install
 
@@ -88,7 +96,7 @@ Pairs with [`@lacspace/validate`](https://www.npmjs.com/package/@lacspace/valida
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -96,14 +104,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/form` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/form` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/form
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

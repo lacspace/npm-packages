@@ -1,6 +1,25 @@
+<div align="center">
+
 # @lacspace/hooks
 
-**Essential, SSR-safe React hooks — everything you reach for, zero dependencies.**
+**Essential, SSR-safe React hooks — everything you reach for, in one zero-dependency package.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/hooks?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/hooks)
+[![install size](https://packagephobia.com/badge?p=@lacspace/hooks)](https://packagephobia.com/result?p=@lacspace/hooks)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/hooks?label=minzip)](https://bundlephobia.com/package/@lacspace/hooks)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/hooks)
+[![license](https://img.shields.io/npm/l/@lacspace/hooks?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> Instead of installing a handful of single-purpose hook libraries, get **28 SSR-safe, fully-typed React hooks** — storage, debounce/throttle, media queries, click-outside, clipboard and more — in one tree-shakeable package.
+
+- 💾 `useLocalStorage` / `useSessionStorage` — JSON state, cross-tab sync, SSR-safe
+- ⏱️ `useDebounce` / `useDebouncedCallback` / `useThrottle` / `useInterval` / `useTimeout`
+- 🖱️ `useOnClickOutside` / `useHover` / `useEventListener` / `useIntersectionObserver`
+- 📐 `useMediaQuery` / `useWindowSize` / `useScrollPosition`
+- 🧰 `useToggle` / `useCounter` / `useDisclosure` / `useCopyToClipboard` / `useIdle` + more
+- ⚡ Zero deps · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · tree-shakeable
 
 ## Install
 
@@ -112,7 +131,7 @@ function Share({ url }: { url: string }) {
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -120,14 +139,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/hooks` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/hooks` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/hooks
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

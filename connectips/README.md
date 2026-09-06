@@ -99,11 +99,19 @@ const token = await signToken(params, privateKeyPem); // base64 RSA-SHA256 signa
 - Keep your **RSA private key** on the server only — never ship it to the browser.
 - The signed message must match Connect IPS's expected field order exactly; this package builds it for you.
 
+## Licensing
+
+This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.
+
+Not every Lacspace package is free. We also offer **Commercial** (paid), **Client-specific**, and **Private** (proprietary) packages under separate terms. See the full **[Lacspace Licence Centre](https://developer.lacspace.com/licenses)**.
+
+<!-- LACSPACE-DEV-PLATFORM -->
+
 ---
 
 ## The Lacspace Developer Platform
 
-`@lacspace/connectips` is part of **63+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
+`@lacspace/connectips` is part of **80+ zero-dependency, isomorphic TypeScript packages**. Explore the ecosystem:
 
 - 🗂️ **All packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — https://developer.lacspace.com/handbook
@@ -111,4 +119,4 @@ const token = await signToken(params, privateKeyPem); // base64 RSA-SHA256 signa
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.

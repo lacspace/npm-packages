@@ -5,11 +5,19 @@
 **Cookieless, privacy-first web analytics — to your own endpoint. No consent banner.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/analytics-lite?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/analytics-lite)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/analytics-lite?label=minzip)](https://bundlephobia.com/package/@lacspace/analytics-lite)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/analytics-lite)
 [![license](https://img.shields.io/npm/l/@lacspace/analytics-lite?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > Page views and custom events, sent to a URL **you** control. No cookies, no `localStorage` identifiers, no cross-site tracking, no fingerprinting — so in most places you don't need a consent banner. Respects Do-Not-Track, auto-tracks SPA navigation, and uses `sendBeacon` so events survive page unload.
+
+- 🍪 Cookieless & fingerprint-free — the `sid` is per-page-load and never persisted
+- 📡 `sendBeacon` first (falls back to `fetch`) — events survive page unload
+- 🧭 `autoTrack()` — page views on SPA route changes, returns a cleanup function
+- 🙈 Honours `navigator.doNotTrack`; no-ops safely on the server
+- 🌍 Zero dependencies · isomorphic · fully typed
 
 ## Install
 
@@ -70,7 +78,7 @@ Set `debug: true` to log events to the console instead of sending them.
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -78,14 +86,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/analytics-lite` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/analytics-lite` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/analytics-lite
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

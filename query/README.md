@@ -1,6 +1,24 @@
+<div align="center">
+
 # @lacspace/query
 
-**Tiny data fetching for React — a shared cache, request de-duplication, stale-while-revalidate, focus/reconnect revalidation, polling, and mutations. `useQuery` + `useMutation` in ~2KB. Zero dependencies, SSR-safe, fully typed. An SWR-lite.**
+**Tiny data fetching for React — `useQuery` + `useMutation` in ~2 KB, an SWR-lite.**
+
+[![npm version](https://img.shields.io/npm/v/@lacspace/query?color=%2338bdf8&label=npm)](https://www.npmjs.com/package/@lacspace/query)
+[![install size](https://packagephobia.com/badge?p=@lacspace/query)](https://packagephobia.com/result?p=@lacspace/query)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/query?label=minzip)](https://bundlephobia.com/package/@lacspace/query)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/query)
+[![license](https://img.shields.io/npm/l/@lacspace/query?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
+
+</div>
+
+> A shared, module-level cache with request de-duplication, stale-while-revalidate, focus/reconnect revalidation, polling and mutations — think **SWR-lite** in ~2 KB. Zero dependencies, SSR-safe, fully typed.
+
+- 🔗 `useQuery(key, fetcher, options?)` — dedup, SWR cache, focus/reconnect/poll revalidation
+- ✏️ `useMutation(fn, options?)` — mutations with `isPending`, `onSuccess`/`onError`/`onSettled`
+- 🗂️ String **or** array keys — serialized with sorted object props, so key order never matters
+- 🌍 `mutate` / `setQueryData` / `getQueryData` / `prefetchQuery` / `clearQueryCache` — from anywhere
+- ⚡ ~2 KB · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · React peer dep only
 
 ## Install
 
@@ -136,7 +154,7 @@ Arrays are serialized with sorted object keys, so `["u", { a: 1, b: 2 }]` and
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -144,14 +162,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/query` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/query` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/query
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

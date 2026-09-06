@@ -5,11 +5,19 @@
 **LRU + TTL + stale-while-revalidate, and one-line async memoization. Zero dependencies.**
 
 [![npm version](https://img.shields.io/npm/v/@lacspace/cache?color=%2316a34a&label=npm)](https://www.npmjs.com/package/@lacspace/cache)
+[![minzipped](https://img.shields.io/bundlephobia/minzip/@lacspace/cache?label=minzip)](https://bundlephobia.com/package/@lacspace/cache)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/@lacspace/cache)
 [![license](https://img.shields.io/npm/l/@lacspace/cache?color=green)](https://github.com/lacspace/npm-packages/blob/main/LICENSE)
 
 </div>
 
 > An in-memory cache that does the three things you actually want — bound the size (LRU), expire entries (TTL), and hide latency (stale-while-revalidate) — plus `wrap()`/`memoize()` that cache any async function and **de-duplicate concurrent calls**. Tiny, typed, isomorphic.
+
+- 📦 `createCache({ max, ttl })` — LRU + per-entry TTL, `get`/`set`/`has`/`delete`/`clear`/`keys`/`size`
+- 🔁 `cache.wrap(key, fn)` — cache an async call and **de-dupe concurrent callers** into one fetch
+- ⚡ `staleWhileRevalidate` — serve the stale value instantly, refresh in the background
+- 🧠 `memoize(fn)` — one-line async memoization with a `.cache` handle
+- 🌍 Zero dependencies · isomorphic · fully typed
 
 ## Install
 
@@ -70,7 +78,7 @@ Pairs with [`@lacspace/retry`](https://www.npmjs.com/package/@lacspace/retry) fo
 
 ## Licensing
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice. See the **[Lacspace Licence Centre](https://lacspace.com/licenses)**.
 
 <!-- LACSPACE-DEV-PLATFORM -->
 
@@ -78,14 +86,14 @@ Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-
 
 ## The Lacspace Developer Platform
 
-`@lacspace/cache` is part of **63 zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
+`@lacspace/cache` is part of **80+ zero-dependency, isomorphic TypeScript packages** — one standard library for the modern web. Explore the ecosystem:
 
 - 📦 **This package, documented** — https://developer.lacspace.com/packages/cache
-- 🗂️ **All 63 packages** — https://developer.lacspace.com/packages
+- 🗂️ **All 80+ packages** — https://developer.lacspace.com/packages
 - 🧭 **Developer handbook** — guides & runnable recipes — https://developer.lacspace.com/handbook
 - 🧪 **Live playground** — run any package in your browser — https://developer.lacspace.com/playground
 - 🖥️ **Finished app templates** — https://templates.lacspace.com
 - 🚀 **Scaffold a full app** — `npm create lacspace-app@latest`
 
-Free under the **[Lacspace Free Licence](https://lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
+Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 

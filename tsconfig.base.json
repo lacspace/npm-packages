@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": false
   },
-  "exclude": ["**/dist", "**/node_modules", "lacspace-leads", "lacspace-scraper", "lacspace-monitor", "lacspace-enrich", "lacspace-extract"]
+  "exclude": ["**/dist", "**/node_modules", "lacspace-leads", "lacspace-scraper", "lacspace-monitor", "lacspace-enrich", "lacspace-extract", "lacspace-sql", "lacspace-inspect", "lacspace-dotenv", "lacspace-webhook", "lacspace-har", "lacspace-cron", "lacspace-icon"]
 }

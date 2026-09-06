@@ -1,0 +1,46 @@
+{
+  "name": "lacspace-har",
+  "version": "0.1.0",
+  "description": "Read a browser .har export offline — waterfall totals, slowest and largest requests, third-party and MIME breakdowns, cache and compression wins, and flagged performance issues. Zero dependencies.",
+  "type": "module",
+  "bin": {
+    "lacspace-har": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "har", "har-analyzer", "har-viewer", "waterfall", "performance",
+    "web-performance", "network", "devtools", "page-weight", "third-party",
+    "cli", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/har",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-har" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": { "access": "public" }
+}

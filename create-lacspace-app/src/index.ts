@@ -121,6 +121,9 @@ const nextConfig = (): string => `import { toNextHeaders } from "@lacspace/heade
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Serve under a sub-path (e.g. a templates.lacspace.com/<name> demo) by setting
+  // NEXT_PUBLIC_BASE_PATH at build time; leave it unset for a normal standalone app.
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   async headers() {
     // Hardened security headers (HSTS, CSP, X-Frame-Options, …) from @lacspace/headers
     return toNextHeaders();
@@ -3406,9 +3409,12 @@ export default function Page() {
     weight: Number((i.meta && (i.meta as Record<string, unknown>).weight) ?? 0),
   }));
   const q = quote(lines);
+  // Prefix API calls so they work both standalone and under a demo sub-path
+  // (basePath). router.push / <Link> already apply basePath automatically.
+  const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
   async function submitEsewaForm(amount: number, orderNumber: string) {
-    const res = await fetch("/api/pay/esewa", {
+    const res = await fetch(BASE + "/api/pay/esewa", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ amount, orderNumber }),
@@ -3433,7 +3439,7 @@ export default function Page() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch(BASE + "/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ lines, customer: { name, email, address }, paymentMethod: method }),
@@ -3447,7 +3453,7 @@ export default function Page() {
         return;
       }
       if (method === "khalti") {
-        const pay = await fetch("/api/pay/khalti", {
+        const pay = await fetch(BASE + "/api/pay/khalti", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ amount: order.total, orderNumber: order.orderNumber, orderName: ${JSON.stringify(`${ctx.template.siteName} order`)}, customer: { name, email } }),

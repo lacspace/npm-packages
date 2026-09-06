@@ -36,15 +36,15 @@ interface TemplateDef {
 }
 
 const TEMPLATES: TemplateDef[] = [
-  { key: "personal", label: "Personal portfolio", description: "A sleek personal / developer portfolio with projects and contact.", accent: ["#6366f1", "#a855f7"], siteName: "Your Name", siteDescription: "Developer, designer & maker. Selected work and writing." },
-  { key: "business", label: "Business site", description: "A professional company / agency site with services and a CTA.", accent: ["#2563eb", "#06b6d4"], siteName: "Acme Studio", siteDescription: "We design and build digital products that grow businesses." },
-  { key: "ecommerce", label: "E-commerce storefront", description: "A modern product storefront home with a featured grid.", accent: ["#0d9488", "#84cc16"], siteName: "Acme Store", siteDescription: "Beautiful things, thoughtfully made. Free shipping worldwide." },
-  { key: "saas", label: "SaaS landing", description: "A high-converting SaaS landing page with features and pricing.", accent: ["#7c3aed", "#ec4899"], siteName: "Acme Cloud", siteDescription: "The all-in-one platform your team will love. Ship faster." },
-  { key: "blog", label: "Blog / magazine", description: "A clean editorial blog home with a featured post and a grid.", accent: ["#f97316", "#ef4444"], siteName: "The Journal", siteDescription: "Essays, notes and stories on building things that matter." },
-  { key: "docs", label: "Documentation", description: "A docs landing with quick-start and feature cards.", accent: ["#0ea5e9", "#6366f1"], siteName: "Acme Docs", siteDescription: "Everything you need to build with Acme — guides, API and examples." },
-  { key: "dashboard", label: "Admin dashboard", description: "An app dashboard shell with stat cards and a table.", accent: ["#10b981", "#14b8a6"], siteName: "Acme Admin", siteDescription: "Your control center — metrics, activity and management in one place." },
-  { key: "restaurant", label: "Restaurant / cafe", description: "A warm restaurant home with menu highlights and reservations.", accent: ["#e11d48", "#f59e0b"], siteName: "Olive & Ember", siteDescription: "Seasonal plates, natural wine and a warm room. Book a table." },
-  { key: "marketplace", label: "Marketplace / commerce", description: "A real storefront wired to the Lacspace commerce packages — cart, checkout, tax, shipping, orders, invoices and Nepal payments.", accent: ["#0d9488", "#6366f1"], siteName: "Bazaar", siteDescription: "A modern storefront — cart to checkout, wired end to end." },
+  { key: "personal", label: "Personal portfolio", description: "A sleek personal / developer portfolio with projects and contact.", accent: ["#6366f1", "#a855f7"], siteName: "LSFolio", siteDescription: "Developer, designer & maker. Selected work and writing." },
+  { key: "business", label: "Business site", description: "A professional company / agency site with services and a CTA.", accent: ["#2563eb", "#06b6d4"], siteName: "LSStudio", siteDescription: "We design and build digital products that grow businesses." },
+  { key: "ecommerce", label: "E-commerce storefront", description: "A modern product storefront home with a featured grid.", accent: ["#0d9488", "#84cc16"], siteName: "LSStore", siteDescription: "Beautiful things, thoughtfully made. Free shipping worldwide." },
+  { key: "saas", label: "SaaS landing", description: "A high-converting SaaS landing page with features and pricing.", accent: ["#7c3aed", "#ec4899"], siteName: "LSCloud", siteDescription: "The all-in-one platform your team will love. Ship faster." },
+  { key: "blog", label: "Blog / magazine", description: "A clean editorial blog home with a featured post and a grid.", accent: ["#f97316", "#ef4444"], siteName: "LSBlogs", siteDescription: "Essays, notes and stories on building things that matter." },
+  { key: "docs", label: "Documentation", description: "A docs landing with quick-start and feature cards.", accent: ["#0ea5e9", "#6366f1"], siteName: "LSDocs", siteDescription: "Everything you need to build with LSDocs — guides, API and examples." },
+  { key: "dashboard", label: "Admin dashboard", description: "An app dashboard shell with stat cards and a table.", accent: ["#10b981", "#14b8a6"], siteName: "LSAdmin", siteDescription: "Your control center — metrics, activity and management in one place." },
+  { key: "restaurant", label: "Restaurant / cafe", description: "A warm restaurant home with menu highlights and reservations.", accent: ["#e11d48", "#f59e0b"], siteName: "LSResto", siteDescription: "Seasonal plates, natural wine and a warm room. Book a table." },
+  { key: "marketplace", label: "Marketplace / commerce", description: "A real storefront wired to the Lacspace commerce packages — cart, checkout, tax, shipping, orders, invoices and Nepal payments.", accent: ["#0d9488", "#6366f1"], siteName: "LSBazaar", siteDescription: "A modern storefront — cart to checkout, wired end to end." },
 ];
 
 /* ------------------------------ shared files ------------------------------ */
@@ -151,30 +151,47 @@ const globalsCss = (ctx: Ctx): string => `@import "tailwindcss";
   --color-surface: var(--surface);
   --color-panel: var(--panel);
   --color-hairline: var(--hairline);
+  --color-accent: var(--accent-to);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
   --accent-from: ${ctx.template.accent[0]};
   --accent-to: ${ctx.template.accent[1]};
-  /* Light theme */
-  --bg: #ffffff;
+  /* on-accent text — accent gradients are saturated, so black reads cleanest */
+  --on-accent: #0a0a0f;
+  /* Light theme — warm off-white ground, near-black ink */
+  --bg: #fbfbfd;
   --fg: #0a0a0f;
-  --muted: #3f3f46;
-  --faint: #71717a;
-  --surface: rgb(0 0 0 / 0.03);
-  --panel: rgb(0 0 0 / 0.06);
-  --hairline: rgb(0 0 0 / 0.10);
+  --muted: #52525b;
+  --faint: #8a8a94;
+  --surface: rgb(0 0 0 / 0.025);
+  --panel: rgb(0 0 0 / 0.05);
+  --hairline: rgb(0 0 0 / 0.08);
+  /* soft, layered shadows (never harsh) */
+  --shadow-sm: 0 1px 2px rgb(15 15 25 / 0.05), 0 1px 1px rgb(15 15 25 / 0.03);
+  --shadow: 0 4px 12px -2px rgb(15 15 25 / 0.08), 0 2px 6px -2px rgb(15 15 25 / 0.05);
+  --shadow-lg: 0 24px 48px -12px rgb(15 15 25 / 0.14), 0 8px 20px -8px rgb(15 15 25 / 0.08);
+  --glow: 0 0 0 1px rgb(0 0 0 / 0.04);
+  --radius: 1rem;
+  --radius-lg: 1.5rem;
 }
 
 .dark {
-  /* Dark theme (default) */
-  --bg: #0a0a0f;
+  /* Dark theme (default) — deep near-black with a hint of indigo */
+  --on-accent: #0a0a0f;
+  --bg: #08080c;
   --fg: #f5f5f7;
-  --muted: rgb(255 255 255 / 0.62);
-  --faint: rgb(255 255 255 / 0.42);
-  --surface: rgb(255 255 255 / 0.04);
-  --panel: rgb(255 255 255 / 0.08);
-  --hairline: rgb(255 255 255 / 0.10);
+  --muted: rgb(235 235 245 / 0.66);
+  --faint: rgb(235 235 245 / 0.42);
+  --surface: rgb(255 255 255 / 0.035);
+  --panel: rgb(255 255 255 / 0.07);
+  --hairline: rgb(255 255 255 / 0.09);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow: 0 8px 24px -6px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 32px 64px -16px rgb(0 0 0 / 0.65), 0 12px 28px -12px rgb(0 0 0 / 0.5);
+  --glow: 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 * { border-color: var(--hairline); }
@@ -184,49 +201,129 @@ body {
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Confident, tight display type — a fluid clamp() scale + negative tracking. */
+h1, h2, h3, .display { letter-spacing: -0.02em; text-wrap: balance; }
+h1, .display { letter-spacing: -0.035em; line-height: 1.02; }
+.text-display { font-size: clamp(2.6rem, 6.5vw, 4.75rem); line-height: 1; letter-spacing: -0.04em; font-weight: 800; text-wrap: balance; }
+.text-hero { font-size: clamp(2.2rem, 5.5vw, 3.75rem); line-height: 1.03; letter-spacing: -0.035em; font-weight: 800; text-wrap: balance; }
+.lead { font-size: clamp(1.05rem, 1.6vw, 1.25rem); line-height: 1.6; color: var(--muted); text-wrap: pretty; }
+
 ::selection { background: var(--accent-to); color: #fff; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 8px; }
-:focus-visible { outline: 2px solid var(--accent-to); outline-offset: 2px; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--hairline); }
+:focus-visible { outline: 2px solid var(--accent-to); outline-offset: 2px; border-radius: 6px; }
 
 .gradient-text {
-  background: linear-gradient(120deg, var(--accent-from), var(--accent-to));
+  background: linear-gradient(115deg, var(--accent-from), var(--accent-to));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.gradient-bg { background: linear-gradient(120deg, var(--accent-from), var(--accent-to)); }
+.gradient-bg { background: linear-gradient(115deg, var(--accent-from), var(--accent-to)); }
+.on-accent { color: var(--on-accent); }
+
+/* soft accent halo used behind hero type & badges */
+.accent-glow { box-shadow: 0 8px 32px -8px color-mix(in oklab, var(--accent-to) 55%, transparent); }
 
 /* opaque theme background (for sticky chrome & chips) */
 .bg-app { background: var(--bg); }
+
+/* frosted glass — translucent surface + blur + hairline */
+.glass {
+  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--hairline);
+}
+
+/* the workhorse surface card — rounded, hairline, soft shadow, hover lift + glow */
+.card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.4s var(--ease-out-expo), box-shadow 0.4s var(--ease-out-expo), border-color 0.4s var(--ease-out-expo);
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: color-mix(in oklab, var(--accent-to) 40%, var(--hairline));
+}
+
+/* subtle gradient hairline border (draws focus without shouting) */
+.gradient-border { position: relative; }
+.gradient-border::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  background: linear-gradient(140deg, color-mix(in oklab, var(--accent-from) 60%, transparent), transparent 45%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+}
+
+/* subtle background patterns for section grounds */
+.grid-bg {
+  background-image: linear-gradient(var(--hairline) 1px, transparent 1px), linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+}
+.dot-bg {
+  background-image: radial-gradient(var(--hairline) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, #000 20%, transparent 70%);
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, #000 20%, transparent 70%);
+}
 
 /* indeterminate progress bar (used by the "under development" pages) */
 @keyframes loadbar { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
 
 /* ambient motion for illustrations & the aurora background */
-@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+@keyframes drift { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 33% { transform: translate3d(4%, -3%, 0) scale(1.06); } 66% { transform: translate3d(-3%, 3%, 0) scale(0.96); } }
 @keyframes spin-slow { to { transform: rotate(360deg); } }
 @keyframes gradient-pan { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes shimmer-sweep { 0% { transform: translateX(-120%) skewX(-16deg); } 60%, 100% { transform: translateX(320%) skewX(-16deg); } }
 .animate-floaty { animation: floaty 6s ease-in-out infinite; }
 .animate-floaty-slow { animation: floaty 9s ease-in-out infinite; }
-.animate-spin-slow { animation: spin-slow 26s linear infinite; }
+.animate-drift { animation: drift 22s ease-in-out infinite; }
+.animate-drift-slow { animation: drift 30s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 30s linear infinite; }
 .gradient-text-animated {
-  background: linear-gradient(120deg, var(--accent-from), var(--accent-to), var(--accent-from));
+  background: linear-gradient(115deg, var(--accent-from), var(--accent-to), var(--accent-from));
   background-size: 200% 200%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: gradient-pan 6s ease infinite;
 }
-.marquee-track { display: flex; width: max-content; animation: marquee-x 32s linear infinite; }
+.marquee-track { display: flex; width: max-content; animation: marquee-x 40s linear infinite; }
+.marquee-track:hover { animation-play-state: paused; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
-.animate-draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: draw 1.8s ease forwards; }
+.animate-draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: draw 1.8s var(--ease-out-expo) forwards; }
 .marquee-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 
-/* soft entrance for content */
-@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-main > section, main > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; scroll-behavior: auto; } }
+/* a slow gradient light-sweep for primary CTAs */
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  animation: shimmer-sweep 4.5s var(--ease-out-expo) infinite; pointer-events: none;
+}
+
+/* soft, staggered entrance for content — nicer easing */
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+main > section { animation: rise 0.7s var(--ease-out-expo) both; }
+main > section:nth-of-type(2) { animation-delay: 0.06s; }
+main > section:nth-of-type(3) { animation-delay: 0.12s; }
+main > section:nth-of-type(4) { animation-delay: 0.16s; }
+
+/* respect reduced motion — kill animation AND transition-driven transforms */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation: none !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .shimmer::after { display: none; }
+}
 ${ctx.template.key === "blog" || ctx.template.key === "docs" ? BLOG_PROSE_CSS : ""}`;
 
 // Readable long-form styles for Markdown-rendered blog posts (the .prose wrapper).
@@ -285,13 +382,13 @@ import { site } from "@/lib/site";
 import { CommandMenu } from "@/components/command-menu";
 ${imports}import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], display: "swap" });
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
 export const metadata: Metadata = site.meta({ title: ${JSON.stringify(ctx.template.siteName)} });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html lang="en" className={\`\${inter.variable} \${inter.className}\`} suppressHydrationWarning>
       <body className="antialiased">
         {/* ✨ Dark / light / system theming with a built-in no-flash script — @lacspace/theme */}
         <ThemeProvider defaultTheme="dark">
@@ -343,10 +440,11 @@ const notFound = (): string => `import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
-      <div className="text-8xl font-black gradient-text">404</div>
-      <p className="text-lg text-muted">This page wandered off.</p>
-      <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">Back home</Link>
+    <main className="relative flex min-h-screen flex-col items-center justify-center gap-6 overflow-hidden px-6 text-center">
+      <div aria-hidden className="pointer-events-none absolute h-96 w-96 rounded-full gradient-bg opacity-20 blur-3xl animate-drift-slow" />
+      <div className="relative text-[9rem] font-black leading-none gradient-text-animated">404</div>
+      <p className="relative text-lg text-muted">This page wandered off. Let's get you home.</p>
+      <Link href="/" className="shimmer relative rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Back home</Link>
     </main>
   );
 }
@@ -477,11 +575,22 @@ function homePage(ctx: Ctx): string {
   if (ctx.template.key === "dashboard") return dashboardHome(ctx);
   if (ctx.template.key === "marketplace") return marketplaceHome(ctx);
 
-  const shell = (inner: string): string => `import { site } from "@/lib/site";
+  const shell = (inner: string): string => {
+  const ctaCopy: Record<string, { t: string; s: string; l: string; h: string }> = {
+    personal: { t: "Have something in mind?", s: "I'm taking on a couple of projects this quarter — let's talk.", l: "Start a conversation", h: "/contact" },
+    business: { t: "Let's build something that ships", s: "Tell us the outcome you're after and we'll map the path.", l: "Start a project", h: "/contact" },
+    ecommerce: { t: "Find your next favourite thing", s: "Free shipping over $50 and 30-day easy returns, always.", l: "Shop the collection", h: "/shop" },
+    saas: { t: "Ready to ship faster?", s: "Start free in minutes — no credit card, no lock-in.", l: "Get started free", h: "/pricing" },
+    blog: { t: "Never miss a piece", s: "Get new essays in your inbox — no spam, unsubscribe anytime.", l: "Join the newsletter", h: "/newsletter" },
+    docs: { t: "Start building today", s: "Go from install to your first request in five minutes.", l: "Read the quickstart", h: "/docs" },
+    restaurant: { t: "Join us for dinner", s: "We fill up fast on weekends — book your table ahead.", l: "Reserve a table", h: "/reservations" },
+  };
+  const cc = ctaCopy[ctx.template.key] ?? ctaCopy.business!;
+  return `import { site } from "@/lib/site";
 import { LiveStats } from "@/components/live-stats";
 import { Aurora } from "@/components/aurora";
 import { HeroArt } from "@/components/hero-art";
-import { StatBand, Steps, Testimonial } from "@/components/ui";
+import { StatBand, Steps, Testimonial, CTABand } from "@/components/ui";
 
 // ✨ Self-canonical home page — one line, full SEO (title, canonical, OG, Twitter).
 export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
@@ -489,91 +598,111 @@ export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
 export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden">
-      {/* ✨ Animated, theme-aware gradient backdrop */}
+      {/* ✨ Soft, theme-aware gradient-mesh backdrop */}
       <Aurora />
       ${inner}
-      ${showcaseSection(ctx)}
       ${marqueeSection(ctx)}
+      ${showcaseSection(ctx)}
       ${extraHomeSections(ctx)}
+      <CTABand title=${JSON.stringify(cc.t)} subtitle=${JSON.stringify(cc.s)} ctaLabel=${JSON.stringify(cc.l)} ctaHref=${JSON.stringify(cc.h)} />
       ${faqSection(ctx)}
       ${builtWithSection(ctx)}
     </main>
   );
 }
 `;
+  };
 
   if (ctx.template.key === "personal") {
-    return shell(`<section className="mx-auto max-w-3xl px-6 py-28 text-center">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Portfolio</p>
-        <h1 className="text-5xl font-black leading-tight sm:text-7xl">Hi, I'm <span className="gradient-text">${n}</span>.</h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <div className="mt-10 flex justify-center gap-4">
-          <a href="#work" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">View my work</a>
-          <a href="#contact" className="rounded-full border border-hairline px-6 py-3 font-semibold hover:bg-surface">Get in touch</a>
+    return shell(`<section className="relative mx-auto max-w-3xl px-6 py-32 text-center sm:py-40">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" /></span> Available for select projects</span>
+        <h1 className="text-display mt-7">Hi, I'm <span className="gradient-text">${n}</span></h1>
+        <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="#work" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">View my work</a>
+          <a href="/contact" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">Get in touch</a>
         </div>
       </section>
-      <section id="work" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="mb-10 text-3xl font-bold">Selected work</h2>
+      <section id="work" className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-12 flex items-end justify-between">
+          <div><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Selected work</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Things I've shipped</h2></div>
+          <a href="/work" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">All projects →</a>
+        </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="group rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 hover:border-hairline">
-              <div className="mb-4 h-32 rounded-xl gradient-bg opacity-80" />
-              <h3 className="font-semibold">Project {i}</h3>
-              <p className="mt-1 text-sm text-muted">A short description of what you built and the impact it had.</p>
-            </div>
+          {[
+            { t: "Aurora Design System", d: "A themeable component library and tokens powering 40+ product screens.", tag: "Design + Code", e: "🎨" },
+            { t: "Northwind Analytics", d: "A real-time dashboard that cut reporting time from hours to seconds.", tag: "Product", e: "📊" },
+            { t: "Lumen Mobile", d: "A 4.9★ React Native app rebuilt from the ground up for speed.", tag: "Mobile", e: "📱" },
+            { t: "Harbor Commerce", d: "A headless storefront with a checkout that converts 38% better.", tag: "E-commerce", e: "🛍️" },
+            { t: "Cadence Marketing", d: "A brand and site refresh that doubled qualified inbound leads.", tag: "Brand", e: "✨" },
+            { t: "Meadow Docs", d: "A fast, searchable docs platform teams actually enjoy reading.", tag: "Web", e: "📚" },
+          ].map((p) => (
+            <a key={p.t} href="/work" className="card group flex flex-col p-6">
+              <div className="mb-5 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl gradient-bg text-5xl on-accent">{p.e}</div>
+              <span className="text-xs font-semibold uppercase tracking-widest gradient-text">{p.tag}</span>
+              <h3 className="mt-1.5 font-semibold tracking-tight">{p.t}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{p.d}</p>
+            </a>
           ))}
         </div>
       </section>`);
   }
 
   if (ctx.template.key === "business") {
-    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <h1 className="text-5xl font-black leading-tight sm:text-6xl">We build products <span className="gradient-text">that grow businesses</span>.</h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <a href="#contact" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Start a project</a>
+    return shell(`<section className="relative mx-auto max-w-4xl px-6 py-32 text-center sm:py-40">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted"><span aria-hidden className="h-1.5 w-1.5 rounded-full gradient-bg" /> A senior product studio</span>
+        <h1 className="text-display mt-7">We build products <span className="gradient-text">that grow businesses</span></h1>
+        <p className="lead mx-auto mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="/contact" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start a project</a>
+          <a href="/work" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">See our work</a>
+        </div>
       </section>
-      <section id="services" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="mb-10 text-center text-3xl font-bold">What we do</h2>
+      <section id="services" className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-12 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">What we do</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">One team, from strategy to launch</h2></div>
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { t: "Strategy", d: "Positioning, research and a roadmap that ships." },
-            { t: "Design", d: "Brand and product design that people remember." },
-            { t: "Engineering", d: "Fast, reliable software built to last." },
+            { t: "Strategy", d: "Positioning, research and a roadmap that ships — grounded in evidence, not opinions.", e: "🧭" },
+            { t: "Design", d: "Brand and product design people remember, with a system that scales past launch day.", e: "🎨" },
+            { t: "Engineering", d: "Fast, reliable software built to last — typed, tested and observable from day one.", e: "⚙️" },
           ].map((s) => (
-            <div key={s.t} className="rounded-2xl border border-hairline bg-surface p-8">
-              <h3 className="text-xl font-bold gradient-text">{s.t}</h3>
-              <p className="mt-2 text-muted">{s.d}</p>
+            <div key={s.t} className="card p-8">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl gradient-bg text-2xl accent-glow">{s.e}</div>
+              <h3 className="text-xl font-bold tracking-tight">{s.t}</h3>
+              <p className="mt-2 leading-relaxed text-muted">{s.d}</p>
             </div>
           ))}
         </div>
-      </section>
-      <section id="contact" className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold">Let's work together</h2>
-        <p className="mt-3 text-muted">Tell us about your project and we'll get back within a day.</p>
-        <a href="mailto:hello@example.com" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">hello@example.com</a>
       </section>`);
   }
 
   if (ctx.template.key === "ecommerce") {
-    return shell(`<section className="mx-auto max-w-5xl px-6 py-24 text-center">
-        <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <a href="#shop" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Shop the collection</a>
+    return shell(`<section className="relative mx-auto max-w-5xl px-6 py-32 text-center sm:py-40">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted">🚚 Free worldwide shipping over $50</span>
+        <h1 className="text-display mt-7"><span className="gradient-text">${n}</span></h1>
+        <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="/shop" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Shop the collection</a>
+          <a href="/collections" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">Browse collections</a>
+        </div>
       </section>
-      <section id="shop" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="mb-10 text-3xl font-bold">Featured</h2>
+      <section id="shop" className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-12 flex items-end justify-between">
+          <div><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Featured</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">This week's edit</h2></div>
+          <a href="/shop" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">Shop all →</a>
+        </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { n: "Aurora Lamp", p: "$89" }, { n: "Terra Mug", p: "$24" },
-            { n: "Linen Throw", p: "$65" }, { n: "Oak Stand", p: "$120" },
+            { n: "Aurora Table Lamp", p: "$89", e: "💡" }, { n: "Terra Stoneware Mug", p: "$24", e: "☕" },
+            { n: "Linen Waffle Throw", p: "$65", e: "🧺" }, { n: "Oak Monitor Stand", p: "$120", e: "🪵" },
           ].map((prod) => (
-            <div key={prod.n} className="group rounded-2xl border border-hairline bg-surface p-4 transition hover:-translate-y-1">
-              <div className="mb-4 aspect-square rounded-xl gradient-bg opacity-80" />
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{prod.n}</h3>
-                <span className="text-muted">{prod.p}</span>
+            <div key={prod.n} className="card group flex flex-col p-4">
+              <a href="/shop" className="mb-4 flex aspect-square items-center justify-center overflow-hidden rounded-xl gradient-bg text-6xl on-accent transition group-hover:scale-[1.03]">{prod.e}</a>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold tracking-tight">{prod.n}</h3>
+                <span className="shrink-0 font-semibold text-muted">{prod.p}</span>
               </div>
-              <a href="/shop" className="mt-3 block w-full rounded-lg border border-hairline py-2 text-center text-sm font-medium hover:bg-surface">Add to cart</a>
+              <a href="/shop" className="mt-4 block w-full rounded-full gradient-bg py-2.5 text-center text-sm font-semibold on-accent transition hover:-translate-y-0.5">Add to cart</a>
             </div>
           ))}
         </div>
@@ -581,27 +710,36 @@ export default function Home() {
   }
 
   if (ctx.template.key === "blog") {
-    return shell(`<section className="mx-auto max-w-3xl px-6 py-24">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-faint">The Journal</p>
-        <h1 className="text-5xl font-black leading-tight sm:text-6xl gradient-text">${n}</h1>
-        <p className="mt-6 text-lg text-muted">${ctx.template.siteDescription}</p>
+    return shell(`<section className="mx-auto max-w-3xl px-6 py-28 sm:py-32">
+        <p className="text-sm font-semibold uppercase tracking-widest gradient-text">The Journal</p>
+        <h1 className="text-display mt-4"><span className="gradient-text">${n}</span></h1>
+        <p className="lead mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
+        <a href="/blog" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-fg underline-offset-4 hover:underline">Read the archive →</a>
       </section>
       <section id="latest" className="mx-auto max-w-5xl px-6 pb-8">
-        <a href="#" className="group block rounded-3xl border border-hairline bg-surface p-8 transition hover:border-hairline">
-          <div className="mb-6 h-56 rounded-2xl gradient-bg opacity-80" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-faint">Featured</span>
-          <h2 className="mt-2 text-3xl font-bold group-hover:opacity-90">The one thing every product needs before launch</h2>
-          <p className="mt-2 text-muted">A short, punchy dek that pulls the reader into the piece and makes them want more.</p>
+        <a href="/blog" className="card group grid gap-6 overflow-hidden p-6 sm:grid-cols-[1.2fr_1fr] sm:p-8">
+          <div className="flex aspect-[16/10] items-center justify-center overflow-hidden rounded-2xl gradient-bg text-6xl on-accent transition group-hover:scale-[1.02]">📮</div>
+          <div className="flex flex-col justify-center">
+            <span className="text-xs font-semibold uppercase tracking-widest gradient-text">Featured</span>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">The one thing every product needs before launch</h2>
+            <p className="mt-3 leading-relaxed text-muted">Most teams polish the wrong things. Here's the single unglamorous check that separates a launch that lands from one that limps.</p>
+            <span className="mt-5 text-sm text-faint">8 min read · Product</span>
+          </div>
         </a>
       </section>
-      <section className="mx-auto max-w-5xl px-6 py-12">
+      <section className="mx-auto max-w-5xl px-6 py-16">
         <div className="grid gap-8 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <a key={i} href="#" className="group">
-              <div className="mb-4 h-40 rounded-xl gradient-bg opacity-70" />
-              <span className="text-xs uppercase tracking-wider text-faint">Essay</span>
-              <h3 className="mt-1 text-xl font-semibold group-hover:opacity-90">A thoughtful headline for post {i}</h3>
-              <p className="mt-1 text-sm text-muted">Two lines of supporting copy to set the scene for the reader.</p>
+          {[
+            { t: "Writing that survives the scroll", d: "Editing tricks that keep readers past the first paragraph.", tag: "Craft", e: "✍️" },
+            { t: "The cost of a fast 'yes'", d: "Why the cheapest decisions are often the most expensive.", tag: "Product", e: "⚖️" },
+            { t: "Building in the open, one year in", d: "What we learned shipping every week where anyone could watch.", tag: "Culture", e: "🌱" },
+            { t: "Design systems for teams of one", d: "You don't need a committee to move fast and stay consistent.", tag: "Design", e: "🎨" },
+          ].map((p) => (
+            <a key={p.t} href="/blog" className="group">
+              <div className="mb-4 flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl gradient-bg text-5xl on-accent transition group-hover:scale-[1.02]">{p.e}</div>
+              <span className="text-xs font-semibold uppercase tracking-widest gradient-text">{p.tag}</span>
+              <h3 className="mt-1.5 text-xl font-semibold tracking-tight transition group-hover:text-[color:var(--accent-to)]">{p.t}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{p.d}</p>
             </a>
           ))}
         </div>
@@ -609,23 +747,27 @@ export default function Home() {
   }
 
   if (ctx.template.key === "docs") {
-    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <h1 className="text-5xl font-black leading-tight sm:text-6xl"><span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <div className="mt-8 inline-flex items-center gap-3 rounded-lg border border-hairline bg-panel px-4 py-3 font-mono text-sm text-muted">
-          <span className="text-faint">$</span> npm install @acme/sdk
+    const pkg = "@" + n.toLowerCase() + "/sdk";
+    return shell(`<section className="relative mx-auto max-w-4xl px-6 py-32 text-center sm:py-40">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted">📘 Docs · v1.0</span>
+        <h1 className="text-display mt-7">Build with <span className="gradient-text">${n}</span></h1>
+        <p className="lead mx-auto mt-6 max-w-2xl">Guides, API references and copy-paste examples — everything you need, in one fast, searchable place.</p>
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <a href="/docs" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Read the docs</a>
+          <div className="glass inline-flex items-center gap-3 rounded-full px-5 py-3 font-mono text-sm text-muted"><span className="gradient-text font-bold">$</span> npm i ${pkg}</div>
         </div>
       </section>
-      <section id="guides" className="mx-auto max-w-6xl px-6 py-12">
+      <section id="guides" className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { t: "Quick start", d: "Go from zero to your first request in five minutes." },
-            { t: "Guides", d: "Task-focused walkthroughs for the common paths." },
-            { t: "API reference", d: "Every endpoint, typed, with copy-paste examples." },
+            { t: "Quick start", d: "Go from zero to your first successful request in under five minutes.", e: "🚀", href: "/docs" },
+            { t: "Guides", d: "Task-focused walkthroughs for the paths you'll actually take.", e: "🧭", href: "/guides" },
+            { t: "API reference", d: "Every endpoint, fully typed, with copy-paste examples in each language.", e: "🔌", href: "/api-reference" },
           ].map((c) => (
-            <a key={c.t} href="#" className="rounded-2xl border border-hairline bg-surface p-8 transition hover:border-hairline">
-              <h3 className="text-xl font-bold gradient-text">{c.t}</h3>
-              <p className="mt-2 text-muted">{c.d}</p>
+            <a key={c.t} href={c.href} className="card group p-8">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl gradient-bg text-2xl accent-glow">{c.e}</div>
+              <h3 className="text-xl font-bold tracking-tight">{c.t} <span className="inline-block transition group-hover:translate-x-1">→</span></h3>
+              <p className="mt-2 leading-relaxed text-muted">{c.d}</p>
             </a>
           ))}
         </div>
@@ -633,65 +775,59 @@ export default function Home() {
   }
 
   if (ctx.template.key === "restaurant") {
-    return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Est. 2026</p>
-        <h1 className="text-5xl font-black leading-tight sm:text-7xl gradient-text">${n}</h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <a href="#reserve" className="mt-10 inline-block gradient-bg rounded-full px-8 py-3 font-semibold text-black">Reserve a table</a>
+    return shell(`<section className="relative mx-auto max-w-4xl px-6 py-32 text-center sm:py-40">
+        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-faint">Est. 2026 · Natural wine bar & kitchen</p>
+        <h1 className="text-display mt-5"><span className="gradient-text">${n}</span></h1>
+        <p className="lead mx-auto mt-6 max-w-xl">${ctx.template.siteDescription}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="/reservations" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Reserve a table</a>
+          <a href="/menu" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">View the menu</a>
+        </div>
       </section>
-      <section id="menu" className="mx-auto max-w-4xl px-6 py-16">
-        <h2 className="mb-10 text-center text-3xl font-bold">Tonight's plates</h2>
-        <div className="grid gap-6 sm:grid-cols-2">
+      <section id="menu" className="mx-auto max-w-4xl px-6 py-20">
+        <div className="mb-12 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">From the pass</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Tonight's plates</h2></div>
+        <div className="grid gap-x-12 gap-y-6 sm:grid-cols-2">
           {[
-            { n: "Charred leeks", p: "$14" }, { n: "Handmade tagliatelle", p: "$22" },
-            { n: "Wood-fired trout", p: "$28" }, { n: "Olive oil cake", p: "$11" },
+            { n: "Charred leeks, hazelnut & aged pecorino", p: "$14" }, { n: "Handmade tagliatelle, brown butter & sage", p: "$22" },
+            { n: "Wood-fired trout, fennel & burnt lemon", p: "$28" }, { n: "Dry-aged sirloin, bone marrow butter", p: "$34" },
+            { n: "Roasted heritage carrots, dukkah & yoghurt", p: "$13" }, { n: "Olive oil & almond cake, crème fraîche", p: "$11" },
           ].map((d) => (
-            <div key={d.n} className="flex items-baseline justify-between gap-4 border-b border-hairline pb-4">
-              <div>
-                <h3 className="text-lg font-semibold">{d.n}</h3>
-                <p className="text-sm text-muted">A short, mouth-watering description of the dish.</p>
-              </div>
-              <span className="shrink-0 gradient-text font-bold">{d.p}</span>
+            <div key={d.n} className="flex items-baseline gap-3 border-b border-dashed border-hairline pb-4">
+              <h3 className="font-semibold tracking-tight">{d.n}</h3>
+              <span className="flex-1" />
+              <span className="shrink-0 gradient-text font-bold tabular-nums">{d.p}</span>
             </div>
           ))}
         </div>
-      </section>
-      <section id="reserve" className="mx-auto max-w-2xl px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold">Join us</h2>
-        <p className="mt-3 text-muted">Open Wed–Sun, 5pm till late. Walk-ins welcome; bookings recommended.</p>
-        <a href="tel:+10000000000" className="mt-8 inline-block rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">Call to book</a>
+        <p className="mt-10 text-center text-sm text-muted">Menu changes with the seasons · ask us about tonight's natural wine pairings.</p>
       </section>`);
   }
 
   // saas
-  return shell(`<section className="mx-auto max-w-4xl px-6 py-28 text-center">
-        <p className="mb-4 inline-block rounded-full border border-hairline px-4 py-1 text-xs font-semibold text-muted">New · v1.0</p>
-        <h1 className="text-5xl font-black leading-tight sm:text-6xl">Ship faster with <span className="gradient-text">${n}</span></h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">${ctx.template.siteDescription}</p>
-        <div className="mt-10 flex justify-center gap-4">
-          <a href="#pricing" className="gradient-bg rounded-full px-8 py-3 font-semibold text-black">Start free</a>
-          <a href="#features" className="rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">See features</a>
+  return shell(`<section className="relative mx-auto max-w-4xl px-6 py-32 text-center sm:py-40">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted"><span aria-hidden className="h-1.5 w-1.5 rounded-full gradient-bg" /> New · Realtime dashboards are live</span>
+        <h1 className="text-display mt-7">Ship faster with <span className="gradient-text">${n}</span></h1>
+        <p className="lead mx-auto mt-6 max-w-2xl">${ctx.template.siteDescription}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a href="/pricing" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Start free</a>
+          <a href="/features" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">See features</a>
         </div>
+        <p className="mt-5 text-sm text-faint">No credit card · Free forever plan · SOC 2-ready</p>
       </section>
-      <section id="features" className="mx-auto max-w-6xl px-6 py-16">
+      <section id="features" className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-12 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Why teams switch</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Everything in one fast place</h2></div>
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { t: "Fast", d: "Built on the edge — global by default." },
-            { t: "Secure", d: "Hardened headers and auth out of the box." },
-            { t: "Scalable", d: "From your first user to your millionth." },
+            { t: "Realtime analytics", d: "Live dashboards on the edge — global by default, no waiting for pipelines.", e: "⚡" },
+            { t: "Secure by default", d: "Hardened headers, SSO and audit logs out of the box. SOC 2-ready.", e: "🔒" },
+            { t: "Scales with you", d: "From your first user to your millionth, with usage-based billing built in.", e: "📈" },
           ].map((f) => (
-            <div key={f.t} className="rounded-2xl border border-hairline bg-surface p-8">
-              <h3 className="text-xl font-bold gradient-text">{f.t}</h3>
-              <p className="mt-2 text-muted">{f.d}</p>
+            <div key={f.t} className="card p-8">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl gradient-bg text-2xl accent-glow">{f.e}</div>
+              <h3 className="text-xl font-bold tracking-tight">{f.t}</h3>
+              <p className="mt-2 leading-relaxed text-muted">{f.d}</p>
             </div>
           ))}
-        </div>
-      </section>
-      <section id="pricing" className="mx-auto max-w-md px-6 py-24 text-center">
-        <div className="rounded-3xl border border-hairline bg-surface p-10">
-          <h2 className="text-3xl font-bold">Pro</h2>
-          <p className="mt-2 text-5xl font-black gradient-text">$29<span className="text-lg text-faint">/mo</span></p>
-          <a href="#" className="mt-8 inline-block w-full gradient-bg rounded-full px-8 py-3 font-semibold text-black">Get started</a>
         </div>
       </section>`);
 }
@@ -930,7 +1066,7 @@ const careersPage = (ctx: Ctx): string => {
           ].map((j) => (
             <div key={j.role} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-surface p-5">
               <div><h3 className="font-semibold">{j.role}</h3><p className="text-sm text-muted">{j.team}</p></div>
-              <div className="flex items-center gap-3"><Badge>{j.type}</Badge><a href="/contact" className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black">Apply</a></div>
+              <div className="flex items-center gap-3"><Badge>{j.type}</Badge><a href="/contact" className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent">Apply</a></div>
             </div>
           ))}
         </div>
@@ -1027,7 +1163,7 @@ const reservationsPage = (ctx: Ctx): string => {
         <div className="mx-auto max-w-2xl rounded-3xl border border-hairline bg-surface p-8 text-center">
           <h2 className="text-2xl font-bold">Book by phone or online</h2>
           <p className="mt-3 text-muted">Call us on <span className="font-semibold text-fg">+1 (555) 012-3456</span> or reserve online in seconds.</p>
-          <a href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black">Reserve a table</a>
+          <a href="/contact" className="mt-6 inline-block rounded-full gradient-bg px-8 py-3 font-semibold on-accent">Reserve a table</a>
         </div>
       </Section>`,
     cta: { title: "Planning something special?", subtitle: "Ask us about private dining and set menus.", label: "Enquire now", href: "/contact" },
@@ -1215,7 +1351,7 @@ export function ContactForm() {
       {err("_form") && <p className={errCls}>{err("_form")}</p>}
       <button
         disabled={pending}
-        className="gradient-bg rounded-full px-8 py-3 font-semibold text-black disabled:opacity-60"
+        className="gradient-bg rounded-full px-8 py-3 font-semibold on-accent disabled:opacity-60"
       >
         {pending ? "Sending…" : "Send message"}
       </button>
@@ -1351,7 +1487,7 @@ export function DocsSidebar({ nav }: { nav: { group: string; items: DocMeta[] }[
                 <li key={d.slug}>
                   <Link
                     href={href}
-                    className={\`block rounded-lg px-3 py-1.5 transition \${active ? "gradient-bg font-semibold text-black" : "text-muted hover:bg-surface hover:text-fg"}\`}
+                    className={\`block rounded-lg px-3 py-1.5 transition \${active ? "gradient-bg font-semibold on-accent" : "text-muted hover:bg-surface hover:text-fg"}\`}
                   >
                     {d.title}
                   </Link>
@@ -2025,13 +2161,15 @@ const siteHeader = (ctx: Ctx): string => {
           <Link href="/cart" aria-label="Cart" className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
             {mounted() && count > 0 ? (
-              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold text-black">{count}</span>
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold on-accent">{count}</span>
             ) : null}
           </Link>`
     : "";
   return `"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUI } from "@/lib/store";
 import { ThemeToggle } from "./theme-toggle";${cartImport}
 
@@ -2040,16 +2178,28 @@ const LINKS = [${linkLiteral(pagesFor(ctx).filter((p) => p.nav))}];
 export function SiteHeader() {
   const open = useUI((s) => s.navOpen);
   const toggle = useUI((s) => s.toggleNav);
-  const setOpen = useUI((s) => s.setNavOpen);${cartHook}
+  const setOpen = useUI((s) => s.setNavOpen);
+  const pathname = usePathname();${cartHook}
+  // Sticky glass header that tightens and gains a hairline once you scroll.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-app/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
-        <div className="hidden items-center gap-6 md:flex">
-          {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="text-sm text-muted transition hover:text-fg">{l.label}</Link>
-          ))}
-          <ThemeToggle />${cartBtn}
+    <header className={"sticky top-0 z-40 transition-all duration-300 " + (scrolled ? "glass shadow-sm" : "border-b border-transparent bg-transparent")}>
+      <nav className={"mx-auto flex max-w-6xl items-center justify-between px-6 transition-all duration-300 " + (scrolled ? "py-3" : "py-5")}>
+        <Link href="/" className="text-lg font-black tracking-tight gradient-text">${ctx.template.siteName}</Link>
+        <div className="hidden items-center gap-1 md:flex">
+          {LINKS.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link key={l.href} href={l.href} className={"rounded-full px-3.5 py-1.5 text-sm font-medium transition " + (active ? "bg-surface text-fg" : "text-muted hover:bg-surface hover:text-fg")}>{l.label}</Link>
+            );
+          })}
+          <div className="ml-2 flex items-center gap-2"><ThemeToggle />${cartBtn}</div>
         </div>
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />${cartBtn}
@@ -2059,10 +2209,10 @@ export function SiteHeader() {
         </div>
       </nav>
       {open ? (
-        <div className="border-t border-hairline md:hidden">
+        <div className="glass border-t border-hairline md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
             ))}
           </div>
         </div>
@@ -2083,22 +2233,32 @@ const siteFooter = (ctx: Ctx): string => {
     .map((g) => `{ title: ${JSON.stringify(g.title)}, links: [${linkLiteral(g.items)}] }`)
     .join(", ");
   return `import Link from "next/link";
+import { Newsletter } from "@/components/ui";
 
 const GROUPS = [${groupsLiteral}];
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-hairline">
-      <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-4">
+    <footer className="relative mt-24 border-t border-hairline">
+      <div className="mx-auto max-w-6xl px-6">
+        {/* newsletter island — floats over the fold between page and footer */}
+        <div className="-mt-16 mb-16">
+          <Newsletter title="Stay in the loop" subtitle="Occasional updates from ${ctx.template.siteName}. No spam — unsubscribe anytime." />
+        </div>
+        <div className="grid gap-10 pb-4 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <div className="text-lg font-black gradient-text">${ctx.template.siteName}</div>
-            <p className="mt-3 max-w-xs text-sm text-muted">${ctx.template.siteDescription}</p>
+            <div className="text-lg font-black tracking-tight gradient-text">${ctx.template.siteName}</div>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">${ctx.template.siteDescription}</p>
+            <div className="mt-5 flex gap-2">
+              {["𝕏", "in", "gh"].map((s) => (
+                <span key={s} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-xs font-semibold text-muted transition hover:border-[color:var(--accent-to)] hover:text-fg">{s}</span>
+              ))}
+            </div>
           </div>
           {GROUPS.map((g) => (
             <div key={g.title}>
-              <div className="text-sm font-semibold">{g.title}</div>
-              <ul className="mt-3 space-y-2 text-sm text-muted">
+              <div className="text-xs font-semibold uppercase tracking-widest text-faint">{g.title}</div>
+              <ul className="mt-4 space-y-2.5 text-sm text-muted">
                 {g.links.map((l) => (
                   <li key={l.href}><Link href={l.href} className="transition hover:text-fg">{l.label}</Link></li>
                 ))}
@@ -2106,7 +2266,7 @@ export function SiteFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-12 flex flex-col gap-3 border-t border-hairline pt-6 text-sm text-faint sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-hairline py-8 text-sm text-faint sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} ${ctx.template.siteName}. All rights reserved.</span>
           <span>Built with <a href="https://lacspace.com/packages" className="text-muted transition hover:text-fg">the Lacspace React Kit</a>.</span>
         </div>
@@ -2132,10 +2292,10 @@ export function AnnouncementBar() {
   if (!mounted() || dismissed) return null;
 
   return (
-    <div className="relative gradient-bg px-10 py-2 text-center text-sm font-medium text-black">
+    <div className="relative gradient-bg px-10 py-2 text-center text-sm font-medium on-accent">
       ✨ Built with the Lacspace React Kit —{" "}
       <a href="https://lacspace.com/packages" className="underline underline-offset-2">explore the packages</a>
-      <button type="button" aria-label="Dismiss" onClick={dismiss} className="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none text-black/60 hover:text-black">×</button>
+      <button type="button" aria-label="Dismiss" onClick={dismiss} className="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none on-accent/60 hover:on-accent">×</button>
     </div>
   );
 }
@@ -2158,7 +2318,7 @@ export function UnderDevelopment({ title = "This page", path }: { title?: string
         <div className="h-full w-1/3 gradient-bg" style={{ animation: "loadbar 1.8s ease-in-out infinite" }} />
       </div>
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-        <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold text-black">Back home</Link>
+        <Link href="/" className="gradient-bg rounded-full px-6 py-3 font-semibold on-accent">Back home</Link>
         <Link href="/contact" className="rounded-full border border-hairline px-6 py-3 font-semibold transition hover:bg-surface">Get in touch</Link>
       </div>
       {path ? (
@@ -2334,29 +2494,48 @@ const builtWithSection = (ctx: Ctx): string => {
 // components/dashboard-shell.tsx — the sidebar chrome shared by dashboard pages.
 const dashboardShell = (ctx: Ctx): string => {
   const nav = [{ path: "/", label: "Overview" }, ...pagesFor(ctx).filter((p) => p.nav)];
-  return `import Link from "next/link";
+  return `"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./theme-toggle";
 
 const NAV = [${linkLiteral(nav)}];
 
 export function DashboardShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  const pathname = usePathname();
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden w-56 shrink-0 border-r border-hairline p-6 md:block">
-        <div className="mb-8 flex items-center justify-between">
-          <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-hairline bg-surface/40 p-5 md:flex">
+        <div className="mb-8 flex items-center justify-between px-2">
+          <Link href="/" className="text-lg font-black tracking-tight gradient-text">${ctx.template.siteName}</Link>
           <ThemeToggle />
         </div>
-        <nav className="space-y-1 text-sm text-muted">
-          {NAV.map((l) => (
-            <Link key={l.href} href={l.href} className="block rounded-lg px-3 py-2 transition hover:bg-surface hover:text-fg">{l.label}</Link>
-          ))}
+        <nav className="flex-1 space-y-1 text-sm">
+          {NAV.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link key={l.href} href={l.href} className={"flex items-center gap-2 rounded-xl px-3 py-2 font-medium transition " + (active ? "gradient-bg on-accent shadow-sm" : "text-muted hover:bg-surface hover:text-fg")}>
+                <span aria-hidden className={"h-1.5 w-1.5 rounded-full " + (active ? "bg-[color:var(--on-accent)]" : "bg-current opacity-40")} />
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
+        <div className="mt-4 rounded-2xl border border-hairline p-4 text-xs text-muted">
+          <p className="font-semibold text-fg">Need a hand?</p>
+          <p className="mt-1">Read the docs or reach the team.</p>
+          <Link href="/help" className="mt-3 inline-block rounded-full gradient-bg px-3 py-1.5 font-semibold on-accent">Get help</Link>
+        </div>
       </aside>
-      <main className="flex-1 p-6 md:p-10">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle ? <p className="mt-1 text-muted">{subtitle}</p> : null}
+      <main className="min-w-0 flex-1 p-6 md:p-10">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+            {subtitle ? <p className="mt-1.5 text-muted">{subtitle}</p> : null}
+          </div>
+          <div className="md:hidden"><ThemeToggle /></div>
+        </div>
         <div className="mt-8">{children}</div>
       </main>
     </div>
@@ -2383,19 +2562,25 @@ export default function Home() {
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-hairline bg-surface p-6 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Revenue</h2>
-            <span className="text-sm font-medium text-emerald-400">+12.4%</span>
+          <div className="mb-5 flex items-center justify-between">
+            <div><h2 className="font-semibold tracking-tight">Revenue</h2><p className="text-sm text-muted">Last 12 months</p></div>
+            <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">▲ 12.4%</span>
           </div>
           <AreaChart data={[12, 18, 15, 22, 20, 28, 26, 34, 30, 38, 42, 48]} />
         </div>
         <div className="rounded-2xl border border-hairline bg-surface p-6">
-          <div className="mb-4 font-semibold">Recent activity</div>
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center justify-between border-b border-hairline pb-3 text-sm">
-                <span className="text-muted">Event #{i}</span>
-                <span className="text-faint">just now</span>
+          <div className="mb-5 font-semibold tracking-tight">Recent activity</div>
+          <div className="space-y-4">
+            {[
+              { who: "Ava Chen", what: "upgraded to Pro", when: "2m ago" },
+              { who: "Order #4821", what: "was paid", when: "18m ago" },
+              { who: "Liam Patel", what: "started a trial", when: "1h ago" },
+              { who: "Refund #204", what: "was issued", when: "3h ago" },
+            ].map((e) => (
+              <div key={e.who} className="flex items-center gap-3 text-sm">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-bg text-xs font-bold on-accent">{e.who.slice(0, 1)}</span>
+                <span className="min-w-0 flex-1 truncate text-muted"><span className="font-medium text-fg">{e.who}</span> {e.what}</span>
+                <span className="shrink-0 text-faint">{e.when}</span>
               </div>
             ))}
           </div>
@@ -2450,7 +2635,7 @@ const pricingPage = (ctx: Ctx): string => pageFile({
             { name: "Scale", price: "Custom", period: "", tagline: "For organizations", features: ["SSO & SAML", "Dedicated support", "SLA & audit logs", "Guided onboarding"], cta: "Contact sales", highlight: false },
           ].map((tier) => (
             <div key={tier.name} className={"flex flex-col rounded-3xl border p-8 " + (tier.highlight ? "border-transparent bg-surface ring-2 ring-[color:var(--accent-to)]" : "border-hairline bg-surface")}>
-              {tier.highlight ? <span className="mb-4 inline-block w-fit rounded-full gradient-bg px-3 py-1 text-xs font-bold text-black">Most popular</span> : null}
+              {tier.highlight ? <span className="mb-4 inline-block w-fit rounded-full gradient-bg px-3 py-1 text-xs font-bold on-accent">Most popular</span> : null}
               <h2 className="text-lg font-semibold">{tier.name}</h2>
               <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
               <div className="mt-6 flex items-baseline gap-1">
@@ -2462,7 +2647,7 @@ const pricingPage = (ctx: Ctx): string => pageFile({
                   <li key={f} className="flex items-center gap-2 text-muted"><span className="text-[color:var(--accent-to)]">✓</span> {f}</li>
                 ))}
               </ul>
-              <Link href="/contact" className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (tier.highlight ? "gradient-bg text-black" : "border border-hairline hover:bg-app")}>{tier.cta}</Link>
+              <Link href="/contact" className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (tier.highlight ? "gradient-bg on-accent" : "border border-hairline hover:bg-app")}>{tier.cta}</Link>
             </div>
           ))}
         </div>
@@ -2752,7 +2937,7 @@ export function ProductGrid() {
           <div className="mb-4 flex aspect-square items-center justify-center rounded-xl gradient-bg text-5xl">{p.emoji}</div>
           <h3 className="font-semibold">{p.name}</h3>
           <div className="mt-1 text-muted">{"$" + p.price.toFixed(2)}</div>
-          <button type="button" onClick={() => add({ id: p.id, name: p.name, price: p.price })} className="mt-4 rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90">Add to bag</button>
+          <button type="button" onClick={() => add({ id: p.id, name: p.name, price: p.price })} className="mt-4 rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent transition hover:opacity-90">Add to bag</button>
         </div>
       ))}
     </div>
@@ -2778,7 +2963,7 @@ export function CartView() {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-lg text-muted">Your bag is empty.</p>
-        <Link href="/shop" className="mt-6 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+        <Link href="/shop" className="mt-6 inline-block rounded-full gradient-bg px-6 py-3 font-semibold on-accent">Browse the shop</Link>
       </div>
     );
   }
@@ -2802,7 +2987,7 @@ export function CartView() {
         <button type="button" onClick={clear} className="text-sm text-muted transition hover:text-fg">Clear bag</button>
         <span className="text-lg font-bold">Total {"$" + total.toFixed(2)}</span>
       </div>
-      <button type="button" className="mt-8 w-full rounded-full gradient-bg px-6 py-3 font-semibold text-black">Checkout</button>
+      <button type="button" className="mt-8 w-full rounded-full gradient-bg px-6 py-3 font-semibold on-accent">Checkout</button>
     </div>
   );
 }
@@ -3042,7 +3227,7 @@ export function CartButton() {
     <Link href="/cart" aria-label="Cart" className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
       {mounted() && count > 0 ? (
-        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold text-black">{count}</span>
+        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold on-accent">{count}</span>
       ) : null}
     </Link>
   );
@@ -3080,7 +3265,7 @@ export function AddToCart({ product, className = "" }: { product: AddToCartProdu
         setAdded(true);
         window.setTimeout(() => setAdded(false), 1200);
       }}
-      className={"rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 " + className}
+      className={"rounded-full gradient-bg px-4 py-2.5 text-sm font-semibold on-accent transition hover:-translate-y-0.5 " + className}
     >
       {added ? "Added \\u2713" : "Add to cart"}
     </button>
@@ -3091,7 +3276,9 @@ export function AddToCart({ product, className = "" }: { product: AddToCartProdu
 // components/site-header.tsx (marketplace variant) — nav + theme + cart island.
 const marketHeader = (ctx: Ctx): string => `"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUI } from "@/lib/store";
 import { ThemeToggle } from "./theme-toggle";
 import { CartButton } from "./cart-button";
@@ -3102,16 +3289,26 @@ export function SiteHeader() {
   const open = useUI((s) => s.navOpen);
   const toggle = useUI((s) => s.toggleNav);
   const setOpen = useUI((s) => s.setNavOpen);
+  const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-app/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
-        <div className="hidden items-center gap-6 md:flex">
-          {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="text-sm text-muted transition hover:text-fg">{l.label}</Link>
-          ))}
-          <ThemeToggle />
-          <CartButton />
+    <header className={"sticky top-0 z-40 transition-all duration-300 " + (scrolled ? "glass shadow-sm" : "border-b border-transparent bg-transparent")}>
+      <nav className={"mx-auto flex max-w-6xl items-center justify-between px-6 transition-all duration-300 " + (scrolled ? "py-3" : "py-5")}>
+        <Link href="/" className="text-lg font-black tracking-tight gradient-text">${ctx.template.siteName}</Link>
+        <div className="hidden items-center gap-1 md:flex">
+          {LINKS.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link key={l.href} href={l.href} className={"rounded-full px-3.5 py-1.5 text-sm font-medium transition " + (active ? "bg-surface text-fg" : "text-muted hover:bg-surface hover:text-fg")}>{l.label}</Link>
+            );
+          })}
+          <div className="ml-2 flex items-center gap-2"><ThemeToggle /><CartButton /></div>
         </div>
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
@@ -3122,10 +3319,10 @@ export function SiteHeader() {
         </div>
       </nav>
       {open ? (
-        <div className="border-t border-hairline md:hidden">
+        <div className="glass border-t border-hairline md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
             ))}
           </div>
         </div>
@@ -3154,30 +3351,30 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden">
       <Aurora />
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 md:grid-cols-2">
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-28 md:grid-cols-2">
         <div>
-          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Storefront</p>
-          <h1 className="text-5xl font-black leading-tight sm:text-6xl">Shop <span className="gradient-text">${n}</span></h1>
-          <p className="mt-6 max-w-md text-lg text-muted">${ctx.template.siteDescription}</p>
-          <div className="mt-10 flex gap-4">
-            <Link href="/shop" className="gradient-bg rounded-full px-8 py-3 font-semibold text-black">Shop the collection</Link>
-            <Link href="/cart" className="rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">View cart</Link>
+          <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-muted">🛒 Cart to checkout, wired end to end</span>
+          <h1 className="text-display mt-6">Shop <span className="gradient-text">${n}</span></h1>
+          <p className="lead mt-6 max-w-md">${ctx.template.siteDescription}</p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link href="/shop" className="shimmer rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Shop the collection</Link>
+            <Link href="/cart" className="rounded-full border border-hairline px-8 py-3.5 font-semibold transition hover:bg-surface">View cart</Link>
           </div>
-          <p className="mt-6 text-sm text-muted">Free standard shipping over {formatMoney(500000)}.</p>
+          <p className="mt-6 text-sm text-muted">Free standard shipping over {formatMoney(500000)} · eSewa &amp; Khalti at checkout.</p>
         </div>
         <HeroArt />
       </section>
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <div className="mb-10 flex items-end justify-between">
-          <h2 className="text-3xl font-bold">Featured</h2>
-          <Link href="/shop" className="text-sm text-muted underline underline-offset-4 hover:text-fg">See all</Link>
+        <div className="mb-12 flex items-end justify-between">
+          <div><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Featured</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Fresh in the store</h2></div>
+          <Link href="/shop" className="hidden text-sm text-muted underline-offset-4 transition hover:text-fg hover:underline sm:block">See all →</Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((p) => (
-            <div key={p.slug} className="group flex flex-col rounded-2xl border border-hairline bg-surface p-5 transition hover:-translate-y-1">
-              <Link href={"/product/" + p.slug} className="mb-4 flex aspect-square items-center justify-center rounded-xl gradient-bg text-6xl">{p.emoji}</Link>
-              <Link href={"/product/" + p.slug} className="font-semibold group-hover:opacity-90">{p.name}</Link>
-              <div className="mt-1 text-muted">{formatMoney(p.price)}</div>
+            <div key={p.slug} className="card group flex flex-col p-5">
+              <Link href={"/product/" + p.slug} className="mb-5 flex aspect-square items-center justify-center overflow-hidden rounded-xl gradient-bg text-7xl on-accent transition group-hover:scale-[1.03]">{p.emoji}</Link>
+              <Link href={"/product/" + p.slug} className="font-semibold tracking-tight transition group-hover:text-[color:var(--accent-to)]">{p.name}</Link>
+              <div className="mt-1 font-semibold text-muted">{formatMoney(p.price)}</div>
               <div className="mt-4">
                 <AddToCart product={{ id: p.slug, name: p.name, unitPrice: p.price, weight: p.weight, emoji: p.emoji }} className="w-full" />
               </div>
@@ -3295,7 +3492,7 @@ export default function Page() {
       <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center">
         <h1 className="text-4xl font-bold">Your <span className="gradient-text">cart</span></h1>
         <p className="mt-4 text-lg text-muted">It's empty for now.</p>
-        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold on-accent">Browse the shop</Link>
       </main>
     );
   }
@@ -3354,7 +3551,7 @@ export default function Page() {
           {q.freeShippingRemaining > 0 ? (
             <p className="mt-4 text-xs text-muted">Add {formatMoney(q.freeShippingRemaining)} more for free shipping.</p>
           ) : null}
-          <Link href="/checkout" className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold text-black">Checkout</Link>
+          <Link href="/checkout" className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold on-accent">Checkout</Link>
           <button type="button" onClick={clear} className="mt-3 block w-full text-center text-sm text-muted transition hover:text-fg">Clear cart</button>
         </aside>
       </div>
@@ -3396,7 +3593,7 @@ export default function Page() {
       <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center">
         <h1 className="text-4xl font-bold">Checkout</h1>
         <p className="mt-4 text-lg text-muted">Your cart is empty.</p>
-        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold on-accent">Browse the shop</Link>
       </main>
     );
   }
@@ -3519,7 +3716,7 @@ export default function Page() {
             <div className="flex justify-between text-muted"><dt>Shipping</dt><dd className="tabular-nums">{q.shipping === 0 ? "Free" : formatMoney(q.shipping)}</dd></div>
             <div className="flex justify-between border-t border-hairline pt-2 text-base font-bold"><dt>Total</dt><dd className="tabular-nums">{formatMoney(q.total)}</dd></div>
           </dl>
-          <button type="submit" disabled={busy} className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold text-black transition hover:opacity-90 disabled:opacity-60">
+          <button type="submit" disabled={busy} className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold on-accent transition hover:opacity-90 disabled:opacity-60">
             {busy ? "Placing order\\u2026" : "Pay " + formatMoney(q.total)}
           </button>
         </aside>
@@ -3543,7 +3740,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ o
   const mock = sp.mock === "1";
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-24 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full gradient-bg text-4xl text-black">✓</div>
+      <div className="flex h-20 w-20 items-center justify-center rounded-full gradient-bg text-4xl on-accent">✓</div>
       <h1 className="mt-8 text-4xl font-bold">Thank you!</h1>
       <p className="mt-4 text-lg text-muted">Your order with ${ctx.template.siteName} is confirmed.</p>
       {order ? (
@@ -3551,7 +3748,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ o
       ) : null}
       {method ? <p className="mt-3 text-sm text-muted">Payment method: {method}</p> : null}
       {mock ? <p className="mt-3 max-w-md text-sm text-muted">This Khalti payment ran in mock mode. Set KHALTI_SECRET in your environment to hit the real gateway.</p> : null}
-      <Link href="/shop" className="mt-10 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Continue shopping</Link>
+      <Link href="/shop" className="mt-10 inline-block rounded-full gradient-bg px-6 py-3 font-semibold on-accent">Continue shopping</Link>
     </main>
   );
 }
@@ -3734,7 +3931,7 @@ export function SettingsPanel() {
         <p className="mt-1 text-sm text-muted">Theme via @lacspace/theme.</p>
         <div className="mt-4 inline-flex rounded-full border border-hairline p-1">
           {["light", "dark", "system"].map((t) => (
-            <button key={t} type="button" onClick={() => setTheme(t)} className={"rounded-full px-4 py-1.5 text-sm capitalize transition " + (theme === t ? "gradient-bg font-semibold text-black" : "text-muted hover:text-fg")}>{t}</button>
+            <button key={t} type="button" onClick={() => setTheme(t)} className={"rounded-full px-4 py-1.5 text-sm capitalize transition " + (theme === t ? "gradient-bg font-semibold on-accent" : "text-muted hover:text-fg")}>{t}</button>
           ))}
         </div>
       </section>
@@ -3750,11 +3947,11 @@ const uiKitFiles = (): Record<string, string> => ({
 
 export function Section({ eyebrow, title, lead, children, className = "" }: { eyebrow?: string; title?: string; lead?: string; children?: ReactNode; className?: string }) {
   return (
-    <section className={"mx-auto max-w-6xl px-6 py-16 " + className}>
-      {eyebrow ? <p className="text-sm font-semibold uppercase tracking-widest text-faint">{eyebrow}</p> : null}
+    <section className={"mx-auto max-w-6xl px-6 py-20 sm:py-24 " + className}>
+      {eyebrow ? <p className="text-sm font-semibold uppercase tracking-widest gradient-text">{eyebrow}</p> : null}
       {title ? <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{title}</h2> : null}
       {lead ? <p className="mt-4 max-w-2xl text-lg text-muted">{lead}</p> : null}
-      {children ? <div className="mt-10">{children}</div> : null}
+      {children ? <div className="mt-12">{children}</div> : null}
     </section>
   );
 }
@@ -3762,15 +3959,16 @@ export function Section({ eyebrow, title, lead, children, className = "" }: { ey
   "components/ui/pill.tsx": `import type { ReactNode } from "react";
 
 export function Pill({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <span className={"inline-flex items-center gap-1 rounded-full border border-hairline bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted " + className}>{children}</span>;
+  return <span className={"glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted " + className}><span aria-hidden className="h-1.5 w-1.5 rounded-full gradient-bg" />{children}</span>;
 }
 `,
   "components/ui/stat-card.tsx": `export function StatCard({ label, value, delta }: { label: string; value: string; delta?: string }) {
+  const down = delta?.trim().startsWith("-");
   return (
-    <div className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1">
-      <div className="text-3xl font-bold tabular-nums">{value}</div>
+    <div className="card p-6">
+      <div className="text-3xl font-bold tabular-nums tracking-tight">{value}</div>
       <div className="mt-1 text-sm text-muted">{label}</div>
-      {delta ? <div className="mt-2 text-xs font-medium text-emerald-400">{delta}</div> : null}
+      {delta ? <div className={"mt-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold " + (down ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400")}>{down ? "▼" : "▲"} {delta}</div> : null}
     </div>
   );
 }
@@ -3779,20 +3977,24 @@ export function Pill({ children, className = "" }: { children: ReactNode; classN
 
 export function FeatureCard({ icon, title, desc }: { icon?: ReactNode; title: string; desc: string }) {
   return (
-    <div className="rounded-2xl border border-hairline bg-surface p-6 transition hover:-translate-y-1 hover:border-[color:var(--accent-to)]">
-      {icon ? <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl gradient-bg text-2xl">{icon}</div> : null}
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted">{desc}</p>
+    <div className="card group p-7">
+      {icon ? <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl gradient-bg text-2xl accent-glow transition group-hover:scale-105">{icon}</div> : null}
+      <h3 className="font-semibold tracking-tight">{title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted">{desc}</p>
     </div>
   );
 }
 `,
   "components/ui/testimonial.tsx": `export function Testimonial({ quote, author, role }: { quote: string; author: string; role?: string }) {
+  const initials = author.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <figure className="mx-auto max-w-2xl rounded-3xl border border-hairline bg-surface p-8 text-center">
-      <div className="text-4xl leading-none gradient-text">&ldquo;</div>
-      <blockquote className="mt-2 text-lg font-medium leading-relaxed">{quote}</blockquote>
-      <figcaption className="mt-4 text-sm text-muted">— {author}{role ? ", " + role : ""}</figcaption>
+    <figure className="card flex h-full flex-col p-7">
+      <div aria-hidden className="text-3xl leading-none gradient-text">&ldquo;</div>
+      <blockquote className="mt-1 flex-1 text-[15px] font-medium leading-relaxed text-fg/90">{quote}</blockquote>
+      <figcaption className="mt-6 flex items-center gap-3 border-t border-hairline pt-5">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full gradient-bg text-sm font-bold on-accent">{initials}</span>
+        <span className="text-sm"><span className="block font-semibold text-fg">{author}</span>{role ? <span className="block text-muted">{role}</span> : null}</span>
+      </figcaption>
     </figure>
   );
 }
@@ -3801,10 +4003,10 @@ export function FeatureCard({ icon, title, desc }: { icon?: ReactNode; title: st
   return (
     <ol className="grid gap-6 sm:grid-cols-3">
       {items.map((s, i) => (
-        <li key={s.title} className="rounded-2xl border border-hairline bg-surface p-6">
-          <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full gradient-bg text-sm font-bold text-black">{i + 1}</div>
-          <h3 className="font-semibold">{s.title}</h3>
-          <p className="mt-1 text-sm text-muted">{s.desc}</p>
+        <li key={s.title} className="card p-7">
+          <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl gradient-bg text-sm font-bold on-accent">{String(i + 1).padStart(2, "0")}</div>
+          <h3 className="font-semibold tracking-tight">{s.title}</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.desc}</p>
         </li>
       ))}
     </ol>
@@ -3815,13 +4017,14 @@ export function FeatureCard({ icon, title, desc }: { icon?: ReactNode; title: st
 
 export function CTABand({ title, subtitle, ctaLabel = "Get started", ctaHref = "/contact" }: { title: string; subtitle?: string; ctaLabel?: string; ctaHref?: string }) {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-20">
-      <div className="relative overflow-hidden rounded-3xl border border-hairline bg-surface p-10 text-center sm:p-16">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full gradient-bg opacity-40 blur-3xl animate-floaty" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full gradient-bg opacity-30 blur-3xl animate-floaty-slow" />
-        <h2 className="relative text-3xl font-bold sm:text-4xl">{title}</h2>
-        {subtitle ? <p className="relative mx-auto mt-3 max-w-xl text-muted">{subtitle}</p> : null}
-        <Link href={ctaHref} className="relative mt-8 inline-block rounded-full gradient-bg px-8 py-3 font-semibold text-black transition hover:opacity-90">{ctaLabel}</Link>
+    <section className="mx-auto max-w-6xl px-6 py-24">
+      <div className="relative overflow-hidden rounded-[2rem] border border-hairline bg-surface p-12 text-center shadow-lg sm:p-20">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full gradient-bg opacity-30 blur-3xl animate-drift" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-64 w-64 rounded-full gradient-bg opacity-25 blur-3xl animate-drift-slow" />
+        <div aria-hidden className="dot-bg pointer-events-none absolute inset-0 opacity-40" />
+        <h2 className="relative text-3xl font-bold tracking-tight sm:text-5xl">{title}</h2>
+        {subtitle ? <p className="relative mx-auto mt-4 max-w-xl text-lg text-muted">{subtitle}</p> : null}
+        <Link href={ctaHref} className="shimmer relative mt-9 inline-block rounded-full gradient-bg px-8 py-3.5 font-semibold on-accent shadow-lg transition hover:-translate-y-0.5">{ctaLabel}</Link>
       </div>
     </section>
   );
@@ -3883,20 +4086,21 @@ export function Newsletter({ title = "Stay in the loop", subtitle = "Occasional 
   const err = state && !state.ok ? (state.errors.email ?? state.errors._form) : undefined;
 
   return (
-    <div className="mx-auto max-w-xl rounded-3xl border border-hairline bg-surface p-8 text-center">
-      <h2 className="text-2xl font-bold">{title}</h2>
-      <p className="mt-2 text-sm text-muted">{subtitle}</p>
+    <div className="gradient-border relative mx-auto max-w-3xl overflow-hidden rounded-[1.75rem] border border-transparent bg-surface p-8 text-center shadow-lg sm:p-12">
+      <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full gradient-bg opacity-20 blur-3xl" />
+      <h2 className="relative text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
+      <p className="relative mx-auto mt-2 max-w-md text-sm text-muted">{subtitle}</p>
       {state?.ok ? (
-        <p className="mt-6 rounded-xl border border-hairline bg-app p-4 text-sm">You&rsquo;re subscribed — thanks! ✅</p>
+        <p className="relative mx-auto mt-6 max-w-md rounded-xl border border-hairline bg-app p-4 text-sm">You&rsquo;re subscribed — thanks! ✅</p>
       ) : (
-        <form action={action} className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <input name="email" type="email" placeholder="you@example.com" aria-label="Email" className="w-full flex-1 rounded-full border border-hairline bg-app px-5 py-3 outline-none focus:border-[color:var(--accent-to)]" />
+        <form action={action} className="relative mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row">
+          <input name="email" type="email" placeholder="you@example.com" aria-label="Email" className="w-full flex-1 rounded-full border border-hairline bg-app px-5 py-3 outline-none transition focus:border-[color:var(--accent-to)]" />
           <input {...honeypotProps("website")} />
           <input type="hidden" name="_ts" defaultValue={timestampValue()} />
-          <button disabled={pending} className="rounded-full gradient-bg px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-60">{pending ? "Joining…" : "Subscribe"}</button>
+          <button disabled={pending} className="rounded-full gradient-bg px-6 py-3 font-semibold on-accent transition hover:-translate-y-0.5 disabled:opacity-60">{pending ? "Joining…" : "Subscribe"}</button>
         </form>
       )}
-      {err ? <p className="mt-3 text-sm text-red-400">{err}</p> : null}
+      {err ? <p className="relative mt-3 text-sm text-red-400">{err}</p> : null}
     </div>
   );
 }
@@ -3905,7 +4109,7 @@ export function Newsletter({ title = "Stay in the loop", subtitle = "Occasional 
 
 const tones = {
   default: "border-hairline bg-surface text-muted",
-  accent: "border-transparent gradient-bg text-black",
+  accent: "border-transparent gradient-bg on-accent",
   success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
   warning: "border-amber-500/30 bg-amber-500/10 text-amber-400",
   danger: "border-red-500/30 bg-red-500/10 text-red-400",
@@ -3979,7 +4183,7 @@ export function Tabs({ tabs }: { tabs: { label: string; content: ReactNode }[] }
     <div>
       <div className="inline-flex flex-wrap gap-1 rounded-full border border-hairline bg-surface p-1">
         {tabs.map((t, idx) => (
-          <button key={t.label} onClick={() => setI(idx)} className={"rounded-full px-4 py-2 text-sm font-medium transition " + (i === idx ? "gradient-bg text-black" : "text-muted hover:text-fg")}>{t.label}</button>
+          <button key={t.label} onClick={() => setI(idx)} className={"rounded-full px-4 py-2 text-sm font-medium transition " + (i === idx ? "gradient-bg on-accent" : "text-muted hover:text-fg")}>{t.label}</button>
         ))}
       </div>
       <div className="mt-6">{tabs[i]?.content}</div>
@@ -4008,16 +4212,16 @@ interface Tier { name: string; price: string; period?: string; features: string[
 
 export function PricingTable({ tiers }: { tiers: Tier[] }) {
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid items-center gap-6 md:grid-cols-3">
       {tiers.map((t) => (
-        <div key={t.name} className={"relative flex flex-col rounded-3xl border p-8 " + (t.featured ? "border-[color:var(--accent-to)] bg-surface shadow-lg" : "border-hairline bg-surface")}>
-          {t.featured ? <span className="absolute -top-3 left-8 rounded-full gradient-bg px-3 py-1 text-xs font-bold text-black">Most popular</span> : null}
-          <h3 className="font-semibold">{t.name}</h3>
-          <div className="mt-3 flex items-end gap-1"><span className="text-4xl font-bold">{t.price}</span>{t.period ? <span className="mb-1 text-sm text-muted">/{t.period}</span> : null}</div>
-          <ul className="mt-6 flex-1 space-y-2 text-sm text-muted">
-            {t.features.map((f) => <li key={f} className="flex gap-2"><span className="gradient-text">✓</span>{f}</li>)}
+        <div key={t.name} className={"relative flex flex-col rounded-[1.5rem] border p-8 transition " + (t.featured ? "gradient-border border-transparent bg-surface shadow-lg md:scale-[1.04]" : "border-hairline bg-surface hover:border-[color:var(--accent-to)]")}>
+          {t.featured ? <span className="absolute -top-3 left-8 rounded-full gradient-bg px-3 py-1 text-xs font-bold on-accent shadow-sm">Most popular</span> : null}
+          <h3 className="font-semibold tracking-tight">{t.name}</h3>
+          <div className="mt-4 flex items-end gap-1"><span className="text-5xl font-bold tracking-tight">{t.price}</span>{t.period ? <span className="mb-1.5 text-sm text-muted">/{t.period}</span> : null}</div>
+          <ul className="mt-7 flex-1 space-y-3 text-sm text-muted">
+            {t.features.map((f) => <li key={f} className="flex gap-2.5"><span className="mt-0.5 gradient-text font-bold">✓</span>{f}</li>)}
           </ul>
-          <Link href={t.ctaHref ?? "/contact"} className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (t.featured ? "gradient-bg text-black hover:opacity-90" : "border border-hairline hover:bg-app")}>{t.ctaLabel ?? "Choose " + t.name}</Link>
+          <Link href={t.ctaHref ?? "/contact"} className={"mt-8 rounded-full px-6 py-3 text-center font-semibold transition " + (t.featured ? "shimmer gradient-bg on-accent hover:-translate-y-0.5" : "border border-hairline hover:bg-app")}>{t.ctaLabel ?? "Choose " + t.name}</Link>
         </div>
       ))}
     </div>
@@ -4027,9 +4231,9 @@ export function PricingTable({ tiers }: { tiers: Tier[] }) {
   "components/ui/logo-cloud.tsx": `export function LogoCloud({ names, label }: { names: string[]; label?: string }) {
   return (
     <div className="text-center">
-      {label ? <p className="text-sm font-semibold uppercase tracking-widest text-faint">{label}</p> : null}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-        {names.map((n) => <span key={n} className="text-lg font-bold text-muted opacity-70 transition hover:opacity-100">{n}</span>)}
+      {label ? <p className="text-xs font-semibold uppercase tracking-widest text-faint">{label}</p> : null}
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-x-12 gap-y-5">
+        {names.map((n) => <span key={n} className="text-lg font-bold tracking-tight text-muted opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">{n}</span>)}
       </div>
     </div>
   );
@@ -4037,11 +4241,11 @@ export function PricingTable({ tiers }: { tiers: Tier[] }) {
 `,
   "components/ui/stat-band.tsx": `export function StatBand({ stats }: { stats: { value: string; label: string }[] }) {
   return (
-    <div className="grid gap-6 rounded-3xl border border-hairline bg-surface p-8 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-px overflow-hidden rounded-[1.5rem] border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((s) => (
-        <div key={s.label} className="text-center">
-          <div className="gradient-text text-4xl font-bold tabular-nums">{s.value}</div>
-          <div className="mt-1 text-sm text-muted">{s.label}</div>
+        <div key={s.label} className="bg-surface px-6 py-10 text-center transition hover:bg-panel">
+          <div className="gradient-text text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">{s.value}</div>
+          <div className="mt-2 text-sm text-muted">{s.label}</div>
         </div>
       ))}
     </div>
@@ -4052,11 +4256,11 @@ export function PricingTable({ tiers }: { tiers: Tier[] }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {members.map((m) => (
-        <div key={m.name} className="rounded-2xl border border-hairline bg-surface p-6 text-center transition hover:-translate-y-1">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full gradient-bg text-xl font-bold text-black">{m.name.split(" ").map((x) => x[0]).join("").slice(0, 2)}</div>
-          <h3 className="mt-4 font-semibold">{m.name}</h3>
-          <p className="gradient-text text-sm">{m.role}</p>
-          {m.bio ? <p className="mt-2 text-sm text-muted">{m.bio}</p> : null}
+        <div key={m.name} className="card p-7 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl gradient-bg text-xl font-bold on-accent accent-glow">{m.name.split(" ").map((x) => x[0]).join("").slice(0, 2)}</div>
+          <h3 className="mt-4 font-semibold tracking-tight">{m.name}</h3>
+          <p className="gradient-text text-sm font-medium">{m.role}</p>
+          {m.bio ? <p className="mt-2 text-sm leading-relaxed text-muted">{m.bio}</p> : null}
         </div>
       ))}
     </div>
@@ -4132,7 +4336,7 @@ export function Breadcrumbs({ items }: { items: { label: string; href?: string }
 `,
   "components/ui/avatar.tsx": `export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   const initials = name.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase();
-  return <span className="inline-flex items-center justify-center rounded-full gradient-bg font-bold text-black" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
+  return <span className="inline-flex items-center justify-center rounded-full gradient-bg font-bold on-accent" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
 }
 
 export function AvatarGroup({ names }: { names: string[] }) {
@@ -4329,10 +4533,15 @@ function creativeData(ctx: Ctx): CreativeData {
 // components/aurora.tsx — an animated, theme-aware gradient backdrop for the hero.
 const aurora = (): string => `export function Aurora() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px] overflow-hidden">
-      <div className="absolute -left-20 -top-16 h-96 w-96 rounded-full opacity-30 blur-3xl animate-floaty" style={{ background: "radial-gradient(circle, var(--accent-from), transparent 70%)" }} />
-      <div className="absolute -right-10 top-40 h-80 w-80 rounded-full opacity-25 blur-3xl animate-floaty-slow" style={{ background: "radial-gradient(circle, var(--accent-to), transparent 70%)" }} />
-      <div className="absolute left-1/3 top-72 h-72 w-72 rounded-full opacity-20 blur-3xl animate-floaty" style={{ background: "radial-gradient(circle, var(--accent-to), transparent 70%)" }} />
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[820px] overflow-hidden">
+      {/* soft gradient-mesh — blurred orbs keyed to the accent, drifting slowly */}
+      <div className="absolute -left-32 -top-24 h-[32rem] w-[32rem] rounded-full opacity-25 blur-[90px] animate-drift" style={{ background: "radial-gradient(circle at 50% 50%, var(--accent-from), transparent 68%)" }} />
+      <div className="absolute -right-24 top-24 h-[30rem] w-[30rem] rounded-full opacity-20 blur-[90px] animate-drift-slow" style={{ background: "radial-gradient(circle at 50% 50%, var(--accent-to), transparent 68%)" }} />
+      <div className="absolute left-1/3 top-64 h-96 w-96 rounded-full opacity-[0.14] blur-[80px] animate-floaty" style={{ background: "radial-gradient(circle at 50% 50%, var(--accent-to), transparent 70%)" }} />
+      {/* faint dotted texture, fading out toward the fold */}
+      <div className="dot-bg absolute inset-0 opacity-60" />
+      {/* seam that melts the aurora into the page */}
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--bg)]" />
     </div>
   );
 }
@@ -4346,22 +4555,25 @@ const heroArt = (ctx: Ctx): string => {
   return `export function HeroArt() {
   return (
     <div className="relative mx-auto aspect-square w-full max-w-sm select-none">
+      {/* ambient accent glow behind the whole piece */}
+      <div aria-hidden className="absolute inset-6 rounded-full opacity-30 blur-3xl gradient-bg animate-drift-slow" />
       {/* orbiting rings */}
       <div className="absolute inset-0 rounded-full border border-hairline animate-spin-slow" />
-      <div className="absolute inset-10 rounded-full border border-hairline animate-spin-slow" style={{ animationDirection: "reverse" }} />
-      <div className="absolute inset-0 rounded-full opacity-40 blur-2xl gradient-bg" />
+      <div className="absolute inset-10 rounded-full border border-dashed border-hairline animate-spin-slow" style={{ animationDirection: "reverse" }} />
+      {/* orbit node */}
+      <div className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full gradient-bg animate-spin-slow" style={{ transformOrigin: "50% 190px" }} />
       {/* center badge with the platform initials */}
-      <div className="absolute left-1/2 top-1/2 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-3xl gradient-bg text-4xl font-black text-black shadow-2xl animate-floaty">
+      <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[1.75rem] gradient-bg text-4xl font-black on-accent shadow-lg accent-glow animate-floaty" style={{ animationDuration: "7s" }}>
         ${JSON.stringify(initials)}
       </div>
-      {/* floating labels */}
-      <div className="absolute left-0 top-10 flex items-center gap-2 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty">
-        <span>${d.emoji}</span> ${JSON.stringify(d.chips[0])}
+      {/* floating glass chips */}
+      <div className="glass absolute left-0 top-10 flex items-center gap-2 rounded-2xl px-3.5 py-2 text-xs font-semibold shadow-lg animate-floaty">
+        <span className="text-sm">${d.emoji}</span> ${JSON.stringify(d.chips[0])}
       </div>
-      <div className="absolute right-0 top-28 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty-slow">
-        ${JSON.stringify(d.chips[1])}
+      <div className="glass absolute right-0 top-28 flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-semibold shadow-lg animate-floaty-slow">
+        <span className="h-1.5 w-1.5 rounded-full gradient-bg" /> ${JSON.stringify(d.chips[1])}
       </div>
-      <div className="absolute bottom-8 left-6 rounded-xl border border-hairline bg-app px-3 py-2 text-xs font-medium shadow-lg animate-floaty" style={{ animationDelay: "1.2s" }}>
+      <div className="glass absolute bottom-8 left-6 rounded-2xl px-3.5 py-2 text-xs font-semibold shadow-lg animate-floaty" style={{ animationDelay: "1.2s" }}>
         ${JSON.stringify(d.chips[2])}
       </div>
     </div>
@@ -4463,17 +4675,16 @@ const extraHomeSections = (ctx: Ctx): string => {
     .map((t) => `<Testimonial quote={${JSON.stringify(t.quote)}} author={${JSON.stringify(t.author)}} role={${JSON.stringify(t.role ?? "")}} />`)
     .join("\n          ");
   return `<section className="mx-auto max-w-6xl px-6 py-16">
-        <p className="text-center text-sm font-semibold uppercase tracking-widest text-faint">By the numbers</p>
-        <div className="mt-8"><StatBand stats={${JSON.stringify(r.stats)}} /></div>
+        <div className="mb-10 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">By the numbers</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Built to perform</h2></div>
+        <StatBand stats={${JSON.stringify(r.stats)}} />
       </section>
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">How it works</h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-muted">A simple, proven path from first hello to launch day.</p>
-        <div className="mt-10"><Steps items={${JSON.stringify(r.process)}} /></div>
+        <div className="mb-12 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">How it works</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">A simple, proven path</h2><p className="mx-auto mt-3 max-w-xl text-muted">From first hello to launch day — no surprises.</p></div>
+        <Steps items={${JSON.stringify(r.process)}} />
       </section>
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">Loved by teams</h2>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mb-12 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">Loved by teams</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Don't just take our word for it</h2></div>
+        <div className="grid items-stretch gap-6 md:grid-cols-3">
           ${tst}
         </div>
       </section>`;
@@ -4481,13 +4692,13 @@ const extraHomeSections = (ctx: Ctx): string => {
 
 const showcaseSection = (ctx: Ctx): string => {
   const d = creativeData(ctx);
-  const bullets = d.bullets.map((b) => `<li className="flex items-center gap-2 text-muted"><span className="text-[color:var(--accent-to)]">✓</span> ${b}</li>`).join("\n            ");
-  return `<section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:grid-cols-2">
+  const bullets = d.bullets.map((b) => `<li className="flex items-center gap-3 text-muted"><span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full gradient-bg text-[11px] on-accent">✓</span> ${b}</li>`).join("\n            ");
+  return `<section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 md:grid-cols-2">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-faint">${ctx.template.siteName}</p>
+          <p className="text-sm font-semibold uppercase tracking-widest gradient-text">${ctx.template.siteName}</p>
           <h2 className="mt-3 text-3xl font-bold sm:text-4xl">${d.showcaseTitle}</h2>
           <p className="mt-4 max-w-md text-lg text-muted">${d.showcaseLead}</p>
-          <ul className="mt-6 space-y-3 text-sm">
+          <ul className="mt-7 space-y-3.5 text-sm font-medium">
             ${bullets}
           </ul>
         </div>
@@ -4498,10 +4709,10 @@ const showcaseSection = (ctx: Ctx): string => {
 // An auto-scrolling marquee band (pure CSS, duplicated track for a seamless loop).
 const marqueeSection = (ctx: Ctx): string => {
   const d = creativeData(ctx);
-  const chip = (t: string) => `<span className="rounded-full border border-hairline bg-surface px-5 py-2 text-sm font-medium text-muted">${t}</span>`;
+  const chip = (t: string) => `<span className="whitespace-nowrap rounded-full border border-hairline bg-surface px-5 py-2 text-sm font-semibold text-muted">${t}</span>`;
   const track = d.marquee.map(chip).join("\n            ");
-  return `<section className="border-y border-hairline py-10">
-        <p className="mb-6 text-center text-xs font-semibold uppercase tracking-widest text-faint">${d.marqueeLabel}</p>
+  return `<section className="py-14">
+        <p className="mb-8 text-center text-xs font-semibold uppercase tracking-widest text-faint">${d.marqueeLabel}</p>
         <div className="marquee-mask overflow-hidden">
           <div className="marquee-track gap-4">
             ${track}
@@ -4514,16 +4725,16 @@ const marqueeSection = (ctx: Ctx): string => {
 // A pre-written FAQ accordion (native <details>, no JS needed).
 const faqSection = (ctx: Ctx): string => {
   const d = creativeData(ctx);
-  const items = d.faq.map((f) => `<details className="group rounded-2xl border border-hairline bg-surface p-5">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
+  const items = d.faq.map((f) => `<details className="group rounded-2xl border border-hairline bg-surface p-5 transition hover:border-[color:var(--accent-to)]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
               ${f.q}
-              <span className="text-muted transition group-open:rotate-45">+</span>
+              <span className="text-lg text-muted transition group-open:rotate-45">+</span>
             </summary>
             <p className="mt-3 text-sm leading-relaxed text-muted">${f.a}</p>
           </details>`).join("\n          ");
-  return `<section className="mx-auto max-w-3xl px-6 py-20">
-        <h2 className="text-center text-3xl font-bold">Frequently asked</h2>
-        <div className="mt-10 space-y-3">
+  return `<section className="mx-auto max-w-3xl px-6 py-24">
+        <div className="mb-10 text-center"><p className="text-sm font-semibold uppercase tracking-widest gradient-text">FAQ</p><h2 className="mt-3 text-3xl font-bold sm:text-4xl">Frequently asked</h2></div>
+        <div className="space-y-3">
           ${items}
         </div>
       </section>`;
@@ -4654,13 +4865,13 @@ import { Pill } from "@/components/ui";
 
 export function HeroSection() {
   return (
-    <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+    <section className="mx-auto max-w-4xl px-6 py-32 text-center">
       <Pill>New</Pill>
-      <h1 className="mt-5 text-5xl font-bold sm:text-6xl">Build something <span className="gradient-text">people love</span></h1>
-      <p className="mx-auto mt-5 max-w-xl text-lg text-muted">A confident headline and one sentence that sells the outcome — edit me.</p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link href="/contact" className="rounded-full gradient-bg px-7 py-3 font-semibold text-black transition hover:opacity-90">Get started</Link>
-        <Link href="/about" className="rounded-full border border-hairline px-7 py-3 font-semibold transition hover:bg-surface">Learn more</Link>
+      <h1 className="text-display mt-6">Build something <span className="gradient-text">people love</span></h1>
+      <p className="lead mx-auto mt-6 max-w-xl">A confident headline and one sentence that sells the outcome — edit me.</p>
+      <div className="mt-9 flex flex-wrap justify-center gap-3">
+        <Link href="/contact" className="shimmer rounded-full gradient-bg px-7 py-3.5 font-semibold on-accent transition hover:-translate-y-0.5">Get started</Link>
+        <Link href="/about" className="rounded-full border border-hairline px-7 py-3.5 font-semibold transition hover:bg-surface">Learn more</Link>
       </div>
     </section>
   );
@@ -4820,6 +5031,53 @@ export function BentoSection() {
         { icon: "📊", title: "Insightful", desc: "Know what's working.", className: "sm:col-span-2" },
       ]} />
     </Section>
+  );
+}
+`,
+  steps: `import { Section, Steps } from "@/components/ui";
+
+export function StepsSection() {
+  return (
+    <Section eyebrow="How it works" title="Up and running in three steps">
+      <Steps items={[
+        { title: "Create your account", desc: "Sign up free in seconds — no credit card required." },
+        { title: "Connect your data", desc: "Import in one click or use the API. Your call." },
+        { title: "Ship something great", desc: "Go live and watch it work, from day one." },
+      ]} />
+    </Section>
+  );
+}
+`,
+  "feature-split": `import { Section, FeatureSplit } from "@/components/ui";
+
+export function FeatureSplitSection() {
+  return (
+    <Section eyebrow="Why teams switch" title="Built for the way you actually work">
+      <FeatureSplit
+        eyebrow="Focus"
+        title="Less busywork, more momentum"
+        desc="Everything in one place, so your team spends time on the work that matters — not on wiring tools together."
+        bullets={["Set up in minutes, not weeks", "Real-time, always in sync", "Scales from one to a thousand"]}
+        media={<div className="grid h-52 place-items-center text-7xl">🚀</div>}
+      />
+    </Section>
+  );
+}
+`,
+  banner: `import Link from "next/link";
+
+export function BannerSection() {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-12">
+      <div className="relative flex flex-col items-center gap-6 overflow-hidden rounded-[1.75rem] gradient-bg px-8 py-10 text-center on-accent shadow-lg sm:flex-row sm:justify-between sm:text-left">
+        <div aria-hidden className="dot-bg pointer-events-none absolute inset-0 opacity-20" />
+        <div className="relative">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Ready to see it in action?</h2>
+          <p className="mt-1.5 text-sm opacity-80">Start free today — it takes less than a minute.</p>
+        </div>
+        <Link href="/contact" className="relative shrink-0 rounded-full bg-[var(--bg)] px-7 py-3 font-semibold text-fg transition hover:-translate-y-0.5">Get started</Link>
+      </div>
+    </section>
   );
 }
 `,

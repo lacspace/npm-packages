@@ -16,7 +16,9 @@ npm create lacspace-app@latest my-app
 npx create-lacspace-app my-app --template saas
 ```
 
-You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a polished, dark-themed, responsive site with **every page filled in**, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
+You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
+
+> **New in v2.1 — a design-quality pass.** Every template was rebuilt around a real design system: cohesive tokens (`--accent`, surfaces, hairlines, shadows), reusable utilities (`.glass`, `.card`, `.gradient-text`, `.grid-bg`/`.dot-bg`, `.shimmer`), a sticky glass header that shrinks on scroll, a richer multi-column footer with a newsletter island, a soft gradient-mesh backdrop, and confident, specific copy per template — all `prefers-reduced-motion`-aware. The signature sites ship as **LSFolio · LSStudio · LSStore · LSCloud · LSBlogs · LSDocs · LSAdmin · LSResto · LSBazaar**.
 
 ---
 
@@ -24,7 +26,7 @@ You choose the *kind* of site you're building. It writes a **real Next.js 15 + R
 
 Same machine, both CLIs run **binary-direct, scaffold-only**, median of 7 runs:
 
-| | create-next-app **16.3.4** | create-lacspace-app **1.14** |
+| | create-next-app **16.3.4** | create-lacspace-app **2.1** |
 | --- | --- | --- |
 | **Scaffold time** | 0.29s | **0.15s** ⚡ (~1.9× faster) |
 | **Files produced** | 18 | **70** |
@@ -77,21 +79,21 @@ import { PricingSection } from "@/components/sections/pricing";
 // …drop <PricingSection /> anywhere in your JSX.
 ```
 
-**Available sections:** `hero` · `features` · `pricing` · `faq` · `testimonials` · `team` · `stats` · `timeline` · `gallery` · `logos` · `cta` · `bento`. Run `add` with no arguments to list them.
+**Available sections:** `hero` · `features` · `pricing` · `faq` · `testimonials` · `team` · `stats` · `timeline` · `gallery` · `logos` · `cta` · `bento` · `steps` · `feature-split` · `banner`. Run `add` with no arguments to list them.
 
 ## Templates
 
-| Key | What you get |
-| --- | --- |
-| **personal** | Developer/portfolio — projects, uses, work, about, blog |
-| **business** | Agency/company — services, work (case studies), pricing, team |
-| **ecommerce** | Storefront — shop, cart (working, persisted), collections |
-| **saas** | Landing — features, pricing, integrations, changelog |
-| **blog** | Real Markdown blog — posts, topics, newsletter |
-| **docs** | Docs site — guides, API reference, changelog, search |
-| **dashboard** | App shell — sidebar, stat cards, charts, settings, analytics |
-| **restaurant** | Menu, reservations, gallery, private events |
-| **marketplace** | Real commerce — cart, product pages, checkout, tax + shipping, orders/invoices, eSewa & Khalti payments |
+| Key | Ships as | What you get |
+| --- | --- | --- |
+| **personal** | LSFolio | Developer/portfolio — projects, uses, work, about, blog |
+| **business** | LSStudio | Agency/company — services, work (case studies), pricing, team |
+| **ecommerce** | LSStore | Storefront — shop, cart (working, persisted), collections |
+| **saas** | LSCloud | Landing — features, pricing, integrations, changelog |
+| **blog** | LSBlogs | Real Markdown blog — posts, topics, newsletter |
+| **docs** | LSDocs | Docs site — guides, API reference, changelog, search |
+| **dashboard** | LSAdmin | App shell — sidebar, stat cards, charts, settings, analytics |
+| **restaurant** | LSResto | Menu, reservations, gallery, private events |
+| **marketplace** | LSBazaar | Real commerce — cart, product pages, checkout, tax + shipping, orders/invoices, eSewa & Khalti payments |
 
 Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, modern, responsive, with a themeable gradient accent.
 

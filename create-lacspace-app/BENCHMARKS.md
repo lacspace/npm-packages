@@ -32,7 +32,7 @@ echo "lacspace files: $(find cla1 -type f | wc -l)  pages: $(find cla1 -name pag
 echo "next     files: $(find cna1 -type f | wc -l)  pages: $(find cna1 -name page.tsx | wc -l)"
 ```
 
-## Results (create-next-app 16.3.4 vs create-lacspace-app 1.14.0)
+## Results (create-next-app 16.3.4 vs create-lacspace-app 2.1.0)
 
 | Metric | create-next-app | create-lacspace-app |
 | --- | --- | --- |
@@ -40,10 +40,11 @@ echo "next     files: $(find cna1 -type f | wc -l)  pages: $(find cna1 -name pag
 | Files written | 18 | 70 |
 | `page.tsx` routes | 1 | 11 |
 | Components | 0 | 37 (incl. a 26-component UI kit) |
+| Design system (tokens, `.glass`/`.card`/`.shimmer`, fluid type) | ✗ | ✓ |
 | `sitemap.xml` / `robots.txt` / `/og` | ✗ | ✓ |
 | `lib/site.ts` SEO config / JSON-LD | ✗ | ✓ |
 | PWA manifest / styled 404 | ✗ | ✓ |
-| Templates available | 1 | 8 |
+| Templates available | 1 | 9 |
 
 ## Honest caveats
 

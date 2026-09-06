@@ -30,7 +30,7 @@ Same machine, both CLIs run **binary-direct, scaffold-only**, median of 7 runs:
 | **Files produced** | 18 | **70** |
 | **Pages** | 1 (blank) | **11** (finished, 5–6 sections each) |
 | **Prebuilt components** | 0 | **37** (incl. a 26-component UI kit) |
-| **Templates** | 1 | **8** |
+| **Templates** | 1 | **9** |
 | SEO metadata + JSON-LD | ✗ | ✓ |
 | Dynamic OG images (`/og`) | ✗ | ✓ |
 | `sitemap.xml` + `robots.txt` | ✗ | ✓ |
@@ -48,7 +48,7 @@ Same machine, both CLIs run **binary-direct, scaffold-only**, median of 7 runs:
 
 Every generated app arrives **done**, not started:
 
-- 🧩 **8 templates**, each a complete site — `personal`, `business`, `ecommerce`, `saas`, `blog`, `docs`, `dashboard`, `restaurant`.
+- 🧩 **9 templates**, each a complete site — `personal`, `business`, `ecommerce`, `saas`, `blog`, `docs`, `dashboard`, `restaurant`, `marketplace`.
 - 📄 **Every page is filled** — home, about, pricing, services, features, FAQ, careers, work/case-studies, collections, integrations, changelog, gallery, reservations, and more. Each is **5–6 real sections** (hero → feature split with illustration → stat band → feature grid → showcase → CTA), personalised with your project name. No "coming soon" stubs.
 - 🎨 **A 26-component UI kit** (`components/ui/`): `Section`, `Hero`, `FeatureCard`, `FeatureSplit`, `Bento`, `PricingTable`, `Testimonial`, `StatBand`, `Timeline`, `Steps`, `Tabs`, `Accordion`, `FAQ`, `Gallery`, `TeamGrid`, `LogoCloud`, `CTABand`, `Newsletter`, `AreaChart`, `Badge`, `Callout`, `Rating`, `Progress`, `Breadcrumbs`, `Avatar` … all theme-aware, dependency-free, server-first.
 - 🔎 **SEO, done for you** — one [`@lacspace/seo`](https://www.npmjs.com/package/@lacspace/seo) `defineSite()` config drives `<title>`, canonical, Open Graph, Twitter, and JSON-LD across every route.
@@ -91,6 +91,7 @@ import { PricingSection } from "@/components/sections/pricing";
 | **docs** | Docs site — guides, API reference, changelog, search |
 | **dashboard** | App shell — sidebar, stat cards, charts, settings, analytics |
 | **restaurant** | Menu, reservations, gallery, private events |
+| **marketplace** | Real commerce — cart, product pages, checkout, tax + shipping, orders/invoices, eSewa & Khalti payments |
 
 Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, modern, responsive, with a themeable gradient accent.
 
@@ -98,7 +99,7 @@ Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, moder
 
 | Flag | Meaning |
 | --- | --- |
-| `-t, --template <key>` | `personal` · `business` · `ecommerce` · `saas` · `blog` · `docs` · `dashboard` · `restaurant` |
+| `-t, --template <key>` | `personal` · `business` · `ecommerce` · `saas` · `blog` · `docs` · `dashboard` · `restaurant` · `marketplace` |
 | `--theme <name\|hex>` | accent gradient — a preset, a `"#hex"`, or `"from,to"` (see below) |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager (default `npm`) |
 | `--no-install` | skip installing dependencies |

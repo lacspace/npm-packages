@@ -44,6 +44,7 @@ const TEMPLATES: TemplateDef[] = [
   { key: "docs", label: "Documentation", description: "A docs landing with quick-start and feature cards.", accent: ["#0ea5e9", "#6366f1"], siteName: "Acme Docs", siteDescription: "Everything you need to build with Acme — guides, API and examples." },
   { key: "dashboard", label: "Admin dashboard", description: "An app dashboard shell with stat cards and a table.", accent: ["#10b981", "#14b8a6"], siteName: "Acme Admin", siteDescription: "Your control center — metrics, activity and management in one place." },
   { key: "restaurant", label: "Restaurant / cafe", description: "A warm restaurant home with menu highlights and reservations.", accent: ["#e11d48", "#f59e0b"], siteName: "Olive & Ember", siteDescription: "Seasonal plates, natural wine and a warm room. Book a table." },
+  { key: "marketplace", label: "Marketplace / commerce", description: "A real storefront wired to the Lacspace commerce packages — cart, checkout, tax, shipping, orders, invoices and Nepal payments.", accent: ["#0d9488", "#6366f1"], siteName: "Bazaar", siteDescription: "A modern storefront — cart to checkout, wired end to end." },
 ];
 
 /* ------------------------------ shared files ------------------------------ */
@@ -76,6 +77,23 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
     // The blog & docs templates render Markdown with @lacspace/markdown
     // (>=1.0.1 includes the URL-scheme XSS hardening — keep the floor there).
     ...(ctx.template.key === "blog" || ctx.template.key === "docs" ? { "@lacspace/markdown": "^1.0.1" } : {}),
+    // The marketplace template composes the Lacspace commerce packages end to
+    // end: a headless cart, order + invoice engines, tax & shipping calculators,
+    // coupons, integer-safe money, ids, and the eSewa + Khalti payment gateways.
+    ...(ctx.template.key === "marketplace"
+      ? {
+          "@lacspace/cart": "^1.0.0",
+          "@lacspace/order": "^1.0.0",
+          "@lacspace/tax": "^1.0.0",
+          "@lacspace/shipping": "^1.0.0",
+          "@lacspace/coupon": "^1.0.0",
+          "@lacspace/invoice": "^1.0.0",
+          "@lacspace/money": "^1.0.2",
+          "@lacspace/id": "^1.0.2",
+          "@lacspace/esewa": "^1.0.0",
+          "@lacspace/khalti": "^1.0.0",
+        }
+      : {}),
   },
   devDependencies: {
     typescript: "^5.7.0",
@@ -454,6 +472,7 @@ function homePage(ctx: Ctx): string {
   // The dashboard is app-shaped (sidebar) — it has its own shell, not the
   // marketing header/footer chrome.
   if (ctx.template.key === "dashboard") return dashboardHome(ctx);
+  if (ctx.template.key === "marketplace") return marketplaceHome(ctx);
 
   const shell = (inner: string): string => `import { site } from "@/lib/site";
 import { LiveStats } from "@/components/live-stats";
@@ -1875,6 +1894,11 @@ function buildFiles(ctx: Ctx): Record<string, string> {
   // ✨ The highest-value page(s) per template ship with real content.
   Object.assign(files, realPageFiles(ctx));
 
+  // ✨ The marketplace template documents its (all optional) payment env vars.
+  if (ctx.template.key === "marketplace") {
+    files[".env.example"] = marketEnvExample();
+  }
+
   // ✨ The blog template gets a real Markdown-powered blog.
   if (isBlog) {
     files["lib/posts.ts"] = postsLib();
@@ -1964,6 +1988,11 @@ function pagesFor(ctx: Ctx): PageSpec[] {
       { path: "/gallery", label: "Gallery", nav: true, group: "Product", real: true },
       { path: "/events", label: "Private events", group: "Resources", real: true },
     ],
+    marketplace: [
+      { path: "/shop", label: "Shop", nav: true, group: "Product", real: true },
+      { path: "/cart", label: "Cart", group: "Product", real: true },
+      { path: "/checkout", label: "Checkout", group: "Product", real: true },
+    ],
   };
   return [...(specific[k] ?? []), ...common];
 }
@@ -1980,6 +2009,10 @@ const linkLiteral = (pages: PageSpec[]): string =>
 // @lacspace/store (so the open state is shared, not prop-drilled).
 const siteHeader = (ctx: Ctx): string => {
   const isEcom = ctx.template.key === "ecommerce";
+  const isMarket = ctx.template.key === "marketplace";
+  // The marketplace uses a self-contained cart island (its own @lacspace/cart
+  // store) so the header stays free of cart wiring.
+  if (isMarket) return marketHeader(ctx);
   const cartImport = isEcom ? `\nimport { useCart } from "@/lib/store";\nimport { useIsMounted } from "@lacspace/hooks";` : "";
   const cartHook = isEcom
     ? `\n  const count = useCart((s) => s.items.length);\n  const mounted = useIsMounted();`
@@ -2772,6 +2805,871 @@ export function CartView() {
 }
 `;
 
+/* ============================ marketplace template ============================ */
+
+// lib/products.ts — an in-memory catalogue. Prices are integer paisa (minor units).
+const productsLib = (ctx: Ctx): string => `// The catalogue for ${ctx.template.siteName}. Swap this for a database or CMS —
+// every price is an integer in **paisa** (minor units), so there is never a
+// floating-point rounding bug. NPR 450.00 is written as 45000.
+
+export interface Product {
+  slug: string;
+  name: string;
+  /** Price in integer minor units (paisa). */
+  price: number;
+  /** A placeholder visual — swap for a real image URL when you have one. */
+  emoji: string;
+  /** Optional image URL (falls back to the emoji tile). */
+  image?: string;
+  blurb: string;
+  /** Shipping weight in grams — drives the weight-based shipping rate. */
+  weight: number;
+}
+
+export const PRODUCTS: Product[] = [
+  { slug: "himalayan-gold-tea", name: "Himalayan Gold Tea", price: 45000, emoji: "\\u{1F375}", blurb: "Hand-picked orthodox black tea from the high hills — bright, malty and endlessly re-steepable.", weight: 250 },
+  { slug: "lokta-notebook", name: "Lokta Paper Notebook", price: 68000, emoji: "\\u{1F4D3}", blurb: "A5 notebook bound in handmade lokta paper. 160 pages that take fountain-pen ink beautifully.", weight: 320 },
+  { slug: "pashmina-scarf", name: "Pashmina Scarf", price: 320000, emoji: "\\u{1F9E3}", blurb: "Feather-light, ethically sourced pashmina, hand-loomed in a natural undyed grey.", weight: 180 },
+  { slug: "singing-bowl", name: "Hand-hammered Singing Bowl", price: 540000, emoji: "\\u{1F514}", blurb: "A seven-metal bowl with a long, resonant hum. Comes with a wooden striker and cushion.", weight: 900 },
+  { slug: "ceramic-mug", name: "Glazed Ceramic Mug", price: 52000, emoji: "\\u2615", blurb: "A chunky, wheel-thrown mug in a speckled reactive glaze. Holds a generous 350ml.", weight: 420 },
+  { slug: "wool-socks", name: "Merino Wool Socks", price: 38000, emoji: "\\u{1F9E6}", blurb: "Cushioned merino socks that stay warm even when damp — the ones you will keep reaching for.", weight: 120 },
+];
+
+export function getProduct(slug: string): Product | undefined {
+  return PRODUCTS.find((p) => p.slug === slug);
+}
+`;
+
+// lib/commerce.ts — composes the Lacspace commerce packages: tax, shipping,
+// order + invoice engines and money formatting. Pure + isomorphic, so the quote
+// runs on the client (live cart totals) and buildOrder runs in a route handler.
+const commerceLib = (ctx: Ctx): string => `import { tax, RATES } from "@lacspace/tax";
+import { cheapestQuote, type ShippingMethod } from "@lacspace/shipping";
+import { createOrder, orderNumber, type Order } from "@lacspace/order";
+import { createInvoice, type Invoice } from "@lacspace/invoice";
+import { Money } from "@lacspace/money";
+
+/** Everything internal is integer paisa; this is the only currency the store uses. */
+export const CURRENCY = "NPR";
+/** Nepal VAT — 13% — straight from @lacspace/tax's RATES table. */
+export const VAT_RATE = RATES.NP_VAT;
+
+/** Format integer paisa for display, e.g. 45000 -> "NPR 450.00". */
+export function formatMoney(minor: number): string {
+  return Money.fromMinor(Math.round(minor), CURRENCY).format();
+}
+
+/** A cart line the quote engine understands. All amounts are integer paisa. */
+export interface QuoteLine {
+  id: string;
+  name: string;
+  unitPrice: number;
+  qty: number;
+  /** Per-unit weight in grams (drives shipping). */
+  weight?: number;
+}
+
+/**
+ * The shipping methods offered at checkout. @lacspace/shipping rates each one
+ * against the shipment (weight / subtotal / item count); "standard" ships free
+ * once the order is large enough.
+ */
+export const SHIPPING_METHODS: ShippingMethod[] = [
+  {
+    id: "standard",
+    label: "Standard (3-5 days)",
+    strategy: "weight",
+    bands: [
+      { min: 0, max: 500, cost: 8000 },
+      { min: 501, max: 2000, cost: 12000 },
+      { min: 2001, cost: 20000 },
+    ],
+    freeOver: 500000,
+    etaDays: [3, 5],
+  },
+  { id: "express", label: "Express (1-2 days)", strategy: "flat", flat: 25000, etaDays: [1, 2] },
+];
+
+/** The computed money breakdown for a cart. Every field is integer paisa. */
+export interface Quote {
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  total: number;
+  itemCount: number;
+  currency: string;
+  shippingMethod: string;
+  /** Paisa still needed to unlock free standard shipping (0 once unlocked). */
+  freeShippingRemaining: number;
+}
+
+const asQty = (n: number): number => Math.max(0, Math.trunc(n));
+
+/** Compose subtotal + 13% VAT (@lacspace/tax) + cheapest shipping (@lacspace/shipping). */
+export function quote(lines: QuoteLine[]): Quote {
+  const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * asQty(l.qty), 0);
+  const weight = lines.reduce((sum, l) => sum + (l.weight ?? 0) * asQty(l.qty), 0);
+  const itemCount = lines.reduce((sum, l) => sum + asQty(l.qty), 0);
+
+  const vat = tax(subtotal, { rate: VAT_RATE });
+  const ship = cheapestQuote(SHIPPING_METHODS, { weight, subtotal, itemCount });
+  const shipping = ship?.cost ?? 0;
+  const total = subtotal + vat.tax + shipping;
+  const freeOver = 500000;
+
+  return {
+    subtotal,
+    tax: vat.tax,
+    shipping,
+    total,
+    itemCount,
+    currency: CURRENCY,
+    shippingMethod: ship?.label ?? "-",
+    freeShippingRemaining: Math.max(0, freeOver - subtotal),
+  };
+}
+
+export interface BuildOrderInput {
+  lines: QuoteLine[];
+  customer?: { name?: string; email?: string };
+  paymentMethod: string;
+  /** Sequence number for the human-facing order number. */
+  seq?: number;
+}
+
+export interface BuiltOrder {
+  order: Order;
+  invoice: Invoice;
+  quote: Quote;
+}
+
+/** Build an immutable Order (+ Invoice) from cart lines. Used by the checkout API. */
+export function buildOrder(input: BuildOrderInput): BuiltOrder {
+  const q = quote(input.lines);
+  const seq = input.seq ?? Math.floor(Math.random() * 9000) + 1000;
+  const number = orderNumber(seq, { prefix: "BZR" });
+
+  const order = createOrder({
+    number,
+    currency: CURRENCY,
+    lines: input.lines.map((l) => ({ sku: l.id, name: l.name, unitPrice: l.unitPrice, qty: asQty(l.qty) })),
+    tax: q.tax,
+    shipping: q.shipping,
+    customer: input.customer,
+    meta: { paymentMethod: input.paymentMethod, shippingMethod: q.shippingMethod },
+  });
+
+  const invoice = createInvoice({
+    number: number.replace("BZR", "INV"),
+    currency: CURRENCY,
+    seller: { name: ${JSON.stringify(ctx.template.siteName)}, email: "orders@example.com" },
+    buyer: { name: input.customer?.name ?? "Guest", email: input.customer?.email },
+    lines: input.lines.map((l) => ({ description: l.name, qty: asQty(l.qty), unitPrice: l.unitPrice, taxRate: VAT_RATE })),
+    status: "issued",
+    issuedAt: Date.now(),
+    notes: "Paid via " + input.paymentMethod + ". Shipping: " + q.shippingMethod + ".",
+  });
+
+  return { order, invoice, quote: q };
+}
+`;
+
+// components/cart-store.tsx — a @lacspace/store store wrapping @lacspace/cart,
+// persisted to localStorage. SSR-safe: no window access at module scope.
+const cartStore = (): string => `"use client";
+
+import { create, persist } from "@lacspace/store";
+import { createCart, addItem, setQty, removeItem, type Cart } from "@lacspace/cart";
+
+const EMPTY: Cart = createCart({ currency: "NPR" });
+
+export interface AddInput {
+  id: string;
+  name: string;
+  unitPrice: number;
+  qty?: number;
+  meta?: Record<string, unknown>;
+}
+
+interface CartStore {
+  cart: Cart;
+  add: (item: AddInput) => void;
+  setQty: (id: string, qty: number) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+}
+
+// @lacspace/cart is pure & immutable — every op returns a brand-new Cart, which
+// is exactly what @lacspace/store wants. persist() guards SSR (no localStorage
+// on the server), so this is safe to import anywhere.
+export const useCart = create<CartStore>(
+  persist(
+    (set, get) => ({
+      cart: EMPTY,
+      add: (item) =>
+        set({
+          cart: addItem(get().cart, {
+            id: item.id,
+            name: item.name,
+            unitPrice: item.unitPrice,
+            qty: item.qty ?? 1,
+            meta: item.meta,
+          }),
+        }),
+      setQty: (id, qty) => set({ cart: setQty(get().cart, id, qty) }),
+      remove: (id) => set({ cart: removeItem(get().cart, id) }),
+      clear: () => set({ cart: createCart({ currency: "NPR" }) }),
+    }),
+    { name: "market-cart" },
+  ),
+);
+`;
+
+// components/cart-button.tsx — the header cart badge (a small client island).
+const cartButton = (): string => `"use client";
+
+import Link from "next/link";
+import { useCart } from "@/components/cart-store";
+import { useIsMounted } from "@lacspace/hooks";
+
+export function CartButton() {
+  const count = useCart((s) => s.cart.items.reduce((n, i) => n + i.qty, 0));
+  const mounted = useIsMounted();
+  return (
+    <Link href="/cart" aria-label="Cart" className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
+      {mounted() && count > 0 ? (
+        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full gradient-bg px-1 text-[10px] font-bold text-black">{count}</span>
+      ) : null}
+    </Link>
+  );
+}
+`;
+
+// components/add-to-cart.tsx — a reusable "Add to cart" client island.
+const addToCart = (): string => `"use client";
+
+import { useState } from "react";
+import { useCart } from "@/components/cart-store";
+
+export interface AddToCartProduct {
+  id: string;
+  name: string;
+  unitPrice: number;
+  weight?: number;
+  emoji?: string;
+}
+
+export function AddToCart({ product, className = "" }: { product: AddToCartProduct; className?: string }) {
+  const add = useCart((s) => s.add);
+  const [added, setAdded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        add({
+          id: product.id,
+          name: product.name,
+          unitPrice: product.unitPrice,
+          qty: 1,
+          meta: { weight: product.weight ?? 0, emoji: product.emoji ?? "" },
+        });
+        setAdded(true);
+        window.setTimeout(() => setAdded(false), 1200);
+      }}
+      className={"rounded-full gradient-bg px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 " + className}
+    >
+      {added ? "Added \\u2713" : "Add to cart"}
+    </button>
+  );
+}
+`;
+
+// components/site-header.tsx (marketplace variant) — nav + theme + cart island.
+const marketHeader = (ctx: Ctx): string => `"use client";
+
+import Link from "next/link";
+import { useUI } from "@/lib/store";
+import { ThemeToggle } from "./theme-toggle";
+import { CartButton } from "./cart-button";
+
+const LINKS = [${linkLiteral(pagesFor(ctx).filter((p) => p.nav))}];
+
+export function SiteHeader() {
+  const open = useUI((s) => s.navOpen);
+  const toggle = useUI((s) => s.toggleNav);
+  const setOpen = useUI((s) => s.setNavOpen);
+  return (
+    <header className="sticky top-0 z-40 border-b border-hairline bg-app/90 backdrop-blur">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/" className="text-lg font-black gradient-text">${ctx.template.siteName}</Link>
+        <div className="hidden items-center gap-6 md:flex">
+          {LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="text-sm text-muted transition hover:text-fg">{l.label}</Link>
+          ))}
+          <ThemeToggle />
+          <CartButton />
+        </div>
+        <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <CartButton />
+          <button type="button" aria-label="Menu" onClick={toggle} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition hover:text-fg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+        </div>
+      </nav>
+      {open ? (
+        <div className="border-t border-hairline md:hidden">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-muted transition hover:bg-surface hover:text-fg">{l.label}</Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </header>
+  );
+}
+`;
+
+// app/page.tsx (marketplace) — hero + a featured product grid with working carts.
+const marketplaceHome = (ctx: Ctx): string => {
+  const n = ctx.template.siteName;
+  return `import { site } from "@/lib/site";
+import Link from "next/link";
+import { Aurora } from "@/components/aurora";
+import { HeroArt } from "@/components/hero-art";
+import { LiveStats } from "@/components/live-stats";
+import { AddToCart } from "@/components/add-to-cart";
+import { PRODUCTS } from "@/lib/products";
+import { formatMoney } from "@/lib/commerce";
+
+export const metadata = site.meta({ title: ${JSON.stringify(n)}, path: "/" });
+
+export default function Home() {
+  const featured = PRODUCTS.slice(0, 3);
+  return (
+    <main className="relative min-h-screen overflow-hidden">
+      <Aurora />
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 md:grid-cols-2">
+        <div>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-faint">Storefront</p>
+          <h1 className="text-5xl font-black leading-tight sm:text-6xl">Shop <span className="gradient-text">${n}</span></h1>
+          <p className="mt-6 max-w-md text-lg text-muted">${ctx.template.siteDescription}</p>
+          <div className="mt-10 flex gap-4">
+            <Link href="/shop" className="gradient-bg rounded-full px-8 py-3 font-semibold text-black">Shop the collection</Link>
+            <Link href="/cart" className="rounded-full border border-hairline px-8 py-3 font-semibold hover:bg-surface">View cart</Link>
+          </div>
+          <p className="mt-6 text-sm text-muted">Free standard shipping over {formatMoney(500000)}.</p>
+        </div>
+        <HeroArt />
+      </section>
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <div className="mb-10 flex items-end justify-between">
+          <h2 className="text-3xl font-bold">Featured</h2>
+          <Link href="/shop" className="text-sm text-muted underline underline-offset-4 hover:text-fg">See all</Link>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((p) => (
+            <div key={p.slug} className="group flex flex-col rounded-2xl border border-hairline bg-surface p-5 transition hover:-translate-y-1">
+              <Link href={"/product/" + p.slug} className="mb-4 flex aspect-square items-center justify-center rounded-xl gradient-bg text-6xl">{p.emoji}</Link>
+              <Link href={"/product/" + p.slug} className="font-semibold group-hover:opacity-90">{p.name}</Link>
+              <div className="mt-1 text-muted">{formatMoney(p.price)}</div>
+              <div className="mt-4">
+                <AddToCart product={{ id: p.slug, name: p.name, unitPrice: p.price, weight: p.weight, emoji: p.emoji }} className="w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      ${builtWithSection(ctx)}
+    </main>
+  );
+}
+`;
+};
+
+// app/shop/page.tsx — the full product grid (server component).
+const marketShopPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import Link from "next/link";
+import { site } from "@/lib/site";
+import { PRODUCTS } from "@/lib/products";
+import { formatMoney } from "@/lib/commerce";
+import { AddToCart } from "@/components/add-to-cart";
+
+export const metadata: Metadata = site.meta({ title: "Shop", path: "/shop", description: ${JSON.stringify(`Everything in the ${ctx.template.siteName} store.`)} });
+
+export default function Page() {
+  return (
+    <main className="mx-auto min-h-screen max-w-6xl px-6 py-24">
+      <p className="text-sm font-semibold uppercase tracking-widest text-faint">Shop</p>
+      <h1 className="mt-3 text-4xl font-bold">Everything in the <span className="gradient-text">store</span></h1>
+      <p className="mt-4 max-w-xl text-muted">Prices are exact to the paisa with @lacspace/money, and your cart is saved locally with @lacspace/store.</p>
+      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {PRODUCTS.map((p) => (
+          <div key={p.slug} className="group flex flex-col rounded-2xl border border-hairline bg-surface p-5 transition hover:-translate-y-1">
+            <Link href={"/product/" + p.slug} className="mb-4 flex aspect-square items-center justify-center rounded-xl gradient-bg text-6xl">{p.emoji}</Link>
+            <Link href={"/product/" + p.slug} className="font-semibold group-hover:opacity-90">{p.name}</Link>
+            <p className="mt-1 line-clamp-2 text-sm text-muted">{p.blurb}</p>
+            <div className="mt-3 text-muted">{formatMoney(p.price)}</div>
+            <div className="mt-4">
+              <AddToCart product={{ id: p.slug, name: p.name, unitPrice: p.price, weight: p.weight, emoji: p.emoji }} className="w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+`;
+
+// app/product/[slug]/page.tsx — product detail with static params + Add to cart.
+const marketProductPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { site } from "@/lib/site";
+import { PRODUCTS, getProduct } from "@/lib/products";
+import { formatMoney } from "@/lib/commerce";
+import { AddToCart } from "@/components/add-to-cart";
+
+export function generateStaticParams() {
+  return PRODUCTS.map((p) => ({ slug: p.slug }));
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = getProduct(slug);
+  if (!product) return site.meta({ title: "Not found", path: "/product/" + slug });
+  return site.meta({ title: product.name, path: "/product/" + slug, description: product.blurb });
+}
+
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const product = getProduct(slug);
+  if (!product) notFound();
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-24">
+      <Link href="/shop" className="text-sm text-muted underline underline-offset-4 hover:text-fg">← Back to shop</Link>
+      <div className="mt-8 grid gap-12 md:grid-cols-2">
+        <div className="flex aspect-square items-center justify-center rounded-3xl gradient-bg text-[10rem]">{product.emoji}</div>
+        <div className="flex flex-col justify-center">
+          <h1 className="text-4xl font-bold">{product.name}</h1>
+          <div className="mt-3 text-2xl font-semibold gradient-text">{formatMoney(product.price)}</div>
+          <p className="mt-6 text-lg text-muted">{product.blurb}</p>
+          <div className="mt-8 flex items-center gap-4">
+            <AddToCart product={{ id: product.slug, name: product.name, unitPrice: product.price, weight: product.weight, emoji: product.emoji }} />
+            <Link href="/cart" className="rounded-full border border-hairline px-6 py-2 text-sm font-semibold hover:bg-surface">Go to cart</Link>
+          </div>
+          <p className="mt-6 text-sm text-muted">Ships in 3-5 days · free over {formatMoney(500000)} · {product.weight}g</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+`;
+
+// app/cart/page.tsx — the live cart view ("use client").
+const marketCartPage = (ctx: Ctx): string => `"use client";
+
+import Link from "next/link";
+import { useCart } from "@/components/cart-store";
+import { quote, formatMoney, type QuoteLine } from "@/lib/commerce";
+import { useIsMounted } from "@lacspace/hooks";
+
+export default function Page() {
+  const cart = useCart((s) => s.cart);
+  const setQty = useCart((s) => s.setQty);
+  const remove = useCart((s) => s.remove);
+  const clear = useCart((s) => s.clear);
+  const mounted = useIsMounted();
+
+  if (!mounted()) {
+    return <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center text-muted">Loading your cart…</main>;
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center">
+        <h1 className="text-4xl font-bold">Your <span className="gradient-text">cart</span></h1>
+        <p className="mt-4 text-lg text-muted">It's empty for now.</p>
+        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+      </main>
+    );
+  }
+
+  const lines: QuoteLine[] = cart.items.map((i) => ({
+    id: i.id,
+    name: i.name ?? i.id,
+    unitPrice: i.unitPrice,
+    qty: i.qty,
+    weight: Number((i.meta && (i.meta as Record<string, unknown>).weight) ?? 0),
+  }));
+  const q = quote(lines);
+
+  const rows: { label: string; value: string; strong?: boolean }[] = [
+    { label: "Subtotal", value: formatMoney(q.subtotal) },
+    { label: "VAT (13%)", value: formatMoney(q.tax) },
+    { label: "Shipping (" + q.shippingMethod + ")", value: q.shipping === 0 ? "Free" : formatMoney(q.shipping) },
+    { label: "Total", value: formatMoney(q.total), strong: true },
+  ];
+
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-24">
+      <h1 className="text-4xl font-bold">Your <span className="gradient-text">cart</span></h1>
+      <div className="mt-12 grid gap-12 lg:grid-cols-[1fr_20rem]">
+        <ul className="divide-y divide-hairline">
+          {cart.items.map((i) => {
+            const emoji = String((i.meta && (i.meta as Record<string, unknown>).emoji) ?? "\\u{1F6D2}");
+            return (
+              <li key={i.id} className="flex items-center gap-4 py-5">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl gradient-bg text-3xl">{emoji}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{i.name}</div>
+                  <div className="text-sm text-muted">{formatMoney(i.unitPrice)} each</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" aria-label="Decrease" onClick={() => setQty(i.id, i.qty - 1)} className="h-8 w-8 rounded-full border border-hairline text-muted transition hover:text-fg">−</button>
+                  <span className="w-8 text-center tabular-nums">{i.qty}</span>
+                  <button type="button" aria-label="Increase" onClick={() => setQty(i.id, i.qty + 1)} className="h-8 w-8 rounded-full border border-hairline text-muted transition hover:text-fg">+</button>
+                </div>
+                <div className="w-24 text-right font-semibold tabular-nums">{formatMoney(i.unitPrice * i.qty)}</div>
+                <button type="button" aria-label="Remove" onClick={() => remove(i.id)} className="text-faint transition hover:text-fg">✕</button>
+              </li>
+            );
+          })}
+        </ul>
+        <aside className="h-fit rounded-2xl border border-hairline bg-surface p-6">
+          <h2 className="font-semibold">Order summary</h2>
+          <dl className="mt-5 space-y-3 text-sm">
+            {rows.map((r) => (
+              <div key={r.label} className={"flex items-center justify-between " + (r.strong ? "border-t border-hairline pt-3 text-base font-bold" : "text-muted")}>
+                <dt>{r.label}</dt>
+                <dd className="tabular-nums">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {q.freeShippingRemaining > 0 ? (
+            <p className="mt-4 text-xs text-muted">Add {formatMoney(q.freeShippingRemaining)} more for free shipping.</p>
+          ) : null}
+          <Link href="/checkout" className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold text-black">Checkout</Link>
+          <button type="button" onClick={clear} className="mt-3 block w-full text-center text-sm text-muted transition hover:text-fg">Clear cart</button>
+        </aside>
+      </div>
+    </main>
+  );
+}
+`;
+
+// app/checkout/page.tsx — order summary + details + payment method ("use client").
+const marketCheckoutPage = (ctx: Ctx): string => `"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCart } from "@/components/cart-store";
+import { quote, formatMoney, type QuoteLine } from "@/lib/commerce";
+import { useIsMounted } from "@lacspace/hooks";
+
+type Method = "esewa" | "khalti" | "cod";
+
+export default function Page() {
+  const router = useRouter();
+  const cart = useCart((s) => s.cart);
+  const clear = useCart((s) => s.clear);
+  const mounted = useIsMounted();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [method, setMethod] = useState<Method>("esewa");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!mounted()) {
+    return <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center text-muted">Loading…</main>;
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <main className="mx-auto min-h-screen max-w-3xl px-6 py-24 text-center">
+        <h1 className="text-4xl font-bold">Checkout</h1>
+        <p className="mt-4 text-lg text-muted">Your cart is empty.</p>
+        <Link href="/shop" className="mt-8 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Browse the shop</Link>
+      </main>
+    );
+  }
+
+  const lines: QuoteLine[] = cart.items.map((i) => ({
+    id: i.id,
+    name: i.name ?? i.id,
+    unitPrice: i.unitPrice,
+    qty: i.qty,
+    weight: Number((i.meta && (i.meta as Record<string, unknown>).weight) ?? 0),
+  }));
+  const q = quote(lines);
+
+  async function submitEsewaForm(amount: number, orderNumber: string) {
+    const res = await fetch("/api/pay/esewa", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount, orderNumber }),
+    });
+    const data = (await res.json()) as { action: string; fields: Record<string, string> };
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = data.action;
+    Object.entries(data.fields).forEach(([k, v]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = k;
+      input.value = v;
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lines, customer: { name, email, address }, paymentMethod: method }),
+      });
+      if (!res.ok) throw new Error("Could not place the order.");
+      const order = (await res.json()) as { orderNumber: string; total: number };
+
+      if (method === "cod") {
+        clear();
+        router.push("/checkout/success?order=" + encodeURIComponent(order.orderNumber) + "&method=cod");
+        return;
+      }
+      if (method === "khalti") {
+        const pay = await fetch("/api/pay/khalti", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ amount: order.total, orderNumber: order.orderNumber, orderName: ${JSON.stringify(`${ctx.template.siteName} order`)}, customer: { name, email } }),
+        });
+        const data = (await pay.json()) as { payment_url: string; mock?: boolean };
+        clear();
+        window.location.href = data.payment_url;
+        return;
+      }
+      // eSewa: build + auto-submit the signed form (navigates to the gateway).
+      await submitEsewaForm(order.total, order.orderNumber);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setBusy(false);
+    }
+  }
+
+  const field = "w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none focus:border-hairline";
+  const methods: { id: Method; label: string; hint: string }[] = [
+    { id: "esewa", label: "eSewa", hint: "Test gateway \\u2014 signed with the documented sandbox credentials." },
+    { id: "khalti", label: "Khalti", hint: "Runs in mock mode until you set KHALTI_SECRET." },
+    { id: "cod", label: "Cash on delivery", hint: "Pay when your order arrives." },
+  ];
+
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-24">
+      <h1 className="text-4xl font-bold">Checkout</h1>
+      <form onSubmit={onSubmit} className="mt-12 grid gap-12 lg:grid-cols-[1fr_20rem]">
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <h2 className="font-semibold">Your details</h2>
+            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className={field} />
+            <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={field} />
+            <textarea required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" rows={3} className={field} />
+          </section>
+          <section className="space-y-3">
+            <h2 className="font-semibold">Payment</h2>
+            {methods.map((m) => (
+              <label key={m.id} className={"flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition " + (method === m.id ? "border-transparent bg-surface ring-2 ring-[var(--accent-to)]" : "border-hairline hover:bg-surface")}>
+                <input type="radio" name="method" checked={method === m.id} onChange={() => setMethod(m.id)} className="mt-1" />
+                <span>
+                  <span className="block font-medium">{m.label}</span>
+                  <span className="block text-sm text-muted">{m.hint}</span>
+                </span>
+              </label>
+            ))}
+          </section>
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        </div>
+        <aside className="h-fit rounded-2xl border border-hairline bg-surface p-6">
+          <h2 className="font-semibold">Order summary</h2>
+          <ul className="mt-4 space-y-2 text-sm text-muted">
+            {cart.items.map((i) => (
+              <li key={i.id} className="flex justify-between gap-3">
+                <span className="truncate">{i.name} × {i.qty}</span>
+                <span className="tabular-nums">{formatMoney(i.unitPrice * i.qty)}</span>
+              </li>
+            ))}
+          </ul>
+          <dl className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
+            <div className="flex justify-between text-muted"><dt>Subtotal</dt><dd className="tabular-nums">{formatMoney(q.subtotal)}</dd></div>
+            <div className="flex justify-between text-muted"><dt>VAT (13%)</dt><dd className="tabular-nums">{formatMoney(q.tax)}</dd></div>
+            <div className="flex justify-between text-muted"><dt>Shipping</dt><dd className="tabular-nums">{q.shipping === 0 ? "Free" : formatMoney(q.shipping)}</dd></div>
+            <div className="flex justify-between border-t border-hairline pt-2 text-base font-bold"><dt>Total</dt><dd className="tabular-nums">{formatMoney(q.total)}</dd></div>
+          </dl>
+          <button type="submit" disabled={busy} className="mt-6 block w-full rounded-full gradient-bg px-6 py-3 text-center font-semibold text-black transition hover:opacity-90 disabled:opacity-60">
+            {busy ? "Placing order\\u2026" : "Pay " + formatMoney(q.total)}
+          </button>
+        </aside>
+      </form>
+    </main>
+  );
+}
+`;
+
+// app/checkout/success/page.tsx — confirmation, reads the order from the query.
+const marketSuccessPage = (ctx: Ctx): string => `import type { Metadata } from "next";
+import Link from "next/link";
+import { site } from "@/lib/site";
+
+export const metadata: Metadata = site.meta({ title: "Order confirmed", path: "/checkout/success" });
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ order?: string; method?: string; mock?: string }> }) {
+  const sp = await searchParams;
+  const order = sp.order ?? "";
+  const method = sp.method ?? "";
+  const mock = sp.mock === "1";
+  return (
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-24 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full gradient-bg text-4xl text-black">✓</div>
+      <h1 className="mt-8 text-4xl font-bold">Thank you!</h1>
+      <p className="mt-4 text-lg text-muted">Your order with ${ctx.template.siteName} is confirmed.</p>
+      {order ? (
+        <p className="mt-6 rounded-xl border border-hairline bg-surface px-5 py-3 font-mono text-sm">Order {order}</p>
+      ) : null}
+      {method ? <p className="mt-3 text-sm text-muted">Payment method: {method}</p> : null}
+      {mock ? <p className="mt-3 max-w-md text-sm text-muted">This Khalti payment ran in mock mode. Set KHALTI_SECRET in your environment to hit the real gateway.</p> : null}
+      <Link href="/shop" className="mt-10 inline-block rounded-full gradient-bg px-6 py-3 font-semibold text-black">Continue shopping</Link>
+    </main>
+  );
+}
+`;
+
+// app/api/checkout/route.ts — build an order + invoice from the cart (in-memory).
+const checkoutRoute = (): string => `import { NextResponse } from "next/server";
+import { buildOrder, type QuoteLine } from "@/lib/commerce";
+
+export async function POST(req: Request) {
+  const body = (await req.json()) as {
+    lines?: QuoteLine[];
+    customer?: { name?: string; email?: string };
+    paymentMethod?: string;
+  };
+  const lines = body.lines ?? [];
+  if (lines.length === 0) {
+    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+  }
+
+  // @lacspace/order + @lacspace/invoice build immutable, serializable records.
+  // Persist \`order\` / \`invoice\` to your database here — this demo keeps them in memory.
+  const { order, invoice, quote } = buildOrder({
+    lines,
+    customer: body.customer,
+    paymentMethod: body.paymentMethod ?? "cod",
+  });
+
+  return NextResponse.json({
+    orderNumber: order.number,
+    invoiceNumber: invoice.number,
+    total: quote.total,
+    currency: quote.currency,
+  });
+}
+`;
+
+// app/api/pay/esewa/route.ts — return a signed eSewa form (server-only crypto).
+const esewaRoute = (): string => `import { NextResponse } from "next/server";
+import { buildForm, ESEWA_TEST_SECRET, ESEWA_TEST_PRODUCT_CODE } from "@lacspace/esewa";
+
+// eSewa amounts are in **rupees**, so we convert from the paisa the cart uses.
+export async function POST(req: Request) {
+  const body = (await req.json()) as { amount?: number; orderNumber?: string };
+  const secret = process.env.ESEWA_SECRET ?? ESEWA_TEST_SECRET;
+  const productCode = process.env.ESEWA_PRODUCT_CODE ?? ESEWA_TEST_PRODUCT_CODE;
+  const env: "test" | "prod" = process.env.ESEWA_SECRET ? "prod" : "test";
+  const rupees = Math.round((body.amount ?? 0) / 100);
+  const origin = new URL(req.url).origin;
+  const orderNumber = body.orderNumber ?? "txn-" + Date.now();
+
+  const form = await buildForm(
+    {
+      amount: rupees,
+      transactionUuid: orderNumber,
+      productCode,
+      successUrl: origin + "/checkout/success?order=" + encodeURIComponent(orderNumber) + "&method=esewa",
+      failureUrl: origin + "/checkout?failed=1",
+    },
+    { secret, env },
+  );
+
+  return NextResponse.json(form);
+}
+`;
+
+// app/api/pay/khalti/route.ts — initiate Khalti, or a labelled mock with no key.
+const khaltiRoute = (): string => `import { NextResponse } from "next/server";
+import { initiate } from "@lacspace/khalti";
+
+export async function POST(req: Request) {
+  const body = (await req.json()) as {
+    amount?: number;
+    orderNumber?: string;
+    orderName?: string;
+    customer?: { name?: string; email?: string };
+  };
+  const secret = process.env.KHALTI_SECRET;
+  const origin = new URL(req.url).origin;
+  const orderNumber = body.orderNumber ?? "order";
+  const returnUrl = origin + "/checkout/success?order=" + encodeURIComponent(orderNumber) + "&method=khalti";
+
+  // Zero-config: without a secret we return a clearly-labelled mock so the flow
+  // still completes end-to-end in development.
+  if (!secret) {
+    return NextResponse.json({
+      mock: true,
+      pidx: "mock-" + Date.now(),
+      payment_url: returnUrl + "&mock=1",
+    });
+  }
+
+  const res = await initiate(
+    {
+      return_url: returnUrl,
+      website_url: origin,
+      amount: body.amount ?? 0, // paisa
+      purchase_order_id: orderNumber,
+      purchase_order_name: body.orderName ?? "Order",
+      customer_info: body.customer,
+    },
+    { secretKey: secret, env: "test" },
+  );
+
+  return NextResponse.json(res);
+}
+`;
+
+// .env.example (marketplace) — all payment vars are optional (test/mock mode).
+const marketEnvExample = (): string => `# Your production URL — powers canonical URLs, sitemap, robots and OG images.
+NEXT_PUBLIC_SITE_URL=https://example.com
+
+# --- Payments (all optional) ---
+# The store runs out of the box: eSewa uses the documented sandbox credentials,
+# and Khalti falls back to a labelled mock until you add a secret.
+
+# eSewa — set both to go live (otherwise the EPAYTEST sandbox is used).
+# ESEWA_SECRET=
+# ESEWA_PRODUCT_CODE=
+
+# Khalti — set the secret to hit the real gateway (otherwise a mock is returned).
+# KHALTI_SECRET=
+`;
+
 // dashboard — settings (server) renders the client settings panel in the shell.
 const settingsPage = (ctx: Ctx): string => `import type { Metadata } from "next";
 import { site } from "@/lib/site";
@@ -3279,6 +4177,21 @@ function realPageFiles(ctx: Ctx): Record<string, string> {
     f["components/product-grid.tsx"] = productGrid();
     f["components/cart-view.tsx"] = cartView();
   }
+  if (k === "marketplace") {
+    f["lib/products.ts"] = productsLib(ctx);
+    f["lib/commerce.ts"] = commerceLib(ctx);
+    f["components/cart-store.tsx"] = cartStore();
+    f["components/cart-button.tsx"] = cartButton();
+    f["components/add-to-cart.tsx"] = addToCart();
+    f["app/shop/page.tsx"] = marketShopPage(ctx);
+    f["app/product/[slug]/page.tsx"] = marketProductPage(ctx);
+    f["app/cart/page.tsx"] = marketCartPage(ctx);
+    f["app/checkout/page.tsx"] = marketCheckoutPage(ctx);
+    f["app/checkout/success/page.tsx"] = marketSuccessPage(ctx);
+    f["app/api/checkout/route.ts"] = checkoutRoute();
+    f["app/api/pay/esewa/route.ts"] = esewaRoute();
+    f["app/api/pay/khalti/route.ts"] = khaltiRoute();
+  }
   if (k === "blog") { f["app/topics/page.tsx"] = topicsPage(ctx); f["app/newsletter/page.tsx"] = newsletterPage(ctx); }
   if (k === "docs") { f["app/guides/page.tsx"] = guidesPage(ctx); f["app/changelog/page.tsx"] = changelogPage(ctx); f["app/api-reference/page.tsx"] = apiRefPage(ctx); }
   if (k === "restaurant") { f["app/menu/page.tsx"] = menuPage(ctx); f["app/gallery/page.tsx"] = galleryPage(ctx); f["app/reservations/page.tsx"] = reservationsPage(ctx); f["app/events/page.tsx"] = eventsPage(ctx); }
@@ -3389,6 +4302,18 @@ function creativeData(ctx: Ctx): CreativeData {
         { q: "Do you take reservations?", a: "Yes — book via the reservations page. Walk-ins are welcome too." },
         { q: "Any dietary options?", a: "Plenty — vegetarian and vegan plates change weekly. Just ask about allergies." },
         { q: "When are you open?", a: "Wednesday to Sunday, 5pm till late." },
+      ],
+    },
+    marketplace: {
+      emoji: "🛒", chips: ["Cart", "Checkout", "Pay"],
+      showcaseTitle: "Cart to checkout, wired end to end",
+      showcaseLead: `${n} is a real storefront — a headless cart, tax & shipping, orders and invoices, plus eSewa & Khalti payments.`,
+      bullets: ["Integer-safe money (no rounding bugs)", "VAT + weight-based shipping", "eSewa & Khalti, test-mode out of the box"],
+      marqueeLabel: "Powered by", marquee: ["@lacspace/cart", "@lacspace/order", "@lacspace/tax", "@lacspace/shipping", "@lacspace/invoice", "@lacspace/esewa", "@lacspace/khalti"],
+      faq: [
+        { q: "How is the cart stored?", a: "In a @lacspace/store store persisted to localStorage — it survives a refresh, and it's SSR-safe." },
+        { q: "Which payments are supported?", a: "eSewa and Khalti are wired up, plus cash on delivery. They run in test/mock mode with zero config." },
+        { q: "How are totals calculated?", a: "Subtotal, 13% VAT (@lacspace/tax) and shipping (@lacspace/shipping) are composed in lib/commerce, all in integer paisa." },
       ],
     },
   };

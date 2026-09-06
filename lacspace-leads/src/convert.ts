@@ -1,0 +1,105 @@
+/**
+ * A small, format-agnostic data converter: read JSON, CSV or Excel and write
+ * JSON, CSV or Excel. Powers `lacspace-leads convert` and is exported for
+ * programmatic use. Excel I/O is handled by `@lacspace/xlsx`, CSV by
+ * `@lacspace/csv`.
+ */
+import { readFile, writeFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
+import { parse as csvParse, stringify as csvStringify } from "@lacspace/csv";
+import { jsonToXlsx, xlsxToJson } from "@lacspace/xlsx";
+import type { OutputFormat } from "./types.js";
+
+/** An arbitrary tabular row. */
+export type DataRow = Record<string, unknown>;
+
+/** Infer the format from a filename extension. Throws on an unknown extension. */
+export function detectFormat(file: string): OutputFormat {
+  const ext = extname(file).toLowerCase().replace(/^\./, "");
+  if (ext === "json") return "json";
+  if (ext === "csv" || ext === "tsv") return "csv";
+  if (ext === "xlsx" || ext === "xls") return "xlsx";
+  throw new Error(`Cannot infer a format from ".${ext}" — pass an explicit --format (json|csv|xlsx).`);
+}
+
+/** Read a JSON / CSV / Excel file into an array of rows. */
+export async function readRows(file: string, format?: OutputFormat): Promise<DataRow[]> {
+  const fmt = format ?? detectFormat(file);
+  if (fmt === "xlsx") {
+    const bytes = await readFile(file);
+    return (await xlsxToJson(bytes)) as DataRow[];
+  }
+  const text = await readFile(file, "utf8");
+  if (fmt === "csv") {
+    return csvParse<DataRow>(text, { header: true });
+  }
+  // json
+  const parsed = JSON.parse(text);
+  if (Array.isArray(parsed)) return parsed as DataRow[];
+  if (parsed && typeof parsed === "object") return [parsed as DataRow];
+  throw new Error("JSON input must be an array of objects or a single object.");
+}
+
+/** The union of keys across all rows, in first-seen order — the column set. */
+export function columnsOf(rows: DataRow[]): string[] {
+  const cols: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const k of Object.keys(row)) {
+      if (!seen.has(k)) {
+        seen.add(k);
+        cols.push(k);
+      }
+    }
+  }
+  return cols;
+}
+
+/** Serialize arbitrary rows to a format. Returns bytes for xlsx, else a string. */
+export function serializeRows(
+  rows: DataRow[],
+  format: OutputFormat,
+  opts: { sheetName?: string } = {},
+): { data: string | Uint8Array; binary: boolean } {
+  if (format === "json") {
+    return { data: JSON.stringify(rows, null, 2), binary: false };
+  }
+  const cols = columnsOf(rows);
+  const flat = rows.map((row) => {
+    const out: Record<string, string | number | boolean | null> = {};
+    for (const c of cols) {
+      const v = row[c];
+      out[c] =
+        v === null || v === undefined
+          ? ""
+          : typeof v === "object"
+            ? JSON.stringify(v)
+            : (v as string | number | boolean);
+    }
+    return out;
+  });
+  if (format === "csv") {
+    return { data: csvStringify(flat as unknown as Record<string, string>[], { escapeFormulas: true }), binary: false };
+  }
+  const columns = cols.map((c) => {
+    const max = Math.max(c.length, ...flat.map((r) => String(r[c] ?? "").length));
+    return { header: c, width: Math.min(60, Math.max(8, max + 2)) };
+  });
+  return {
+    data: jsonToXlsx(flat, { sheetName: opts.sheetName ?? "Sheet1", columns }),
+    binary: true,
+  };
+}
+
+/** Read `input`, convert to `format`, and write to `out` (or a sibling file). */
+export async function convertFile(
+  input: string,
+  opts: { format?: OutputFormat; out?: string; sheetName?: string } = {},
+): Promise<{ out: string; format: OutputFormat; count: number }> {
+  const rows = await readRows(input); // input format inferred from its extension
+  const format = opts.format ?? (opts.out ? detectFormat(opts.out) : "json");
+  const out = resolve(opts.out ?? input.replace(/\.[^.]+$/, "") + "." + format);
+  const { data, binary } = serializeRows(rows, format, { sheetName: opts.sheetName ?? "Sheet1" });
+  await writeFile(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
+  return { out, format, count: rows.length };
+}

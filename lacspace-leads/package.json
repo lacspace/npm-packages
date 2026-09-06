@@ -1,0 +1,74 @@
+{
+  "name": "lacspace-leads",
+  "version": "0.2.1",
+  "description": "Free, open-source local-business lead finder — name a city, area and business type, and it drives a real browser over Google Maps to collect names, phones, websites, ratings and addresses, then exports to JSON, CSV or Excel. No API keys.",
+  "type": "module",
+  "bin": {
+    "lacspace-leads": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "leads",
+    "lead-generation",
+    "google-maps",
+    "scraper",
+    "local-business",
+    "prospecting",
+    "b2b",
+    "csv",
+    "excel",
+    "playwright",
+    "cli",
+    "osint",
+    "nepal",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "lacspace-leads"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@lacspace/csv": "^1.1.1",
+    "@lacspace/xlsx": "^1.1.0",
+    "playwright-core": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

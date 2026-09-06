@@ -1,0 +1,78 @@
+{
+  "name": "lacspace-scraper",
+  "version": "0.1.0",
+  "description": "Free, open-source website scraper — pull structured data from any site or a list of sources. Extract by CSS selectors or auto-detect metadata, headings, links, images, emails, phones, tables, JSON-LD and OpenGraph; crawl a whole site (sitemap or link-following, robots-aware); render JS-heavy pages in a real browser; then export to JSON, NDJSON, CSV or Excel. No API keys.",
+  "type": "module",
+  "bin": {
+    "lacspace-scraper": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "scraper",
+    "web-scraper",
+    "web-scraping",
+    "crawler",
+    "html-parser",
+    "css-selector",
+    "data-extraction",
+    "scrape",
+    "sitemap",
+    "playwright",
+    "csv",
+    "excel",
+    "ndjson",
+    "cli",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/scraper",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "lacspace-scraper"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@lacspace/csv": "^1.1.1",
+    "@lacspace/xlsx": "^1.1.0"
+  },
+  "optionalDependencies": {
+    "playwright-core": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "playwright-core": "^1.48.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

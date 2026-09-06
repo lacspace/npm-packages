@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/shipping",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checkout-time shipping-rate calculator — flat / weight / price / item rate tables by zone, free-shipping thresholds, surcharges and handling, returning sorted method quotes. Integer minor units, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

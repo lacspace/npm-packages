@@ -190,3 +190,16 @@ describe("ShippingError", () => {
     expect(() => rateForMethod(m, {})).toThrow(ShippingError);
   });
 });
+
+describe("cheapestQuote excludeFree", () => {
+  it("skips zero-cost methods when excludeFree is set", () => {
+    const methods = [
+      { id: "pickup", label: "Store pickup", strategy: "flat" as const, flat: 0 },
+      { id: "std", label: "Standard", strategy: "flat" as const, flat: 8000 },
+      { id: "exp", label: "Express", strategy: "flat" as const, flat: 20000 },
+    ];
+    const input = { subtotal: 100000 };
+    expect(cheapestQuote(methods, input)?.methodId).toBe("pickup");        // default: free wins
+    expect(cheapestQuote(methods, input, { excludeFree: true })?.methodId).toBe("std"); // real rate
+  });
+});

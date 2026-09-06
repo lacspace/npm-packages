@@ -223,11 +223,21 @@ export function quoteShipping(
 }
 
 /** The single cheapest applicable quote, or `undefined` when none apply. */
+/**
+ * The lowest-cost shipping quote for the input, or `undefined` if none apply.
+ *
+ * Pass `{ excludeFree: true }` to skip zero-cost methods (e.g. store pickup or a
+ * hit free-shipping threshold) and return the cheapest method that actually
+ * charges — useful when a free option would otherwise always win and hide the
+ * real delivery rates.
+ */
 export function cheapestQuote(
   methods: ShippingMethod[],
   input: ShipmentInput,
+  opts?: { excludeFree?: boolean },
 ): ShippingQuote | undefined {
-  return quoteShipping(methods, input)[0];
+  const quotes = quoteShipping(methods, input);
+  return opts?.excludeFree ? quotes.find((q) => q.cost > 0) : quotes[0];
 }
 
 /**

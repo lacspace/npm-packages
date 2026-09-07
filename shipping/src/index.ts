@@ -297,3 +297,49 @@ function bandCost(method: ShippingMethod, metric: number): number {
   }
   return toInt(band.cost);
 }
+
+/* ------------------------------------------------------------------ *
+ * Additive feature modules (v1.2.0) — see each file for details.
+ * ------------------------------------------------------------------ */
+
+// Dimensional / volumetric weight.
+export {
+  volumetricWeight,
+  billableWeight,
+  type Dimensions,
+  type DimWeightOptions,
+} from "./dim-weight";
+
+// Zone rate tables + shared band / base-cost primitives.
+export {
+  selectBand,
+  baseCost,
+  resolveLane,
+  rateFromZoneTable,
+  type ZoneLane,
+  type LaneInput,
+} from "./rate-table";
+
+// Free / discounted order-value thresholds.
+export {
+  applyThreshold,
+  type ThresholdRule,
+  type ThresholdResult,
+} from "./threshold";
+
+// Itemised base + surcharge + handling breakdown.
+export {
+  rateBreakdown,
+  type SurchargeItem,
+  type SurchargeLine,
+  type BreakdownOptions,
+  type QuoteBreakdown,
+} from "./breakdown";
+
+// Multi-method quoting with ETA / estimated-days + dim pricing.
+export {
+  quoteMethods,
+  estimatedDays,
+  type MethodQuote,
+  type QuoteMethodsOptions,
+} from "./methods";

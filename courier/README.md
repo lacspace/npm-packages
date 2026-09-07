@@ -15,10 +15,15 @@
 > Stop clicking Confirmed → Pickup → Transit → Delivered by hand. This is the courier layer for a multi-vendor shop: one **canonical delivery state machine**, a **Pathao "Aladdin" Merchant API v1** adapter (token auto-refresh, order creation, price/city/zone/area lookups), and **inbound webhooks** — verify the shared-secret / HMAC signature and normalize any carrier event into your own status vocabulary. Zero dependencies, isomorphic, fully typed.
 
 - 🚦 **State machine** — one `DeliveryStatus` vocabulary + guarded `transition()` that refuses illegal jumps and marks terminal states
+- 🔎 **Tracking numbers** — `detectCarrier` / `isValidTrackingNumber` guess the carrier (UPS/FedEx/USPS/DHL + regional) and verify check digits
+- 🧭 **Timelines & ETA** — `summarizeTimeline` (derived status + delivered + on-time) and business-day `estimateDelivery` / `evaluateSla`
+- 🔗 **Tracking URLs** — `trackingUrl(carrier, tn)` builds the public track page for any supported carrier
 - 🇳🇵 **Pathao adapter** — `issueToken` (cached + auto-refresh), `createOrder`, `priceCalculation`, `cities`/`zones`/`areas`
 - 📡 **Inbound webhooks** — `verifyWebhookSignature` (HMAC-SHA256, timing-safe) + `parsePathaoWebhook` / `normalizePathaoStatus`
 - 🔌 **Adapter-shaped** — code against `CourierAdapter`; swap or add carriers without touching your order flow
 - ⚡ Isomorphic — Node 18+, edge runtimes & browsers · global `fetch` + Web Crypto only · 📦 ESM + CJS · zero deps
+
+> **New in 1.1.0** — all additive & backward compatible: **tracking-number validation + carrier detection** (with UPS/USPS/DHL/S10 check digits), a generic **carrier-status normalizer** into the same `DeliveryStatus` vocabulary, a **tracking-event timeline** model (`summarizeTimeline`), a **tracking-URL builder** (`trackingUrl`), and **business-day ETA / SLA** maths (`estimateDelivery`, `evaluateSla`). Every one is pure — no network, no new deps.
 
 ## Install
 
@@ -106,6 +111,43 @@ For carriers that sign the body (rather than a shared header), use the generic H
 const ok = await verifyWebhookSignature(rawBody, signatureHeader, secret); // HMAC-SHA256 hex, timing-safe
 ```
 
+## Tracking numbers, timelines & ETA (new in 1.1.0)
+
+```ts
+import {
+  detectCarrier, isValidTrackingNumber, trackingUrl,
+  normalizeTrackingStatus, summarizeTimeline, estimateDelivery, evaluateSla,
+} from "@lacspace/courier";
+
+// 1. Validate a tracking number + guess the carrier (check digits verified)
+detectCarrier("1Z12345E0205271688");
+// { carrier: "ups", valid: true, candidates: [{ carrier: "ups", checkDigitValid: true }], ... }
+isValidTrackingNumber("1234567891", "dhl"); // true — DHL air-waybill mod-7
+
+// 2. Normalize any carrier status string/code into a canonical DeliveryStatus
+normalizeTrackingStatus("Out for delivery"); // "out_for_delivery"
+normalizeTrackingStatus("DL");               // "delivered" (FedEx scan code)
+
+// 3. Roll unordered events into a summary (derived status, delivered, on-time)
+const s = summarizeTimeline({
+  events: [
+    { status: "confirmed",  timestamp: "2026-01-01T10:00:00Z" },
+    { status: "delivered",  timestamp: "2026-01-03T14:00:00Z" },
+  ],
+  promisedBy: "2026-01-04T00:00:00Z",
+});
+s.currentStatus; // "delivered" · s.isDelivered → true · s.onTime → true
+
+// 4. Public tracking URL
+trackingUrl("fedex", "123456789012"); // https://www.fedex.com/fedextrack/?trknbr=...
+
+// 5. Business-day ETA (skips weekends + holidays) + on-time / late SLA
+const eta = estimateDelivery({ shipDate: "2026-01-08", transitDays: 3, holidays: ["2026-01-12"] });
+evaluateSla({ due: eta, deliveredAt: "2026-01-15" }); // { onTime: false, late: true, ... }
+```
+
+Everything above is **pure** — no network calls — and reuses the package's canonical `DeliveryStatus`. The `now` clock is injectable on `summarizeTimeline` and `evaluateSla` for deterministic tests.
+
 ## API
 
 | Export | Description |
@@ -122,6 +164,16 @@ const ok = await verifyWebhookSignature(rawBody, signatureHeader, secret); // HM
 | `verifyPathaoWebhook({ headerSecret, expectedSecret })` | timing-safe shared-secret compare |
 | `parsePathaoWebhook(body)` / `normalizePathaoStatus(event)` | event → canonical status |
 | `PATHAO_STATUS_MAP` / `PATHAO_WEBHOOK_ACK_HEADER` | Pathao event map + ack header name |
+| `Carrier` | `ups \| fedex \| usps \| dhl \| canada_post \| royal_mail \| australia_post \| pathao` |
+| `detectCarrier(tn)` | `{ input, normalized, valid, carrier?, candidates }` — detect + verify check digits |
+| `isValidTrackingNumber(tn, carrier?)` | `true` if the number is valid (optionally for a given carrier) |
+| `trackingUrl(carrier, tn)` / `CARRIER_TRACKING_URLS` | public tracking URL builder + templates |
+| `normalizeTrackingStatus(raw)` / `FEDEX_STATUS_MAP` | carrier status string/code → `DeliveryStatus` |
+| `TrackingEvent` / `TrackingTimeline` / `TimelineSummary` | tracking-event model |
+| `summarizeTimeline(timeline, { now? })` / `sortTrackingEvents(events)` | derived status, delivered, on-time |
+| `estimateDelivery({ shipDate, transitDays, weekend?, holidays? })` | business-day ETA |
+| `addBusinessDays` / `businessDaysBetween` / `isBusinessDay` / `DEFAULT_WEEKEND` | business-day helpers |
+| `evaluateSla({ due, deliveredAt?, now? })` | `{ onTime, late, delivered, deltaMs }` |
 
 All crypto uses Web Crypto (`globalThis.crypto.subtle`) — never hand-rolled. `timingSafeEqual` is exported too.
 

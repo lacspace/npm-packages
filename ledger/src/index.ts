@@ -205,3 +205,7 @@ export function trialBalance(ledger: Ledger): TrialBalanceRow[] {
     .map(([account, bal]) => ({ account, balance: bal }))
     .sort((a, b) => (a.account < b.account ? -1 : a.account > b.account ? 1 : 0));
 }
+
+// --- Accounting layer (New in 1.1.0) — chart of accounts, double-entry
+// journal, trial balance report, financial statements, periods + idempotency.
+export * from "./accounting";

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/ledger",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A tiny double-entry ledger & wallet — balanced transactions, per-account balances and a trial balance that always sums to zero. Integer minor units, immutable ops, crypto-random ids. Isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,15 @@
     "minor-units",
     "immutable",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "journal",
+    "chart-of-accounts",
+    "normal-balance",
+    "balance-sheet",
+    "income-statement",
+    "financial-statements",
+    "period-close",
+    "idempotent"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

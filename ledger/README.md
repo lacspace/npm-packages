@@ -14,6 +14,8 @@
 
 > Wallets and internal balances are usually a single mutable number that silently drifts. This is **double-entry** in a few bytes: every transaction is a set of signed lines that sum to **zero**, so the books can't go out of balance. Integer minor units, immutable operations, crypto-random ids.
 
+> **New in 1.1.0** — an optional **accounting layer** on top of the core: a **chart of accounts** with typed accounts and correct **normal balance**, journal entries written as explicit `debit`/`credit` **legs** (debits must equal credits), a **trial balance report** that flags out-of-balance, simple **Balance Sheet** & **Income Statement**, **period** filtering, a **period-close** helper, and **idempotent** posting keyed on entry id. Still zero-dep, isomorphic, integer minor units — the entire existing API is unchanged.
+
 - ⚖️ **Always balanced** — a transaction's lines must sum to `0`, or it throws
 - 💯 **Integer minor units** — cents / paisa, never floats
 - 🧊 **Immutable** — every op returns a new ledger
@@ -62,6 +64,67 @@ An account's balance is the **sum of its signed line amounts**. A **debit is pos
 | `balance(ledger, account)` | sum of that account's signed lines |
 | `statement(ledger, account)` | rows `{ at, amount, ref?, memo? }` for entries touching the account |
 | `trialBalance(ledger)` | `{ account, balance }[]`, sorted, always sums to 0 |
+
+## Accounting layer (New in 1.1.0)
+
+A double-entry **journal** on top of a **chart of accounts** — same integer-minor-units, immutable, zero-dep rules.
+
+```ts
+import {
+  createChart, createJournal, postEntry, accountBalance,
+  trialBalanceReport, balanceSheet, incomeStatement,
+  filterByPeriod, closePeriod, normalBalance,
+} from "@lacspace/ledger";
+
+const chart = createChart([
+  { code: "cash",   type: "asset" },
+  { code: "loan",   type: "liability" },
+  { code: "equity", type: "equity" },
+  { code: "sales",  type: "income" },
+  { code: "rent",   type: "expense" },
+]);
+
+let j = createJournal(chart);
+
+// Explicit debit/credit legs — throws unless debits == credits, ≥ 2 legs
+j = postEntry(j, { id: "seed", legs: [
+  { account: "cash",   debit: 100000 },
+  { account: "equity", credit: 100000 },
+]});
+j = postEntry(j, { id: "seed" /* same id again */, legs: [] as never }); // idempotent no-op
+j = postEntry(j, { legs: [{ account: "cash", debit: 5000 }, { account: "sales", credit: 5000 }] });
+j = postEntry(j, { legs: [{ account: "rent", debit: 2000 }, { account: "cash", credit: 2000 }] });
+
+normalBalance("liability");        // "credit"
+accountBalance(j, "cash");         // 103000  (asset, normal-side positive)
+accountBalance(j, "sales");        // 5000    (income, credit-normal, positive)
+trialBalanceReport(j).balanced;    // true    (totalDebit === totalCredit)
+incomeStatement(j).net;            // 3000    (income − expense)
+balanceSheet(j).balanced;          // true    (assets === liabilities + equity + net income)
+
+// Period filter + close
+const q1 = filterByPeriod(j, { start: "2026-01-01T00:00:00Z", end: "2026-04-01T00:00:00Z" });
+const closed = closePeriod(j, { equityAccount: "equity" }); // rolls net income into equity, zeroes P&L
+```
+
+### Accounting API
+
+| Function | Description |
+| --- | --- |
+| `normalBalance(type)` | `"debit"` for asset/expense, `"credit"` for liability/equity/income |
+| `createChart(accounts[])` | immutable chart; throws on dup code / unknown type |
+| `accountType(chart, code)` | account's type, or `undefined` |
+| `createJournal(chart)` | new empty journal bound to a chart |
+| `postEntry(journal, { id?, at?, legs, ref?, memo? })` | post a balanced entry (**debits == credits**, ≥ 2 legs); same `id` again is a no-op |
+| `accountBalance(journal, code, period?)` | running balance respecting the account's normal side |
+| `trialBalanceReport(journal, period?)` | `{ rows, totalDebit, totalCredit, balanced }` |
+| `balanceSheet(journal, period?)` | `{ assets, liabilities, equity, netIncome, totalLiabilitiesAndEquity, balanced }` |
+| `incomeStatement(journal, period?)` | `{ income, expense, net }` |
+| `filterByPeriod(journal, period)` | new journal with only entries in `[start, end)` |
+| `closePeriod(journal, { equityAccount, period?, … })` | post a closing entry: net income → equity, P&L zeroed |
+| `toLedger(journal)` | project onto the core `Ledger` so `balance`/`statement`/`trialBalance` work on it |
+
+Each leg carries **exactly one** of `debit`/`credit` as a positive integer (minor units). Accounts must exist in the chart (unless the chart is empty).
 
 ## Licensing
 

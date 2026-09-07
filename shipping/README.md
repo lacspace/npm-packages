@@ -21,6 +21,8 @@
 
 > **Rates, not tracking.** This package computes prices at checkout. For carrier tracking / label events, see **`@lacspace/courier`**.
 
+> **🆕 New in 1.2.0** — all additive, fully backward compatible: **dimensional / volumetric weight** (`billableWeight`), **origin→destination zone rate tables** (`rateFromZoneTable`), **discounted** (not just free) order-value thresholds (`applyThreshold`), an itemised **surcharge/handling breakdown** (`rateBreakdown`), and **multi-method quotes with estimated-days ETA + dim pricing** (`quoteMethods`). Every existing export is unchanged.
+
 ## Install
 
 ```bash
@@ -74,6 +76,64 @@ const std = { id: "std", label: "Standard", strategy: "flat", flat: 600, freeOve
 freeShippingRemaining(std, 3800); // → 1200  ("spend $12.00 more for free shipping")
 ```
 
+## Dimensional weight (new in 1.2.0)
+
+Carriers bill the **greater** of actual and volumetric weight. Compute the billable weight and feed it straight into rate selection:
+
+```ts
+import { billableWeight, rateForMethod } from "@lacspace/shipping";
+
+const dims = { length: 30, width: 20, height: 10 }; // cm
+billableWeight(400, dims, { divisor: 5 }); // → 1200 (volumetric 1200 g > actual 400 g)
+
+// A bulky-but-light parcel is now rated by the space it occupies:
+rateForMethod(weightMethod, { weight: billableWeight(400, dims, { divisor: 5 }) });
+```
+
+`volumetricWeight(dims, { divisor, scale })` = `ceil(l×w×h×scale ÷ divisor)`, rounded **up**. Default divisor `5000` (cm→kg); pass `divisor: 5` to work in grams.
+
+## Zone rate tables (new in 1.2.0)
+
+An origin → destination "zone chart": pick the lane, then read the cost off its weight bracket (or a flat / per-item rate). A specific `from` lane beats a wildcard-origin lane.
+
+```ts
+import { rateFromZoneTable } from "@lacspace/shipping";
+
+const lanes = [
+  { to: "us", strategy: "weight", bands: [{ min: 0, max: 500, cost: 400 }, { min: 501, cost: 800 }] },
+  { from: "eu-hub", to: "us", strategy: "flat", flat: 250 }, // cheaper from the hub
+];
+
+rateFromZoneTable(lanes, { toZone: "us", weight: 501 });                 // → 800 (bracket boundary)
+rateFromZoneTable(lanes, { fromZone: "eu-hub", toZone: "us", weight: 999 }); // → 250 (specific lane wins)
+```
+
+`selectBand(bands, value)` and `baseCost(method, input)` are exported too, for building custom pipelines.
+
+## Discounted thresholds & breakdowns (new in 1.2.0)
+
+`applyThreshold` adds a *discounted* tier below the free one; `rateBreakdown` shows every part of a quote and they sum exactly.
+
+```ts
+import { applyThreshold, rateBreakdown } from "@lacspace/shipping";
+
+applyThreshold(800, 4999, { freeOver: 5000, discountOver: 3000, discountBps: 5000 });
+// → { cost: 400, free: false, discounted: true }  (50% off; free wins at ≥ 5000)
+
+rateBreakdown(method, { weight: 300 }, { fuelBps: 1000, remoteAreaFee: 200 });
+// → { base, handling, surcharges: [{label:"fuel",…},…], surchargeTotal, discount, total, free }
+```
+
+## Multi-method quotes with ETA (new in 1.2.0)
+
+```ts
+import { quoteMethods } from "@lacspace/shipping";
+
+quoteMethods(methods, { zoneId: "us" });                 // cost-sorted; each has estimatedDays (ETA midpoint)
+quoteMethods(methods, { zoneId: "us" }, { sortBy: "speed" });          // fastest first
+quoteMethods(methods, { weight: 400 }, { dimensions: dims, divisor: 5 }); // rates on billable weight
+```
+
 ## API
 
 | Export | Description |
@@ -84,10 +144,19 @@ freeShippingRemaining(std, 3800); // → 1200  ("spend $12.00 more for free ship
 | `cheapestQuote(methods, input, { excludeFree? })` | the single lowest quote, or `undefined`; `{ excludeFree: true }` skips zero-cost methods and returns the cheapest that actually charges |
 | `freeShippingRemaining(method, subtotal)` | minor units still needed to hit `freeOver` (`0` if none / already free) |
 | `ShippingError` | thrown when a method can't be rated (no matching band or missing metric) |
+| `volumetricWeight(dims, { divisor?, scale? })` | volumetric weight `ceil(l×w×h×scale ÷ divisor)`, rounded up |
+| `billableWeight(actual, dims, opts?)` | `max(actual, volumetric)` — feed as the `weight` metric |
+| `selectBand(bands, value)` | the bracket covering `value` (min/max inclusive, open-ended top), or `undefined` |
+| `baseCost(method, input)` | a method's strategy base cost before surcharge/handling/clamp/free |
+| `resolveLane(lanes, input)` / `rateFromZoneTable(lanes, input)` | resolve an origin→destination lane (specific `from` first) and read its rate |
+| `applyThreshold(cost, subtotal, rule)` | apply a free / discounted order-value threshold → `{ cost, free, discounted }` |
+| `rateBreakdown(method, input, opts?)` | itemised `{ base, handling, surcharges[], surchargeTotal, discount, total, free }` (fuel bps / remote-area / custom surcharges) |
+| `quoteMethods(methods, input, opts?)` | multi-method quotes each with `estimatedDays`; sort by `cost`/`speed`, optional `dimensions` for dim pricing |
+| `estimatedDays(etaDays)` | rounded midpoint of an `[min, max]` ETA window |
 
 **Strategies** — `flat` uses `method.flat`; `weight` uses `input.weight` (grams); `price` uses `input.subtotal`; `item` uses `input.itemCount`. Band-based strategies read `method.bands` where `min` is inclusive, `max` is inclusive, and an undefined `max` is the open-ended top tier.
 
-**Types** — `ShippingZone`, `RateStrategy`, `RateBand`, `ShippingMethod`, `ShipmentInput`, `ShippingQuote` are all exported.
+**Types** — `ShippingZone`, `RateStrategy`, `RateBand`, `ShippingMethod`, `ShipmentInput`, `ShippingQuote` are all exported, plus (1.2.0) `Dimensions`, `DimWeightOptions`, `ZoneLane`, `LaneInput`, `ThresholdRule`, `ThresholdResult`, `SurchargeItem`, `SurchargeLine`, `BreakdownOptions`, `QuoteBreakdown`, `MethodQuote`, `QuoteMethodsOptions`.
 
 All amounts are integer **minor units**; a method with no `zoneId` applies to every zone, and `freeOver` zeroes the cost when `subtotal ≥ freeOver`.
 

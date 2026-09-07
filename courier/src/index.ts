@@ -526,3 +526,15 @@ export function verifyPathaoWebhook(opts: {
   if (!opts.headerSecret) return false;
   return timingSafeEqual(opts.headerSecret, opts.expectedSecret);
 }
+
+/* ------------------------------------------------------------------ *
+ * Additive modules (v1.1.0) — all pure, zero-network, zero-dependency
+ * ------------------------------------------------------------------ */
+
+// Carrier detection, tracking-number validation, tracking-URL builder,
+// and generic carrier-status → DeliveryStatus normalization.
+export * from "./carriers";
+// Shipment / tracking-event timeline model with derived status.
+export * from "./timeline";
+// Business-day delivery ETA + on-time / late SLA maths.
+export * from "./eta";

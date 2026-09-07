@@ -123,3 +123,14 @@ export function isLow(stock: Stock, threshold: number): boolean {
 export function isOutOfStock(stock: Stock): boolean {
   return available(stock) <= 0;
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — additive feature modules (all backward compatible).
+// Multi-location stock, reorder logic, lot/expiry tracking, and a movements
+// ledger with low-stock / expiring-soon reports. The core API above is unchanged.
+// ---------------------------------------------------------------------------
+export * from "./locations";
+export * from "./reorder";
+export * from "./lots";
+export * from "./ledger";
+export * from "./reports";

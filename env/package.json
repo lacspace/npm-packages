@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/env",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Typed, validated environment variables — declare a schema, validate process.env at boot, get a typed frozen object or a clear fail-fast error. A zero-dependency t3-env / envalid alternative.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,15 @@
     "zod-env",
     "process-env",
     "typed-env",
-    "env-schema"
+    "env-schema",
+    "env-example",
+    "dotenv-expand",
+    "variable-expansion",
+    "duration",
+    "bytes",
+    "secret-redaction",
+    "safe-parse",
+    "coercion"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

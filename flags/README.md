@@ -14,6 +14,8 @@
 
 > Feature flagging is dominated by hosted vendors (LaunchDarkly, Optimizely, Unleash). But you don't always want a SaaS, a network call, or a monthly bill. **You** own the config — a plain object from JSON, env or a DB row — and this evaluates it: stable rollouts, targeting and A/B tests, synchronously, offline.
 
+> **New in 1.1.0** — pure standalone helpers (`isInRollout`, `assignVariant`, `validateVariants`), reusable targeting `matchesSegment` (+ new `startsWith` / `endsWith` / `predicate` operators), per-context QA `overrides`, and an explained evaluation `flags.explain(key, ctx)` / `explainFlag(def, key, ctx)` → `{ enabled, variant?, reason }`. All additive — every existing export is unchanged.
+
 - 🎯 **Deterministic** — the same user always gets the same result (no flicker, no round-trip, works offline)
 - 📊 Percentage rollouts + **weighted A/B / multivariate experiments**
 - 🧩 Targeting rules on attributes — `eq` / `in` / `gt` / `contains` / `regex` …
@@ -66,6 +68,37 @@ new Flags({
 
 Operators: `eq`, `ne`, `in`, `nin`, `gt`, `gte`, `lt`, `lte`, `contains`, `regex` (a bare value means equality). Rules are evaluated top-to-bottom; the first match wins.
 
+Operators now also include `startsWith`, `endsWith` and a custom `predicate` — e.g. `{ email: { endsWith: "@lacspace.com" } }` for staff, or `{ age: { predicate: (v) => v >= 18 } }`.
+
+## Explain a decision + QA overrides (new in 1.1.0)
+
+```ts
+// Why did it resolve that way? reason ∈ override | kill-switch | targeting | rollout | default | unknown
+flags.explain("new-dashboard", { key: user.id });
+// → { enabled: true, reason: "rollout" }
+
+// Force a result for one user — great for QA / previews (evaluation order:
+// override → kill-switch → targeting → percentage → default)
+flags.explain("checkout-exp", { key: qa.id, overrides: { "checkout-exp": "one-click" } });
+// → { enabled: true, variant: "one-click", reason: "override" }
+```
+
+## Pure helpers — no config object (new in 1.1.0)
+
+```ts
+import { isInRollout, assignVariant, validateVariants, matchesSegment } from "@lacspace/flags";
+
+isInRollout("new-billing", user.id, 25);              // stable & monotonic: in at 25% stays in at 50%
+assignVariant("pricing-test", user.id, [              // stable weighted A/B/C, returns the variant key
+  { key: "control", weight: 80 }, { key: "treatment", weight: 20 },
+]);
+validateVariants([{ key: "a", weight: 70 }, { key: "b", weight: 30 }], 100); // → { ok: true, total: 100 }
+
+matchesSegment({ key: user.id, attributes }, {        // reusable audience check, same operator grammar as rules
+  match: { plan: { in: ["pro", "team"] }, email: { endsWith: "@lacspace.com" } },
+});
+```
+
 ## Bootstrap a client (no flicker)
 
 ```ts
@@ -82,8 +115,13 @@ const initial = flags.all({ key: user.id, attributes });
 | `.isEnabled(key, ctx)` | boolean flag → `boolean` |
 | `.variant(key, ctx)` | variant flag → variant key |
 | `.evaluate(key, ctx)` · `.all(ctx)` | generic / evaluate-all |
+| `.explain(key, ctx)` | detailed `{ enabled, variant?, reason }` (honours `ctx.overrides`) |
 | `.update(config)` · `.set(key, def)` | hot-reload config |
 | `isEnabled(key, def, ctx)` · `variant(key, def, ctx)` | functional (no store) |
+| `explainFlag(def, key, ctx)` | detailed evaluation without a store |
+| `isInRollout(flagKey, userId, pct)` · `rolloutBucket(flagKey, userId)` | pure stable percentage rollout |
+| `assignVariant(flagKey, userId, variants)` · `validateVariants(variants, total?)` | pure stable weighted A/B + sum-check |
+| `matchesSegment(ctx, segment)` · `matchCondition(attrs, cond)` | reusable targeting checks |
 | `bucket(key)` · `percentage(flag, ctx)` | inspect the deterministic bucketing |
 
 Context is `{ key, attributes? }`. `key` drives bucketing; `attributes` drive targeting. Set a flag's `seed` to re-shuffle everyone. No rules → `rollout` defaults to 100%; with rules, unmatched users default to off unless you set an explicit `rollout`.

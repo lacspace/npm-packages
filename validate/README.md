@@ -13,6 +13,8 @@
 
 > `parse` / `safeParse`, objects, arrays, enums, unions, coercion and full type inference — in a package small enough to drop into any function, edge runtime or bundle. No dependencies, isomorphic, fully typed.
 
+> **New in 1.1.0** — `tuple`, `intersection`/`.and`, `discriminatedUnion`, `lazy` (recursive), `nativeEnum`, `map`/`set`, `instanceof`, `unknown`/`never`/`void`, `bigint`; `.superRefine()`, `.pipe()`, `.catch()`, `.brand()`, `.or()`; `coerce.date`/`coerce.bigint`; string `datetime`/`ip`/`cuid`, number `negative`/`multipleOf`/`safe`, array `length`; and `error.format()` for nested field-error trees. **100% backward compatible — everything above is additive.**
+
 - 🧩 Chainable schemas — `v.string().email()`, `v.number().int()`, `v.object({...})`, `v.array()`, `v.union()`, `v.enum()`
 - 🧠 `Infer<typeof Schema>` — the static type is derived from the schema, one source of truth
 - 🔀 `v.coerce.*` — turn stringy `FormData` / query / env values into numbers & booleans before validating
@@ -67,17 +69,49 @@ if (!r.success) {
 }
 ```
 
+## Discriminated unions, recursion & pipelines
+
+```ts
+// discriminatedUnion — picks the branch by a literal key (fast + precise errors)
+const Event = v.discriminatedUnion("type", [
+  v.object({ type: v.literal("click"), x: v.number(), y: v.number() }),
+  v.object({ type: v.literal("key"), code: v.string() }),
+]);
+
+// lazy — recursive schemas
+import { v, type Schema } from "@lacspace/validate";
+type Comment = { text: string; replies: Comment[] };
+const Comment: Schema<Comment> = v.lazy(() =>
+  v.object({ text: v.string(), replies: v.array(Comment) }),
+);
+
+// superRefine — cross-field validation with a custom path
+const Signup = v.object({ pw: v.string(), confirm: v.string() }).superRefine((val, ctx) => {
+  if (val.pw !== val.confirm) ctx.addIssue({ message: "Passwords must match", path: ["confirm"] });
+});
+
+// pipe / catch — compose and provide fallbacks
+const Port = v.coerce.number().pipe(v.number().int().min(1).max(65535));
+const Retries = v.coerce.number().int().catch(3); // bad input → 3
+
+// format() — nested error tree for forms
+Signup.safeParse(input).error?.format();
+// { _errors: [], confirm: { _errors: ["Passwords must match"] } }
+```
+
 ## The toolbox
 
 | | |
 | --- | --- |
-| **Primitives** | `string` · `number` · `boolean` · `date` · `literal` · `enum` · `any` |
-| **Composites** | `object` · `array` · `union` · `record` |
-| **String checks** | `min` `max` `length` `nonempty` `email` `url` `uuid` `regex` `startsWith` `endsWith` `trim` `toLowerCase` `toUpperCase` |
-| **Number checks** | `min` `max` `gt` `lt` `int` `positive` `nonnegative` `finite` |
+| **Primitives** | `string` · `number` · `bigint` · `boolean` · `date` · `literal` · `enum` · `nativeEnum` · `any` · `unknown` · `never` · `void` |
+| **Composites** | `object` · `array` · `tuple` · `union` · `intersection` · `discriminatedUnion` · `record` · `map` · `set` · `lazy` · `instanceof` |
+| **String checks** | `min` `max` `length` `nonempty` `email` `url` `uuid` `regex` `startsWith` `endsWith` `datetime` `ip` `cuid` `trim` `toLowerCase` `toUpperCase` |
+| **Number checks** | `min` `max` `gt` `lt` `int` `positive` `negative` `nonnegative` `nonpositive` `multipleOf` `finite` `safe` |
+| **Array / set checks** | `min` `max` `length` `nonempty` |
 | **Object modes** | `.strict()` · `.passthrough()` · `.partial()` · `.fields` |
-| **Modifiers** | `.optional()` · `.nullable()` · `.nullish()` · `.default()` · `.refine()` · `.transform()` |
-| **Coercion** | `v.coerce.string()` · `v.coerce.number()` · `v.coerce.boolean()` |
+| **Modifiers** | `.optional()` · `.nullable()` · `.nullish()` · `.default()` · `.catch()` · `.refine()` · `.superRefine()` · `.transform()` · `.pipe()` · `.brand()` · `.and()` · `.or()` |
+| **Coercion** | `v.coerce.string()` · `v.coerce.number()` · `v.coerce.boolean()` · `v.coerce.date()` · `v.coerce.bigint()` |
+| **Errors** | `error.issues` · `error.flatten()` · `error.format()` |
 
 Pairs perfectly with [`@lacspace/form`](https://www.npmjs.com/package/@lacspace/form) for end-to-end typed form handling and [`@lacspace/env`](https://www.npmjs.com/package/@lacspace/env) for config.
 

@@ -16,9 +16,19 @@
 
 - 🔒 Types inferred from the schema — `env.PORT` is a `number`, guaranteed present
 - 💥 Fail-fast with an aggregated, readable error
-- 🧰 Validators: `str` · `num` · `int` · `port` · `bool` · `url` · `email` · `oneOf` · `json`
+- 🧰 Validators: `str` · `num` · `int` · `port` · `bool` · `url` · `email` · `oneOf` · `json` · `duration` · `bytes` · `list`/`array` · `enums` · `host`
 - 🎚️ `default`, `optional`, `min`/`max` per field
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+### New in 1.1.0
+
+Everything above still works byte-for-byte. Added, all opt-in:
+
+- **More coercers** — `duration` (`"30s"`→ms), `bytes` (`"10mb"`→number), `list`/`array` (comma-separated, per-item typed), `enums(...values)` (variadic), `host`, plus `coerce()` to build your own.
+- **`parseEnv` / `safeParse`** — validate without throwing: `{ success, data | errors }`.
+- **Secret redaction** — values of secret-looking vars (`*_KEY`, `*_SECRET`, `TOKEN`, `PASSWORD`…) are redacted in the aggregated error; mark any var with `.secret()`.
+- **`${VAR}` expansion** — opt in with `createEnv(schema, source, { expand: true })`; supports `${VAR:-fallback}` and detects cycles.
+- **`.describe()` / `.example()`** per var + **`generateEnvExample(schema)`** to render a `.env.example`.
 
 ## Install
 
@@ -70,12 +80,42 @@ EnvError: Invalid environment variables:
 | `url` / `email` | validated string | `default`, `optional` |
 | `oneOf(values, opts?)` | union of literals | `default`, `optional` |
 | `json<T>(opts?)` | parsed JSON | `default`, `optional` |
+| `duration(opts?)` | number (ms) — `"30s"` `"5m"` `"1h"` | `default`, `optional` |
+| `bytes(opts?)` | number (bytes) — `"10mb"` `"512kb"` | `default`, `optional` |
+| `list(item?, opts?)` / `array` | `T[]` from comma-separated (`separator` option) | `default`, `optional` |
+| `enums(...values)` | union of literals (variadic) | — |
+| `host(opts?)` | validated host / IP `[:port]` | `default`, `optional` |
+| `coerce(type, cast, opts?)` | your own coercer | `default`, `optional` |
+
+Every validator is chainable with `.describe(text)`, `.example(value)`, and `.secret()`.
 
 ## Not just `process.env`
 
 ```ts
 createEnv(schema, import.meta.env); // Vite
 createEnv(schema, Deno.env.toObject());
+```
+
+## Non-throwing, expansion & docs
+
+```ts
+import { parseEnv, generateEnvExample, port, url } from "@lacspace/env";
+
+const schema = {
+  PORT: port({ default: 3000 }).describe("HTTP port"),
+  DATABASE_URL: url().example("postgres://localhost/app"),
+  API_SECRET: str().secret(), // redacted in error output
+};
+
+// Never throws — great for tests
+const res = parseEnv(schema, { DATABASE_URL: "https://db" });
+if (!res.success) console.error(res.errors);
+
+// ${VAR} expansion (opt-in), with ${VAR:-fallback} + cycle detection
+createEnv(schema, { HOST: "db", DATABASE_URL: "postgres://${HOST}/app" }, { expand: true });
+
+// Generate a .env.example straight from the schema
+generateEnvExample(schema);
 ```
 
 ## The Lacspace WebKit

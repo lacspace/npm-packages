@@ -21,6 +21,13 @@ export interface Context {
   key: string;
   /** Attributes used by targeting rules. */
   attributes?: Attributes;
+  /**
+   * Per-context forced results, keyed by flag key (great for QA / previews).
+   * A boolean forces a boolean flag on/off; a string forces a variant. Honoured
+   * by {@link explain}; the plain `isEnabled`/`variant` paths ignore it so their
+   * existing behaviour is byte-for-byte unchanged.
+   */
+  overrides?: Record<string, boolean | string>;
 }
 
 /* ------------------------------ conditions ------------------------------ */
@@ -36,6 +43,15 @@ export interface Operator {
   lte?: number;
   contains?: string;
   regex?: string;
+  /** String prefix match (actual must be a string that starts with this). */
+  startsWith?: string;
+  /** String suffix match — e.g. `{ endsWith: "@lacspace.com" }`. */
+  endsWith?: string;
+  /**
+   * Custom predicate escape hatch — return true to match. Runs against the raw
+   * attribute value. (Programmatic configs only; not JSON-serialisable.)
+   */
+  predicate?: (value: AttrValue) => boolean;
 }
 
 /** A set of attribute conditions — ALL must match. */
@@ -135,10 +151,14 @@ function matchOperator(actual: AttrValue, op: Operator): boolean {
   if (typeof op.lte === "number" && !(typeof actual === "number" && actual <= op.lte)) return false;
   if (typeof op.contains === "string" && !(typeof actual === "string" && actual.includes(op.contains))) return false;
   if (typeof op.regex === "string" && !(typeof actual === "string" && safeRegexTest(op.regex, actual))) return false;
+  if (typeof op.startsWith === "string" && !(typeof actual === "string" && actual.startsWith(op.startsWith))) return false;
+  if (typeof op.endsWith === "string" && !(typeof actual === "string" && actual.endsWith(op.endsWith))) return false;
+  if (typeof op.predicate === "function" && !op.predicate(actual)) return false;
   return true;
 }
 
-function matchCondition(attrs: Attributes, cond: Condition): boolean {
+/** True when every condition in `cond` matches the given attributes. */
+export function matchCondition(attrs: Attributes, cond: Condition): boolean {
   for (const [field, expected] of Object.entries(cond)) {
     const actual = attrs[field];
     if (expected !== null && typeof expected === "object" && !Array.isArray(expected)) {
@@ -210,7 +230,7 @@ function ruleSalt(rule: Rule): string {
   return JSON.stringify(rule.when);
 }
 
-const isVariantFlag = (d: FlagDef): d is VariantFlag => d.type === "variant";
+export const isVariantFlag = (d: FlagDef): d is VariantFlag => d.type === "variant";
 
 /* ------------------------------ the store ------------------------------ */
 
@@ -283,8 +303,28 @@ export class Flags {
     return out;
   }
 
+  /**
+   * Detailed evaluation for a flag → `{ enabled, variant?, reason }`, honouring
+   * `ctx.overrides`. The `reason` explains *why* it resolved that way
+   * (override / kill-switch / targeting / rollout / default / unknown).
+   */
+  explain(key: string, ctx: Context): Evaluation {
+    return explainFlag(this.defs[key], key, ctx);
+  }
+
   /** The current raw config. */
   toJSON(): Record<string, FlagDef> {
     return { ...this.defs };
   }
 }
+
+/* ------------------------------ new in 1.1.0 ------------------------------ */
+
+export type { WeightedVariant } from "./experiments";
+export { isInRollout, rolloutBucket, assignVariant, validateVariants } from "./experiments";
+export type { Segment } from "./targeting";
+export { matchesSegment } from "./targeting";
+export type { EvalReason, Evaluation } from "./explain";
+export { explain as explainFlag } from "./explain";
+import { explain as explainFlag } from "./explain";
+import type { Evaluation } from "./explain";

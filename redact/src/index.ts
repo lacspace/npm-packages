@@ -106,3 +106,32 @@ export function maskEmail(email: string): string {
 export function maskString(s: string, keepEnd = 4): string {
   return maskMiddle(s, 0, keepEnd);
 }
+
+/* ------------------------------------------------------------------ */
+/* New in 1.1.0 — extended detectors, deep object redaction, partial   */
+/* masking, custom patterns/replacer & formatter integration.          */
+/* All ADDITIVE; everything above is unchanged.                        */
+/* ------------------------------------------------------------------ */
+
+export {
+  DETECTORS,
+  DETECTOR_MAP,
+  DETECTOR_NAMES,
+  luhnValid,
+  ibanValid,
+  maskKeepLast,
+  maskCardNumber,
+  maskEmailPartial,
+} from "./detectors";
+export type { DetectorName, Detector, DetectorContext } from "./detectors";
+
+export {
+  redactObject,
+  scrubString,
+  createObjectRedactor,
+} from "./deep";
+export type {
+  RedactObjectOptions,
+  CustomPattern,
+  PartialMaskOptions,
+} from "./deep";

@@ -20,6 +20,28 @@
 - 🔧 Custom keys, disable specific patterns, custom mask
 - ⚡ Zero dependencies · 🌍 isomorphic · fully typed
 
+> **New in 1.1.0** — an extended, individually-toggleable detector set (Luhn-validated cards, SSN, phone E.164/US, IPv4/IPv6, JWT, AWS/GitHub/Slack/Stripe keys, private-key blocks, MAC, IBAN), a hardened **cycle-safe** deep redactor `redactObject()` (key denylist + allowlist, value patterns, custom regexes + replacer, partial masking, guaranteed never to throw on circular refs / symbols / bigint / functions), plus `scrubString`, `createObjectRedactor`, `luhnValid`, `ibanValid`, `maskKeepLast`, `maskCardNumber`, `maskEmailPartial`. **Everything below is unchanged** — the original `redact`/`redactString` keep their exact behaviour and defaults.
+
+```ts
+import { redactObject, createObjectRedactor, luhnValid } from "@lacspace/redact";
+
+// deep, cycle-safe, key + value redaction with partial masking
+redactObject(
+  { user: { email: "jane@example.com", card: "4242 4242 4242 4242" }, token: "sk_live_x" },
+  { partial: { keepEnd: 4 } },
+);
+// { user: { email: "j***@example.com", card: "**** **** **** 4242" }, token: "[REDACTED]" }
+
+// force-keep a key + a custom pattern with a custom replacer
+const scrub = createObjectRedactor({
+  keyAllowlist: ["public_token"],
+  customPatterns: [{ name: "order", pattern: /ORDER-[A-Z0-9]+/g }],
+  replacer: (m, name) => `<${name}>`,
+});
+
+luhnValid("4242 4242 4242 4241"); // false → NOT flagged as a card
+```
+
 ## Install
 
 ```bash
@@ -57,6 +79,26 @@ logger.info(scrub(requestContext));
 | `createRedactor(opts?)` | pre-bound redactor |
 | `maskEmail` / `maskString` | targeted masks |
 | `SENSITIVE_KEYS` | the default key list (extend via `opts.keys`) |
+| `redactObject(input, opts?)` | **1.1.0** cycle-safe deep redactor (keys + values), never throws |
+| `scrubString(str, opts?)` | **1.1.0** scrub a string with the extended detector set |
+| `createObjectRedactor(opts?)` | **1.1.0** pre-bound `redactObject` |
+| `DETECTORS` / `DETECTOR_NAMES` | **1.1.0** the extended, toggleable detector set |
+| `luhnValid` / `ibanValid` | **1.1.0** checksum validators (cut false positives) |
+| `maskKeepLast` / `maskCardNumber` / `maskEmailPartial` | **1.1.0** partial-masking helpers |
+
+### `redactObject` options
+
+| Option | Description |
+| --- | --- |
+| `mask` | replacement for key-masked values (default `"[REDACTED]"`) |
+| `keys` | extra sensitive key names (case-insensitive) |
+| `keyAllowlist` | keys to force-keep even if they'd match the denylist |
+| `detectors` | `DetectorName[]` whitelist, or `{ name: boolean }` toggle map (default: all) |
+| `customPatterns` | `{ name?, pattern, replace? }[]` user regexes |
+| `replacer` | `(match, name) => string` global custom replacement |
+| `partial` | `true` or `{ keepEnd?, maskChar? }` — keep last N visible instead of full redaction |
+| `maxDepth` | max recursion depth (default 8) |
+| `scrubStrings` | also pattern-scrub plain string values (default true) |
 
 ## The Lacspace Security Kit
 

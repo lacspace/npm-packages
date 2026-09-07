@@ -125,3 +125,33 @@ export function shortId(size = 8): string {
 export function id(prefix: string, size = 16): string {
   return `${prefix}_${nanoid(size)}`;
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — additional formats, custom alphabets, prefixed ids, decoders
+// and validators. All zero-dep, Web Crypto CSPRNG, isomorphic. Nothing above
+// this line changed.
+// ---------------------------------------------------------------------------
+
+export { ALPHABETS } from "./alphabets";
+export type { AlphabetName } from "./alphabets";
+
+export { customId, base62Id, base58Id } from "./customid";
+export type { CustomIdOptions } from "./customid";
+
+export { ulid, isUlid, ulidTime } from "./ulid";
+
+export {
+  snowflakeFactory,
+  snowflake,
+  snowflakeTime,
+  isSnowflake,
+  SNOWFLAKE_DEFAULT_EPOCH,
+} from "./snowflake";
+export type { SnowflakeOptions } from "./snowflake";
+
+export { cuid2, isCuid2 } from "./cuid2";
+
+export { prefixedId, parsePrefixedId } from "./prefixed";
+export type { PrefixedIdOptions, ParsedPrefixedId } from "./prefixed";
+
+export { decodeTime } from "./decode";

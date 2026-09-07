@@ -52,6 +52,21 @@ const SYMBOL_MAP: Record<string, string> = {
   "€": "euro", $: "dollar", "£": "pound", "¥": "yen", "₹": "rupee", "¢": "cent",
 };
 
+/**
+ * Locale-specific pre-transliteration overrides (opt-in via `{ locale }`).
+ * Applied before the generic char map so locale rules win where scripts overlap.
+ */
+const LOCALE_MAP: Record<string, Record<string, string>> = {
+  // German — expand umlauts/eszett as words (same as `{ german: true }`).
+  de: GERMAN_MAP,
+  // Turkish — dotted/dotless i and cedilla letters fold predictably.
+  tr: {
+    İ: "i", I: "i", ı: "i", i: "i",
+    Ş: "s", ş: "s", Ç: "c", ç: "c",
+    Ğ: "g", ğ: "g", Ö: "o", ö: "o", Ü: "u", ü: "u",
+  },
+};
+
 export interface SlugOptions {
   /** Lowercase the result. Default true. */
   lower?: boolean;
@@ -71,6 +86,24 @@ export interface SlugOptions {
   symbols?: boolean;
   /** Value to return when the slug would otherwise be empty. Default "". */
   fallback?: string;
+  /**
+   * Strict mode. Drop every non-alphanumeric character *within* a word instead
+   * of turning it into a separator; only whitespace becomes a separator.
+   * e.g. `slugify("a.b.c!", { strict: true })` → `"abc"`. Opt-in; default false. */
+  strict?: boolean;
+  /**
+   * Locale hint (e.g. "de", "tr", or "de-DE") for locale-specific rules applied
+   * before transliteration — German umlaut expansion, Turkish dotted/dotless i,
+   * etc. Opt-in; default undefined (no locale rules). */
+  locale?: string;
+  /**
+   * Counter used by `uniqueSlug` / `slugger` for the first appended suffix.
+   * Default 2 (so collisions produce `-2`, `-3`, …). */
+  counterStart?: number;
+  /**
+   * Custom collision-suffix builder for `uniqueSlug` / `slugger`. Given the base
+   * slug and the current counter, return the candidate. Default `${base}${sep}${n}`. */
+  suffix?: (base: string, n: number) => string;
 }
 
 function escapeRe(s: string): string {
@@ -98,6 +131,15 @@ export function slugify(input: string, opts: SlugOptions = {}): string {
       if (s.includes(from)) s = s.split(from).join(to);
     }
   }
+  if (opts.locale) {
+    const key = opts.locale.toLowerCase();
+    const lm = LOCALE_MAP[key] ?? LOCALE_MAP[key.slice(0, 2)];
+    if (lm) {
+      for (const [from, to] of Object.entries(lm)) {
+        if (s.includes(from)) s = s.split(from).join(to);
+      }
+    }
+  }
 
   // Decompose accents and drop the combining marks (U+0300–U+036F).
   try {
@@ -109,8 +151,17 @@ export function slugify(input: string, opts: SlugOptions = {}): string {
   s = s.replace(/[^\x00-\x7f]/g, (ch) => CHAR_MAP[ch.toLowerCase()] ?? "");
 
   if (lower) s = s.toLowerCase();
-  // Replace any run of non-alphanumerics with a single separator.
-  s = s.replace(/[^a-zA-Z0-9]+/g, sep);
+  if (opts.strict) {
+    // Drop non-alphanumerics inside each word; only whitespace splits words.
+    s = s
+      .split(/\s+/)
+      .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
+      .filter(Boolean)
+      .join(sep);
+  } else {
+    // Replace any run of non-alphanumerics with a single separator.
+    s = s.replace(/[^a-zA-Z0-9]+/g, sep);
+  }
   // Trim separators from the ends — only when there is a separator to trim.
   // (An empty separator produces no leading/trailing separators, and would build
   // an invalid `^+|+$` regexp.)
@@ -169,7 +220,11 @@ export function uniqueSlug(
   const sep = opts.separator ?? "-";
   const base = slugify(input, opts);
   if (!set.has(base)) return base;
-  let n = 2;
-  while (set.has(`${base}${sep}${n}`)) n++;
-  return `${base}${sep}${n}`;
+  const build = opts.suffix ?? ((b: string, n: number) => `${b}${sep}${n}`);
+  let n = opts.counterStart ?? 2;
+  while (set.has(build(base, n))) n++;
+  return build(base, n);
 }
+
+export { slugger, isSlug } from "./slugger";
+export type { Slugger } from "./slugger";

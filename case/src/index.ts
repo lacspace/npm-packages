@@ -2,9 +2,17 @@
  * @lacspace/case
  *
  * Convert strings between cases — camelCase, PascalCase, snake_case,
- * kebab-case, CONSTANT_CASE, Title Case, Sentence case. Handles acronyms,
- * numbers, and mixed input. Zero-dependency, isomorphic.
+ * kebab-case, CONSTANT_CASE, Title Case, Sentence case, Header-Case, and more.
+ * Handles acronyms, numbers, unicode, and mixed input. Zero-dependency, isomorphic.
  */
+
+import { type CaseOptions, acronymMap } from "./acronyms";
+import {
+  headerCase,
+  trainCase,
+  capitalCase,
+  noCase,
+} from "./extra";
 
 /**
  * Split any string into its constituent words — the basis for every case
@@ -34,13 +42,17 @@ const cap = (w: string): string => w.charAt(0).toUpperCase() + w.slice(1).toLowe
 const lower = (w: string): string => w.toLowerCase();
 
 /** camelCase. `camelCase("foo_bar")` → "fooBar". */
-export function camelCase(input: string): string {
-  return words(input).map((w, i) => (i === 0 ? lower(w) : cap(w))).join("");
+export function camelCase(input: string, options?: CaseOptions): string {
+  const m = acronymMap(options?.acronyms);
+  return words(input)
+    .map((w, i) => (i === 0 ? lower(w) : (m.get(w.toLowerCase()) ?? cap(w))))
+    .join("");
 }
 
 /** PascalCase. `pascalCase("foo_bar")` → "FooBar". */
-export function pascalCase(input: string): string {
-  return words(input).map(cap).join("");
+export function pascalCase(input: string, options?: CaseOptions): string {
+  const m = acronymMap(options?.acronyms);
+  return words(input).map((w) => m.get(w.toLowerCase()) ?? cap(w)).join("");
 }
 
 /** snake_case. `snakeCase("fooBar")` → "foo_bar". */
@@ -69,15 +81,17 @@ export function pathCase(input: string): string {
 }
 
 /** Title Case. `titleCase("foo bar")` → "Foo Bar". */
-export function titleCase(input: string): string {
-  return words(input).map(cap).join(" ");
+export function titleCase(input: string, options?: CaseOptions): string {
+  const m = acronymMap(options?.acronyms);
+  return words(input).map((w) => m.get(w.toLowerCase()) ?? cap(w)).join(" ");
 }
 
 /** Sentence case. `sentenceCase("foo_bar")` → "Foo bar". */
-export function sentenceCase(input: string): string {
-  const w = words(input).map(lower);
+export function sentenceCase(input: string, options?: CaseOptions): string {
+  const m = acronymMap(options?.acronyms);
+  const w = words(input).map((x) => m.get(x.toLowerCase()) ?? lower(x));
   if (w.length === 0) return "";
-  w[0] = cap(w[0]!);
+  w[0] = m.get(w[0]!.toLowerCase()) ?? cap(w[0]!);
   return w.join(" ");
 }
 
@@ -88,14 +102,32 @@ export function capitalize(input: string): string {
 
 export type CaseName =
   | "camel" | "pascal" | "snake" | "kebab" | "constant"
-  | "dot" | "path" | "title" | "sentence";
+  | "dot" | "path" | "title" | "sentence"
+  | "header" | "train" | "capital" | "no";
 
 const CONVERTERS: Record<CaseName, (s: string) => string> = {
   camel: camelCase, pascal: pascalCase, snake: snakeCase, kebab: kebabCase,
   constant: constantCase, dot: dotCase, path: pathCase, title: titleCase, sentence: sentenceCase,
+  header: headerCase, train: trainCase, capital: capitalCase, no: noCase,
 };
 
 /** Convert to a named case at runtime. `changeCase("fooBar", "kebab")` → "foo-bar". */
 export function changeCase(input: string, to: CaseName): string {
   return CONVERTERS[to](input);
 }
+
+/** `true` if `input` is already in the named case (converting it would be a no-op). */
+export function isCase(input: string, name: CaseName): boolean {
+  return input.length > 0 && CONVERTERS[name](input) === input;
+}
+
+// --- Additive re-exports (v1.1.0) ---
+export { headerCase, trainCase, capitalCase, noCase } from "./extra";
+export {
+  isCamelCase, isPascalCase, isSnakeCase, isKebabCase, isConstantCase,
+  isDotCase, isPathCase, isTitleCase, isSentenceCase, isHeaderCase, isNoCase,
+} from "./extra";
+export { splitWords, type SplitOptions } from "./split";
+export {
+  type CaseOptions, registerAcronyms, getAcronyms, clearAcronyms,
+} from "./acronyms";

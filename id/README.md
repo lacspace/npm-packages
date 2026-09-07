@@ -18,6 +18,31 @@
 - 🔤 `nanoid()` / `shortId()` — URL-safe random strings
 - 🏷️ `id("user")` — prefixed ids like `user_9f8c…`
 
+### ✨ New in 1.1.0
+
+More formats and building blocks, all zero-dep and CSPRNG-backed:
+
+- 🧭 `ulid()` — Crockford base32, **time-sortable & monotonic** (26 chars)
+- 🧵 `cuid2()` — collision-resistant, letter-leading id
+- ❄️ `snowflakeFactory()` — 64-bit sortable id with injectable epoch / machine id / clock
+- 🔡 `customId({ alphabet, size })` — any alphabet, **unbiased** (rejection sampling) + `ALPHABETS` presets + `base62Id()` / `base58Id()`
+- 🏷️ `prefixedId("user")` / `parsePrefixedId()` — Stripe-style typed ids, round-trippable
+- 🕒 `decodeTime(id)` — read the timestamp back out of a ULID or UUID v7
+- ✅ `isUlid` / `isCuid2` / `isSnowflake` validators
+
+```ts
+import { ulid, cuid2, snowflakeFactory, customId, prefixedId, decodeTime, ALPHABETS } from "@lacspace/id";
+
+ulid();                                   // "01JR8Z3C2F6ABM7Q9K…"  ← sorts by time
+cuid2();                                  // "k3f9x2q7z1m8..."
+customId({ alphabet: ALPHABETS.base58, size: 12 });  // unbiased over any alphabet
+prefixedId("user");                       // "user_9f8c1a3e…"  → parsePrefixedId() splits it back
+decodeTime(ulid());                       // 1757… (ms since epoch)
+
+const nextId = snowflakeFactory({ machineId: 7 });
+nextId();                                 // "72057594037…"  (64-bit, JSON-safe string)
+```
+
 ## Install
 
 ```bash
@@ -45,8 +70,17 @@ Why v7? Because random UUIDs (v4) scatter across a database index, hurting inser
 | `uuidv4()` | random UUID |
 | `uuidv7(now?)` · `uuidv7Time(id)` | time-sortable UUID + timestamp extract |
 | `nanoid(size=21)` · `shortId(size=8)` | URL-safe random strings |
-| `id(prefix, size=16)` | prefixed id |
-| `isUuid(s)` · `uuidVersion(s)` | validation |
+| `id(prefix, size=16)` | prefixed id (uses nanoid) |
+| `ulid(now?)` · `ulidTime(id)` | Crockford base32, time-sortable + monotonic |
+| `cuid2(length=24)` | collision-resistant, letter-leading id |
+| `snowflakeFactory({ epoch?, machineId?, now? })` · `snowflake()` · `snowflakeTime(id, epoch?)` | 64-bit sortable numeric id (decimal string) |
+| `customId({ alphabet, size })` | any alphabet, unbiased (rejection sampling) |
+| `base62Id(size=12)` · `base58Id(size=12)` · `ALPHABETS` | ready-made short-id helpers + alphabet presets |
+| `prefixedId(prefix, opts?)` · `parsePrefixedId(value, sep?)` | Stripe-style typed ids, round-trippable |
+| `decodeTime(id)` | timestamp from a ULID or UUID v7 |
+| `isUuid(s)` · `uuidVersion(s)` · `isUlid(s)` · `isCuid2(s)` · `isSnowflake(s)` | validation |
+
+`ALPHABETS` presets: `numeric`, `base36`, `hex`, `lowercase`, `base32Crockford`, `base58`, `base62`.
 
 ## Licensing
 

@@ -6,6 +6,8 @@
  * Zero dependencies, isomorphic.
  */
 
+import { namedColorHex } from "./named";
+
 export interface RGBA { r: number; g: number; b: number; a: number; }
 
 const clamp = (n: number, lo = 0, hi = 255): number => Math.min(hi, Math.max(lo, n));
@@ -13,9 +15,12 @@ const round = (n: number): number => Math.round(n * 1000) / 1000;
 
 /* ------------------------------ parsing ------------------------------ */
 
-/** Parse a colour string (#hex, #rgba, rgb(), rgba(), hsl(), hsla()) → RGBA. */
+/** Parse a colour string (#hex, #rgba, rgb(), rgba(), hsl(), hsla(), CSS name) → RGBA. */
 export function parse(input: string): RGBA {
   const s = input.trim().toLowerCase();
+
+  const named = namedColorHex(s);
+  if (named) return parse(named);
 
   if (s.startsWith("#")) {
     const h = s.slice(1);
@@ -178,3 +183,20 @@ export function readableTextColor(background: RGBA | string): "#000000" | "#ffff
 
 /** True if the colour is perceptually dark (luminance < 0.5). */
 export const isDark = (c: RGBA | string): boolean => luminance(c) < 0.5;
+
+/* ------------------------------ new in 1.1.0 ------------------------------ */
+
+export { NAMED_COLORS, namedColorHex } from "./named";
+export {
+  toHsvObject, hsvToRgb, toHsv,
+  rgbToOklab, oklabToRgb, rgbToOklch, oklchToRgb,
+  toOklab, toOklabObject, toOklch, toOklchObject,
+  type HSVA, type OKLab, type OKLCH,
+} from "./convert";
+export { invert, complement, mixOklab } from "./manipulate";
+export { contrastRatio, wcagLevel, bestTextColor, type WcagLevel } from "./a11y";
+export {
+  tints, shades, scale,
+  complementary, analogous, triadic, tetradic, splitComplementary, harmony,
+  type HarmonyType,
+} from "./palette";

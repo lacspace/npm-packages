@@ -14,9 +14,13 @@
 
 > Transliterates common diacritics (`é → e`), strips the rest, collapses separators, truncates on word boundaries, and can **guarantee uniqueness** against existing slugs. Perfect for article/product URLs.
 
-- ✂️ `slugify()` with `lower` / `separator` / `maxLength` / custom `replace`
-- 🔢 `uniqueSlug()` — appends `-2`, `-3`… against a `Set`/array
+- ✂️ `slugify()` with `lower` / `separator` / `maxLength` / `strict` / `locale` / custom `replace`
+- 🔢 `uniqueSlug()` — appends `-2`, `-3`… (or a custom suffix) against a `Set`/array
+- 🧠 `slugger()` — stateful factory that remembers what it emitted
+- ✅ `isSlug()` — validate a string is already a canonical slug
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.2.0** — a stateful `slugger()` factory, an `isSlug()` validator, a `strict` mode (drop non-alphanumerics inside words), a `locale` hint (German/Turkish rules), and a configurable `uniqueSlug` suffix (`counterStart` / `suffix`). All additive — existing output and exports are unchanged.
 
 ## Install
 
@@ -89,6 +93,50 @@ slugifyFilename("Résumé (final).docx");    // "resume-final.docx"
 ```
 
 All existing exports (`slugify`, `uniqueSlug`) and their behavior for existing inputs are unchanged.
+
+## Stateful slugger & validation (new in 1.2.0)
+
+```ts
+import { slugger, isSlug } from "@lacspace/slugify";
+
+// A slugger remembers every slug it emits — no set to track yourself.
+const next = slugger();
+next("Hello");   // "hello"
+next("Hello");   // "hello-2"
+next("Hello");   // "hello-3"
+next.add("post", "post-2");   // reserve slugs
+next("Post");    // "post-3"
+next.reset();    // forget history
+
+// Validate a canonical slug (slugifying it is a no-op).
+isSlug("hello-world");                       // true
+isSlug("Hello World");                       // false
+isSlug("hello_world", { separator: "_" });   // true
+```
+
+## strict, locale & custom collision suffix (new in 1.2.0)
+
+```ts
+slugify("a.b.c!", { strict: true });         // "abc"  (drop punctuation inside a word)
+slugify("İstanbul", { locale: "tr" });        // "istanbul"
+slugify("Zürich", { locale: "de" });          // "zuerich" (German umlaut expansion)
+
+uniqueSlug("Hello", new Set(["hello"]), { counterStart: 1 });          // "hello-1"
+uniqueSlug("Hello", new Set(["hello"]), { suffix: (b, n) => `${b}-copy${n}` }); // "hello-copy2"
+```
+
+## API
+
+| Export | Signature | Notes |
+| --- | --- | --- |
+| `slugify` | `(input: string, opts?: SlugOptions) => string` | Core slugifier. |
+| `slugifyPath` | `(path: string, opts?: SlugOptions) => string` | Slugify `/`-separated segments. |
+| `slugifyFilename` | `(name: string, opts?: SlugOptions) => string` | Slugify base name, keep extension. |
+| `uniqueSlug` | `(input, existing: Set<string> \| string[], opts?) => string` | Unique against a set. |
+| `slugger` | `(baseOpts?: SlugOptions) => Slugger` | Stateful factory: `next()`, `.slug()`, `.has()`, `.add()`, `.reset()`, `.seen`. |
+| `isSlug` | `(str: string, opts?: SlugOptions) => boolean` | Validate a canonical slug. |
+
+**`SlugOptions`:** `lower` (default `true`), `separator` (default `"-"`), `maxLength`, `replace`, `german`, `symbols`, `fallback`, `strict`, `locale`, `counterStart`, `suffix`.
 
 ## Licensing
 

@@ -11,12 +11,15 @@
 
 </div>
 
-> The small colour toolkit every app rebuilds — convert between formats, tweak lightness/saturation, mix, and (crucially) check **WCAG contrast** so your UI is actually readable. Tiny and dependency-free.
+> The small colour toolkit every app rebuilds — convert between formats, tweak lightness/saturation, mix, generate palettes, and (crucially) check **WCAG contrast** so your UI is actually readable. Tiny and dependency-free.
 
-- 🎨 Parse `#hex` / `#rgba` / `rgb()` / `rgba()` / `hsl()` / `hsla()` → RGBA
-- 🔁 `toHex` / `toRgb` / `toHsl` conversions
-- ✨ `lighten` / `darken` / `saturate` / `desaturate` / `rotate` / `mix` / `alpha` / `grayscale`
-- ♿ `contrast`, `isReadable` (AA/AAA), `readableTextColor`, `luminance`, `isDark`
+**New in 1.1.0** — CSS **named colours** in `parse`, **HSV/HSB** + perceptual **OKLab/OKLCH** conversions, `invert` / `complement` / perceptual `mixOklab`, `contrastRatio` / `wcagLevel` / `bestTextColor`, and palette generation (`tints` / `shades` / `scale` + colour-wheel harmonies). All additive — existing API unchanged.
+
+- 🎨 Parse `#hex` / `#rgba` / `rgb()` / `rgba()` / `hsl()` / `hsla()` / **CSS names** (`red`, `rebeccapurple`, …) → RGBA
+- 🔁 `toHex` / `toRgb` / `toHsl` / **`toHsv`** / **`toOklch`** / **`toOklab`** conversions
+- ✨ `lighten` / `darken` / `saturate` / `desaturate` / `rotate` / `mix` / **`mixOklab`** / `alpha` / `grayscale` / **`invert`** / **`complement`**
+- 🌈 Palettes: **`tints`** / **`shades`** / **`scale`** + harmonies (**`complementary`** / **`analogous`** / **`triadic`** / **`tetradic`** / **`splitComplementary`**)
+- ♿ `contrast` / **`contrastRatio`**, `isReadable` (AA/AAA), **`wcagLevel`**, `readableTextColor` / **`bestTextColor`**, `luminance`, `isDark`
 
 ## Install
 
@@ -43,15 +46,38 @@ import { contrast, isReadable, readableTextColor } from "@lacspace/color";
 contrast("#000", "#fff");                  // 21
 isReadable("#767676", "#ffffff", "AA");    // true  (meets 4.5:1)
 readableTextColor("#2563eb");              // "#ffffff"  ← pick text colour for a background
+
+import { contrastRatio, wcagLevel, bestTextColor } from "@lacspace/color";
+
+contrastRatio("#000", "#fff");             // 21
+wcagLevel(4.6);                            // "AA"
+wcagLevel(4.6, { large: true });           // "AAA"  (large text is more lenient)
+bestTextColor("#1e90ff");                  // "#000000"  ← best of black/white (or a custom set)
+bestTextColor("#fff", ["#333", "#eee"]);   // "#333333"
+```
+
+## Modern spaces & palettes
+
+```ts
+import { toOklch, toHsv, tints, triadic, harmony } from "@lacspace/color";
+
+toOklch("#2563eb");                 // "oklch(0.546 0.215 262.872)"
+toHsv("#00ff00");                   // "hsv(120, 100%, 100%)"
+
+tints("#2563eb", 4);                // 4 progressively lighter blues
+triadic("#ff0000");                 // ["#ff0000", "#00ff00", "#0000ff"]
+harmony("#2563eb", "analogous");    // 3 neighbours around the base hue
 ```
 
 ## API
 
 | Group | Functions |
 | --- | --- |
-| Parse / format | `parse`, `toHex`, `toRgb`, `toHsl`, `toHslObject`, `hslToRgb` |
-| Manipulate | `lighten`, `darken`, `saturate`, `desaturate`, `rotate`, `mix`, `alpha`, `grayscale` |
-| Accessibility | `luminance`, `contrast`, `isReadable`, `readableTextColor`, `isDark` |
+| Parse / format | `parse` (hex/rgb/hsl/**named**), `toHex`, `toRgb`, `toHsl`, `toHslObject`, `hslToRgb`, `NAMED_COLORS`, `namedColorHex` |
+| Colour spaces | `toHsv`, `toHsvObject`, `hsvToRgb`, `toOklab`/`toOklabObject`, `rgbToOklab`, `oklabToRgb`, `toOklch`/`toOklchObject`, `rgbToOklch`, `oklchToRgb` |
+| Manipulate | `lighten`, `darken`, `saturate`, `desaturate`, `rotate`, `mix`, `mixOklab`, `alpha`, `grayscale`, `invert`, `complement` |
+| Palettes | `tints`, `shades`, `scale`, `complementary`, `analogous`, `triadic`, `tetradic`, `splitComplementary`, `harmony` |
+| Accessibility | `luminance`, `contrast`, `contrastRatio`, `isReadable`, `wcagLevel`, `readableTextColor`, `bestTextColor`, `isDark` |
 
 Every function accepts a colour string or an `RGBA` object.
 

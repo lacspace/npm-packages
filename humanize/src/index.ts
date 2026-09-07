@@ -104,11 +104,26 @@ export function relativeTime(date: Date | number | string, base: Date | number =
 
 /* ------------------------------ numbers ------------------------------ */
 
+export interface OrdinalOptions {
+  /**
+   * Custom suffix rules for a locale. Any omitted key falls back to the English
+   * default, so the default output is unchanged. `one`/`two`/`few` map to the
+   * 1st/2nd/3rd forms; `other` covers everything else (incl. 11–13).
+   */
+  suffixes?: { one?: string; two?: string; few?: string; other?: string };
+}
+
 /** Ordinal suffix. `ordinal(21)` → "21st". */
-export function ordinal(n: number): string {
+export function ordinal(n: number, opts: OrdinalOptions = {}): string {
+  const s = opts.suffixes ?? {};
   const abs = Math.abs(n) % 100;
   const last = abs % 10;
-  const suffix = abs >= 11 && abs <= 13 ? "th" : last === 1 ? "st" : last === 2 ? "nd" : last === 3 ? "rd" : "th";
+  const suffix =
+    abs >= 11 && abs <= 13 ? (s.other ?? "th")
+      : last === 1 ? (s.one ?? "st")
+        : last === 2 ? (s.two ?? "nd")
+          : last === 3 ? (s.few ?? "rd")
+            : (s.other ?? "th");
   return `${n}${suffix}`;
 }
 
@@ -147,10 +162,16 @@ export function number(n: number, opts: { separator?: string; decimal?: string }
 
 /* ------------------------------ words ------------------------------ */
 
+export interface PluralOptions {
+  /** Locale hook: a custom rule invoked for count ≠ 1 (when no explicit `pluralForm`). */
+  rule?: (word: string, count: number) => string;
+}
+
 /** Pluralize a word for a count (naive English + irregulars). */
-export function plural(word: string, count: number, pluralForm?: string): string {
+export function plural(word: string, count: number, pluralForm?: string, opts: PluralOptions = {}): string {
   if (count === 1) return word;
   if (pluralForm) return pluralForm;
+  if (opts.rule) return opts.rule(word, count);
   if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
   if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
   return `${word}s`;
@@ -183,3 +204,15 @@ export function truncate(text: string, maxLength: number, ellipsis = "…"): str
 export function titleCase(text: string): string {
   return text.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/* ------------------------------ extended API ------------------------------ */
+
+export { numberToWords, numberToOrdinalWords } from "./words";
+export { toRoman, fromRoman } from "./roman";
+export {
+  metric, si, unit, distance, weight, temperature,
+  type MetricOptions, type UnitOptions, type TempUnit,
+} from "./units";
+export {
+  truncateMiddle, initials, slugcase, type InitialsOptions,
+} from "./text";

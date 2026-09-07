@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/headers",
-  "version": "1.1.4",
-  "description": "Secure HTTP headers & a typed Content-Security-Policy builder — HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
+  "version": "1.2.0",
+  "description": "Secure HTTP headers & a typed Content-Security-Policy builder — HSTS, CSP nonces/hashes, Permissions-Policy, COOP/COEP/CORP, Reporting-Endpoints, report-only + strict/API presets. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -42,7 +42,17 @@
     "x-frame-options",
     "referrer-policy",
     "nextjs",
-    "owasp"
+    "owasp",
+    "csp-nonce",
+    "csp-hash",
+    "strict-dynamic",
+    "coop",
+    "coep",
+    "corp",
+    "cross-origin-isolation",
+    "reporting-endpoints",
+    "report-to",
+    "csp-report-only"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

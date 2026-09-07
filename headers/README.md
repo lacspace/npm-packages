@@ -14,10 +14,16 @@
 
 > A tiny, framework-agnostic Helmet: strict security response headers (HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, COOP) and a **typed CSP builder**. Get a plain headers object for Express/Hono/Fastify, or a Next.js `headers()` config.
 
-- 🛡️ `securityHeaders()` — sensible strict defaults
+- 🛡️ `securityHeaders()` — sensible strict defaults (+ COOP/COEP/CORP, Reporting-Endpoints, report-only)
 - 🧱 `csp()` / `strictCsp()` — typed Content-Security-Policy
+- 🔐 `strictPreset()` / `apiPreset()` — ready-made hardened header sets
+- 🎫 `generateNonce()` / `cspHash()` + `withNonce()` / `withHashes()` — nonce & hash CSP
+- 🧩 `parseCsp()` / `mergeCsp()` / `serializeCsp()` — structural CSP editing
+- 🎛️ `permissionsPolicy()` — typed Permissions-Policy builder
 - ▲ `toNextHeaders()` for `next.config` `headers()`
 - ⚡ Zero dependencies · 🌍 isomorphic · fully typed
+
+> **New in 1.2.0** — a typed `permissionsPolicy()` builder, COOP/COEP/CORP + Reporting-Endpoints/Report-To options, `Content-Security-Policy-Report-Only`, `cspHash()` + `withNonce()`/`withHashes()`, CSP `parseCsp`/`mergeCsp`/`serializeCsp`, and hardened `strictPreset()` / `apiPreset()`. All additive — every existing export is unchanged.
 
 ## Install
 
@@ -58,10 +64,57 @@ export default { async headers() { return toNextHeaders({ contentSecurityPolicy:
 
 | Export | Description |
 | --- | --- |
-| `securityHeaders(opts?)` | headers object with strict defaults |
+| `securityHeaders(opts?)` | headers object with strict defaults (CSP, HSTS, COOP/COEP/CORP, Permissions-Policy, reporting, report-only) |
 | `csp(directives)` | typed → CSP string |
 | `strictCsp(overrides?)` | a strict baseline CSP |
 | `toNextHeaders(opts?, source?)` | Next.js `headers()` array |
+| `strictPreset(opts?)` | hardened, cross-origin-isolated header set (`strict-dynamic`, HSTS preload, COOP/COEP/CORP) |
+| `apiPreset(opts?)` | lean locked-down header set for JSON APIs |
+| `permissionsPolicy(directives)` | typed → `Permissions-Policy` string |
+| `generateNonce(bytes?)` | per-request CSP nonce (CSPRNG, base64) |
+| `cspHash(source, algo?)` | `Promise<'sha256-…'>` hash of an inline script/style |
+| `withNonce(policy, nonce, dirs?)` | inject a `'nonce-…'` into a CSP string |
+| `withHashes(policy, hashes, dirs?)` | inject hash sources into a CSP string |
+| `parseCsp(policy)` | CSP string → structured `CspPolicy` |
+| `mergeCsp(a, b)` | union two policies per directive |
+| `serializeCsp(policy)` | structured `CspPolicy` → CSP string |
+| `reportingEndpoints(map)` | name→URL map → `Reporting-Endpoints` value |
+
+### New in 1.2.0
+
+```ts
+import {
+  permissionsPolicy, strictPreset, apiPreset,
+  cspHash, withNonce, withHashes, generateNonce,
+  parseCsp, mergeCsp, serializeCsp,
+} from "@lacspace/headers";
+
+// Typed Permissions-Policy
+permissionsPolicy({ camera: false, geolocation: "self", microphone: ["self", "https://meet.example.com"] });
+// => "camera=(), geolocation=(self), microphone=(self \"https://meet.example.com\")"
+
+// Hardened, cross-origin-isolated preset (COOP/COEP/CORP + strict-dynamic + HSTS preload)
+const nonce = generateNonce();
+const headers = strictPreset({ nonce });          // ready-to-send header object
+const api = apiPreset();                            // lean set for JSON endpoints
+
+// CSP hash for an inline script, then inject nonce/hash into a policy
+const hash = await cspHash("alert('Hello, world.');"); // 'sha256-…'
+withHashes("script-src 'self'", [hash]);
+withNonce("script-src 'self'", nonce);             // also seeds style-src
+
+// Parse → merge → serialize an existing policy
+serializeCsp(mergeCsp("script-src 'self'", "script-src https://cdn.example.com"));
+// => "script-src 'self' https://cdn.example.com"
+
+// Staged rollout + reporting
+securityHeaders({
+  contentSecurityPolicyReportOnly: { defaultSrc: ["'self'"], reportTo: ["default"] },
+  reportingEndpoints: { default: "https://example.com/csp-reports" },
+  crossOriginEmbedderPolicy: "require-corp",
+  crossOriginResourcePolicy: "same-origin",
+});
+```
 
 ## The Lacspace Security Kit
 

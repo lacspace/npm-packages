@@ -13,11 +13,17 @@
 
 > All the little "make it readable" helpers you reach for on every UI — instead of installing `pretty-bytes` + `ms` + `humanize-duration` + a pluralize lib, get them as one tiny, typed, dependency-free package.
 
+> **New in 1.1.0** — `numberToWords` / `numberToOrdinalWords`, Roman numerals (`toRoman` / `fromRoman`), SI units (`metric` / `si`, `unit`, `distance`, `weight`, `temperature`), extra text helpers (`truncateMiddle`, `initials`, `slugcase`), plus optional locale hooks on `ordinal` (custom suffixes) and `plural` (custom rule). Fully additive — every existing output is unchanged.
+
 - 💾 `bytes` / `parseBytes` — `1536 → "1.5 KB"` (and IEC KiB)
 - ⏱️ `duration` — `90061000 → "1d 1h"` (or long form)
 - 🕒 `relativeTime` — `"3 hours ago"` / `"in 2 days"`
 - 🔢 `ordinal`, `compact` (`1.2M`), `number` (grouping)
 - ✍️ `pluralize`, `list` (`"a, b and c"`), `truncate`, `titleCase`
+- 🔤 `numberToWords` (`1234 → "one thousand…"`), `numberToOrdinalWords` (`21 → "twenty-first"`)
+- 🏛️ `toRoman` / `fromRoman` (1–3999)
+- 📏 `metric` / `si` (`1500 → "1.5k"`), `unit`, `distance`, `weight`, `temperature`
+- ✂️ `truncateMiddle`, `initials`, `slugcase`
 
 ## Install
 
@@ -39,16 +45,41 @@ pluralize(3, "city");              // "3 cities"
 list(["red", "green", "blue"]);    // "red, green and blue"
 ```
 
+```ts
+import { numberToWords, numberToOrdinalWords, toRoman, fromRoman, metric, unit, distance, temperature, truncateMiddle, initials, slugcase } from "@lacspace/humanize";
+
+numberToWords(1234);               // "one thousand two hundred thirty-four"
+numberToOrdinalWords(21);          // "twenty-first"
+toRoman(2024);                     // "MMXXIV"
+fromRoman("MMXXIV");               // 2024
+metric(1500);                      // "1.5k"  (lowercase SI prefix; compact() gives "1.5K")
+unit(3, "meter");                  // "3 meters"
+distance(1500);                    // "1.5 km"
+temperature(20);                   // "20°C"
+truncateMiddle("/very/long/path/file.txt", 20); // "/very/long…/file.txt"
+initials("John Fitzgerald Kennedy", { max: 3 }); // "JFK"
+slugcase("Café del Mar");          // "cafe-del-mar"
+
+// Locale hooks (English output unchanged by default):
+ordinal(1, { suffixes: { one: "er", other: "e" } }); // "1er"
+plural("ka", 2, undefined, { rule: (w) => `${w}-pl` }); // "ka-pl"
+```
+
 ## API
 
 | Group | Functions |
 | --- | --- |
 | Size | `bytes`, `parseBytes` |
 | Time | `duration`, `relativeTime` |
-| Numbers | `ordinal`, `compact`, `number` |
+| Numbers | `ordinal`, `compact`, `number`, `numberToWords`, `numberToOrdinalWords` |
+| Roman | `toRoman`, `fromRoman` |
+| Units | `metric` / `si`, `unit`, `distance`, `weight`, `temperature` |
 | Words | `pluralize`, `plural`, `list`, `truncate`, `titleCase` |
+| Text | `truncateMiddle`, `initials`, `slugcase` |
 
-Options let you switch to IEC units, long durations, more precision, Oxford commas and custom separators.
+Options let you switch to IEC units, long durations, more precision, Oxford commas and custom separators. `ordinal` and `plural` also take an optional locale/options object (custom ordinal suffixes; a custom plural rule) without changing the default English output.
+
+`numberToWords` names magnitudes up to ~10³⁶ (decillions); integers beyond `Number.MAX_SAFE_INTEGER` may already be imprecise as JS numbers. `toRoman`/`fromRoman` cover 1–3999.
 
 ## Licensing
 

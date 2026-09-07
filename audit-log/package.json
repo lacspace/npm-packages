@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/audit-log",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Structured audit-trail toolkit — record who did what, when, with before/after diffs, actor attribution and field-level redaction, plus a tamper-evident SHA-256 hash chain that proves the log was not altered. Zero-dependency, isomorphic (Node 20+, edge, modern browsers).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -39,6 +39,12 @@
     "tamper-evident",
     "hash-chain",
     "immutable",
+    "query",
+    "filter",
+    "ndjson",
+    "export",
+    "retention",
+    "log-pruning",
     "isomorphic",
     "zero-dependency",
     "typescript"

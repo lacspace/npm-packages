@@ -7,6 +7,8 @@ Structured audit-trail toolkit — record **who did what, when**, with before/af
 - **TypeScript-first**, strict types
 - Random ids via `globalThis.crypto` with a `Math.random` fallback
 
+> **New in 1.2.0** — query & filter a trail by actor/action/target/time-range, export to **NDJSON/JSON** (round-trips), **retention pruning** for hash chains with a verifiable checkpoint, an **injectable clock + id** on `createAuditor`, and an optional `actor.userAgent`. All additive — every existing export is unchanged.
+
 ```bash
 npm install @lacspace/audit-log
 ```
@@ -61,9 +63,65 @@ Returns a copy with matching `changes[].from` / `changes[].to` values and `meta`
 
 Renders a human-readable one-liner, e.g. `"alice updated order#42 (status: pending→paid)"`.
 
-### `createAuditor({ sink?, redact? }): { record(input) }`
+### `createAuditor({ sink?, redact?, now?, id? }): { record(input) }`
 
-Returns an auditor that builds each event, applies `redact` keys, forwards it to `sink`, and returns it.
+Returns an auditor that builds each event, applies `redact` keys, forwards it to `sink`, and returns it. Pass `now: () => Date | string` to inject a clock (great for deterministic tests or a trusted server clock) and `id: () => string` to inject an id generator. A caller-supplied `id`/`at` on `record(...)` always wins over the injected ones.
+
+```ts
+let n = 0;
+const auditor = createAuditor({
+  now: () => new Date("2026-03-01T12:00:00Z"),
+  id: () => `evt-${++n}`,
+});
+auditor.record({ actor: { id: "alice" }, action: "login" });
+// { id: "evt-1", at: "2026-03-01T12:00:00.000Z", … }
+```
+
+## Query, filter & export
+
+Filter a trail by actor / action / target / time-range (fields are ANDed; a list matches any of its values) and export to NDJSON or JSON. All synchronous, pure and isomorphic.
+
+```ts
+import { filterEvents, toNDJSON, parseNDJSON } from "@lacspace/audit-log";
+
+const recent = filterEvents(events, {
+  actor: ["alice", "bob"],
+  action: "updated",
+  targetType: "order",
+  from: "2026-01-01T00:00:00Z",
+  to: Date.now(),
+});
+
+const file = toNDJSON(recent);        // one compact JSON object per line
+const back = parseNDJSON(file);       // round-trips (blank lines skipped)
+```
+
+| Function | Purpose |
+| --- | --- |
+| `filterEvents(events, query?)` | New array of events matching an `AuditQuery` (empty query = all). |
+| `matchesQuery(event, query)` | Test a single event against a query. |
+| `toNDJSON(records)` / `parseNDJSON(text)` | Newline-delimited JSON export / import (round-trips). |
+| `toJSON(records, pretty?)` | JSON-array export (compact or indented). |
+
+`AuditQuery`: `{ actor?, actorType?, action?, targetType?, targetId? }` (each a value or list), `{ from?, to? }` (inclusive time range as ISO / epoch-ms / `Date`), and `{ where?: (e) => boolean }` for anything else.
+
+## Retention / pruning a hash chain
+
+A sealed chain proves its integrity by re-linking from `GENESIS_HASH` at seq 0 — so you can't just delete old entries and re-`verifyChain` the rest. `pruneChain` drops the front and hands back the retained tail **plus a `checkpoint`** (the `seq` + `prevHash` it hangs from). Persist that checkpoint and verify the tail with `verifyChainSegment` — the dropped entries are gone, but the checkpoint still cryptographically ties the survivors to the history before them.
+
+```ts
+import { pruneChain, verifyChainSegment } from "@lacspace/audit-log";
+
+const { entries, checkpoint, dropped } = pruneChain(chain, { keepLast: 1000 });
+// or: pruneChain(chain, { before: "2026-01-01T00:00:00Z" })
+
+await verifyChainSegment(entries, checkpoint); // { valid: true, length: … }
+```
+
+| Function | Purpose |
+| --- | --- |
+| `pruneChain(chain, { keepLast?, before? })` | Drop old front entries; returns `{ entries, checkpoint, dropped }`. |
+| `verifyChainSegment(entries, checkpoint)` | Verify a pruned tail against its checkpoint (async; `brokenAt` is absolute seq). |
 
 ## Tamper-evident hash chain
 
@@ -100,7 +158,7 @@ Persist `log.entries()` however you like and reload with `createSealedLog(saved)
 interface AuditEvent {
   id: string;
   at: string; // ISO-8601
-  actor: { id: string; type?: string; ip?: string };
+  actor: { id: string; type?: string; ip?: string; userAgent?: string };
   action: string;
   target?: { type: string; id: string };
   changes?: { field: string; from: unknown; to: unknown }[];

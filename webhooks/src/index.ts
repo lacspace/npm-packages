@@ -216,6 +216,21 @@ export interface DeliverOptions {
   sleepImpl?: (ms: number) => Promise<void>;
   /** Retry on these HTTP statuses (in addition to network errors). Default 408,425,429,>=500. */
   retryStatuses?: (status: number) => boolean;
+  /** Called once per attempt with its outcome — useful for logging/metrics. */
+  onAttempt?: (attempt: AttemptResult) => void;
+}
+
+/** Outcome of a single delivery attempt (see {@link DeliverResult.log}). */
+export interface AttemptResult {
+  /** 1-based attempt number. */
+  attempt: number;
+  ok: boolean;
+  status?: number;
+  error?: string;
+  /** Whether this failure was retryable (a further attempt was/could be made). */
+  retryable: boolean;
+  /** Backoff waited (ms) before the next attempt, when one followed. */
+  delayMs?: number;
 }
 
 export interface DeliverResult {
@@ -225,6 +240,8 @@ export interface DeliverResult {
   error?: string;
   idempotencyKey: string;
   id: string;
+  /** Per-attempt log (one entry per try), in order. */
+  log?: AttemptResult[];
 }
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -264,6 +281,13 @@ export async function deliver(url: string, payload: unknown, opts: DeliverOption
   let attempts = 0;
   let lastStatus: number | undefined;
   let lastError: string | undefined;
+  const log: AttemptResult[] = [];
+
+  const record = (a: AttemptResult): AttemptResult => {
+    log.push(a);
+    opts.onAttempt?.(a);
+    return a;
+  };
 
   for (let i = 0; i <= retries; i++) {
     attempts++;
@@ -278,20 +302,36 @@ export async function deliver(url: string, payload: unknown, opts: DeliverOption
       const res = await doFetch(url, { method: "POST", headers, body, signal });
       if (timer) clearTimeout(timer);
       lastStatus = res.status;
-      if (res.ok) return { ok: true, status: res.status, attempts, idempotencyKey, id };
-      if (!retryStatus(res.status) || i === retries) {
-        return { ok: false, status: res.status, attempts, idempotencyKey, id, error: `HTTP ${res.status}` };
+      if (res.ok) {
+        record({ attempt: attempts, ok: true, status: res.status, retryable: false });
+        return { ok: true, status: res.status, attempts, idempotencyKey, id, log };
       }
+      const retryable = retryStatus(res.status) && i < retries;
+      if (!retryable) {
+        record({ attempt: attempts, ok: false, status: res.status, retryable: false, error: `HTTP ${res.status}` });
+        return { ok: false, status: res.status, attempts, idempotencyKey, id, error: `HTTP ${res.status}`, log };
+      }
+      // exponential backoff with full jitter
+      const cap = Math.min(maxBackoff, base * 2 ** i);
+      const delayMs = Math.floor(jitter() * cap);
+      record({ attempt: attempts, ok: false, status: res.status, retryable: true, error: `HTTP ${res.status}`, delayMs });
+      await sleep(delayMs);
+      continue;
     } catch (err) {
       if (timer) clearTimeout(timer);
       lastError = err instanceof Error ? err.message : String(err);
-      if (i === retries) break;
+      if (i === retries) {
+        record({ attempt: attempts, ok: false, retryable: false, error: lastError });
+        break;
+      }
+      // exponential backoff with full jitter
+      const cap = Math.min(maxBackoff, base * 2 ** i);
+      const delayMs = Math.floor(jitter() * cap);
+      record({ attempt: attempts, ok: false, retryable: true, error: lastError, delayMs });
+      await sleep(delayMs);
     }
-    // exponential backoff with full jitter
-    const cap = Math.min(maxBackoff, base * 2 ** i);
-    await sleep(Math.floor(jitter() * cap));
   }
-  return { ok: false, status: lastStatus, attempts, idempotencyKey, id, error: lastError ?? `HTTP ${lastStatus}` };
+  return { ok: false, status: lastStatus, attempts, idempotencyKey, id, error: lastError ?? `HTTP ${lastStatus}`, log };
 }
 
 // Deterministic-friendly jitter: 0.5–1.0 of the cap so backoff is never zero.
@@ -354,3 +394,22 @@ function base64ToBytes(b64: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * New in 1.1.0 — event envelope, idempotent processing & endpoint routing
+ * ------------------------------------------------------------------ */
+
+export {
+  createEvent,
+  isWebhookEvent,
+  processOnce,
+} from "./events";
+export type { WebhookEvent, CreateEventOptions, ProcessOnceResult } from "./events";
+
+export {
+  matchesEventType,
+  endpointSubscribes,
+  routeEvent,
+  EndpointRegistry,
+} from "./registry";
+export type { Endpoint } from "./registry";

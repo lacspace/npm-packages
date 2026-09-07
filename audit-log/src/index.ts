@@ -21,6 +21,8 @@ export interface AuditEvent {
     id: string;
     type?: string;
     ip?: string;
+    /** Client user-agent string, when known. */
+    userAgent?: string;
   };
   /** What happened, e.g. "updated", "deleted", "login". */
   action: string;
@@ -176,6 +178,17 @@ export interface AuditorOptions {
   sink?: (event: AuditEvent) => void;
   /** Field keys to redact on every recorded event. */
   redact?: string[];
+  /**
+   * Injectable clock. Returns the `at` for each event when the caller does not
+   * supply one — a `Date` or an ISO string. Defaults to `new Date()`. Handy for
+   * deterministic tests and for stamping events from a trusted server clock.
+   */
+  now?: () => Date | string;
+  /**
+   * Injectable id generator. Returns the `id` for each event when the caller
+   * does not supply one. Defaults to the built-in random id.
+   */
+  id?: () => string;
 }
 
 /** An auditor that builds, redacts and dispatches events to a sink. */
@@ -194,7 +207,15 @@ export function createAuditor(opts: AuditorOptions = {}): Auditor {
   const redactKeys = opts.redact ?? [];
   return {
     record(input) {
-      let event = auditEvent(input);
+      const filled = { ...input };
+      if (filled.at === undefined && opts.now) {
+        const at = opts.now();
+        filled.at = at instanceof Date ? at.toISOString() : at;
+      }
+      if (filled.id === undefined && opts.id) {
+        filled.id = opts.id();
+      }
+      let event = auditEvent(filled);
       if (redactKeys.length > 0) {
         event = redactEvent(event, redactKeys);
       }
@@ -383,3 +404,19 @@ export function createSealedLog(initial: readonly SealedEntry[] = []): SealedLog
     },
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Query / filter, export and retention
+ * ------------------------------------------------------------------ */
+
+export {
+  filterEvents,
+  matchesQuery,
+  toNDJSON,
+  parseNDJSON,
+  toJSON,
+} from "./query";
+export type { AuditQuery, OneOrMany, TimeInput } from "./query";
+
+export { pruneChain, verifyChainSegment } from "./retention";
+export type { ChainCheckpoint, PrunedChain, PruneOptions } from "./retention";

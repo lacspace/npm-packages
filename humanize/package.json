@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/humanize",
-  "version": "1.0.3",
-  "description": "Turn machine values into human-readable text — bytes, durations, relative time, ordinals, plurals, compact numbers and grammatical lists. Zero-dependency, isomorphic.",
+  "version": "1.1.0",
+  "description": "Turn machine values into human-readable text — bytes, durations, relative time, ordinals, plurals, compact numbers, grammatical lists, number-to-words, Roman numerals and SI units. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -37,6 +37,13 @@
     "pluralize",
     "compact-number",
     "format-number",
+    "number-to-words",
+    "roman-numerals",
+    "si-units",
+    "metric-prefix",
+    "slugify",
+    "initials",
+    "truncate-middle",
     "zero-dependency",
     "isomorphic",
     "typescript"

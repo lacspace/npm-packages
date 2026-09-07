@@ -8,8 +8,17 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { permissionsPolicy, type PermissionsPolicyDirectives } from "./permissions";
+
 export type CspValue = string[] | string | boolean;
 export type CspDirectives = Record<string, CspValue>;
+
+/** Serialize a `Reporting-Endpoints` header value (`name="url", …`) from a name→URL map. */
+export function reportingEndpoints(endpoints: Record<string, string>): string {
+  return Object.entries(endpoints)
+    .map(([name, url]) => `${name}="${url}"`)
+    .join(", ");
+}
 
 /** Build a Content-Security-Policy header value from typed directives. */
 export function csp(directives: CspDirectives): string {
@@ -36,9 +45,23 @@ export interface SecurityHeadersOptions {
   referrerPolicy?: string;
   /** Full CSP directives, or a prebuilt string. Omit to skip CSP. */
   contentSecurityPolicy?: CspDirectives | string;
-  permissionsPolicy?: string;
+  /**
+   * Content-Security-Policy-Report-Only directives (or a prebuilt string).
+   * Emits a `Content-Security-Policy-Report-Only` header for staged rollout.
+   */
+  contentSecurityPolicyReportOnly?: CspDirectives | string;
+  /** A prebuilt Permissions-Policy string, or typed directives (see `permissionsPolicy()`). */
+  permissionsPolicy?: string | PermissionsPolicyDirectives;
   /** Cross-Origin-Opener-Policy. Default "same-origin". */
   crossOriginOpenerPolicy?: string;
+  /** Cross-Origin-Embedder-Policy (e.g. "require-corp"). Opt-in; omit to skip. */
+  crossOriginEmbedderPolicy?: string;
+  /** Cross-Origin-Resource-Policy (e.g. "same-origin" | "same-site" | "cross-origin"). Opt-in; omit to skip. */
+  crossOriginResourcePolicy?: string;
+  /** `Reporting-Endpoints` map (name → URL) for the reporting API. Omit to skip. */
+  reportingEndpoints?: Record<string, string>;
+  /** Legacy `Report-To` header: a JSON string, or an object/array serialized to JSON. Omit to skip. */
+  reportTo?: string | object | object[];
 }
 
 /** A strict, sensible default set of security response headers. */
@@ -57,14 +80,33 @@ export function securityHeaders(opts: SecurityHeadersOptions = {}): Record<strin
   }
 
   if (opts.frameOptions !== false) h["X-Frame-Options"] = opts.frameOptions ?? "SAMEORIGIN";
-  if (opts.permissionsPolicy) h["Permissions-Policy"] = opts.permissionsPolicy;
+  if (opts.permissionsPolicy)
+    h["Permissions-Policy"] =
+      typeof opts.permissionsPolicy === "string"
+        ? opts.permissionsPolicy
+        : permissionsPolicy(opts.permissionsPolicy);
   h["Cross-Origin-Opener-Policy"] = opts.crossOriginOpenerPolicy ?? "same-origin";
+  if (opts.crossOriginEmbedderPolicy)
+    h["Cross-Origin-Embedder-Policy"] = opts.crossOriginEmbedderPolicy;
+  if (opts.crossOriginResourcePolicy)
+    h["Cross-Origin-Resource-Policy"] = opts.crossOriginResourcePolicy;
+
+  if (opts.reportingEndpoints)
+    h["Reporting-Endpoints"] = reportingEndpoints(opts.reportingEndpoints);
+  if (opts.reportTo)
+    h["Report-To"] = typeof opts.reportTo === "string" ? opts.reportTo : JSON.stringify(opts.reportTo);
 
   if (opts.contentSecurityPolicy) {
     h["Content-Security-Policy"] =
       typeof opts.contentSecurityPolicy === "string"
         ? opts.contentSecurityPolicy
         : csp(opts.contentSecurityPolicy);
+  }
+  if (opts.contentSecurityPolicyReportOnly) {
+    h["Content-Security-Policy-Report-Only"] =
+      typeof opts.contentSecurityPolicyReportOnly === "string"
+        ? opts.contentSecurityPolicyReportOnly
+        : csp(opts.contentSecurityPolicyReportOnly);
   }
   return h;
 }
@@ -134,3 +176,23 @@ export function toNextHeaders(
     },
   ];
 }
+
+/* --------------------------- new in 1.2.0 --------------------------- */
+
+export {
+  permissionsPolicy,
+  type PermissionsAllowlist,
+  type PermissionsPolicyDirectives,
+} from "./permissions";
+
+export {
+  cspHash,
+  parseCsp,
+  serializeCsp,
+  mergeCsp,
+  withNonce,
+  withHashes,
+  type CspPolicy,
+} from "./policy";
+
+export { strictPreset, apiPreset, type StrictPresetOptions } from "./presets";

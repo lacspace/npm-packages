@@ -17,7 +17,10 @@
 - ✍️ **Send** — `sign()` + `deliver()` with retries, exponential backoff & jitter
 - ✅ **Receive** — `verify()` (timing-safe, replay-protected) + presets for **Stripe, GitHub, Shopify**
 - ♻️ **Idempotency** — event ids + a dedupe store so handlers run exactly once
+- 📨 **Route** — typed event envelopes + an endpoint registry that computes who receives what (pure)
 - 🔐 Built on [`@lacspace/crypto`](https://www.npmjs.com/package/@lacspace/crypto) (Web Crypto HMAC) · ⚡ isomorphic · one internal dependency
+
+> **New in 1.1.0** — a typed [event envelope](#event-envelope--routing) (`createEvent`), an exactly-once consumer helper (`processOnce`), a pure [endpoint registry](#event-envelope--routing) (`routeEvent` / `EndpointRegistry`) that computes which endpoints receive an event, and a per-attempt delivery `log` + `onAttempt` callback on `deliver`. All additive — every existing export is unchanged.
 
 ## Install
 
@@ -79,6 +82,41 @@ if (await isDuplicate(event.id, store)) return ok(); // already handled — no-o
 await process(event);
 ```
 
+## Event envelope & routing
+
+```ts
+import { createEvent, processOnce, routeEvent, EndpointRegistry } from "@lacspace/webhooks";
+
+// Producer side — a typed envelope: { id, type, created, data }
+const event = createEvent("invoice.paid", { invoiceId: "in_123", amount: 4200 });
+
+// Which subscribed endpoints should receive it? (pure, synchronous)
+const registry = new EndpointRegistry();
+registry.subscribe("acme", "https://acme.example/hooks", ["invoice.*"], secretForAcme);
+registry.subscribe("all", "https://ops.example/hooks", ["*"]);
+const targets = registry.endpointsFor(event); // → [acme, all]
+await Promise.all(targets.map((e) => deliver(e.url, event, { secret: e.secret })));
+
+// Or route a plain list with the pure helper:
+routeEvent(endpoints, "invoice.paid");
+
+// Consumer side — run a handler at most once per event id (dedupe window = store TTL)
+const { processed } = await processOnce(event, store, async (e) => save(e.data));
+if (!processed) return ok(); // redelivery — already handled
+```
+
+Patterns: `"*"` (all events), `"invoice.*"` (prefix), or an exact `"invoice.paid"`. An endpoint with no `events` is subscribed to everything; `disabled: true` receives nothing.
+
+## Per-attempt delivery log
+
+```ts
+const r = await deliver(url, event, {
+  secret,
+  onAttempt: (a) => metrics.record(a), // { attempt, ok, status?, error?, retryable, delayMs? }
+});
+r.log; // AttemptResult[] — one entry per try, in order
+```
+
 ## API
 
 | Export | Description |
@@ -86,10 +124,14 @@ await process(event);
 | `sign(payload, { secret, timestamp? })` | `t=…,v1=…` signature |
 | `verify(payload, header, { secret, toleranceSec? })` | `{ valid, reason?, timestamp? }` |
 | `verifyStripe` / `verifyGitHub` / `verifyShopify` | provider presets |
-| `deliver(url, payload, opts)` | POST with signing + retries + backoff |
+| `deliver(url, payload, opts)` | POST with signing + retries + backoff; returns per-attempt `log` (+ `onAttempt`) |
 | `signHeaders(body, { secret })` | ready-to-send request headers |
 | `newId(prefix?)` | unique event id, e.g. `evt_…` |
 | `isDuplicate(key, store)` · `MemoryIdempotencyStore` | dedupe |
+| `createEvent(type, data, opts?)` · `isWebhookEvent(v)` | typed event envelope `{ id, type, created, data }` |
+| `processOnce(event, store, handler)` | run a handler at most once per event id |
+| `routeEvent(endpoints, type)` · `matchesEventType` · `endpointSubscribes` | pure endpoint routing |
+| `EndpointRegistry` | in-memory subscribe / route / manage endpoints |
 
 Signature scheme: HMAC over `"<timestamp>.<payload>"` as `t=<unix>,v1=<hex>` (the same construction Stripe uses). Default hash `SHA-256`.
 

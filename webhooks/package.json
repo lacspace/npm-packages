@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/webhooks",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "The webhook toolkit for both directions — sign & deliver outgoing webhooks with retries, and verify incoming ones (timing-safe, replay-protected) with Stripe / GitHub / Shopify presets. Plus event ids & idempotency. One internal dependency (@lacspace/crypto), isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,6 +41,10 @@
     "webhook-delivery",
     "retry",
     "web-crypto",
+    "event-envelope",
+    "endpoint-routing",
+    "webhook-events",
+    "exactly-once",
     "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",

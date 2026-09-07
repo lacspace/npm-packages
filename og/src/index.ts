@@ -1091,3 +1091,10 @@ export function ogProduct(options: OgProductOptions): OgNode {
     children,
   );
 }
+
+/* ================================================================== *
+ * New in 1.2.0 — extra SVG templates, named themes/surfaces, image
+ * embedding, auto text-fit, and quote/event element-tree layouts.
+ * All additive; see ./templates.
+ * ================================================================== */
+export * from "./templates";

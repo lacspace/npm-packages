@@ -20,6 +20,8 @@
 - 🛡️ `jsonLdScript()` renders a safe `<script>` (escapes `</script>`)
 - ⚡ Zero dependencies · 🌍 isomorphic (any framework) · 📦 ESM + CJS · fully typed
 
+> **New in 1.8** — typed **robots directives** (`robots()` / `robotsContent()`: noarchive, max-snippet, max-image-preview, unavailable_after…), richer **Open Graph & Twitter** builders (`openGraphProduct` / `openGraphProfile` / `openGraphVideo` / `openGraphAudio`, `twitterSummaryCard` / `twitterPlayerCard` / `twitterAppCard`, and a `metaTags()` renderer), a canonical + `x-default` **`alternates()`** helper, **pagination** (`paginationLinks` / `paginationLinkTags`) and **`themeColorTags()`** head helpers, plus `dataset` / `book` / `podcastEpisode` JSON-LD builders. All additive — nothing existing changed.
+
 ## Install
 
 ```bash
@@ -83,6 +85,56 @@ breadcrumb([
 | `videoObject` `howTo` `jobPosting` `course` `recipe` | VideoObject / HowTo / JobPosting / Course / Recipe |
 | `seoMetadata(input)` | Next.js `Metadata` |
 | `hreflang(map)` | `alternates.languages` for Next |
+
+## New in 1.8 — robots directives, richer OG/Twitter, alternates, pagination
+
+Everything below is additive; `seoMetadata()` and `defineSite()` are unchanged.
+
+```ts
+import {
+  robots, robotsContent,
+  openGraphProduct, twitterPlayerCard, metaTags,
+  alternates, paginationLinks, paginationLinkTags, themeColorTags,
+  dataset, book, podcastEpisode,
+} from "@lacspace/seo";
+
+// Fine-grained robots — as a Next Metadata.robots object OR a meta string
+export const metadata = { robots: robots({ index: true, follow: true, maxSnippet: -1, maxImagePreview: "large" }) };
+robotsContent({ index: false, follow: true, unavailableAfter: "2027-01-01" }); // "noindex, follow, unavailable_after: 2027-01-01"
+
+// Richer Open Graph + Twitter cards → rendered <meta> tags (any framework)
+metaTags(
+  openGraphProduct({ title: "Widget", price: 9.99, currency: "USD", availability: "instock" }),
+  twitterPlayerCard({ player: "https://x.com/embed", width: 640, height: 360, site: "@lacspace" }),
+);
+
+// Canonical + hreflang (with x-default) for multi-locale pages
+export const alt = { alternates: alternates({
+  canonical: "/pricing", baseUrl: "https://x.com",
+  languages: { en: "/en/pricing", ne: "/ne/pricing" }, xDefault: "/pricing",
+}) };
+
+// Pagination rel prev/next + theme-color
+paginationLinks({ page: 2, totalPages: 5, href: (p) => `/blog?page=${p}` }); // { prev, next }
+paginationLinkTags({ page: 2, totalPages: 5, href: (p) => `/blog?page=${p}` });
+themeColorTags([{ color: "#fff", media: "(prefers-color-scheme: light)" }, { color: "#000", media: "(prefers-color-scheme: dark)" }]);
+
+// More JSON-LD builders
+dataset({ name: "Prices", description: "Daily prices.", distribution: [{ contentUrl: "https://x.com/d.csv", encodingFormat: "text/csv" }] });
+book({ name: "The Book", author: "Ada", bookFormat: "EBook", isbn: "978-0" });
+podcastEpisode({ name: "Ep 1", duration: "PT42M", episodeNumber: 1, audioUrl: "https://x.com/ep1.mp3", seriesName: "The Show" });
+```
+
+| Helper | Emits |
+| --- | --- |
+| `robots(d)` / `robotsContent(d)` | `Metadata.robots` object / `<meta name="robots">` string |
+| `openGraphArticle` `openGraphProduct` `openGraphProfile` `openGraphVideo` `openGraphAudio` | Open Graph property maps |
+| `twitterSummaryCard` `twitterPlayerCard` `twitterAppCard` | Twitter card property maps |
+| `metaTags(...maps)` | `<meta>` tag string(s) (OG → `property`, Twitter → `name`) |
+| `alternates(input)` | `Metadata.alternates` (canonical + hreflang `languages` + `x-default`) |
+| `paginationLinks` / `paginationLinkTags` | rel prev/next URLs / `<link>` tags |
+| `themeColorTags(input)` | `<meta name="theme-color">` tag(s) |
+| `dataset` `book` `podcastEpisode` | Dataset / Book / PodcastEpisode JSON-LD |
 
 ## The Lacspace SEO Kit
 

@@ -8,6 +8,19 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { assertUrlCount } from "./validate";
+
+export {
+  SITEMAP_MAX_URLS,
+  CHANGEFREQS,
+  isValidChangefreq,
+  clampPriority,
+  formatLastmod,
+  assertUrlCount,
+  validateSitemapUrl,
+} from "./validate";
+export type { SitemapUrlIssue } from "./validate";
+
 export type ChangeFreq =
   | "always"
   | "hourly"
@@ -126,10 +139,17 @@ export interface SitemapOptions {
    * @see {@link sitemapStylesheet}
    */
   stylesheet?: string;
+  /**
+   * When set, throw a clear `RangeError` if `urls.length` exceeds this cap
+   * (the sitemaps.org max is 50,000). Off by default — existing behaviour is
+   * unchanged unless you opt in. Use {@link splitSitemaps} for larger sets.
+   */
+  maxUrls?: number;
 }
 
 /** Build a single sitemap.xml document. */
 export function sitemap(urls: SitemapUrl[], opts?: SitemapOptions): string {
+  if (opts?.maxUrls !== undefined) assertUrlCount(urls.length, opts.maxUrls);
   const pi = opts?.stylesheet
     ? `\n<?xml-stylesheet type="text/xsl" href="${esc(opts.stylesheet)}"?>`
     : "";

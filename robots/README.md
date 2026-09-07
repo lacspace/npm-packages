@@ -14,10 +14,12 @@
 
 > Typed per-user-agent rules, `Sitemap:` / `Host:` / `Crawl-delay:`, a **parser**, Next.js `robots.ts` output — and a one-liner to **block AI crawlers** (GPTBot, ClaudeBot, CCBot, Google-Extended, PerplexityBot…).
 
-- 🤖 `robots()` builder · `parseRobots()` parser
-- 🚫 `blockAiBots()` + the `AI_BOTS` list (21 known crawlers)
+- 🤖 `robots()` builder · `parseRobots()` parser · `isAllowed()` matcher
+- 🚫 `blockAiBots()` / `blockAiCrawlers()` / `allowAiCrawlers()` + the `AI_BOTS` list and `AI_CRAWLER_CATALOG`
 - ▲ `toNextRobots()` for `app/robots.ts`
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.4.0** — `blockAiCrawlers()` / `allowAiCrawlers()` emit an explicit **per-agent group** (one `User-agent:` block per bot); a curated **`AI_CRAWLER_CATALOG`** (name + operator + type) with `aiCrawlersByType()`; per-group `Host:` directives; and `allowAll()` / `disallowAll()` conveniences. Fully backward compatible.
 
 ## Install
 
@@ -153,6 +155,47 @@ metaRobots({ noindex: true, nofollow: true });             // "noindex, nofollow
 - **`aiPolicy(preset)`** — returns `RobotsGroup[]` to spread into `robots()` / `toNextRobots()`.
 - **`cleanParam`** on any group — emits Yandex `Clean-param:` lines (`crawlDelay` already emitted `Crawl-delay:`); both round-trip through `parseRobots()`.
 - **`xRobotsTag(directives, { userAgent? })`** / **`metaRobots(directives)`** — typed builders for `noindex`, `nofollow`, `none`, `all`, `noarchive`, `nosnippet`, `noimageindex`, `notranslate`, `max-snippet`, `max-image-preview`, `max-video-preview`, `unavailable_after`.
+
+## New in 1.4.0 — AI-crawler presets, catalog & conveniences
+
+Explicit **per-agent** AI-crawler groups (one `User-agent:` block per bot — self-documenting, unlike a single multi-agent group), a curated catalog you can filter by purpose, per-group `Host:`, and `allowAll()` / `disallowAll()`.
+
+```ts
+import {
+  blockAiCrawlers, allowAiCrawlers,
+  AI_CRAWLER_CATALOG, aiCrawlersByType,
+  allowAll, disallowAll,
+} from "@lacspace/robots";
+
+// One Disallow: / group per known AI crawler, with crawl-delay + sitemaps + host
+blockAiCrawlers({
+  sitemap: ["https://acme.com/sitemap.xml", "https://acme.com/news.xml"],
+  host: "acme.com",
+  crawlDelay: 10,
+  extraDisallow: ["/private"], // applied to the wildcard (*) group only
+});
+
+// Publicly opt-in AI indexing (Allow: / per bot)
+allowAiCrawlers({ sitemap: "https://acme.com/sitemap.xml" });
+
+// Block only training crawlers, leave AI search engines free
+blockAiCrawlers({ bots: aiCrawlersByType("training") });
+
+// Curated metadata — name / operator / type / purpose
+AI_CRAWLER_CATALOG.find((c) => c.name === "GPTBot"); // { operator: "OpenAI", type: "training", … }
+
+allowAll({ sitemap });  // Allow everything
+disallowAll();          // Block everything (staging/preview)
+```
+
+| Export | Description |
+| --- | --- |
+| `blockAiCrawlers(opts?)` | robots.txt with **one `Disallow: /` group per** AI crawler (opts: `sitemap`, `host`, `bots`, `crawlDelay`, `extraDisallow`, `cleanParam`). |
+| `allowAiCrawlers(opts?)` | Same shape but **`Allow: /` per** AI crawler — explicit opt-in. |
+| `AI_CRAWLER_CATALOG` | Curated `readonly AiCrawlerInfo[]` — `{ name, operator, type, purpose }` for each crawler. Single source of truth. |
+| `aiCrawlersByType(...types)` | Names from the catalog matching `"training" \| "search" \| "assistant" \| "scraper"`. |
+| `allowAll(opts?)` / `disallowAll()` | Allow-everything / block-everything conveniences. |
+| `RobotsGroup.host` | Optional per-group `Host:` directive (round-trips through `parseRobots()` as `group.host`). |
 
 ## Licensing
 

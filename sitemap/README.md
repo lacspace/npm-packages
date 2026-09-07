@@ -18,7 +18,10 @@
 - 🖼️ image / 🎬 video / 📰 news extensions · 🌐 hreflang alternates
 - ✂️ `splitSitemaps()` auto-shards big sets into an index
 - ▲ `toNextSitemap()` for `app/sitemap.ts`
+- ✅ `clampPriority` / `isValidChangefreq` / `formatLastmod` / `assertUrlCount` validators
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.3.0** — validation & formatting helpers (`clampPriority`, `isValidChangefreq`, `formatLastmod`, `assertUrlCount`, `validateSitemapUrl`, `CHANGEFREQS`, `SITEMAP_MAX_URLS`) plus an opt-in `sitemap(urls, { maxUrls })` URL-count guard. All additive — every existing export is unchanged.
 
 ## Install
 
@@ -137,6 +140,38 @@ sitemap(urls, { stylesheet: "/sitemap.xsl" });
 - **`imageSitemap(items, opts?)`** — image sitemap (`<image:image>` entries grouped per URL).
 - **`sitemapStylesheet()`** — returns an XSL stylesheet string; theme-aware HTML table view of any sitemap.
 - **`sitemap(urls, { stylesheet })`** — the existing builder now optionally adds an `<?xml-stylesheet?>` PI (each extension builder accepts the same `opts`).
+
+## Validation & formatting (new in 1.3.0)
+
+Keep entries spec-compliant before you build. Zero-dep, all pure functions.
+
+```ts
+import {
+  clampPriority, isValidChangefreq, formatLastmod,
+  assertUrlCount, validateSitemapUrl, CHANGEFREQS, SITEMAP_MAX_URLS,
+  sitemap,
+} from "@lacspace/sitemap";
+
+clampPriority(1.7);              // 1   (clamped + rounded to one decimal)
+clampPriority(NaN);              // 0.5 (safe default)
+isValidChangefreq("often");      // false
+formatLastmod(new Date());       // "2026-09-07T…Z" (ISO 8601 / W3C Datetime)
+assertUrlCount(60000);           // throws RangeError → use splitSitemaps()
+validateSitemapUrl({ loc: "/rel", priority: 2 });
+// [{ field: "loc", … }, { field: "priority", … }]  — non-throwing issue list
+
+// Opt-in guard on the builder itself (off by default):
+sitemap(urls, { maxUrls: 50000 }); // throws if urls.length exceeds the cap
+```
+
+| Export | Description |
+| --- | --- |
+| `clampPriority(n)` | clamp to 0.0–1.0, round to 1 dp (`NaN`/`Infinity` → 0.5) |
+| `isValidChangefreq(v)` | type-guard for the 7 valid `<changefreq>` values |
+| `formatLastmod(d)` | `Date`→ISO 8601 string; string passes through; Invalid Date throws |
+| `assertUrlCount(n, cap?)` | throw a clear `RangeError` past the 50,000/file limit |
+| `validateSitemapUrl(u)` | non-throwing `SitemapUrlIssue[]` for loc/priority/changefreq/lastmod |
+| `CHANGEFREQS` / `SITEMAP_MAX_URLS` | the enum values · the `50000` spec limit |
 
 ## Licensing
 

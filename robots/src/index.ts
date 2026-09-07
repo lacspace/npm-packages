@@ -16,6 +16,11 @@ export interface RobotsGroup {
    * so duplicates aren't crawled, e.g. "ref /articles/" or "utm_source&utm_medium".
    */
   cleanParam?: string | string[];
+  /**
+   * Per-group `Host:` directive (Yandex — the site's preferred mirror). Emitted
+   * inside this group. For a single site-wide host, prefer {@link RobotsOptions.host}.
+   */
+  host?: string;
 }
 
 export interface RobotsOptions {
@@ -89,6 +94,7 @@ function agentBlock(g: RobotsGroup): string {
   if (g.crawlDelay !== undefined) lines.push(`Crawl-delay: ${g.crawlDelay}`);
   for (const c of g.cleanParam ? (Array.isArray(g.cleanParam) ? g.cleanParam : [g.cleanParam]) : [])
     lines.push(`Clean-param: ${dv(c)}`);
+  if (g.host) lines.push(`Host: ${dv(g.host)}`);
   // A group with neither allow nor disallow means "allow everything".
   if (!g.allow?.length && !g.disallow?.length) lines.push("Disallow:");
   return lines.join("\n");
@@ -131,6 +137,8 @@ export interface ParsedRobots {
     disallow: string[];
     crawlDelay?: number;
     cleanParam?: string[];
+    /** Per-group `Host:` directive when it appears inside the group. */
+    host?: string;
   }[];
   sitemaps: string[];
   host?: string;
@@ -180,6 +188,8 @@ export function parseRobots(txt: string): ParsedRobots {
         break;
       case "host":
         result.host = value;
+        // A Host: line that appears within a group is also attributed to it.
+        if (current && !expectingAgent) current.host = value;
         break;
     }
   }
@@ -432,3 +442,17 @@ export function xRobotsTag(directives: RobotsDirectives, opts?: { userAgent?: st
   const body = buildDirectives(directives);
   return opts?.userAgent ? `${dv(opts.userAgent)}: ${body}` : body;
 }
+
+/* --------------------- AI crawlers + extra presets --------------------- */
+
+export {
+  AI_CRAWLER_CATALOG,
+  blockAiCrawlers,
+  allowAiCrawlers,
+  aiCrawlersByType,
+  type AiCrawlerType,
+  type AiCrawlerInfo,
+  type AiCrawlerPresetOptions,
+} from "./ai-crawlers";
+
+export { allowAll, disallowAll } from "./presets";

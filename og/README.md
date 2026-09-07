@@ -14,6 +14,8 @@
 
 > Every page deserves a gorgeous share card. `@lacspace/og` gives you one design system that renders **two ways from the same options** — a `next/og` element tree (real PNG via Satori) and a standalone **SVG** (no browser, no deps) — with auto-fitting titles, eyebrows, badges, logos and gradients.
 
+> **New in 1.2.0** — a zero-dependency **SVG template renderer** (`ogTemplateSvg`) with **7 layouts** (`classic` · `minimal` · `split` · `article` · `product` · `quote` · `event`), **named gradient & surface presets** (`ogGradients`, `ogSurfaces`) plus full custom colours, **image/avatar embedding** (pass a data URI), an **auto text-fit** helper (`fitTitle` — multi-line wrap + font-shrink), background patterns/accent bars, and two more element-tree layouts (`ogQuote`, `ogEvent`). All additive — nothing existing changed.
+
 ## Install
 
 ```bash
@@ -126,6 +128,82 @@ Extra options accepted by all four (on top of the existing `OgOptions`):
 
 `ogCard`, `ogSvg`, `ogSvgDataUri` and `fitFontSize` are unchanged and fully
 backward compatible.
+
+## SVG templates (new in 1.2.0)
+
+`ogTemplateSvg()` renders **any** of seven layouts as a standalone SVG — no
+browser, no Satori — with named presets, image embedding and auto-fitting
+titles. Great for previews, email headers, README banners and edge fallbacks.
+
+```ts
+import { ogTemplateSvg, ogTemplateSvgDataUri } from "@lacspace/og";
+
+const svg = ogTemplateSvg({
+  template: "article",          // classic | minimal | split | article | product | quote | event
+  title: "How we cut cold starts in half",
+  eyebrow: "Engineering",
+  author: "Ada Lovelace",
+  date: "Sep 7, 2026",
+  readingTime: "6 min read",
+  gradient: "aurora",           // a named gradient preset
+  image: "data:image/png;base64,iVBORw0KG…", // logo/avatar as a data URI
+  pattern: "dots",
+});
+
+const uri = ogTemplateSvgDataUri({ template: "quote", title: "Stay hungry.", author: "S. Jobs" });
+```
+
+### Template options (all optional, superset of `OgOptions`)
+
+| Option | Meaning |
+| --- | --- |
+| `template` | `classic` · `minimal` · `split` · `article` · `product` · `quote` · `event` (default `classic`) |
+| `gradient` | A named preset from `ogGradients` — shorthand for `from`/`to` (explicit wins) |
+| `surface` | A named ground palette from `ogSurfaces` (`ink` · `midnight` · `slate` · `paper` · `cream`) |
+| `bg` / `fg` / `muted` | Full custom colour control (override theme/surface) |
+| `pattern` | Background texture: `"dots"` · `"grid"` · `"glow"` · `"none"` |
+| `accentBar` | Show the top accent bar (default `true`) |
+| `image` | Logo/avatar as a **data URI** — rendered in the corner mark |
+| `initials` | Initials shown in the mark when no `image`/`logo` |
+| `icon` | An emoji/icon glyph slot |
+| `handle` | A handle/URL line, bottom-right |
+| `maxTitleLines` | Cap before the headline truncates with `…` |
+| `author` / `date` / `readingTime` | `article` meta |
+| `price` / `currency` | `product` price |
+| `cite` | `quote` source (alongside `author`) |
+| `when` / `location` | `event` date-time & place |
+
+### Named presets
+
+```ts
+import { ogGradients, ogSurfaces } from "@lacspace/og";
+// ogGradients — a SUPERSET of ogThemes: lacspace, ocean, sunset, forest, grape,
+//   slate, midnight, aurora, ember, gold, rose, mint, cosmos, candy, mono
+// ogSurfaces  — ground palettes: ink, midnight, slate, paper, cream
+```
+
+### Auto text-fit
+
+```ts
+import { fitTitle } from "@lacspace/og";
+
+const { fontSize, lines } = fitTitle("A very long headline…", { maxWidth: 1000, maxLines: 3 });
+// Wraps into ≤ maxLines lines, shrinking the font (2px steps, from max→min) to fit,
+// then truncates the last line with "…" if it still overflows.
+```
+
+> Auto-fit is a **pure text-measurement heuristic** — there is no canvas, so glyph
+> width is approximated as `fontSize * charRatio` (default `0.56`). Treat sizing as
+> a close estimate, not pixel-perfect.
+
+### More element-tree layouts
+
+```ts
+import { ogQuote, ogEvent } from "@lacspace/og";
+
+ogQuote({ title: "Ship it.", author: "Ada", image: "data:image/png;base64,…" });
+ogEvent({ title: "DevConf 2026", eyebrow: "Meetup", when: "Oct 3, 6pm", location: "Kathmandu" });
+```
 
 ## Licensing
 

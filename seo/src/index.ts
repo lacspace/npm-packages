@@ -9,6 +9,17 @@
  */
 
 /* ------------------------------------------------------------------ *
+ * Additive modules (new in 1.8.0) — richer robots directives, Open Graph &
+ * Twitter card variants, canonical/hreflang alternates, pagination &
+ * theme-color head helpers, and more schema.org builders.
+ * ------------------------------------------------------------------ */
+
+export * from "./robots";
+export * from "./og";
+export * from "./alternates";
+export * from "./schema-extra";
+
+/* ------------------------------------------------------------------ *
  * Metadata (Next.js App Router friendly, framework-agnostic shape)
  * ------------------------------------------------------------------ */
 

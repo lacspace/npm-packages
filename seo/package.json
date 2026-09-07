@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/seo",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "description": "Typed metadata + JSON-LD for modern web apps — schema.org builders (Organization, Article, Product, FAQ, Breadcrumb), a Next.js App Router Metadata helper, the defineSite() SEO Autopilot engine, and an on-page SEO auditor with a CI sitemap crawler that fails the build when SEO regresses (`npx @lacspace/seo audit <url>` / `crawl <site> --min-grade A`). Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -46,7 +46,14 @@
     "faq-schema",
     "breadcrumb",
     "sitemap",
-    "meta"
+    "meta",
+    "hreflang",
+    "canonical",
+    "robots-meta",
+    "twitter-card",
+    "rich-snippets",
+    "pagination",
+    "theme-color"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

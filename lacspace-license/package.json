@@ -1,0 +1,47 @@
+{
+  "name": "lacspace-license",
+  "version": "0.1.0",
+  "description": "Keyless licence manager for your codebase — generate a LICENSE from an SPDX id, add/refresh per-file licence headers, build THIRD-PARTY-NOTICES, and gate CI that everything matches. Zero dependencies.",
+  "type": "module",
+  "bin": {
+    "lacspace-license": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "license", "licence", "spdx", "license-header", "license-generator",
+    "third-party-notices", "notices", "license-check", "ci", "compliance",
+    "mit", "apache-2.0", "copyright", "header", "source-header",
+    "cli", "typescript", "zero-dependency", "oss", "attribution", "license-manager"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/license",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-license" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": { "access": "public" }
+}

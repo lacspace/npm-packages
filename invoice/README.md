@@ -13,6 +13,8 @@
 
 > The invoicing math every billing system re-implements badly. A tiny set of **pure functions** over a plain `Invoice` object — compute per-line and total amounts, roll tax up by rate, generate sequential invoice numbers, track payments, and emit a render-ready row table. No PDF library, no floats.
 
+> **New in 1.1.0** — a pure **status lifecycle** state machine (`transition` / `canTransition` / `deriveStatus`), a **payment ledger** (`recordPayments`, `settlement`, `amountDue`), and **credit notes** (`createCreditNote` / `applyCreditNote`) that reduce the amount due. Fully additive — every 1.0 export is unchanged.
+
 - 🧊 **Immutable** — payments and status transitions return a brand-new invoice; your input is never mutated
 - 💾 **Serializable** — `Invoice` is plain data, safe to `JSON.stringify` and persist
 - 🪙 **Exact money** — integer **minor units** everywhere, so tax never loses a penny
@@ -76,6 +78,60 @@ const voided = markVoid(inv);
 isOverdue({ ...issued, dueAt: Date.now() - 1 }); // true — past due with a balance
 ```
 
+## Batch payments & settlement
+
+```ts
+import { recordPayments, settlement, amountDue } from "@lacspace/invoice";
+
+const cur = recordPayments(inv, [
+  { amount: 2000, method: "card" },
+  { amount: 534, method: "bank", reference: "TX-9" },
+]); // cur.status === "paid"
+
+amountDue(inv);                 // 2534
+settlement(cur, Date.now());    // { amountPaid: 2534, amountDue: 0, status: "paid" }
+```
+
+`settlement(inv, now?)` resolves `paid` / `partial` / `overdue` against an injectable clock; `recordPayments` reuses the same integer math and overpayment guard as `recordPayment`, immutably.
+
+## Status lifecycle
+
+```ts
+import { transition, canTransition, deriveStatus, withDerivedStatus } from "@lacspace/invoice";
+
+canTransition("draft", "issued");   // true
+canTransition("paid", "issued");    // false
+const issued = transition(inv, "issued"); // throws InvoiceError { code: "invalid_transition" } on an illegal move
+
+// Derive the *effective* status from money + due date, with an injectable clock:
+deriveStatus({ ...issued, dueAt: 1000 }, 2000);       // "overdue"
+withDerivedStatus({ ...issued, dueAt: 1000 }, 2000);  // invoice with status stamped
+```
+
+Legal moves are declared in `INVOICE_TRANSITIONS`; `paid` and `void` are terminal. (`issued` is the "sent" state, `partial` is "partially paid".)
+
+## Credit notes
+
+```ts
+import { createCreditNote, applyCreditNote, creditNoteRows } from "@lacspace/invoice";
+
+// Partial credit (e.g. a returned unit); omit `amount` for a full credit of the balance:
+const note = createCreditNote({
+  number: "CN-2026-000004",
+  invoice: inv,
+  lines: [{ description: "Returned Widget", qty: 1, unitPrice: 1000, taxRate: 0.13 }],
+  reason: "1 unit returned",
+}); // { amount: 1130, invoiceNumber: "INV-2026-000001", ... } — plain, JSON-safe
+
+const credited = applyCreditNote(inv, note);
+credited.totals.credited;   // 1130
+credited.totals.balanceDue; // total - amountPaid - credited
+
+creditNoteRows(note);       // { columns, rows } — render-ready, like renderRows
+```
+
+A `CreditNote` is plain serializable data (no PDF dependency); `applyCreditNote` is immutable and integer-safe, and refuses to credit more than is owed (`credit_exceeds_due`).
+
 ## Hand it to a renderer
 
 ```ts
@@ -98,8 +154,16 @@ const { columns, rows } = renderRows(inv);
 | `isOverdue(inv, now?)` | `dueAt` in the past **and** a positive balance |
 | `invoiceNumber(seq, opts?)` | deterministic number, default `"INV-2026-000123"` |
 | `renderRows(inv)` | `{ columns, rows }` — a normalized table for PDF / XLSX |
+| `recordPayments(inv, payments)` | immutable; apply a list of `Payment`s (reuses `recordPayment`) |
+| `settlement(inv, now?)` | `{ amountPaid, amountDue, status }` with derived `paid`/`partial`/`overdue` |
+| `amountDue(inv)` / `amountPaid(inv)` / `isSettled(inv)` | balance helpers |
+| `canTransition(from, to)` / `transition(inv, to)` | pure status state machine (`INVOICE_TRANSITIONS`) |
+| `deriveStatus(inv, now?)` / `withDerivedStatus(inv, now?)` | effective status from money + due date, injectable clock |
+| `createCreditNote(input)` | build a full/partial `CreditNote` against an invoice |
+| `applyCreditNote(inv, note)` | immutable; reduce `balanceDue` by the credited amount |
+| `creditNoteRows(note)` | `{ columns, rows }` — render-ready credit-note table |
 
-Types exported: `Party`, `InvoiceLineInput`, `InvoiceLine`, `TaxSummaryRow`, `InvoiceTotals`, `InvoiceStatus`, `Invoice`, and the `InvoiceError` class.
+Types exported: `Party`, `InvoiceLineInput`, `InvoiceLine`, `TaxSummaryRow`, `InvoiceTotals`, `InvoiceStatus`, `Invoice`, `Payment`, `Settlement`, `CreditNote`, and the `InvoiceError` class.
 
 All amounts are integer minor units; `taxRate` is a fraction (`0.13` = 13%). `net = qty * unitPrice - discount`, `tax = round(net * taxRate)`, `total = net + tax`.
 

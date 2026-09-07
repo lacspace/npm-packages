@@ -63,6 +63,13 @@ export interface InvoiceTotals {
   total: number;
   amountPaid: number;
   balanceDue: number;
+  /**
+   * Total credited back to the buyer via credit notes, integer minor units.
+   * Absent (treated as `0`) on invoices that have never had a credit note
+   * applied — see {@link https://developer.lacspace.com/packages/invoice the
+   * credit-note API}. When present, `balanceDue = total - amountPaid - credited`.
+   */
+  credited?: number;
 }
 
 export type InvoiceStatus =
@@ -343,3 +350,11 @@ export function renderRows(inv: Invoice): {
   ]);
   return { columns, rows };
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — lifecycle, payment ledger & credit notes (additive modules)
+// ---------------------------------------------------------------------------
+
+export * from "./lifecycle";
+export * from "./payments";
+export * from "./creditNote";

@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/tax",
-  "version": "1.0.1",
-  "description": "VAT & sales-tax done right — exact integer minor-unit arithmetic (no float cents bugs), add/extract tax, inclusive & exclusive prices, compound taxes, half-up/bankers rounding. Isomorphic.",
+  "version": "1.1.0",
+  "description": "VAT & sales-tax done right — exact integer minor-unit arithmetic (no float cents bugs), add/extract tax, inclusive & exclusive prices, multiple & compound taxes with breakdown, category rate tables, reverse charge, line vs invoice rounding (half-up/half-down/bankers/ceil/floor). Isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -37,6 +37,11 @@
     "minor-units",
     "rounding",
     "bankers-rounding",
+    "compound-tax",
+    "reverse-charge",
+    "rate-table",
+    "tax-breakdown",
+    "invoice-rounding",
     "isomorphic",
     "typescript"
   ],

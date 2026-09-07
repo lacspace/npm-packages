@@ -13,6 +13,8 @@
 
 > The order spine between a cart and a courier. A tiny set of **pure functions** over a plain `Order` object — snapshot line prices, drive a status **state machine**, mint order numbers, and keep a **timestamped history**. No React, no store, no floats.
 
+> **New in 1.1.0** — all additive, fully backward compatible: **partial fulfillment** tracking with a derived fulfillment status, **refund tracking** (partial → full, remaining refundable, derived refund status), an on-demand **totals recompute** (`orderTotals`) plus a remainder-safe `allocate`, and a typed **event timeline** with an injectable clock for a clean audit trail. Nothing existing changed.
+
 - 🧊 **Immutable** — every op returns a brand-new order; your input is never mutated
 - 🔁 **State machine** — a validated status graph (`pending → placed → paid → … → completed`)
 - 📸 **Snapshotted** — line prices are frozen at order time, so catalogue changes never rewrite history
@@ -81,6 +83,62 @@ o = transition(o, "paid");
 addLine(o, { sku: "x", unitPrice: 1, qty: 1 }); // OrderError { code: "locked" }
 ```
 
+## Partial fulfillment · New in 1.1.0
+
+```ts
+import { fulfillLine, fulfillItems, fulfillmentStatus } from "@lacspace/order";
+
+let o = createOrder({ currency: "USD", lines: [
+  { sku: "tee", unitPrice: 1000, qty: 3 },
+  { sku: "cap", unitPrice: 500, qty: 2 },
+]});
+
+fulfillmentStatus(o);              // "unfulfilled"
+o = fulfillLine(o, "tee", 1);      // ship 1 of 3
+fulfillmentStatus(o);              // "partially_fulfilled"
+o = fulfillItems(o, [{ lineId: "tee", qty: 2 }, { lineId: "cap", qty: 2 }]);
+fulfillmentStatus(o);              // "fulfilled"
+```
+
+Fulfilled quantity lives on `line.fulfilledQty` (absent = unfulfilled). Over-fulfilling a line throws `OrderError { code: "fulfillment-exceeds-qty" }`; a `fulfillItems` batch is all-or-nothing.
+
+## Refund tracking · New in 1.1.0
+
+```ts
+import { recordRefund, refundedTotal, refundableRemaining, refundStatus } from "@lacspace/order";
+
+let o = createOrder({ currency: "USD", lines: [{ sku: "tee", unitPrice: 1000, qty: 1 }] });
+
+o = recordRefund(o, 300, { reason: "damaged" });
+refundStatus(o);          // "partially_refunded"
+refundableRemaining(o);   // 700
+o = recordRefund(o, 700);
+refundStatus(o);          // "refunded"  (refundedTotal === order total)
+recordRefund(o, 1);       // OrderError { code: "refund-exceeds-total" }
+```
+
+## Totals recompute · New in 1.1.0
+
+```ts
+import { orderTotals, allocate } from "@lacspace/order";
+
+orderTotals(order);          // { subtotal, discount, tax, shipping, total } re-derived from lines
+allocate(100, [1, 1, 1]);    // [34, 33, 33] — split minor units with no rounding drift
+```
+
+## Timeline / audit trail · New in 1.1.0
+
+```ts
+import { appendEvent, orderTimeline } from "@lacspace/order";
+
+const clock = () => Date.now();                     // injectable — pass a fixed fn in tests
+let o = appendEvent(order, { type: "payment", data: { amount: 2850 } }, { clock });
+o = appendEvent(o, { type: "note", note: "left with neighbour" }, { at: 1_700_000_000_000 });
+orderTimeline(o); // [{ type, at, data?, note? }, …]
+```
+
+`fulfillLine`/`fulfillItems`/`recordRefund` append their own `fulfillment`/`refund` events automatically (pass `event: false` to opt out).
+
 ## Numbering
 
 ```ts
@@ -103,9 +161,16 @@ randomOrderId({ prefix: "ord" }); // "ord_k3f9x1a7q2mz" — crypto-random short 
 | `orderNumber(seq, opts?)` | deterministic human order number, e.g. `"ORD-20260905-0001"` |
 | `randomOrderId(opts?)` | crypto-random short id (falls back to `Math.random` with a warning) |
 | `ORDER_TRANSITIONS` | the status → allowed-next-statuses map |
-| `OrderError` | thrown with codes `"invalid-transition"` / `"locked"` |
+| `OrderError` | thrown with codes `"invalid-transition"` / `"locked"` / `"invalid-fulfillment"` / `"line-not-found"` / `"fulfillment-exceeds-qty"` / `"invalid-refund"` / `"refund-exceeds-total"` |
+| `fulfillLine` / `fulfillItems` | **1.1.0** — ship units of a line / a batch of lines; clamped to ordered qty, appends a `fulfillment` event |
+| `fulfillmentStatus` / `lineFulfillmentStatus` / `lineFulfilledQty` / `lineRemainingQty` / `isFullyFulfilled` | **1.1.0** — derive partial-fulfillment state |
+| `recordRefund` | **1.1.0** — record a refund (minor units), clamped to the refundable remaining, appends a `refund` event |
+| `refundedTotal` / `refundableRemaining` / `refundStatus` | **1.1.0** — refund math + derived `none`/`partially_refunded`/`refunded` status |
+| `orderTotals(order)` | **1.1.0** — recompute `{ subtotal, discount, tax, shipping, total }` from lines, remainder-safe |
+| `allocate(amount, weights)` | **1.1.0** — split integer minor units across weights with no drift (largest-remainder) |
+| `appendEvent` / `orderTimeline` | **1.1.0** — append a typed timeline event (injectable clock) / read the trail |
 
-Types exported: `OrderStatus`, `OrderLine`, `OrderLineInput`, `StatusEvent`, `OrderTotals`, `Order`, `CreateOrderInput`.
+Types exported: `OrderStatus`, `OrderLine`, `OrderLineInput`, `StatusEvent`, `OrderTotals`, `Order`, `CreateOrderInput`, `FulfillmentStatus`, `RefundStatus`, `RefundRecord`, `OrderEvent`, `OrderEventType`, `Clock`.
 
 ## Licensing
 

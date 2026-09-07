@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/invoice",
-  "version": "1.0.2",
-  "description": "Invoice model, numbering and tax-rollup engine — per-line and total calculation, tax grouped by rate, sequential invoice numbers, payment tracking and a render-ready row structure for PDF/XLSX. Integer minor units, zero-dependency, isomorphic.",
+  "version": "1.1.0",
+  "description": "Invoice model, numbering and tax-rollup engine — per-line and total calculation, tax grouped by rate, sequential invoice numbers, a status lifecycle, partial payments and credit notes, plus a render-ready row structure for PDF/XLSX. Integer minor units, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,6 +35,11 @@
     "accounting",
     "ecommerce",
     "vat",
+    "credit-note",
+    "partial-payment",
+    "payments",
+    "invoice-status",
+    "receivables",
     "minor-units",
     "isomorphic",
     "typescript"

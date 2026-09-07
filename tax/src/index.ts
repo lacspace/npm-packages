@@ -155,3 +155,31 @@ export function compound(net: number, rates: number[], round?: Rounding): Compou
   }
   return { net, taxes, gross: running };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New in 1.1.0 — additive helpers (nothing above changed).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Extended rounding modes + shared rounder for the newer helpers. */
+export type { RoundingMode } from "./rounding";
+export { roundMinor } from "./rounding";
+
+/** Multiple & compound taxes with a labelled breakdown, and invoice-level rounding. */
+export type {
+  TaxSpec,
+  TaxBreakdownLine,
+  MultiTaxResult,
+  RoundingStrategy,
+  LineItem,
+  InvoiceLine,
+  InvoiceTaxResult,
+} from "./multi";
+export { applyTaxes, taxInvoice } from "./multi";
+
+/** Tax categories / rate tables. */
+export type { RateTable } from "./categories";
+export { lookupRate, resolveRate } from "./categories";
+
+/** VAT/GST conveniences, reverse charge, and rate formatting. */
+export type { VatOptions, FormatRateOptions } from "./vat";
+export { vat, gst, formatRate } from "./vat";

@@ -10,6 +10,22 @@
  * rounding.
  */
 
+/**
+ * A per-line option / add-on / modifier (size, engraving, gift-wrap…).
+ * `priceDelta` is added to the line's base `unitPrice`, in integer minor units,
+ * and may be negative (e.g. a bundle rebate).
+ */
+export interface CartItemOption {
+  /** Stable identifier for the option. */
+  id: string;
+  /** Human-readable label (optional). */
+  name?: string;
+  /** Change to the unit price, in integer minor units. Defaults to `0`. */
+  priceDelta?: number;
+  /** Arbitrary attached data for the option (optional). */
+  meta?: Record<string, unknown>;
+}
+
 /** A single line in the cart. `unitPrice` is in integer minor units. */
 export interface CartItem {
   /** Stable identifier — items with the same `id` are merged. */
@@ -20,6 +36,11 @@ export interface CartItem {
   unitPrice: number;
   /** Quantity. Values <= 0 remove the line. */
   qty: number;
+  /**
+   * Selected options / add-ons. Each option's `priceDelta` rolls into the
+   * line's effective unit price (see {@link effectiveUnitPrice}). Optional.
+   */
+  options?: CartItemOption[];
   /** Arbitrary attached data (variant, image, sku…). */
   meta?: Record<string, unknown>;
 }
@@ -58,6 +79,17 @@ function toInt(n: number): number {
   return Number.isFinite(v) ? v : 0;
 }
 
+/** Normalise a single option: coerce `priceDelta` to a safe integer. */
+function normalizeOption(opt: CartItemOption): CartItemOption {
+  const out: CartItemOption = {
+    id: String(opt.id),
+    priceDelta: toInt(opt.priceDelta ?? 0),
+  };
+  if (opt.name !== undefined) out.name = opt.name;
+  if (opt.meta !== undefined) out.meta = opt.meta;
+  return out;
+}
+
 /** Normalise an incoming item: coerce numeric fields to safe integers. */
 function normalizeItem(item: CartItem): CartItem {
   const out: CartItem = {
@@ -66,8 +98,30 @@ function normalizeItem(item: CartItem): CartItem {
     qty: toInt(item.qty),
   };
   if (item.name !== undefined) out.name = item.name;
+  if (item.options !== undefined) out.options = item.options.map(normalizeOption);
   if (item.meta !== undefined) out.meta = item.meta;
   return out;
+}
+
+/**
+ * The effective unit price of a line: its base `unitPrice` plus the sum of every
+ * selected option's `priceDelta`, in integer minor units. Robust to missing /
+ * non-finite values (coerced to safe integers). Never mutates the item.
+ */
+export function effectiveUnitPrice(item: CartItem): number {
+  let price = toInt(item.unitPrice);
+  if (item.options) {
+    for (const opt of item.options) price += toInt(opt.priceDelta ?? 0);
+  }
+  return price;
+}
+
+/**
+ * The total price of a line: {@link effectiveUnitPrice} × `qty`, in integer
+ * minor units. This is the value each line contributes to the cart subtotal.
+ */
+export function lineTotal(item: CartItem): number {
+  return effectiveUnitPrice(item) * toInt(item.qty);
 }
 
 /**
@@ -155,7 +209,7 @@ export function itemCount(cart: Cart): number {
  * never be negative. Tax is applied to the discounted subtotal.
  */
 export function totals(cart: Cart, opts: TotalsOptions = {}): CartTotals {
-  const subtotal = cart.items.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
+  const subtotal = cart.items.reduce((sum, it) => sum + lineTotal(it), 0);
 
   const rawDiscount = Math.max(0, toInt(opts.discount ?? 0));
   const discount = Math.min(rawDiscount, subtotal);
@@ -184,3 +238,27 @@ function withItems(cart: Cart, items: CartItem[]): Cart {
   if (cart.currency !== undefined) next.currency = cart.currency;
   return next;
 }
+
+// ── Additive extras (v1.1.0) ────────────────────────────────────────────────
+// Discounts, tax hooks & full breakdown:
+export {
+  cartTotals,
+  lineDiscount,
+  type Discount,
+  type DiscountInput,
+  type TaxContext,
+  type TaxCalculator,
+  type TaxRule,
+  type TaxInput,
+  type CartTotalsOptions,
+  type CartBreakdown,
+} from "./pricing";
+
+// Serialize / hydrate / merge / clamp:
+export {
+  serializeCart,
+  hydrateCart,
+  mergeCarts,
+  clampQty,
+  type SerializedCart,
+} from "./serialize";

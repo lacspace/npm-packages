@@ -14,6 +14,9 @@
  * `globalThis.crypto` for random ids, and that access is guarded.
  */
 
+import type { OrderEvent } from "./timeline";
+import type { RefundRecord } from "./refunds";
+
 /* -------------------------------------------------------------------------- */
 /*  Status + state machine                                                    */
 /* -------------------------------------------------------------------------- */
@@ -80,6 +83,11 @@ export interface OrderLine {
   taxRate?: number;
   /** Line total = `unitPrice * qty`, in integer minor units. */
   total: number;
+  /**
+   * Fulfilled quantity for partial fulfillment, in the range `0..qty`. Absent
+   * means fully unfulfilled. Managed by `fulfillLine`/`fulfillItems`.
+   */
+  fulfilledQty?: number;
   /** Arbitrary attached data (variant, image…). */
   meta?: Record<string, unknown>;
 }
@@ -115,6 +123,10 @@ export interface Order {
   lines: OrderLine[];
   totals: OrderTotals;
   history: StatusEvent[];
+  /** Optional refund records; managed by `recordRefund`. Absent until used. */
+  refunds?: RefundRecord[];
+  /** Optional audit-trail timeline; managed by `appendEvent`. Absent until used. */
+  timeline?: OrderEvent[];
   /** Epoch milliseconds. */
   createdAt: number;
   /** Epoch milliseconds. */
@@ -415,3 +427,16 @@ export function randomOrderId(opts?: { prefix?: string }): string {
   const prefix = opts?.prefix;
   return prefix ? `${prefix}_${out}` : out;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  New in 1.1.0 — additive modules (re-exported)                              */
+/* -------------------------------------------------------------------------- */
+
+// Timeline / audit trail (typed events + injectable clock).
+export * from "./timeline";
+// Totals recompute + remainder-safe allocation.
+export * from "./totals";
+// Partial fulfillment tracking + derived status.
+export * from "./fulfillment";
+// Refund tracking + derived refund status.
+export * from "./refunds";

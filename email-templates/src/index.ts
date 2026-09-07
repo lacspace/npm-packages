@@ -265,3 +265,24 @@ export function invoiceEmail(
   if (o.ctaHref) blocks.push(button(o.ctaLabel ?? "View invoice", o.ctaHref, { theme: o.theme }));
   return render({ title: o.heading ?? "Receipt", ...o }, blocks);
 }
+
+/* ------------------------------------------------------------------ *
+ * New in 1.1.0 — plaintext, interpolation/i18n, preheader helper,
+ * and more ready-made templates. All additive; nothing above changed.
+ * ------------------------------------------------------------------ */
+
+export { toPlainText } from "./plaintext";
+export { interpolate, localize } from "./interpolate";
+export type { InterpolateVars, InterpolateOptions } from "./interpolate";
+export { preheader } from "./preheader";
+export {
+  verifyEmail,
+  passwordResetEmail,
+  magicLinkEmail,
+  notificationEmail,
+  orderConfirmationEmail,
+  shippingEmail,
+  invitationEmail,
+  digestEmail,
+  announcementEmail,
+} from "./templates";

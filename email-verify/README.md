@@ -14,6 +14,13 @@
 
 > Goes one step past syntax: resolves the domain's **MX records** and (optionally) runs a real **SMTP `RCPT TO` probe** to ask the receiving server whether the mailbox exists — **without ever sending a message**. Built on Node's `dns` + `net`.
 
+> **🆕 New in 1.1.0** — all additive, nothing changed:
+> - **`verifyEmailDeep`** — everything `verifyEmail` does plus a `confidence` score, **catch-all detection**, and **MX ranking + fallback** (exposes the exact `mxHost` used).
+> - **`scoreConfidence`** — pure aggregator turning the signals into `{ score: 0–100, risk, reasons[] }`.
+> - **`detectCatchAll`** — probes a random recipient; if the server accepts it the domain is catch-all (so a positive result is untrustworthy).
+> - **`verifyBatch`** — verify a list with a concurrency cap + per-domain de-dupe (one MX lookup / catch-all probe per domain).
+> - `verifyEmail` gained optional injectable `resolveMxImpl` / `smtpCheckImpl` for testing. Every DNS/SMTP path is now injectable.
+
 - 🔎 Syntax + disposable (via [`@lacspace/email-validate`](https://www.npmjs.com/package/@lacspace/email-validate))
 - 📇 MX record lookup, sorted by priority
 - 📡 Optional SMTP RCPT probe → `deliverable` / `undeliverable` / `unknown`
@@ -61,6 +68,49 @@ await smtpCheck("user@example.com", "mx.example.com", { timeout: 8000 });
 // "deliverable" | "undeliverable" | "unknown"
 ```
 
+## Deep verify + confidence score (new in 1.1.0)
+
+```ts
+import { verifyEmailDeep } from "@lacspace/email-verify";
+
+const r = await verifyEmailDeep("someone@gmail.com", { detectCatchAll: true });
+// {
+//   …everything verifyEmail returns…,
+//   mxHost: "gmail-smtp-in.l.google.com",   // the exact MX host used
+//   catchAll: false,
+//   confidence: { score: 78, risk: "low", reasons: ["valid syntax", "domain has MX records", …] }
+// }
+```
+
+`scoreConfidence` is a pure function — feed it signals, get a verdict (great for scoring rows you already have, no network):
+
+```ts
+import { scoreConfidence } from "@lacspace/email-verify";
+
+scoreConfidence({ syntax: true, mxFound: true, disposable: false, role: false, smtp: "deliverable" });
+// { score: 95, risk: "low", reasons: [...] }
+```
+
+## Batch verify (new in 1.1.0)
+
+```ts
+import { verifyBatch } from "@lacspace/email-verify";
+
+const verdicts = await verifyBatch(emails, { concurrency: 10, detectCatchAll: true });
+// per-email DeepVerifyResult[] — MX + catch-all resolved ONCE per unique domain
+```
+
+## Testing without the network
+
+Every DNS/SMTP path is injectable, so tests never touch a real server:
+
+```ts
+await verifyEmailDeep("user@example.com", {
+  resolveMxImpl: async () => [{ exchange: "mx.example.com", priority: 10 }],
+  smtpCheckImpl: async () => "deliverable",
+});
+```
+
 ## Options
 
 | Option | Default | Description |
@@ -69,6 +119,22 @@ await smtpCheck("user@example.com", "mx.example.com", { timeout: 8000 });
 | `fromAddress` | `verify@<hostname>` | MAIL FROM used in the probe |
 | `timeout` | `10000` | per-connection timeout (ms) |
 | `extraDisposable` | — | extra throwaway domains |
+| `resolveMxImpl` | built-in DNS | inject a custom MX resolver (testing) |
+| `smtpCheckImpl` | built-in SMTP | inject a custom SMTP prober (testing) |
+
+Extra options for `verifyEmailDeep` / `verifyBatch`: `detectCatchAll` (default `false`), `concurrency` (batch, default `5`), and `randomLocal` (inject the catch-all probe's local-part).
+
+## API
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `verifyEmail` | `(email, opts?) => Promise<VerifyResult>` | classic syntax → MX → SMTP verdict |
+| `verifyEmailDeep` | `(email, opts?) => Promise<DeepVerifyResult>` | adds `confidence`, `catchAll`, `mxHost` + MX fallback |
+| `verifyBatch` | `(emails[], opts?) => Promise<DeepVerifyResult[]>` | concurrency-capped, de-dupes by domain |
+| `scoreConfidence` | `(signals) => { score, risk, reasons }` | pure aggregator, no network |
+| `detectCatchAll` | `(domain, mxHost, opts?) => Promise<boolean>` | random-recipient catch-all probe |
+| `resolveMx` | `(domain) => Promise<MxRecord[]>` | MX lookup, sorted best-first |
+| `smtpCheck` | `(email, mxHost, opts?) => Promise<SmtpVerdict>` | raw SMTP RCPT probe |
 
 ## The Lacspace MailKit
 

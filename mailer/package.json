@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/mailer",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A tiny zero-dependency SMTP client for Node backends — send email over raw net/tls with STARTTLS, AUTH, attachments and provider presets (Hostinger, Gmail, Outlook, Zoho…). One-line setup.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,7 +44,19 @@
     "tls",
     "email-sending",
     "node-smtp",
-    "zero-dependency-smtp"
+    "zero-dependency-smtp",
+    "mime-builder",
+    "mime",
+    "email-builder",
+    "rfc2047",
+    "rfc5322",
+    "attachments",
+    "inline-images",
+    "html-to-text",
+    "batch-email",
+    "email-retry",
+    "memory-transport",
+    "address-parser"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

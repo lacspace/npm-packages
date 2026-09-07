@@ -110,19 +110,55 @@ export function isFreeProvider(domain: string): boolean {
   return FREE_PROVIDERS.has(domain.toLowerCase());
 }
 
-/** Canonical form: lowercased; Gmail addresses get dots + `+tags` removed. */
-export function normalizeEmail(email: string): string {
+/**
+ * Fine-grained controls for {@link normalizeEmail}.
+ *
+ * Every field is optional and every default reproduces the v1.0 behaviour
+ * exactly, so `normalizeEmail(email)` is unchanged — pass options only to relax
+ * a rule (e.g. keep a Gmail user's dots, or preserve a `+tag`).
+ */
+export interface NormalizeOptions {
+  /** Strip dots from the Gmail local part (`foo.bar` → `foobar`). Default `true`. */
+  gmailRemoveDots?: boolean;
+  /** Drop a `+subaddress` tag on Gmail addresses. Default `true`. */
+  gmailRemoveSubaddress?: boolean;
+  /** Drop a `+subaddress` tag on all other providers. Default `true`. */
+  removeSubaddress?: boolean;
+  /** Lowercase the local part (the domain is always lowercased). Default `true`. */
+  lowercaseLocal?: boolean;
+}
+
+/**
+ * Canonical form for de-duping users.
+ *
+ * With defaults (v1.0 behaviour): the domain is lowercased; the local part is
+ * lowercased; `+subaddress` tags are dropped; and Gmail / Googlemail addresses
+ * additionally have their dots removed and collapse to `@gmail.com`. IDN /
+ * Unicode domains are lowercased with the Unicode-aware `toLowerCase()` (no
+ * punycode transcoding — see README limitations). Pass {@link NormalizeOptions}
+ * to relax any individual rule.
+ */
+export function normalizeEmail(email: string, opts: NormalizeOptions = {}): string {
+  const {
+    gmailRemoveDots = true,
+    gmailRemoveSubaddress = true,
+    removeSubaddress = true,
+    lowercaseLocal = true,
+  } = opts;
   const parts = splitEmail(email.trim());
   if (!parts) return email.trim().toLowerCase();
   let { local } = parts;
   const domain = parts.domain.toLowerCase();
-  local = local.toLowerCase();
+  if (lowercaseLocal) local = local.toLowerCase();
   if (domain === "gmail.com" || domain === "googlemail.com") {
-    local = local.split("+")[0]!.replace(/\./g, "");
+    if (gmailRemoveSubaddress) local = local.split("+")[0]!;
+    if (gmailRemoveDots) local = local.replace(/\./g, "");
     return `${local}@gmail.com`;
   }
-  const plus = local.indexOf("+");
-  if (plus > 0) local = local.slice(0, plus);
+  if (removeSubaddress) {
+    const plus = local.indexOf("+");
+    if (plus > 0) local = local.slice(0, plus);
+  }
   return `${local}@${domain}`;
 }
 
@@ -195,3 +231,11 @@ export function validateEmail(email: string, opts: ValidationOptions = {}): Vali
     suggestion: opts.suggestions === false ? null : suggestEmail(raw),
   };
 }
+
+// Advanced (additive) helpers: stronger RFC-5322 syntax + email-level wrappers.
+export {
+  isValidEmailRFC5322,
+  isDisposableEmail,
+  isRoleAccount,
+  type Rfc5322Options,
+} from "./advanced";

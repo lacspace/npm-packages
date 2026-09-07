@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/email-templates",
-  "version": "1.0.7",
-  "description": "Compose bulletproof, responsive, dark-mode-aware HTML emails from simple blocks — buttons, OTP codes, invoices — with ready-made OTP/welcome/alert/invoice templates. Zero-dependency, isomorphic.",
+  "version": "1.1.0",
+  "description": "Compose bulletproof, responsive, dark-mode-aware HTML emails from simple blocks — buttons, OTP codes, invoices — with ready-made OTP/welcome/verify/password-reset/magic-link/order/shipping/invitation/digest/announcement templates, plaintext generation, preheaders and {{var}} i18n interpolation. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -41,7 +41,15 @@
     "email-components",
     "password-reset-email",
     "magic-link-email",
-    "react-email-alternative"
+    "react-email-alternative",
+    "email-to-plaintext",
+    "email-preheader",
+    "verify-email",
+    "order-confirmation-email",
+    "shipping-email",
+    "invitation-email",
+    "digest-email",
+    "email-i18n"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

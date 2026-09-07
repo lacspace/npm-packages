@@ -14,6 +14,8 @@
 
 > Components return email-client-safe HTML with inline styles; `render()` wraps them in a responsive, dark-mode-aware layout that survives Outlook. Includes ready-made **OTP / welcome / alert / invoice** templates. A tiny, dependency-free alternative to MJML.
 
+> **New in 1.1.0** — six more ready-made templates (`verifyEmail`, `passwordResetEmail`, `magicLinkEmail`, `orderConfirmationEmail`, `shippingEmail`, `invitationEmail`, `digestEmail`, `announcementEmail`, `notificationEmail`), a `toPlainText(html)` text-alternative generator, an exported `preheader()` block, and `interpolate()` / `localize()` for `{{var}}` copy and i18n. All additive — every existing export is unchanged.
+
 - 🧱 Blocks: `heading` · `text` · `button` (bulletproof) · `code` (OTP) · `divider` · `image` · `list` · `keyValue`
 - 📱 Responsive `render()` + `@media (prefers-color-scheme: dark)`
 - 🎨 Themeable (brand color, fonts, radius) · logo/brand header · preheader text
@@ -45,6 +47,48 @@ invoiceEmail({
   total: ["Total", "₹1,499.00"],
   ctaHref: "https://one.lacspace.com/invoices/123",
 });
+```
+
+### More templates (new in 1.1.0)
+
+```ts
+import {
+  verifyEmail, passwordResetEmail, magicLinkEmail, notificationEmail,
+  orderConfirmationEmail, shippingEmail, invitationEmail, digestEmail, announcementEmail,
+} from "@lacspace/email-templates";
+
+verifyEmail({ verifyUrl: "https://x.io/verify?t=abc", expiresMinutes: 15 });
+passwordResetEmail({ resetUrl: "https://x.io/reset?t=1", name: "Ada", expiresMinutes: 30 });
+magicLinkEmail({ loginUrl: "https://x.io/magic?t=9" });
+orderConfirmationEmail({ orderId: "A-1001", items: [["Widget", "$10"]], total: ["Total", "$10"], ctaHref: "https://x.io/orders/A-1001" });
+shippingEmail({ carrier: "DHL", trackingNumber: "TRK-42", trackingUrl: "https://track.io/TRK-42" });
+invitationEmail({ acceptUrl: "https://x.io/join?t=7", inviterName: "Bob", teamName: "Acme", expiresDays: 7 });
+digestEmail({ intro: "This week", items: [{ title: "New post", text: "…", href: "https://x.io/1" }] });
+announcementEmail({ title: "Big news", message: "We launched.", ctaHref: "https://x.io/blog" });
+```
+
+### Plain-text alternative + preheader
+
+```ts
+import { toPlainText, preheader, otpEmail, render, heading } from "@lacspace/email-templates";
+
+const html = otpEmail({ code: "482913" });
+const text = toPlainText(html);   // strips markup, links → "label (href)", decodes entities
+
+// Hidden inbox-preview text as a composable block:
+render({ title: "Hi" }, [preheader("Your code is inside"), heading("Verify")]);
+```
+
+### Localize the copy (i18n)
+
+```ts
+import { interpolate, localize } from "@lacspace/email-templates";
+
+interpolate("Hi {{name}}", { name: "Ada" });          // "Hi Ada"
+interpolate("Hi {{name}}", (k) => dict[k]);           // function/i18n source
+
+const t = localize({ greeting: "Hola {{name}}" }, { name: "Ada" });
+passwordResetEmail({ resetUrl, message: t("greeting") });
 ```
 
 ## Compose your own
@@ -91,7 +135,20 @@ await mail.send({ to, subject: "Your code", html: otpEmail({ code: "482913" }) }
 | `code(value)` | large letter-spaced code (OTP) |
 | `keyValue(rows)` | 2-column table (receipts) |
 | `list(items)` · `divider()` · `spacer(h)` · `image(src)` | misc |
+| `preheader(text)` | hidden inbox-preview slot (new) |
 | `render(opts, blocks)` | full responsive document |
+
+## Templates & helpers
+
+| API | Does |
+| --- | --- |
+| `otpEmail` · `welcomeEmail` · `alertEmail` · `invoiceEmail` | original ready-made templates |
+| `verifyEmail({ verifyUrl })` | email-confirmation link |
+| `passwordResetEmail({ resetUrl })` · `magicLinkEmail({ loginUrl })` | auth links |
+| `orderConfirmationEmail({ items, total })` · `shippingEmail({ trackingUrl })` | commerce |
+| `invitationEmail({ acceptUrl })` · `digestEmail({ items })` · `announcementEmail({ message })` · `notificationEmail({ title, message })` | more |
+| `toPlainText(html)` | text/plain alternative from any email HTML |
+| `interpolate(str, vars)` · `localize(dict, vars)` | `{{var}}` fill + i18n hook |
 
 ## The Lacspace MailKit
 

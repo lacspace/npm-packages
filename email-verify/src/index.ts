@@ -25,6 +25,23 @@ export interface MxRecord {
 
 export type SmtpVerdict = "deliverable" | "undeliverable" | "unknown";
 
+/**
+ * An injectable MX resolver: given a domain, resolve its MX records. The
+ * built-in {@link resolveMx} is the default; tests can inject a fake so no real
+ * DNS lookup happens.
+ */
+export type MxResolver = (domain: string) => Promise<MxRecord[]>;
+
+/**
+ * An injectable SMTP prober with the same shape as {@link smtpCheck}. Tests
+ * inject a fake so no real socket is opened.
+ */
+export type SmtpProber = (
+  email: string,
+  mxHost: string,
+  opts?: { fromAddress?: string; timeout?: number },
+) => Promise<SmtpVerdict>;
+
 export interface VerifyOptions {
   /** Also run the live SMTP RCPT probe (default true). */
   checkSmtp?: boolean;
@@ -34,6 +51,10 @@ export interface VerifyOptions {
   timeout?: number;
   /** Extra disposable domains. */
   extraDisposable?: string[];
+  /** Inject a custom MX resolver (e.g. a fake in tests). Defaults to {@link resolveMx}. */
+  resolveMxImpl?: MxResolver;
+  /** Inject a custom SMTP prober (e.g. a fake in tests). Defaults to {@link smtpCheck}. */
+  smtpCheckImpl?: SmtpProber;
 }
 
 export interface VerifyResult {
@@ -160,7 +181,10 @@ export async function verifyEmail(email: string, opts: VerifyOptions = {}): Prom
 
   if (!v.valid || !v.domain) return { ...base, reason: "invalid syntax" };
 
-  const mx = await resolveMx(v.domain);
+  const resolveImpl = opts.resolveMxImpl ?? resolveMx;
+  const smtpImpl = opts.smtpCheckImpl ?? smtpCheck;
+
+  const mx = await resolveImpl(v.domain);
   base.mxRecords = mx;
   base.mxFound = mx.length > 0;
   if (!base.mxFound) return { ...base, reason: "no MX records for domain" };
@@ -169,7 +193,7 @@ export async function verifyEmail(email: string, opts: VerifyOptions = {}): Prom
     return { ...base, valid: !v.disposable };
   }
 
-  const verdict = await smtpCheck(email, mx[0]!.exchange, {
+  const verdict = await smtpImpl(email, mx[0]!.exchange, {
     fromAddress: opts.fromAddress,
     timeout: opts.timeout,
   });
@@ -181,3 +205,15 @@ export async function verifyEmail(email: string, opts: VerifyOptions = {}): Prom
     reason: verdict === "undeliverable" ? "mailbox rejected by server" : undefined,
   };
 }
+
+// ── New in 1.1.0 ─────────────────────────────────────────────────────────────
+// Confidence scoring, catch-all detection, MX-ranked deep verify, and batch
+// verification. Every network path stays behind injectable functions.
+export { scoreConfidence } from "./confidence";
+export type { ConfidenceSignals, ConfidenceResult, RiskLevel } from "./confidence";
+export { detectCatchAll } from "./catch-all";
+export type { CatchAllOptions } from "./catch-all";
+export { verifyEmailDeep } from "./verify-deep";
+export type { DeepVerifyOptions, DeepVerifyResult } from "./verify-deep";
+export { verifyBatch } from "./batch";
+export type { BatchOptions, BatchVerdict } from "./batch";

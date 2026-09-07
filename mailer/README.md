@@ -21,6 +21,8 @@
 - 🏊 `createMailerPool()` — connection pool with rate limiting for bulk/high-throughput sending
 - ⚡ **Zero dependencies** · 🟢 Node 18+ (uses TCP sockets — server-side only)
 
+> **New in 1.2.0** — a fluent [`createMessage()`](#compose-with-the-message-builder) MIME builder (inline CID images, alternatives, custom headers), exported [address helpers](#address-utilities) (`parseAddress` / `formatAddress` / `isValidEmail` + RFC 2047 `encodeMimeWord`), non-network [`createMemoryTransport()` / `createJsonTransport()`](#test-friendly-transports) for tests, [`sendBatch()`](#batch-sending-with-retry) with a concurrency cap + injectable retry/backoff, and [`htmlToText()` / `previewText()`](#htmltext-helpers) helpers. All additive — every 1.1.x API is unchanged.
+
 ## Install
 
 ```bash
@@ -80,6 +82,89 @@ await mail.send({
     { filename: "notes.txt", content: "plain text content" },
   ],
 });
+```
+
+## Compose with the message builder
+
+`createMessage()` is a fluent, typed builder that produces either a `Mail` (for `send()`) or a fully rendered MIME string (`toMime()`) — the same renderer the SMTP client uses, so the preview is what gets sent. It handles `multipart/alternative`, `multipart/mixed` and `multipart/related` (inline CID images) for you.
+
+```ts
+import { createMessage, createMailer, presets } from "@lacspace/mailer";
+
+const mail = createMessage()
+  .from("Lacspace <no-reply@lacspace.com>")
+  .to("customer@example.com")
+  .cc("team@lacspace.com")
+  .replyTo("support@lacspace.com")
+  .subject("Welcome ✨")
+  .html('<h1>Hi!</h1><img src="cid:logo">')
+  .inline({ filename: "logo.png", content: pngBytes, contentType: "image/png", cid: "logo" })
+  .attach({ filename: "guide.pdf", content: pdfBuffer, contentType: "application/pdf" })
+  .autoText()      // derive a text/plain part from the HTML for you
+  .build();
+
+await createMailer(presets.hostinger({ user, pass })).send(mail);
+
+// …or render the MIME yourself:
+const mime = createMessage().from("a@x.com").to("b@x.com").subject("Hi").text("hey").toMime();
+```
+
+Attachment `content` accepts a string, a base64 string (`encoding: "base64"`), a `Buffer`, or a `Uint8Array`.
+
+## Test-friendly transports
+
+`createMemoryTransport()` and `createJsonTransport()` implement the exact same `Transport` interface as `Mailer` — hand them to any code that takes a transport and no socket is ever opened.
+
+```ts
+import { createMemoryTransport } from "@lacspace/mailer";
+
+const transport = createMemoryTransport();
+await transport.send({ from: "a@x.com", to: "b@y.com", subject: "hi", text: "yo" });
+
+expect(transport.messages).toHaveLength(1);
+expect(transport.last.mime).toContain("Subject: hi");
+```
+
+`createJsonTransport(onMessage?)` returns a JSON envelope (with the rendered MIME) as the `response` — handy for logging or forwarding to an HTTP email API.
+
+## Batch sending with retry
+
+`sendBatch(transport, mails, options)` fans messages out through any transport with a concurrency cap and per-message retry + backoff. Timing is injectable, so tests never touch a real clock.
+
+```ts
+import { sendBatch, createMailerPool, presets } from "@lacspace/mailer";
+
+const pool = createMailerPool(presets.gmail({ user, pass }));
+const summary = await sendBatch(pool, messages, {
+  concurrency: 5,           // at most 5 in flight
+  retries: 3,               // retry a failed send up to 3×
+  backoff: (n) => n * 500,  // ms before retry n (default: exponential)
+  shouldRetry: (err) => true,
+});
+// summary → { total, sent, failed, results: [{ index, ok, attempts, result?, error? }] }
+await pool.close();
+```
+
+## Address utilities
+
+```ts
+import { parseAddress, formatAddress, parseAddressList, isValidEmail, encodeMimeWord } from "@lacspace/mailer";
+
+parseAddress('"Bob Smith" <bob@x.com>');       // { name: "Bob Smith", address: "bob@x.com" }
+formatAddress({ name: "Añez", address: "a@x" }); // RFC 2047 encoded-word display name
+parseAddressList('A <a@x>, b@y');                // [{ name:"A", address:"a@x" }, { address:"b@y" }]
+isValidEmail("user@sub.example.com");            // true
+encodeMimeWord("Welcome ✨");                    // =?UTF-8?B?…?=
+```
+
+## html→text helpers
+
+```ts
+import { htmlToText, previewText, preheader } from "@lacspace/mailer";
+
+htmlToText("<h1>Hi</h1><p>Tom &amp; Jerry</p>"); // "Hi\nTom & Jerry"
+previewText("<p>Hello   world</p>", 140);         // "Hello world"  (inbox preheader snippet)
+preheader("Your code is 1234");                   // hidden <div> to prepend in an HTML body
 ```
 
 ## Pairs perfectly with
@@ -145,6 +230,17 @@ const mail = createTransport({ ...presets.gmail({ user, pass }), pool: true });
 | `mail.close()` | close sockets (pool: drain all connections) |
 | `mailerFromEnv(env?)` | build config from `SMTP_*` vars |
 | `presets.*` | one-line provider configs |
+| `createMessage(init?)` | fluent MIME builder → `.build()` (a `Mail`) or `.toMime()` (a MIME string) |
+| `buildMime(mail, from, id)` | render a `Mail` to a MIME string directly |
+| `createMemoryTransport()` | `Transport` that captures messages in `.messages` (tests/previews) |
+| `createJsonTransport(cb?)` | `Transport` that serialises each message to JSON |
+| `sendBatch(transport, mails, opts?)` | concurrency-capped batch send with retry/backoff → summary |
+| `parseAddress` / `parseAddressList` | parse RFC 5322 mailbox(es) → `Address` |
+| `formatAddress` / `formatAddressList` | format `Address`(es) with quoting + RFC 2047 |
+| `isValidEmail` / `invalidAddresses` | validate a mailbox / list the bad ones |
+| `encodeMimeWord(str)` | RFC 2047 encoded-word for header values |
+| `htmlToText(html)` | plaintext approximation of an HTML email |
+| `previewText(src, max?)` / `preheader(text)` | inbox preheader snippet / hidden preheader `<div>` |
 
 > **Node only.** This package opens TCP/TLS sockets, so it does not run in browsers. For validating or composing emails in any runtime, use the isomorphic siblings below.
 

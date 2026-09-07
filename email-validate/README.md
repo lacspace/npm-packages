@@ -21,6 +21,8 @@
 - 🔤 `normalizeEmail` — Gmail dots/`+tags` stripped, lowercased (great for de-dupe)
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
+> **New in 1.1.0** — a stronger, superset RFC-5322 syntax check (`isValidEmailRFC5322`) that accepts **quoted local parts** and **IP-literal domains**; whole-address `isDisposableEmail()` / `isRoleAccount()` wrappers; and `normalizeEmail(email, opts?)` with per-rule toggles. All additive — every existing export is unchanged.
+
 ## Install
 
 ```bash
@@ -84,6 +86,38 @@ validateEmail(input, {
 ```
 
 You can also read/extend the exported sets: `DISPOSABLE_DOMAINS`, `FREE_PROVIDERS`, `ROLE_LOCALS`.
+
+## Advanced syntax & helpers (v1.1.0)
+
+```ts
+import {
+  isValidEmailRFC5322, isDisposableEmail, isRoleAccount, normalizeEmail,
+} from "@lacspace/email-validate";
+
+// Stronger RFC-5322 syntax — a SUPERSET of isValidEmail:
+isValidEmailRFC5322('"john doe"@example.com');   // true  (quoted local part)
+isValidEmailRFC5322("user@[192.168.0.1]");        // true  (IPv4 literal)
+isValidEmailRFC5322("user@[IPv6:2001:db8::1]");   // true  (IPv6 literal)
+isValidEmailRFC5322("a..b@example.com");          // false (consecutive dots)
+isValidEmailRFC5322("a".repeat(65) + "@x.com");   // false (local > 64)
+
+// Whole-address convenience wrappers:
+isDisposableEmail("x@mailinator.com");            // true
+isRoleAccount("support+ticket@acme.com");         // true  (ignores +tag)
+
+// normalizeEmail now takes optional per-rule toggles (defaults = v1.0 behaviour):
+normalizeEmail("Foo.Bar@gmail.com", { gmailRemoveDots: false });  // "foo.bar@gmail.com"
+normalizeEmail("a.b+x@Acme.com",   { removeSubaddress: false });  // "a.b+x@acme.com"
+```
+
+### API
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `isValidEmailRFC5322` | `(email, opts?: { allowQuoted?; allowIpLiteral? }) → boolean` | Stronger, superset syntax check: quoted local parts + IP-literal (IPv4/IPv6) domains, RFC length limits (local ≤64, domain ≤255, total ≤254), consecutive/edge-dot rejection. No network. |
+| `isDisposableEmail` | `(email, extra?: string[]) → boolean` | Disposable check taking the **whole address** (companion to `isDisposable(domain)`). |
+| `isRoleAccount` | `(email) → boolean` | Role-mailbox check taking the **whole address**, `+tag`-aware (companion to `isRoleAddress(local)`). |
+| `normalizeEmail` | `(email, opts?: NormalizeOptions) → string` | Canonical form. New optional `opts`: `gmailRemoveDots`, `gmailRemoveSubaddress`, `removeSubaddress`, `lowercaseLocal` (all default `true` — v1.0 behaviour unchanged). |
 
 ## The Lacspace MailKit
 

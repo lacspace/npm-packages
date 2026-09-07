@@ -14,6 +14,38 @@ import tls from "node:tls";
 import { randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 
+import { toAddress, toList } from "./address";
+import { buildMime, dotStuff } from "./mime";
+
+// New in 1.2.0 — additive public API (address helpers, MIME message builder,
+// non-network transports, batch/retry, and html→text helpers).
+export {
+  parseAddress,
+  parseAddressList,
+  formatAddress,
+  formatAddressList,
+  isValidEmail,
+  invalidAddresses,
+  encodeMimeWord,
+} from "./address";
+export { buildMime } from "./mime";
+export { MessageBuilder, createMessage, type RenderOptions } from "./message";
+export {
+  MemoryTransport,
+  JsonTransport,
+  createMemoryTransport,
+  createJsonTransport,
+  type CapturedMessage,
+} from "./transports";
+export {
+  sendBatch,
+  shouldRetrySend,
+  type BatchOptions,
+  type BatchItemResult,
+  type BatchSummary,
+} from "./batch";
+export { htmlToText, previewText, preheader, decodeEntities } from "./html";
+
 export interface SmtpConfig {
   host: string;
   port: number;
@@ -51,11 +83,19 @@ export type AddressInput = string | Address | (string | Address)[];
 
 export interface Attachment {
   filename: string;
-  /** String content, or a Buffer. Binary is base64-encoded automatically. */
-  content: string | Buffer;
+  /** String content, a base64 string, a Buffer, or raw bytes. Binary is base64-encoded automatically. */
+  content: string | Buffer | Uint8Array;
   contentType?: string;
   /** For string content: how to interpret it. Default "utf8". */
   encoding?: "utf8" | "base64";
+  /**
+   * Content-ID for an inline (embedded) resource — reference it from HTML as
+   * `cid:<value>`. Presence of a `cid` makes the part `inline` inside a
+   * `multipart/related` body.
+   */
+  cid?: string;
+  /** Override the Content-Disposition (default "attachment", or "inline" when `cid` is set). */
+  contentDisposition?: "attachment" | "inline";
 }
 
 export interface Mail {
@@ -97,146 +137,6 @@ export class SmtpError extends Error {
     super(message);
     this.name = "SmtpError";
   }
-}
-
-/* ------------------------------ security ------------------------------ */
-
-/**
- * Reject any value containing a CR or LF character. Prevents SMTP command and
- * MIME header injection (CRLF injection) via untrusted addresses, headers,
- * subjects, or attachment filenames.
- */
-function assertNoCRLF(value: string, label: string): string {
-  if (/[\r\n]/.test(value)) {
-    throw new SmtpError(`${label} must not contain CR or LF characters`);
-  }
-  return value;
-}
-
-/* ------------------------------ addresses ------------------------------ */
-
-function toAddress(input: string | Address): Address {
-  const a: Address = typeof input === "string" ? parseAddress(input) : input;
-  assertNoCRLF(a.address, "email address");
-  if (a.name !== undefined) assertNoCRLF(a.name, "address name");
-  return a;
-}
-
-function parseAddress(input: string): Address {
-  const m = input.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
-  if (m) return { name: m[1]!.replace(/^"|"$/g, ""), address: m[2]!.trim() };
-  return { address: input.trim() };
-}
-
-function toList(input?: AddressInput): Address[] {
-  if (!input) return [];
-  return (Array.isArray(input) ? input : [input]).map(toAddress);
-}
-
-function formatAddress(a: Address): string {
-  if (!a.name) return a.address;
-  const needsQuote = /[",;<>@]/.test(a.name);
-  const name = needsQuote ? `"${a.name.replace(/"/g, '\\"')}"` : a.name;
-  return /[^\x20-\x7e]/.test(a.name) ? `${encodeWord(a.name)} <${a.address}>` : `${name} <${a.address}>`;
-}
-
-/* ------------------------------ encoding ------------------------------ */
-
-function encodeWord(str: string): string {
-  return `=?UTF-8?B?${Buffer.from(str, "utf8").toString("base64")}?=`;
-}
-
-function encodeHeader(value: string): string {
-  return /[^\x20-\x7e]/.test(value) ? encodeWord(value) : value;
-}
-
-function wrap76(b64: string): string {
-  return b64.replace(/.{1,76}/g, "$&\r\n").trimEnd();
-}
-
-function rfc2822Date(d: Date): string {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const pad = (n: number) => (n < 10 ? "0" + n : String(n));
-  const off = -d.getTimezoneOffset();
-  const sign = off >= 0 ? "+" : "-";
-  const abs = Math.abs(off);
-  return `${days[d.getDay()]}, ${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${sign}${pad(Math.floor(abs / 60))}${pad(abs % 60)}`;
-}
-
-/* ------------------------------ MIME build ------------------------------ */
-
-function buildMime(mail: Mail, from: Address, messageId: string): string {
-  const to = toList(mail.to);
-  const cc = toList(mail.cc);
-  const headers: string[] = [];
-
-  headers.push(`From: ${formatAddress(from)}`);
-  headers.push(`To: ${to.map(formatAddress).join(", ")}`);
-  if (cc.length) headers.push(`Cc: ${cc.map(formatAddress).join(", ")}`);
-  if (mail.replyTo) headers.push(`Reply-To: ${formatAddress(toAddress(mail.replyTo))}`);
-  headers.push(`Subject: ${encodeHeader(assertNoCRLF(mail.subject, "subject"))}`);
-  headers.push(`Date: ${rfc2822Date(new Date())}`);
-  headers.push(`Message-ID: ${messageId}`);
-  headers.push(`MIME-Version: 1.0`);
-  for (const [k, v] of Object.entries(mail.headers ?? {}))
-    headers.push(`${assertNoCRLF(k, "header name")}: ${assertNoCRLF(v, "header value")}`);
-
-  const textPart = mail.text
-    ? `Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(
-        Buffer.from(mail.text, "utf8").toString("base64"),
-      )}`
-    : null;
-  const htmlPart = mail.html
-    ? `Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(
-        Buffer.from(mail.html, "utf8").toString("base64"),
-      )}`
-    : null;
-
-  const boundary = (tag: string) => `----=_${tag}_${randomBytes(12).toString("hex")}`;
-
-  function bodyBlock(): string {
-    if (textPart && htmlPart) {
-      const b = boundary("alt");
-      return (
-        `Content-Type: multipart/alternative; boundary="${b}"\r\n\r\n` +
-        `--${b}\r\n${textPart}\r\n--${b}\r\n${htmlPart}\r\n--${b}--`
-      );
-    }
-    return htmlPart ?? textPart ?? `Content-Type: text/plain; charset=UTF-8\r\n\r\n`;
-  }
-
-  if (mail.attachments && mail.attachments.length) {
-    const b = boundary("mix");
-    const parts: string[] = [`--${b}\r\n${bodyBlock()}`];
-    for (const att of mail.attachments) {
-      assertNoCRLF(att.filename, "attachment filename");
-      const buf = Buffer.isBuffer(att.content)
-        ? att.content
-        : Buffer.from(att.content, att.encoding ?? "utf8");
-      const type = assertNoCRLF(att.contentType ?? "application/octet-stream", "attachment content type");
-      parts.push(
-        `--${b}\r\nContent-Type: ${type}; name="${att.filename}"\r\n` +
-          `Content-Transfer-Encoding: base64\r\n` +
-          `Content-Disposition: attachment; filename="${att.filename}"\r\n\r\n` +
-          wrap76(buf.toString("base64")),
-      );
-    }
-    return (
-      headers.join("\r\n") +
-      `\r\nContent-Type: multipart/mixed; boundary="${b}"\r\n\r\n` +
-      parts.join("\r\n") +
-      `\r\n--${b}--`
-    );
-  }
-
-  return headers.join("\r\n") + "\r\n" + bodyBlock();
-}
-
-function dotStuff(message: string): string {
-  return message.replace(/^\./gm, "..");
 }
 
 /* ------------------------------ SMTP client ------------------------------ */

@@ -14,12 +14,16 @@ import { hmac, toBase64url, fromBase64url, constantTimeEqual, randomBytes, type 
 export type Algorithm =
   | "HS256" | "HS384" | "HS512"
   | "RS256" | "RS384" | "RS512"
-  | "ES256" | "ES384" | "ES512";
+  | "ES256" | "ES384" | "ES512"
+  | "EdDSA";
 
 const ALG_HASH: Record<Algorithm, HashAlgorithm> = {
   HS256: "SHA-256", HS384: "SHA-384", HS512: "SHA-512",
   RS256: "SHA-256", RS384: "SHA-384", RS512: "SHA-512",
   ES256: "SHA-256", ES384: "SHA-384", ES512: "SHA-512",
+  // EdDSA (Ed25519) applies SHA-512 internally; this entry is never used to
+  // parameterise Web Crypto (Ed25519 takes no `hash`), it just satisfies the map.
+  EdDSA: "SHA-512",
 };
 
 /** A signing/verification key: an HMAC secret, or a Web Crypto key for RS and ES. */
@@ -38,7 +42,10 @@ export class JwtError extends Error {
       | "issuer"
       | "audience"
       | "algorithm"
-      | "reuse",
+      | "reuse"
+      | "subject"
+      | "jti"
+      | "key",
   ) {
     super(message);
     this.name = "JwtError";
@@ -64,11 +71,13 @@ function b64ToBytes(b64: string): Uint8Array {
 function subtleSignAlgo(alg: Algorithm): AlgorithmIdentifier | EcdsaParams {
   if (alg.startsWith("RS")) return { name: "RSASSA-PKCS1-v1_5" };
   if (alg.startsWith("ES")) return { name: "ECDSA", hash: ALG_HASH[alg] };
+  if (alg === "EdDSA") return { name: "Ed25519" };
   throw new JwtError(`not an asymmetric algorithm: ${alg}`, "algorithm");
 }
 
-function subtleImportAlgo(alg: Algorithm): RsaHashedImportParams | EcKeyImportParams {
+function subtleImportAlgo(alg: Algorithm): RsaHashedImportParams | EcKeyImportParams | { name: string } {
   if (alg.startsWith("RS")) return { name: "RSASSA-PKCS1-v1_5", hash: ALG_HASH[alg] };
+  if (alg === "EdDSA") return { name: "Ed25519" };
   const curve = alg === "ES256" ? "P-256" : alg === "ES384" ? "P-384" : "P-521";
   return { name: "ECDSA", namedCurve: curve };
 }
@@ -93,6 +102,12 @@ export interface SignOptions {
   subject?: string;
   /** `kid` header — which key signed this (for rotation / JWKS). */
   keyId?: string;
+  /**
+   * Extra protected JOSE header fields to set (e.g. `typ`, `cty`, `kid`, or a
+   * custom field). Merged over the defaults `{ alg, typ: "JWT" }`; `alg` is always
+   * enforced and `keyId` (if given) wins for `kid`. Existing calls are unchanged.
+   */
+  header?: Record<string, unknown>;
 }
 
 async function signBytes(alg: Algorithm, key: SigningKey, input: string): Promise<Uint8Array> {
@@ -132,7 +147,10 @@ export async function sign(
   if (opts.audience) body.aud = opts.audience;
   if (opts.subject) body.sub = opts.subject;
 
-  const header: Record<string, unknown> = { alg, typ: "JWT" };
+  // `alg` is always enforced first (never overridable via opts.header); with no
+  // custom header this yields exactly `{ alg, typ: "JWT" }` as before.
+  const { alg: _algIgnored, ...extraHeader } = opts.header ?? {};
+  const header: Record<string, unknown> = { alg, typ: "JWT", ...extraHeader };
   if (opts.keyId) header.kid = opts.keyId;
   const signingInput = `${b64urlJson(header)}.${b64urlJson(body)}`;
   const sig = await signBytes(alg, secret, signingInput);
@@ -143,6 +161,10 @@ export interface VerifyOptions {
   algorithms?: Algorithm[];
   issuer?: string;
   audience?: string | string[];
+  /** If set, reject unless the token's `sub` claim equals this. */
+  subject?: string;
+  /** If set, reject unless the token's `jti` claim equals this. */
+  jwtid?: string;
   /** Allowed clock skew in seconds. Default 0. */
   clockTolerance?: number;
   /** If set, reject unless the token's `typ` claim equals this (e.g. "refresh"). */
@@ -225,6 +247,10 @@ export async function verify<T extends JwtPayload = JwtPayload>(
     const have = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
     if (!want.some((a) => have.includes(a))) throw new JwtError("audience mismatch", "audience");
   }
+  if (opts.subject !== undefined && payload.sub !== opts.subject)
+    throw new JwtError("subject mismatch", "subject");
+  if (opts.jwtid !== undefined && payload.jti !== opts.jwtid)
+    throw new JwtError("jti mismatch", "jti");
   if (opts.requireTyp !== undefined && payload.typ !== opts.requireTyp)
     throw new JwtError(`token type mismatch (expected ${opts.requireTyp})`, "malformed");
   return payload;
@@ -247,10 +273,33 @@ export function importSpki(pem: string, alg: Algorithm): Promise<CryptoKey> {
   return getSubtle().importKey("spki", pemToDer(pem) as unknown as BufferSource, subtleImportAlgo(alg), false, ["verify"]);
 }
 
-/** Import a JWK (public or private) for verify/sign. */
-export function importJwk(jwk: JsonWebKey, alg: Algorithm): Promise<CryptoKey> {
+/**
+ * Import a JWK (public or private) for verify/sign. Supports RS*, ES* and EdDSA.
+ * Pass `extractable: true` if you intend to re-export it with {@link exportJwk}.
+ */
+export function importJwk(jwk: JsonWebKey, alg: Algorithm, extractable = false): Promise<CryptoKey> {
   const usage: KeyUsage[] = jwk.d ? ["sign"] : ["verify"];
-  return getSubtle().importKey("jwk", jwk, subtleImportAlgo(alg), false, usage);
+  return getSubtle().importKey("jwk", jwk, subtleImportAlgo(alg), extractable, usage);
+}
+
+/**
+ * Export a CryptoKey to a JWK. The key must have been created/imported as
+ * extractable (see {@link generateKeyPair}, or `importJwk(jwk, alg, true)`).
+ */
+export async function exportJwk(key: CryptoKey): Promise<JsonWebKey> {
+  return getSubtle().exportKey("jwk", key);
+}
+
+/**
+ * Generate an extractable asymmetric key pair for an `alg` (RS*, ES* or EdDSA).
+ * Handy for tests, key rotation and building a JWKS with {@link exportJwk}.
+ */
+export async function generateKeyPair(alg: Algorithm): Promise<CryptoKeyPair> {
+  if (alg.startsWith("HS")) throw new JwtError(`${alg} is symmetric — use an HMAC secret, not a key pair`, "algorithm");
+  const params: RsaHashedKeyGenParams | EcKeyGenParams | { name: string } = alg.startsWith("RS")
+    ? { name: "RSASSA-PKCS1-v1_5", hash: ALG_HASH[alg], modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]) }
+    : subtleImportAlgo(alg) as EcKeyGenParams | { name: string };
+  return getSubtle().generateKey(params as EcKeyGenParams, true, ["sign", "verify"]);
 }
 
 export interface JwksOptions {
@@ -293,6 +342,14 @@ export function createRemoteJWKS(url: string, opts: JwksOptions = {}): KeyResolv
     return ck;
   };
 }
+
+export {
+  createKeySet,
+  resolveKey,
+  type Jwks,
+  type KeySetEntry,
+  type KeySetOptions,
+} from "./keyset";
 
 /* ------------------------------ refresh-token flow ------------------------------ */
 

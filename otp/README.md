@@ -20,6 +20,8 @@
 - ⏱️ `timeRemaining()` for countdown UIs
 - ⚡ Zero dependencies · 🌍 isomorphic (Web Crypto) · 📦 ESM + CJS · fully typed
 
+> **New in 1.2.0** — `parseOtpauthUri()` (the inverse of `keyuri`, so you can import a pasted/scanned URI), and an options-object `generateRecoveryCodes()` / `verifyRecoveryCode()` pair with configurable count/length/format that returns the **remaining** hashes on use. SHA-256/512 and 6/7/8-digit codes, ±window step reporting and base32 helpers have always been here — see below.
+
 ## Install
 
 ```bash
@@ -103,6 +105,54 @@ user.lastTotpStep = step;
 const { codes, hashes } = await generateBackupCodes(10);
 const i = await verifyBackupCode(entered, hashes);   // -1 = no match; else remove hashes[i]
 ```
+
+## New in 1.2.0 — import URIs & configurable recovery codes
+
+### Parse an `otpauth://` URI
+
+`parseOtpauthUri` is the inverse of `keyuri` — round-trip a URI a user pasted or scanned back into its parts (pairs with [`@lacspace/qr`](https://www.npmjs.com/package/@lacspace/qr) to render the QR).
+
+```ts
+import { keyuri, parseOtpauthUri } from "@lacspace/otp";
+
+const uri = keyuri({ secret, label: "user@app.com", issuer: "Lacspace" });
+const parsed = parseOtpauthUri(uri);
+// { type: "totp", label: "user@app.com", issuer: "Lacspace",
+//   secret, algorithm: "SHA-1", digits: 6, period: 30 }
+```
+
+### Recovery codes (configurable count / length / format)
+
+```ts
+import { generateRecoveryCodes, verifyRecoveryCode } from "@lacspace/otp";
+
+// Show `codes` to the user ONCE; store `hashes` (SHA-256).
+const { codes, hashes } = await generateRecoveryCodes({ count: 10, format: "alphanumeric" });
+
+// Verify + consume in one step — persist `remaining` for single-use.
+const res = await verifyRecoveryCode(entered, hashes);
+if (!res.ok) throw new Error("invalid recovery code");
+user.recoveryHashes = res.remaining;   // the used hash is gone
+```
+
+`generateRecoveryCodes({ count?, groups?, groupLength?, format?, separator? })` — `format` is `"alphanumeric"` (default, unambiguous), `"numeric"` or `"hex"`. `verifyRecoveryCode(code, hashedSet)` → `{ ok, index, remaining }` (input case/separator-insensitive).
+
+### API
+
+| Function | Description |
+| --- | --- |
+| `totp` / `hotp` | Compute a TOTP / HOTP code (`{ digits, algorithm, period }`) |
+| `verifyTotp` / `verifyHotp` | Verify + report the matched step/counter (`{ window }`) for drift/resync |
+| `verifyTotpOnce` | Replay-safe TOTP verify (rejects re-used steps) |
+| `keyuri` | Build an `otpauth://` provisioning URI |
+| `parseOtpauthUri` | **1.2.0** — parse an `otpauth://` URI back into its parts |
+| `generateSecret` · `base32Encode` · `base32Decode` | Secret + base32 helpers |
+| `setupTotp` | One-call enrollment (secret + URI) |
+| `generateBackupCodes` / `verifyBackupCode` | Backup codes (returns matched index) |
+| `generateRecoveryCodes` / `verifyRecoveryCode` | **1.2.0** — recovery codes (returns remaining set) |
+| `timeRemaining` | Seconds until the current code rolls over |
+
+> All code functions accept `algorithm: "SHA-1" | "SHA-256" | "SHA-512"` and `digits: 6 | 7 | 8`; defaults (`SHA-1`, 6 digits, 30s) are unchanged and match Google Authenticator.
 
 ## Licensing
 

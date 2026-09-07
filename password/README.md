@@ -19,6 +19,13 @@
 - 📏 `strength` — quick 0–4 score with warnings
 - ⚡ Zero deps (bar `@lacspace/crypto`) · 🌍 isomorphic · fully typed
 
+> **New in 1.1.0** — all additive, backward compatible:
+> - 🛡️ `isPwned` — opt-in k-anonymity breach check (HaveIBeenPwned range API) with an **injectable `fetchImpl`** (off by default, never hits the network in tests)
+> - 🧠 `estimateStrength` — zxcvbn-style estimate with entropy bits, detected patterns and suggestions
+> - 📋 `checkPolicy` — configurable policy evaluator → `{ valid, failures }`
+> - 🎲 `generatePassphrase` / `generatePassword` — cryptographically-random diceware passphrases and class-controlled passwords
+> - `needsRehash` now also accepts a `{ iterations }` params object (the number form is unchanged)
+
 ## Install
 
 ```bash
@@ -42,14 +49,45 @@ strength("password");        // { score: 0, warnings: ["This is a very common pa
 strength("Tr0ub4dour&3xy");  // { score: 4, warnings: [] }
 ```
 
+### New in 1.1.0
+
+```ts
+import {
+  isPwned, estimateStrength, checkPolicy,
+  generatePassphrase, generatePassword,
+} from "@lacspace/password";
+
+// 1) Breach check via k-anonymity — opt-in, injectable fetch (defaults to global fetch).
+const count = await isPwned("password123", { fetchImpl: fetch });
+if (count > 0) reject("This password has appeared in data breaches.");
+
+// 2) zxcvbn-style estimate.
+estimateStrength("Tr0ub4dour&3xy");
+// { score, entropyBits, patterns, warnings, suggestions }
+
+// 3) Configurable policy → { valid, failures }.
+checkPolicy("hunter2", { minLength: 12, requireSymbol: true, minScore: 3 });
+// { valid: false, failures: ["minLength", "requireSymbol", "minScore"] }
+checkPolicy("s3cret", { disallowUserInfo: true }, { userInputs: ["alice@acme.com"] });
+
+// 4) Cryptographically-random generators.
+generatePassphrase({ words: 6, separator: "-", capitalize: true });
+generatePassword({ length: 20, symbols: false });
+```
+
 ## API
 
 | Export | Description |
 | --- | --- |
 | `hash(password, opts?)` | PHC-string hash (`iterations`, `saltBytes`) |
 | `verify(password, stored)` | constant-time check |
-| `needsRehash(stored, iterations?)` | true if below target work factor |
+| `needsRehash(stored, iterations \| { iterations }?)` | true if below target work factor |
 | `strength(password)` | `{ score, length, warnings }` |
+| `isPwned(password, { fetchImpl?, baseUrl? })` | breach count via k-anonymity (opt-in, injectable fetch) |
+| `estimateStrength(password)` | `{ score, entropyBits, patterns, warnings, suggestions }` |
+| `checkPolicy(password, policy?, { userInputs? })` | `{ valid, failures }` policy evaluator |
+| `generatePassphrase(opts?)` | random diceware passphrase (`words`, `separator`, `capitalize`, `includeNumber`, `wordlist`) |
+| `generatePassword(opts?)` | random password (`length`, class toggles, `avoidAmbiguous`) |
 
 ## The Lacspace Security Kit
 

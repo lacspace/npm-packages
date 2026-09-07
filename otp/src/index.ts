@@ -339,3 +339,19 @@ export async function verifyBackupCode(code: string, hashes: string[]): Promise<
   }
   return match;
 }
+
+/* ------------------------------ new in 1.2.0 ------------------------------ */
+
+// otpauth:// URI parser — the inverse of `keyuri` (build a URI with `keyuri`).
+export { parseOtpauthUri } from "./otpauth";
+export type { ParsedOtpauthUri } from "./otpauth";
+
+// Recovery codes with a configurable options-object API + single-use verify
+// that reports the remaining hashes.
+export { generateRecoveryCodes, verifyRecoveryCode } from "./recovery";
+export type {
+  RecoveryCodeFormat,
+  RecoveryCodesOptions,
+  RecoveryCodesResult,
+  RecoveryCodeVerification,
+} from "./recovery";

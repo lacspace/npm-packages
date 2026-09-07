@@ -12,13 +12,46 @@
 
 </div>
 
-> Sign and verify **HS256 / HS384 / HS512** JWTs over Web Crypto with strict expiry / not-before / issuer / audience checks and constant-time signature comparison. Isomorphic — runs on edge and workers where the `jsonwebtoken` package can't. Plus opaque and CSRF tokens.
+> Sign and verify **HS · RS · ES · EdDSA** JWTs over Web Crypto with strict expiry / not-before / issuer / audience / subject / jti checks and constant-time signature comparison. Isomorphic — runs on edge and workers where the `jsonwebtoken` package can't. Plus JWKS-by-`kid` key rotation, opaque and CSRF tokens.
 
 - 🎟️ `sign` / `verify` / `decode` with typed claims
-- ⏱️ `exp` / `nbf` / `iat`, `issuer`, `audience`, `clockTolerance`
-- 🧯 Typed `JwtError` with a `code` (`expired`, `signature`, `audience`…)
+- 🔑 **HS256/384/512 · RS256/384/512 · ES256/384/512 · EdDSA (Ed25519)**
+- 🗝️ **JWK & JWKS** — `importJwk` / `exportJwk` / `generateKeyPair`, `createKeySet` / `resolveKey` pick a key by `kid`
+- ⏱️ `exp` / `nbf` / `iat`, `issuer`, `audience`, `subject`, `jwtid`, `clockTolerance`
+- 🧯 Typed `JwtError` with a `code` (`expired`, `signature`, `audience`, `subject`, `jti`, `key`…)
 - 🎲 `randomToken` / `csrfToken`
 - ⚡ Zero deps (bar `@lacspace/crypto`) · 🌍 isomorphic · fully typed
+
+## New in 1.4 — EdDSA, JWK/JWKS export & key rotation
+
+```ts
+import { sign, verify, generateKeyPair, exportJwk, importJwk, createKeySet, resolveKey } from "@lacspace/jwt";
+
+// EdDSA (Ed25519) — modern, tiny signatures
+const { privateKey, publicKey } = await generateKeyPair("EdDSA");
+const token = await sign({ sub: "u1" }, privateKey, { algorithm: "EdDSA", keyId: "k1" });
+await verify(token, publicKey, { algorithms: ["EdDSA"] });
+
+// Export a public key to a JWK to publish in your JWKS
+const jwk = { ...(await exportJwk(publicKey)), kid: "k1", alg: "EdDSA" };
+
+// Key rotation / JWKS: verify against MULTIPLE keys, selected by the token's `kid`
+const keyset = createKeySet({ keys: [jwk /* …more keys… */ ] });
+await verify(token, keyset, { algorithms: ["EdDSA"] });
+
+// Rotate HMAC secrets the same way (tagged by kid)
+const hmacSet = createKeySet([{ kid: "k1", key: SECRET_1 }, { kid: "k2", key: SECRET_2 }]);
+
+// Remote JWKS with an INJECTABLE fetch (off by default — never hits the network on its own)
+const remote = createKeySet([], { url: "https://issuer/.well-known/jwks.json", fetchImpl: fetch });
+
+// Custom protected header fields (typ / cty / any), plus subject & jti claim checks
+await sign({ sub: "u1" }, secret, { header: { typ: "at+jwt", cty: "example" } });
+await verify(token, secret, { subject: "u1", jwtid: "abc", clockTolerance: 30 });
+```
+
+`resolveKey(jwks, { kid, alg })` is the low-level JWK selector. Everything is additive:
+existing `sign`/`verify` calls and the `HS*/RS*/ES*` algorithms are unchanged.
 
 ## Install
 
@@ -57,10 +90,16 @@ csrfToken();     // CSRF token
 
 | Export | Description |
 | --- | --- |
-| `sign(payload, secret, opts?)` | `algorithm`, `expiresIn`, `issuer`, `audience`, `subject` |
-| `verify(token, secret, opts?)` | throws `JwtError`; checks sig + claims |
+| `sign(payload, secret, opts?)` | `algorithm`, `expiresIn`, `issuer`, `audience`, `subject`, `keyId`, `header` |
+| `verify(token, secret, opts?)` | throws `JwtError`; checks sig + claims (`issuer`, `audience`, `subject`, `jwtid`, `clockTolerance`, `requireTyp`) |
 | `decode(token)` | header + payload, **no** verification |
+| `generateKeyPair(alg)` | extractable RS*/ES*/EdDSA key pair (tests, rotation, JWKS) |
+| `importJwk` / `exportJwk` / `importPkcs8` / `importSpki` | key import/export (RS*/ES*/EdDSA) |
+| `createKeySet(source, opts?)` | resolver that picks a key by `kid` — JWKS, rotation, injectable remote `fetchImpl` |
+| `resolveKey(jwks, { kid, alg })` | select a single JWK from a set |
 | `randomToken(bytes?)` / `csrfToken()` | secure random tokens |
+
+**Algorithms:** `HS256/384/512`, `RS256/384/512`, `ES256/384/512`, `EdDSA` (Ed25519).
 
 ## The Lacspace Security Kit
 

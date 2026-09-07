@@ -18,7 +18,12 @@
 - 📊 `assuranceLevel` — AAL1 / AAL2 / AAL3 from factor types
 - 🎯 Policies by min factors, min AAL, and required types
 - ✅ `verifyTotpFactor` convenience (wraps `@lacspace/otp`)
+- 🆕 Enrollment flow, step-up decisions, lockout policy, trusted-device tokens, recovery codes (**New in 1.2.0**)
 - ⚡ Zero deps (bar `@lacspace/otp`) · 🌍 isomorphic · fully typed
+
+> **New in 1.2.0** — adapter-based flow helpers, all self-contained (no new dependencies):
+> `beginEnrollment`/`completeEnrollment`, `requireStepUp`, `evaluateLockout`, `issueTrustedDevice`/`verifyTrustedDevice`,
+> and a dependency-free recovery-code factor (`generateRecoveryCodes`/`verifyRecoveryCode`/`consumeRecoveryCode`).
 
 ## Install
 
@@ -93,6 +98,80 @@ const session2 = MfaSession.fromJSON(config, JSON.parse(saved));
 // Step-up windows: verified factors expire after factorTtlMs
 const s = mfaSession({ factors, policy: { minAAL: 2 }, factorTtlMs: 5 * 60_000 });
 ```
+
+## New in 1.2.0 — enrollment, step-up, lockout, trusted devices & recovery codes
+
+All additive, zero new dependencies, and **adapter-based** — you own the crypto/verification, these helpers own the flow and the data shapes.
+
+### Enrollment flow (`started → challenged → confirmed`)
+
+```ts
+import { beginEnrollment, challengeEnrollment, completeEnrollment } from "@lacspace/mfa";
+
+let en = beginEnrollment({ id: "totp", type: "possession" });
+en = challengeEnrollment(en, totpSecret);              // attach material you generated
+const { state, record } = completeEnrollment(en, userProvedIt);
+// record = { factorId, type, secret, enrolledAt } — persist it however you like
+```
+
+### Step-up authentication
+
+```ts
+import { requireStepUp } from "@lacspace/mfa";
+
+const decision = requireStepUp(session, { minAAL: 2, maxAgeMs: 5 * 60_000, requireTypes: ["inherence"] });
+if (decision.required) promptForFactor(decision.reasons); // ["insufficient-aal" | "stale" | "missing-type" | ...]
+```
+
+### Lockout / rate-limit policy (pure, injectable clock)
+
+```ts
+import { evaluateLockout, recordFailure, recordSuccess, initialLockoutState } from "@lacspace/mfa";
+
+const policy = { maxAttempts: 5, cooldownMs: 30_000, backoffFactor: 2, maxCooldownMs: 15 * 60_000 };
+let state = loadState() ?? initialLockoutState();
+
+const { allowed, retryAfter, remaining } = evaluateLockout(state, policy, Date.now());
+if (!allowed) throw new Error(`locked — retry in ${retryAfter}ms`);
+state = ok ? recordSuccess() : recordFailure(state, policy, Date.now());
+```
+
+### Trusted-device tokens (Web Crypto HMAC, injectable secret)
+
+```ts
+import { issueTrustedDevice, verifyTrustedDevice } from "@lacspace/mfa";
+
+const token = await issueTrustedDevice({ sub: userId, device: deviceId, secret: env.DEVICE_SECRET, ttlMs: 30 * 864e5 });
+// later, on a new login:
+const claims = await verifyTrustedDevice(token, env.DEVICE_SECRET, { sub: userId, device: deviceId });
+if (claims) skipMfa(); // valid, unexpired, matches this user + device
+```
+
+### Recovery-code factor (self-contained, salted SHA-256)
+
+```ts
+import { generateRecoveryCodes, consumeRecoveryCode } from "@lacspace/mfa";
+
+const { codes, hashes } = await generateRecoveryCodes({ count: 10 }); // show `codes` once, store `hashes`
+const { consumed, remaining } = await consumeRecoveryCode(input, hashes); // single-use; persist `remaining`
+```
+
+### API added in 1.2.0
+
+| Export | Signature | Does |
+| --- | --- | --- |
+| `beginEnrollment` | `(factor, opts?) → EnrollmentState` | Start enrolling a factor |
+| `challengeEnrollment` | `(state, challenge, opts?) → EnrollmentState` | Attach challenge material |
+| `completeEnrollment` | `(state, verified, opts?) → { state, record? }` | Confirm/fail, yield stored record |
+| `requireStepUp` | `(session, policy?) → StepUpDecision` | Whether a fresh challenge is needed |
+| `evaluateLockout` | `(state, policy?, now?) → { allowed, retryAfter, remaining }` | Pure lockout verdict |
+| `recordFailure` / `recordSuccess` | `(state, policy?, now?) → state` / `() → state` | Advance lockout state |
+| `initialLockoutState` | `() → LockoutStateData` | Fresh lockout counter |
+| `issueTrustedDevice` | `(opts) → Promise<string>` | Signed remember-device token |
+| `verifyTrustedDevice` | `(token, secret, opts?) → Promise<claims \| null>` | Verify token + expiry |
+| `generateRecoveryCodes` | `(opts?) → Promise<{ codes, hashes }>` | Mint recovery codes |
+| `verifyRecoveryCode` | `(code, hashes) → Promise<number>` | Matched index or -1 |
+| `consumeRecoveryCode` | `(code, hashes) → Promise<{ consumed, index, remaining }>` | Single-use consume |
 
 ## Licensing
 

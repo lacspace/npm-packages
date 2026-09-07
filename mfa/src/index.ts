@@ -189,3 +189,58 @@ export async function verifyBackupCodeFactor(code: string, hashes: string[]): Pr
 export function verifyPasskeyFactor(webauthnVerified: boolean): boolean {
   return webauthnVerified === true;
 }
+
+/* --------------------------------------------------------------------------
+ * New in 1.2.0 — adapter-based flow helpers (all self-contained, zero new deps)
+ * ------------------------------------------------------------------------ */
+
+/** Enrollment flow: `beginEnrollment` / `challengeEnrollment` / `completeEnrollment`. */
+export {
+  beginEnrollment,
+  challengeEnrollment,
+  completeEnrollment,
+  type EnrollmentStatus,
+  type EnrollmentState,
+  type EnrollmentRecord,
+  type EnrollmentClockOptions,
+  type CompleteEnrollmentOptions,
+} from "./enrollment";
+
+/** Step-up authentication: `requireStepUp`. */
+export {
+  requireStepUp,
+  type StepUpPolicy,
+  type StepUpDecision,
+  type StepUpReason,
+} from "./stepup";
+
+/** Lockout / rate-limit policy: `evaluateLockout` / `recordFailure` / `recordSuccess`. */
+export {
+  evaluateLockout,
+  recordFailure,
+  recordSuccess,
+  initialLockoutState,
+  type LockoutPolicy,
+  type LockoutStateData,
+  type LockoutDecision,
+} from "./lockout";
+
+/** Trusted-device tokens: `issueTrustedDevice` / `verifyTrustedDevice`. */
+export {
+  issueTrustedDevice,
+  verifyTrustedDevice,
+  type TrustedDeviceClaims,
+  type IssueTrustedDeviceOptions,
+  type VerifyTrustedDeviceOptions,
+} from "./trusted-device";
+
+/** Recovery-code factor: `generateRecoveryCodes` / `verifyRecoveryCode` / `consumeRecoveryCode`. */
+export {
+  generateRecoveryCodes,
+  verifyRecoveryCode,
+  consumeRecoveryCode,
+  recoveryCodeFactorType,
+  type RecoveryCodeSet,
+  type GenerateRecoveryCodesOptions,
+  type ConsumeRecoveryResult,
+} from "./recovery";

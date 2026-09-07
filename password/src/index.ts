@@ -46,11 +46,27 @@ export async function verify(password: string, stored: string): Promise<boolean>
   return constantTimeEqual(derived, expected);
 }
 
-/** True if a stored hash used fewer iterations than `iterations` — rehash on next login. */
-export function needsRehash(stored: string, iterations = DEFAULT_ITERATIONS): boolean {
+/** Current PBKDF2 params to compare a stored hash against, for {@link needsRehash}. */
+export interface RehashParams {
+  /** Target iteration count. */
+  iterations?: number;
+}
+
+/**
+ * True if a stored hash should be upgraded on next successful login.
+ *
+ * Pass the target iteration count (backward-compatible) OR a {@link RehashParams}
+ * object; the hash needs a rehash when it used fewer iterations than the target
+ * (or is unparseable).
+ */
+export function needsRehash(
+  stored: string,
+  current: number | RehashParams = DEFAULT_ITERATIONS,
+): boolean {
+  const target = typeof current === "number" ? current : current.iterations ?? DEFAULT_ITERATIONS;
   const m = stored.match(/\$i=(\d+)\$/);
   if (!m) return true;
-  return parseInt(m[1]!, 10) < iterations;
+  return parseInt(m[1]!, 10) < target;
 }
 
 export interface Strength {
@@ -94,3 +110,14 @@ export function strength(password: string): Strength {
 
   return { score: Math.max(0, Math.min(4, score)) as Strength["score"], length, warnings };
 }
+
+// ── New in 1.1.0 ────────────────────────────────────────────────────────────
+export { isPwned } from "./breach";
+export type { FetchImpl, IsPwnedOptions } from "./breach";
+export { estimateStrength } from "./strength";
+export type { StrengthEstimate } from "./strength";
+export { checkPolicy } from "./policy";
+export type { PasswordPolicy, PolicyContext, PolicyResult } from "./policy";
+export { generatePassphrase, generatePassword } from "./generate";
+export type { PassphraseOptions, PasswordGenOptions } from "./generate";
+export { WORDLIST } from "./wordlist";

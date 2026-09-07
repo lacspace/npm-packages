@@ -285,3 +285,119 @@ export async function verifyToken(
     enc.encode(message),
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * Config presets (added in 1.1.0)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Gateway endpoint presets, grouped by environment — the login (redirect) page
+ * and the validate-txn API together in one place. `test` is the Connect IPS UAT
+ * sandbox; `prod` is production. Values are the same URLs as `LOGIN_URL` /
+ * `VALIDATE_URL`, exposed as a single preset for convenience.
+ *
+ * @example
+ * const { login, validate } = ENDPOINTS[env]; // env: "test" | "prod"
+ */
+export const ENDPOINTS: Record<Env, { login: string; validate: string }> = {
+  test: { login: LOGIN_URL.test, validate: VALIDATE_URL.test },
+  prod: { login: LOGIN_URL.prod, validate: VALIDATE_URL.prod },
+};
+
+/* ------------------------------------------------------------------ *
+ * Validation request builder (pure — no network) — added in 1.1.0
+ * ------------------------------------------------------------------ */
+
+/**
+ * The shape of a Connect IPS validate-txn API response. Connect IPS echoes the
+ * request identifiers and reports the transaction status. Fields beyond `status`
+ * are best-effort/optional — the gateway may add more — so treat unknown keys
+ * leniently. `status` is `"SUCCESS"` for a settled, verified transaction.
+ */
+export interface ValidateTxnResponse {
+  merchantId?: string;
+  appId?: string;
+  referenceId?: string;
+  txnAmt?: string | number;
+  /** `"SUCCESS"` when the transaction is settled/verified. */
+  status?: string;
+  statusDesc?: string;
+  transactionId?: string;
+  [key: string]: unknown;
+}
+
+/** The signed, ready-to-POST validate-txn request, built without any network. */
+export interface ValidationRequest {
+  /** The validate-txn API URL for the chosen environment. */
+  url: string;
+  method: "POST";
+  /** Headers to send — `Content-Type`, plus `Authorization` when credentials given. */
+  headers: Record<string, string>;
+  /** The exact JSON body (`merchantId`, `appId`, `referenceId`, `txnAmt`, `token`). */
+  body: {
+    merchantId: string;
+    appId: string;
+    referenceId: string;
+    txnAmt: string | number;
+    token: string;
+  };
+  /** The base64 RSA-SHA256 signature over the canonical validation message. */
+  token: string;
+}
+
+export interface BuildValidationRequestOptions {
+  /** Merchant RSA private key PEM (PKCS#8) used to sign the validation token. */
+  privateKeyPem: string;
+  /** Which gateway to target. Default "test" (UAT). */
+  env?: Env;
+  /** Optional creditor API username — when both user+password given, adds Basic auth. */
+  user?: string;
+  /** Optional creditor API password. */
+  password?: string;
+}
+
+/**
+ * Build (but do NOT send) the Connect IPS validate-txn request. Signs the exact
+ * same canonical `MERCHANTID=…,APPID=…,REFERENCEID=…,TXNAMT=…` message that
+ * `validateTxn()` signs, using the same RSA-SHA256 signer, and returns the URL,
+ * headers and JSON body ready to POST yourself (retries, logging, custom fetch,
+ * edge runtimes). Pure: performs cryptography but no network IO.
+ *
+ * @example
+ * const req = await buildValidationRequest(
+ *   { merchantId: "123", appId: "APP123", referenceId: "REF001", txnAmt: 100000 },
+ *   { privateKeyPem, env: "prod", user, password },
+ * );
+ * await fetch(req.url, { method: req.method, headers: req.headers, body: JSON.stringify(req.body) });
+ */
+export async function buildValidationRequest(
+  params: ValidateParams,
+  opts: BuildValidationRequestOptions,
+): Promise<ValidationRequest> {
+  const token = await signMessage(validateMessage(params), opts.privateKeyPem);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (opts.user != null && opts.password != null) {
+    headers.Authorization = `Basic ${bytesToBase64(enc.encode(`${opts.user}:${opts.password}`))}`;
+  }
+  return {
+    url: VALIDATE_URL[opts.env ?? "test"],
+    method: "POST",
+    headers,
+    body: {
+      merchantId: String(params.merchantId),
+      appId: String(params.appId),
+      referenceId: String(params.referenceId),
+      txnAmt: params.txnAmt,
+      token,
+    },
+    token,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Re-exported additive helpers (added in 1.1.0)
+ * ------------------------------------------------------------------ */
+
+export { paymentTokenMessage, validationTokenMessage } from "./messages";
+export { validateRequest } from "./validation";
+export type { ValidationResult } from "./validation";

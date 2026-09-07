@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/connectips",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Connect IPS (Nepal) merchant integration over Web Crypto — sign the redirect transaction token with your RSA private key and validate transactions server-to-server. Zero-dep, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,12 @@
     "web-crypto",
     "isomorphic",
     "edge",
-    "typescript"
+    "typescript",
+    "validate-txn",
+    "transaction-validation",
+    "signature-verification",
+    "paisa",
+    "payment-validation"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

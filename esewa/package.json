@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/esewa",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "eSewa ePay v2 (Nepal) payment gateway toolkit over Web Crypto — HMAC-SHA256 signing, form building, response verification and transaction status checks. Zero-dependency, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,12 @@
     "khalti",
     "edge",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "transaction-status",
+    "transaction-uuid",
+    "amount-validation",
+    "signature-verification",
+    "csprng"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

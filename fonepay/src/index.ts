@@ -219,3 +219,24 @@ export async function verifyResponse(resp: ResponseParams, secret: string): Prom
   const expected = await hmacHex(secret, message);
   return { valid: timingSafeEqual(expected, String(resp.DV).toLowerCase()) };
 }
+
+/* ------------------------------------------------------------------ *
+ * Low-level DV primitive (added in 1.1.0 — additive)
+ *
+ * The exact HMAC-SHA512-hex primitive used to compute every Fonepay `DV`
+ * above, exposed so custom / QR DV builders can compose the SAME hash rather
+ * than re-implementing it. This does not change any existing computation.
+ * ------------------------------------------------------------------ */
+
+/**
+ * HMAC-SHA512 of `message` under `secret`, as lowercase hex — the single
+ * primitive behind `signRequest` / `verifyResponse`. Low-level; most callers
+ * want `signRequest`, `buildRedirect` or `verifyResponse` instead.
+ */
+export async function dvHash(secret: string, message: string): Promise<string> {
+  return hmacHex(secret, message);
+}
+
+/* New additive helpers (validators, presets, form-post & QR builders). */
+export * from "./validate";
+export * from "./features";

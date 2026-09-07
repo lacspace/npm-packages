@@ -14,6 +14,8 @@
 
 > Integrate **eSewa** — Nepal's most-used payment gateway — the correct way. The signature eSewa demands (`HMAC-SHA256` over `total_amount,transaction_uuid,product_code`, base64) is trivial to get subtly wrong. This gets it right, builds the whole checkout form for you, verifies the signed response, and checks transaction status. Zero dependencies, isomorphic, fully typed.
 
+> **New in 1.2.0** — additive, fully backward compatible (the signing/verify logic is byte-for-byte unchanged): `validateAmounts()` (offline check that `amount+tax+service+delivery === total_amount`), `generateTransactionUuid()` / `isValidTransactionUuid()` (CSPRNG-minted, sign-safe ids), `buildStatusRequest()` + `parseStatusResponse()` / `isEsewaStatus()` (a pure, no-I/O status request builder and typed response parser), and `decodeResponse()` / `verifyDecodedResponse()` (typed decode of the success payload — `verifyDecodedResponse` composes the existing `verifyResponse`).
+
 - ✍️ **Correct signatures** — the exact `signed_field_names` message order, HMAC-SHA256, standard base64
 - 🧾 **Form builder** — a ready-to-POST `{ action, method, fields }` with every field + a valid signature
 - 🔎 **Verify responses** — decode & timing-safe-verify the base64 `data` payload eSewa returns on success
@@ -86,6 +88,44 @@ const status = await checkStatus(
 // → { status: "COMPLETE", ... }
 ```
 
+Prefer to run the request through your own `fetch`/cache/retry? Build it purely and parse the result into a typed shape — no network happens inside the library:
+
+```ts
+import { buildStatusRequest, parseStatusResponse } from "@lacspace/esewa";
+
+const { url, method } = buildStatusRequest(
+  { product_code: "EPAYTEST", total_amount: 100, transaction_uuid: "11-201" },
+  { env: "test" },
+);
+const parsed = parseStatusResponse(await (await fetch(url, { method })).json());
+if (parsed.status === "COMPLETE") fulfilOrder(parsed.transaction_uuid!); // status: EsewaStatus
+```
+
+## New helpers (1.2.0)
+
+```ts
+import {
+  generateTransactionUuid,
+  validateAmounts,
+  decodeResponse,
+  verifyDecodedResponse,
+} from "@lacspace/esewa";
+
+// 1. Mint a unique, sign-safe transaction_uuid with the platform CSPRNG.
+const transactionUuid = generateTransactionUuid({ prefix: "order240" });
+
+// 2. Guard your amounts BEFORE building the form (pure, offline).
+const check = validateAmounts({ amount: 100, taxAmount: 13, totalAmount: 113 });
+if (!check.ok) throw new Error(check.reason);
+
+// 3. Decode the success payload into a typed object, then verify (composed).
+const { valid, data } = await verifyDecodedResponse(rawData, secret);
+if (valid && data.status === "COMPLETE") fulfilOrder(data.transaction_uuid!);
+
+// decodeResponse() decodes WITHOUT verifying — use only to peek untrusted fields.
+const untrusted = decodeResponse(rawData); // EsewaSuccessData | null
+```
+
 ## API
 
 | Export | Description |
@@ -95,6 +135,14 @@ const status = await checkStatus(
 | `buildForm(input, { secret, env? })` | `{ action, method, fields }` ready to POST |
 | `verifyResponse(base64Data, secret)` | `{ valid, data }` — decode + timing-safe verify |
 | `checkStatus(params, { env?, fetch? })` | GET the status API, returns parsed JSON |
+| `buildStatusRequest(params, { env? })` | pure `{ url, method, params }` for the status API — no I/O |
+| `parseStatusResponse(json)` | narrow untyped status JSON → typed `StatusResponse` (`.status`, `.ref_id`, `.raw`…) |
+| `isEsewaStatus(x)` | type-guard for the documented `EsewaStatus` values |
+| `validateAmounts({ amount, taxAmount?, ..., totalAmount? })` | `{ ok, reason? }` — amounts non-negative + sum to `total_amount` |
+| `generateTransactionUuid({ length?, prefix? })` | CSPRNG-minted, sign-safe `transaction_uuid` |
+| `isValidTransactionUuid(uuid)` | validate an id's charset/length |
+| `decodeResponse(base64Data)` | typed decode of the success payload → `EsewaSuccessData \| null` (no verify) |
+| `verifyDecodedResponse(base64Data, secret)` | `{ valid, data }` — composes `verifyResponse`, typed `data` |
 | `ESEWA_FORM_URLS` / `ESEWA_STATUS_URLS` | `{ test, prod }` endpoint maps |
 | `ESEWA_TEST_SECRET` / `ESEWA_TEST_PRODUCT_CODE` | sandbox credentials |
 | `ESEWA_SIGNED_FIELD_NAMES` | `"total_amount,transaction_uuid,product_code"` |

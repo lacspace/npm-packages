@@ -20,6 +20,8 @@
 - 🛡️ Built on **Web Crypto** (`globalThis.crypto.subtle`) — never hand-rolled cryptography
 - ⚡ Isomorphic — Node 20+, edge runtimes & browsers · 📦 ESM + CJS · fully typed · **zero dependencies**
 
+> **New in 1.1.0** — additive, fully backward compatible. Pure canonical message-string builders you can inspect (`paymentTokenMessage`, `validationTokenMessage`), a no-network `buildValidationRequest()` that signs the validate-txn payload for you to POST yourself, offline field validation (`validateRequest`), a `ValidateTxnResponse` type, and an `ENDPOINTS` preset. The existing `signToken` / `buildForm` / `validateTxn` signing is unchanged.
+
 ## Install
 
 ```bash
@@ -82,6 +84,33 @@ import { signToken } from "@lacspace/connectips";
 const token = await signToken(params, privateKeyPem); // base64 RSA-SHA256 signature
 ```
 
+## Validate without our fetch (build the request yourself)
+
+```ts
+import { buildValidationRequest } from "@lacspace/connectips";
+
+const req = await buildValidationRequest(
+  { merchantId: "123", appId: "APP123", referenceId: "REF001", txnAmt: 100000 },
+  { privateKeyPem, env: "prod", user, password }, // user+password → Basic auth header
+);
+// { url, method: "POST", headers, body: { merchantId, appId, referenceId, txnAmt, token }, token }
+await fetch(req.url, { method: req.method, headers: req.headers, body: JSON.stringify(req.body) });
+```
+
+It signs the exact same canonical validation message as `validateTxn()`, but does no network — you own the request (retries, logging, custom runtimes).
+
+## Inspect the exact signed message + validate fields
+
+```ts
+import { paymentTokenMessage, validationTokenMessage, validateRequest } from "@lacspace/connectips";
+
+paymentTokenMessage(params);      // "MERCHANTID=…,…,PARTICULARS=…,TOKEN=TOKEN" (exactly what signToken signs)
+validationTokenMessage(vparams);  // "MERCHANTID=…,APPID=…,REFERENCEID=…,TXNAMT=…"
+
+const { valid, errors } = validateRequest(params); // paisa integer TXNAMT, DD-MM-YYYY date, id charset, NPR…
+if (!valid) throw new Error(errors.join("; "));
+```
+
 ## API
 
 | Export | Description |
@@ -90,7 +119,12 @@ const token = await signToken(params, privateKeyPem); // base64 RSA-SHA256 signa
 | `buildForm(params, { privateKeyPem, env? })` | `{ action, method: "POST", fields }` — params + signed `TOKEN`. |
 | `validateTxn(params, { user, password, privateKeyPem, env?, fetch? })` | POSTs the validation payload with Basic auth; returns the parsed response. |
 | `verifyToken(message, signatureB64, publicKeyPem)` | Verify an RSA-SHA256 signature against an SPKI PEM public key. |
-| `LOGIN_URL`, `VALIDATE_URL` | `{ test, prod }` endpoint maps. |
+| `buildValidationRequest(params, { privateKeyPem, env?, user?, password? })` | **1.1.0** — pure (no network) signed validate-txn request `{ url, method, headers, body, token }`. |
+| `paymentTokenMessage(params)` | **1.1.0** — the exact canonical redirect message string that gets signed. |
+| `validationTokenMessage(params)` | **1.1.0** — the exact canonical validation message string that gets signed. |
+| `validateRequest(params)` | **1.1.0** — pure field validation → `{ valid, errors }` (paisa TXNAMT, DD-MM-YYYY, id charset, NPR). |
+| `LOGIN_URL`, `VALIDATE_URL`, `ENDPOINTS` | `{ test, prod }` endpoint maps; `ENDPOINTS[env]` groups `{ login, validate }`. |
+| `ValidateTxnResponse`, `ValidationResult`, `ValidationRequest` | **1.1.0** — response/result/request types. |
 
 `env` defaults to `"test"` (UAT). All signing uses your PKCS#8 PEM private key; all HTTP goes through the global `fetch` (injectable for tests).
 

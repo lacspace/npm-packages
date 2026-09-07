@@ -318,3 +318,23 @@ export async function checkStatus(
   const res = await doFetch(url, { method: "GET" });
   return res.json();
 }
+
+/* ------------------------------------------------------------------ *
+ * New in 1.2.0 — additive, backward-compatible helpers.
+ * Everything above is unchanged; the modules below only ADD API.
+ * ------------------------------------------------------------------ */
+
+// Amount validation — verify amount+tax+service+delivery === total_amount.
+export { validateAmounts } from "./amounts";
+export type { AmountFields, AmountValidation } from "./amounts";
+
+// transaction_uuid generation/validation via CSPRNG.
+export { generateTransactionUuid, isValidTransactionUuid } from "./uuid";
+
+// Pure status-request builder + typed status-response parser.
+export { buildStatusRequest, parseStatusResponse, isEsewaStatus } from "./status";
+export type { EsewaStatus, StatusRequest, StatusRequestParams, StatusResponse } from "./status";
+
+// Typed success-response decode + verify (composes verifyResponse).
+export { decodeResponse, verifyDecodedResponse } from "./response";
+export type { EsewaSuccessData, VerifyDecodedResult } from "./response";

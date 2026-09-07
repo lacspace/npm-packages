@@ -191,3 +191,31 @@ export async function initiate(
 export async function lookup(pidx: string, opts: KhaltiClientOpts): Promise<LookupResponse> {
   return post<LookupResponse>("/epayment/lookup/", { pidx }, opts);
 }
+
+/* ------------------------------------------------------------------ *
+ * Additive helpers (New in 1.1.0) — pure, zero-network utilities.
+ * These do NOT change how initiate()/lookup() send requests or amounts.
+ * ------------------------------------------------------------------ */
+
+export {
+  KHALTI_SANDBOX_BASE_URL,
+  KHALTI_PRODUCTION_BASE_URL,
+  buildAuthHeader,
+  baseUrlFor,
+} from "./config";
+
+export { buildInitiateBody, buildLookupBody } from "./builders";
+export type { BuildInitiateBodyInput } from "./builders";
+
+export { KHALTI_MIN_AMOUNT_PAISA, validateAmount } from "./amount";
+export type { ValidateAmountOptions, AmountValidationResult } from "./amount";
+
+export { parseCallbackParams, verifyCallback } from "./callback";
+export type {
+  KhaltiCallbackParams,
+  VerifyCallbackExpectation,
+  CallbackVerification,
+} from "./callback";
+
+export { generateOrderId } from "./idempotency";
+export type { GenerateOrderIdOptions } from "./idempotency";

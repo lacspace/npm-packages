@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/khalti",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Khalti KPG-2 (ePayment API v2, Nepal) client — initiate payments, look up status, typed errors and Key auth over global fetch. Zero-dependency, isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,13 @@
     "web-crypto",
     "edge",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "payment-verification",
+    "callback",
+    "idempotency",
+    "amount-validation",
+    "purchase-order-id",
+    "paisa"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

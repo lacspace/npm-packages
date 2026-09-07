@@ -14,6 +14,8 @@
 
 > A tiny, fully-typed client for **Khalti**'s KPG-2 (ePayment API v2) — Nepal's leading digital wallet. Two calls: `initiate()` to start a payment and get a redirect URL, and `lookup()` to verify the real status by `pidx`. Amounts in **paisa**, `Authorization: Key` auth, and Khalti's error bodies surfaced as a typed `KhaltiError`. Zero dependencies, isomorphic, injectable `fetch`.
 
+> **New in 1.1.0** — pure, zero-network helpers around the same live flow (nothing about `initiate()`/`lookup()` changed): request **builders** (`buildInitiateBody`, `buildLookupBody`), **amount validation** in paisa (`validateAmount`), **callback verification** (`parseCallbackParams`, `verifyCallback`), **config presets** (`KHALTI_SANDBOX_BASE_URL` / `KHALTI_PRODUCTION_BASE_URL`, `buildAuthHeader`), and a CSPRNG **`purchase_order_id` generator** (`generateOrderId`).
+
 - 🚀 **`initiate()`** — create a payment, get back `pidx` + `payment_url` to redirect to
 - 🔎 **`lookup()`** — the source of truth: verify status by `pidx` after the customer returns
 - 🧨 **Typed errors** — non-2xx responses throw `KhaltiError` with `status` + parsed `detail`
@@ -72,6 +74,42 @@ try {
 }
 ```
 
+## Helpers (New in 1.1.0) — pure, no network
+
+```ts
+import {
+  buildInitiateBody, buildLookupBody,
+  validateAmount, KHALTI_MIN_AMOUNT_PAISA,
+  parseCallbackParams, verifyCallback,
+  buildAuthHeader, KHALTI_SANDBOX_BASE_URL, KHALTI_PRODUCTION_BASE_URL,
+  generateOrderId,
+} from "@lacspace/khalti";
+
+// 1. Validate the amount (in paisa) before you send it.
+const check = validateAmount(1000, {
+  breakdown: [{ label: "Item", amount: 600 }, { label: "Tax", amount: 400 }],
+});
+if (!check.valid) throw new Error(check.errors.join("; "));
+
+// 2. Build a stable, unique order id + the initiate body (then POST it yourself, or pass to initiate()).
+const purchase_order_id = generateOrderId();            // "order-lk3n2p-9f1c0a7b3d5e2f18"
+const body = buildInitiateBody({
+  return_url: "https://myshop.np/khalti/return",
+  website_url: "https://myshop.np",
+  amount: 1000,
+  purchase_order_id,
+  purchase_order_name: "Test order",
+});
+
+// 3. When Khalti redirects back, shape + verify the callback (still confirm with lookup!).
+const params = parseCallbackParams(new URL(req.url).searchParams);
+const v = verifyCallback(params, { amount: 1000, purchase_order_id });
+if (v.matches && v.shouldLookup) {
+  const r = await lookup(v.pidx!, { secretKey });
+  if (r.status === "Completed") fulfilOrder(r.transaction_id);
+}
+```
+
 ## API
 
 | Export | Description |
@@ -81,8 +119,16 @@ try {
 | `KhaltiError` | thrown on non-2xx — `status` + parsed `detail` |
 | `KhaltiStatus` | union of Khalti payment statuses |
 | `KHALTI_BASE_URLS` | `{ test, prod }` base-URL map |
+| `buildInitiateBody(input)` · `buildLookupBody(pidx)` | pure builders for the initiate / lookup request bodies (paisa) |
+| `validateAmount(amount, { min?, max?, breakdown? })` | check paisa is an integer ≥ minimum, and that a breakdown sums to it → `{ valid, errors }` |
+| `KHALTI_MIN_AMOUNT_PAISA` | Khalti's documented minimum (`1000` = Rs. 10) |
+| `parseCallbackParams(query)` | normalise the redirect query (`URLSearchParams` or `req.query`) → typed `KhaltiCallbackParams` |
+| `verifyCallback(params, { amount?, purchase_order_id?, successStatuses? })` | flag amount/status/order mismatches → `{ matches, completed, mismatches, pidx, shouldLookup }` (never calls lookup) |
+| `KHALTI_SANDBOX_BASE_URL` · `KHALTI_PRODUCTION_BASE_URL` | named base-URL constants (same values as `KHALTI_BASE_URLS`) |
+| `buildAuthHeader(secretKey)` | `{ Authorization: "Key <secretKey>" }` |
+| `generateOrderId({ prefix?, timestamp?, bytes? })` | CSPRNG-backed unique `purchase_order_id` |
 
-`env` is `"test"` (default, `a.khalti.com`) or `"prod"` (`khalti.com`). All amounts are in **paisa** (NPR 10 → `1000`).
+`env` is `"test"` (default, `a.khalti.com`) or `"prod"` (`khalti.com`). All amounts are in **paisa** (NPR 10 → `1000`). The 1.1.0 helpers are all pure and never touch the network — `verifyCallback` shapes the callback for a `lookup()` but never calls it (the callback is not authoritative on its own).
 
 ## Licensing
 

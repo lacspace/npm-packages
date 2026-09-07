@@ -14,6 +14,8 @@
 
 > [Fonepay](https://fonepay.com/) merchant redirect ("Request-To-Pay") signs the request with an **HMAC-SHA512** data-validation field (`DV`) over the request values in an exact order, and returns a `DV` on the response you must verify the same way. This package computes both — correctly, in a few bytes.
 
+> **New in 1.1.0** — all additive, the existing DV/hash/sign/verify are byte-for-byte unchanged: `verifyResponseResult()` (verify with a failure reason), `buildFormPost()` (auto-submit form pieces), `buildQrRequest()` (dynamic-QR payload + DV), `validateRequest()` + field validators, `generatePrn()` (CSPRNG), `SANDBOX_GATEWAY_URL` / `LIVE_GATEWAY_URL` presets and the low-level `dvHash()` primitive.
+
 - 🔐 **HMAC-SHA512** (lowercase hex) over the fields in Fonepay's exact order
 - 🔁 `buildRedirect()` assembles the full urlencoded gateway URL (incl. `DV`)
 - ✅ `verifyResponse()` recomputes the response `DV` with a **constant-time** compare
@@ -78,6 +80,32 @@ import { signRequest } from "@lacspace/fonepay";
 const dv = await signRequest(params, secret); // 128-char lowercase hex
 ```
 
+## New helpers (1.1.0)
+
+```ts
+import {
+  verifyResponseResult, buildFormPost, buildQrRequest,
+  validateRequest, generatePrn, SANDBOX_GATEWAY_URL, LIVE_GATEWAY_URL,
+} from "@lacspace/fonepay";
+
+// 1. Verify with a reason on failure
+const { ok, reason } = await verifyResponseResult(query, secret);
+// reason: "missing-response" | "missing-dv" | "signature-mismatch"
+
+// 2. Auto-submitting HTML form instead of a redirect
+const { action, fields } = await buildFormPost(params, { secret, env: "prod" });
+// render <form method="POST" action={action}> with one hidden input per field
+
+// 3. Dynamic-QR (thirdparty) payload + its dataValidation DV
+const { params: qp, dv } = await buildQrRequest(
+  { merchantCode: "MERCHANT", amount: 1000, prn: generatePrn("QR-"), remarks1: "coffee" },
+  secret,
+);
+
+// 4. Validate before signing (pure, offline)
+const { valid, issues } = validateRequest(params);
+```
+
 ## API
 
 | Export | Description |
@@ -86,8 +114,18 @@ const dv = await signRequest(params, secret); // 128-char lowercase hex
 | `buildRedirect(params, { secret, env? })` | `{ url, params, dv }` — the full gateway URL with all fields + `DV`. |
 | `verifyResponse(resp, secret)` | `{ valid }` — constant-time verify of the response `DV`. |
 | `GATEWAY_URL` | `{ test, prod }` endpoint map. |
+| `dvHash(secret, message)` | Low-level: the exact HMAC-SHA512-hex primitive behind every `DV`. |
+| `verifyResponseResult(resp, secret)` | `{ ok, reason? }` — verify with a failure reason. Composes `verifyResponse`. |
+| `buildFormPost(params, { secret, env? })` | `{ action, fields, dv }` — pieces for an auto-submitting form POST. |
+| `buildQrRequest(qr, secret)` | `{ params, dv }` — dynamic-QR payload + `dataValidation`. |
+| `validateRequest(params)` | `{ valid, issues }` — PRN shape, amount (≤2 dp), `DT` MM/DD/YYYY, R1/R2 limits, PID/RU. |
+| `isValidAmount` / `isValidRequestDate` / `isValidPrn` | Individual field validators. |
+| `generatePrn(prefix?)` | CSPRNG-backed unique `PRN`. |
+| `SANDBOX_GATEWAY_URL` / `LIVE_GATEWAY_URL` / `FIELD_LIMITS` | Config presets. |
 
 `env` defaults to `"test"` (dev gateway). Keep your Fonepay **secret** on the server only.
+
+> The dynamic-QR field order (`merchantCode,amount,prn,remarks1,remarks2`) can vary by merchant onboarding — confirm it against your Fonepay thirdparty-QR API document before going live.
 
 ## Licensing
 

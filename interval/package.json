@@ -1,0 +1,64 @@
+{
+  "name": "@lacspace/interval",
+  "version": "1.0.0",
+  "description": "Time ranges, date iteration and business-day math — overlaps, merge, free/busy invert, eachDay/Week/Month, add/subtract business days. Zero-dependency, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "interval",
+    "date-range",
+    "time-range",
+    "date-interval",
+    "overlap",
+    "merge-intervals",
+    "free-busy",
+    "each-day",
+    "date-iteration",
+    "business-days",
+    "working-days",
+    "weekend",
+    "holidays",
+    "zero-dependency",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/interval",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "interval"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

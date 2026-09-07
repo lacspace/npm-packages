@@ -25,6 +25,8 @@
     "create-lacspace-seo",
     "crypto",
     "csv",
+    "datetime",
+    "duration",
     "email-templates",
     "email-validate",
     "email-verify",
@@ -42,6 +44,7 @@
     "id",
     "idempotency",
     "indicators",
+    "interval",
     "inventory",
     "invoice",
     "json-repair",
@@ -88,6 +91,7 @@
     "stream",
     "tax",
     "theme",
+    "timezone",
     "tokenizer",
     "ui",
     "validate",
@@ -118,7 +122,9 @@
     "build:aikit": "npm -w @lacspace/prompt run build && npm -w @lacspace/tokenizer run build && npm -w @lacspace/json-repair run build && npm -w @lacspace/chunk run build && npm -w @lacspace/stream run build && npm -w @lacspace/ai run build && npm -w @lacspace/ai-tools run build",
     "publish:aikit": "npm -w @lacspace/prompt publish --access public && npm -w @lacspace/tokenizer publish --access public && npm -w @lacspace/json-repair publish --access public && npm -w @lacspace/chunk publish --access public && npm -w @lacspace/stream publish --access public && npm -w @lacspace/ai publish --access public && npm -w @lacspace/ai-tools publish --access public",
     "build:testkit": "npm -w @lacspace/expect run build && npm -w @lacspace/spy run build && npm -w @lacspace/fixtures run build && npm -w @lacspace/snapshot run build",
-    "publish:testkit": "npm -w @lacspace/expect publish --access public && npm -w @lacspace/spy publish --access public && npm -w @lacspace/fixtures publish --access public && npm -w @lacspace/snapshot publish --access public"
+    "publish:testkit": "npm -w @lacspace/expect publish --access public && npm -w @lacspace/spy publish --access public && npm -w @lacspace/fixtures publish --access public && npm -w @lacspace/snapshot publish --access public",
+    "build:datekit": "npm -w @lacspace/datetime run build && npm -w @lacspace/duration run build && npm -w @lacspace/timezone run build && npm -w @lacspace/interval run build",
+    "publish:datekit": "npm -w @lacspace/datetime publish --access public && npm -w @lacspace/duration publish --access public && npm -w @lacspace/timezone publish --access public && npm -w @lacspace/interval publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

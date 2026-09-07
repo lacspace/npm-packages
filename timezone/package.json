@@ -1,0 +1,64 @@
+{
+  "name": "@lacspace/timezone",
+  "version": "1.0.0",
+  "description": "Zero-dependency, isomorphic IANA timezone toolkit built on Intl — DST-correct offsets, wall-clock parts, zoned↔UTC conversion, DST detection. No bundled tz database, always current.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "timezone",
+    "iana",
+    "intl",
+    "dst",
+    "utc-offset",
+    "getOffset",
+    "zoned-time",
+    "wall-clock",
+    "convert-timezone",
+    "supportedValuesOf",
+    "isomorphic",
+    "zero-dependency",
+    "typescript",
+    "date",
+    "time",
+    "tz"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/timezone",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "timezone"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

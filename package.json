@@ -30,6 +30,8 @@
     "email-verify",
     "env",
     "esewa",
+    "expect",
+    "fixtures",
     "flags",
     "fonepay",
     "form",
@@ -80,6 +82,8 @@
     "site-verify",
     "sitemap",
     "slugify",
+    "snapshot",
+    "spy",
     "store",
     "stream",
     "tax",
@@ -112,7 +116,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:aikit": "npm -w @lacspace/prompt run build && npm -w @lacspace/tokenizer run build && npm -w @lacspace/json-repair run build && npm -w @lacspace/chunk run build && npm -w @lacspace/stream run build && npm -w @lacspace/ai run build && npm -w @lacspace/ai-tools run build",
-    "publish:aikit": "npm -w @lacspace/prompt publish --access public && npm -w @lacspace/tokenizer publish --access public && npm -w @lacspace/json-repair publish --access public && npm -w @lacspace/chunk publish --access public && npm -w @lacspace/stream publish --access public && npm -w @lacspace/ai publish --access public && npm -w @lacspace/ai-tools publish --access public"
+    "publish:aikit": "npm -w @lacspace/prompt publish --access public && npm -w @lacspace/tokenizer publish --access public && npm -w @lacspace/json-repair publish --access public && npm -w @lacspace/chunk publish --access public && npm -w @lacspace/stream publish --access public && npm -w @lacspace/ai publish --access public && npm -w @lacspace/ai-tools publish --access public",
+    "build:testkit": "npm -w @lacspace/expect run build && npm -w @lacspace/spy run build && npm -w @lacspace/fixtures run build && npm -w @lacspace/snapshot run build",
+    "publish:testkit": "npm -w @lacspace/expect publish --access public && npm -w @lacspace/spy publish --access public && npm -w @lacspace/fixtures publish --access public && npm -w @lacspace/snapshot publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

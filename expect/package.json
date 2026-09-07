@@ -1,0 +1,67 @@
+{
+  "name": "@lacspace/expect",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency, runner-agnostic fluent assertion library — expect(...).toEqual/.toThrow/.resolves, asymmetric matchers, expect.extend and a deep-equal engine that handles Map, Set, typed arrays and circular refs. Isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "expect",
+    "assert",
+    "assertion",
+    "assertions",
+    "matchers",
+    "test",
+    "testing",
+    "deep-equal",
+    "deep-equality",
+    "fluent-assertions",
+    "custom-matchers",
+    "asymmetric-matchers",
+    "vitest",
+    "jest",
+    "node-test",
+    "browser",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/expect",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "expect"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

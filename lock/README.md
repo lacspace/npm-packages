@@ -19,6 +19,9 @@
 - 🔌 Pluggable `LockStore` (memory included)
 - ⚡ Zero dependencies · 🌍 isomorphic · fully typed
 
+> **New in 1.1.0** — all additive, the core `lockout()` path is unchanged:
+> **composite-key & multi-dimension** locking (throttle per-account **and** per-IP so account-spraying from one IP is caught), **progressive/tiered delay schedules** with an optional **hard lock**, **allow/deny lists**, a **CAPTCHA / step-up threshold** (`requiresChallenge`), an **`onLock` notify hook**, and `describe()` for UI. Clock is injectable for tests.
+
 ## Install
 
 ```bash
@@ -55,6 +58,73 @@ if (await verifyPassword(input, stored)) {
 | `MemoryLockStore` / `LockStore` | storage (bring your own for Redis) |
 
 `LockStatus` → `{ locked, attempts, remaining, retryAfterMs }`.
+
+## New in 1.1.0
+
+### Composite key & multi-dimension locking
+
+Lock on a composite key, or track two dimensions at once so spraying many accounts from one IP is still throttled by the IP dimension:
+
+```ts
+import { compositeKey, multiLockout } from "@lacspace/lock";
+
+// (a) one composite key (account + ip)
+const guard = lockout({ maxAttempts: 5 });
+await guard.record(compositeKey(email, ip));
+
+// (b) per-account AND per-IP at once — blocked if EITHER is locked
+const multi = multiLockout({
+  account: { maxAttempts: 5 },
+  ip: { maxAttempts: 50 },      // looser, but catches spray from one source
+});
+const s = await multi.record({ account: email, ip });
+if (s.locked) throw new Error(`Locked by ${s.lockedBy.join(", ")}`);
+```
+
+### Progressive / tiered delays + hard lock + step-up
+
+```ts
+import { progressiveLockout } from "@lacspace/lock";
+
+const guard = progressiveLockout({
+  schedule: [0, 0, 0, 1_000, 5_000, 30_000, 300_000], // 3 free, then 1s/5s/30s/5m
+  challengeAfter: 4,   // require a CAPTCHA before the hard lock
+  hardLockAfter: 8,    // terminal lock
+  hardLockMs: 86_400_000,
+  onLock: (e) => audit.log("locked", e),
+  now: () => Date.now(),   // injectable clock for tests
+});
+
+const st = await guard.record(email);
+if (st.requiresChallenge) return showCaptcha();
+if (st.locked) return retryAfter(st.retryAfterMs, st.nextAttemptAt);
+
+const ui = await guard.describe(email); // { locked, attemptsRemaining, retryAfter, level }
+```
+
+### Allow / deny lists (pure checks)
+
+```ts
+import { keyLists } from "@lacspace/lock";
+
+const lists = keyLists({
+  allow: ["10.0.0.1"],          // never locked
+  deny: ["1.2.3.4"],            // always treated as locked
+  denyMatch: (k) => k.endsWith(".evil"),
+});
+lists.decide(ip); // "allow" | "deny" | "none"
+```
+
+| Export | Description |
+| --- | --- |
+| `compositeKey(...parts)` | collision-safe composite key from parts |
+| `multiLockout(dims)` / `MultiLockout` | per-dimension guards; `check`/`record`/`reset` a `{ account, ip }` map; strictest combined `MultiLockStatus` (`+ dimensions`, `lockedBy`) |
+| `progressiveLockout(opts)` / `ProgressiveLockout` | tiered `schedule`, `hardLockAfter`/`hardLockMs`, `challengeAfter`, `onLock`, injectable `now`; `check`/`record`/`reset`/`describe`/`requiresChallenge` |
+| `describe(status)` | `{ locked, attemptsRemaining, retryAfter, level }` for UI |
+| `requiresChallenge(status)` | pure step-up check |
+| `keyLists(opts)` / `KeyLists` | `isAllowed`/`isDenied`/`decide` allow/deny checks |
+
+`ProgressiveStatus` → `{ locked, hardLocked, attempts, remaining, retryAfterMs, nextAttemptAt, requiresChallenge, level }`, where `level` ∈ `none | soft | challenge | locked | hard`.
 
 ## The Lacspace Security Kit
 

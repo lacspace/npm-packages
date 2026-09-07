@@ -31,6 +31,8 @@ export interface IdempotencyStore {
   create(key: string, record: IdempotencyRecord): boolean | Promise<boolean>;
   set(key: string, record: IdempotencyRecord): void | Promise<void>;
   delete(key: string): void | Promise<void>;
+  /** Optional: prune expired records, returning how many were removed. */
+  sweep?(now?: number): number | Promise<number>;
 }
 
 /* ------------------------------ errors ------------------------------ */
@@ -81,6 +83,18 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
   }
   delete(key: string): void {
     this.map.delete(key);
+  }
+  /** Prune every expired record now; returns the number removed. */
+  sweep(now: number = Date.now()): number {
+    let pruned = 0;
+    for (const [k, e] of this.map) {
+      if (now > e.exp) { this.map.delete(k); pruned++; }
+    }
+    return pruned;
+  }
+  /** Number of live (unexpired) records — handy for tests/metrics. */
+  get size(): number {
+    return this.map.size;
   }
 }
 
@@ -238,3 +252,13 @@ const shared = new Idempotency();
 export function idempotent<T>(key: string, fn: () => Promise<T> | T, opts?: RunOptions): Promise<RunResult<T>> {
   return shared.run(key, fn, opts);
 }
+
+/* ------------------------------ request helpers (new in 1.1.0) ------------------------------ */
+
+export type {
+  RequestLike,
+  IdempotentResponse,
+  WithIdempotencyOptions,
+  WithIdempotencyResult,
+} from "./request";
+export { fingerprintRequest, withIdempotency, sweep } from "./request";

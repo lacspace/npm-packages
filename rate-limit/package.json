@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/rate-limit",
-  "version": "1.1.4",
-  "description": "Framework-agnostic rate limiting — fixed-window, sliding-window and token-bucket over a pluggable store, with standard RateLimit-* headers. For API routes, middleware and edge. Zero-dependency, isomorphic.",
+  "version": "1.2.0",
+  "description": "Framework-agnostic rate limiting — fixed-window, sliding-window (log & weighted counter), token-bucket and leaky-bucket over a pluggable store, with composite/per-route limiters, cost-weighted requests, an injectable clock and standard RateLimit-*/X-RateLimit-* headers. For API routes, middleware and edge. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -41,7 +41,15 @@
     "request-limit",
     "api-throttle",
     "express-rate-limit-alternative",
-    "ddos-protection"
+    "ddos-protection",
+    "leaky-bucket",
+    "sliding-window-counter",
+    "sliding-window-log",
+    "cost-weighted",
+    "composite-limiter",
+    "route-limiter",
+    "injectable-clock",
+    "x-ratelimit-headers"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

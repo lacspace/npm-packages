@@ -15,6 +15,12 @@ export interface AttemptState {
   lockedUntil: number;
   /** Epoch ms of the first attempt in the current window. */
   firstAttempt: number;
+  /**
+   * Optional — epoch ms a lock notification was already fired for this key, used
+   * by {@link ProgressiveLockout} to fire `onLock` exactly once per lock. Ignored
+   * by the core {@link Lockout}. Cleared on `reset`.
+   */
+  notifiedAt?: number;
 }
 
 export interface LockStore {
@@ -174,3 +180,26 @@ export class Lockout {
 export function lockout(opts?: LockoutOptions): Lockout {
   return new Lockout(opts);
 }
+
+// --- Additive extensions (v1.1.0) — do not affect the core single-key path. ---
+
+export { compositeKey, MultiLockout, multiLockout } from "./composite";
+export type { MultiLockStatus, DimensionKeys } from "./composite";
+
+export {
+  ProgressiveLockout,
+  progressiveLockout,
+  describe,
+  requiresChallenge,
+} from "./progressive";
+export type {
+  ProgressiveOptions,
+  ProgressiveStatus,
+  LockDescription,
+  LockLevel,
+  LockEvent,
+  LockNotifier,
+} from "./progressive";
+
+export { KeyLists, keyLists } from "./lists";
+export type { KeyListsOptions, ListDecision } from "./lists";

@@ -14,6 +14,8 @@
 
 > The "don't double-charge the card, don't send the email twice" pattern. A client retries; a webhook fires again; a user double-clicks — and your operation runs **once**, replaying the stored result. Every existing library is welded to a framework (Hono, AWS Lambda); this is the framework-agnostic primitive.
 
+> **New in 1.1.0** — request-level helpers: `withIdempotency(key, req, handler, opts)` ties **request fingerprint + in-flight claim + response replay** together for HTTP handlers, `fingerprintRequest(req)` hashes `method + path + body`, and `sweep()` (plus `MemoryIdempotencyStore.sweep()`) prunes expired records. All additive — every 1.0.x export is unchanged.
+
 - ♻️ **Exactly-once** — a repeat key replays the cached result instead of re-running
 - 🔒 **Concurrency-safe** — in-flight de-dupe in-process, atomic create-if-absent for shared stores, plus a conflict/wait policy
 - 🔎 Optional **request fingerprint** — catch a key reused with a different payload (Stripe-style)
@@ -58,6 +60,48 @@ await idem.run(key, () => createOrder(body), { fingerprint: fingerprint(body) })
 // reusing the key with a different body throws IdempotencyKeyReuseError
 ```
 
+## One-call request idempotency (new in 1.1.0)
+
+`withIdempotency` fingerprints the request, claims the key, replays the stored **response** (status + body) on retries, and rejects the same key reused with a different request — the full HTTP pattern in one call.
+
+```ts
+import { withIdempotency, MemoryIdempotencyStore } from "@lacspace/idempotency";
+
+const store = new MemoryIdempotencyStore(24 * 60 * 60 * 1000);
+
+// inside a POST handler
+const key = request.headers.get("idempotency-key")!;
+const { response, replayed } = await withIdempotency(
+  key,
+  { method: request.method, path: url.pathname, body },
+  async () => ({ status: 201, body: await createOrder(body) }),
+  { store },
+);
+// first call runs the handler → replayed: false
+// retries with the same key + same request → the SAME response, handler never re-runs
+// same key + a DIFFERENT request → throws IdempotencyKeyReuseError
+
+return Response.json(response.body, { status: response.status });
+```
+
+Bring a store-backed engine for multi-instance apps, and let concurrent duplicates wait for the winner:
+
+```ts
+import { Idempotency } from "@lacspace/idempotency";
+const engine = new Idempotency({ store });
+await withIdempotency(key, req, handler, { idempotency: engine, onConflict: "wait" });
+```
+
+## Expiry & sweeping (new in 1.1.0)
+
+```ts
+import { sweep, MemoryIdempotencyStore } from "@lacspace/idempotency";
+
+const store = new MemoryIdempotencyStore(60 * 60 * 1000); // 1h record TTL
+// periodically reclaim expired records (e.g. on an interval / cron)
+const pruned = await sweep(store); // → number removed; 0 for stores without sweep (Redis TTLs prune themselves)
+```
+
 ## Concurrency
 
 ```ts
@@ -91,9 +135,14 @@ Across processes/instances (shared store), a second call finds an in-progress re
 | `new Idempotency({ store?, cacheErrors? })` | engine bound to a store |
 | `.run(key, fn, opts?)` → `{ value, replayed }` | the core method |
 | `.forget(key)` | clear a key so it can run fresh |
-| `MemoryIdempotencyStore(ttlMs?)` · `IdempotencyStore` | store + interface |
+| `MemoryIdempotencyStore(ttlMs?)` · `IdempotencyStore` | store + interface (store adds `sweep(now?)` + `size`) |
 | `fingerprint(payload)` | stable, order-independent request signature |
+| `withIdempotency(key, req, handler, opts?)` → `{ response, replayed }` | request → at-most-once response replay (new in 1.1.0) |
+| `fingerprintRequest(req)` | fingerprint a request from `method` + `path`/`url` + `body` (new in 1.1.0) |
+| `sweep(store, now?)` → pruned count | prune expired records from a store (new in 1.1.0) |
 | `IdempotencyConflictError` · `IdempotencyKeyReuseError` · `ReplayedError` | typed errors |
+
+`withIdempotency` options extend `run`'s (`store`, `onConflict`, `cacheErrors`, `pollIntervalMs`, `waitTimeoutMs`, `fingerprint`) plus `idempotency` (an `Idempotency` engine to run through). Types: `RequestLike`, `IdempotentResponse<T>`, `WithIdempotencyOptions`, `WithIdempotencyResult<T>`.
 
 ## Licensing
 

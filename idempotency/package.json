@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/idempotency",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Make any operation exactly-once with an idempotency key — replay stored results on retries, safe under concurrency, with optional request fingerprinting. Framework-agnostic, pluggable store, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,6 +38,11 @@
     "webhook-idempotency",
     "stripe-idempotency",
     "concurrency",
+    "request-fingerprint",
+    "response-replay",
+    "in-flight-lock",
+    "ttl",
+    "sweep",
     "isomorphic",
     "typescript"
   ],

@@ -9,6 +9,8 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { systemClock, type Clock } from "./clock";
+
 export type Algorithm = "fixed" | "sliding" | "token-bucket";
 
 export interface RateLimitResult {
@@ -48,10 +50,13 @@ export class MemoryStore implements RateLimitStore {
   private buckets = new Map<string, BucketEntry>();
   private lastSweep = 0;
 
-  constructor(private algorithm: Algorithm = "fixed") {}
+  constructor(
+    private algorithm: Algorithm = "fixed",
+    private clock: Clock = systemClock,
+  ) {}
 
   async consume(key: string, limit: number, windowMs: number, cost: number) {
-    const now = Date.now();
+    const now = this.clock.now();
     this.sweep(now, windowMs);
     if (this.algorithm === "sliding") return this.sliding(key, limit, windowMs, cost, now);
     if (this.algorithm === "token-bucket") return this.bucket(key, limit, windowMs, cost, now);
@@ -127,12 +132,16 @@ export interface RateLimiterOptions {
   store?: RateLimitStore;
   /** Prefix for keys (namespacing shared stores). */
   prefix?: string;
+  /** Injectable clock for the built-in memory store & `retryAfter` (deterministic tests). */
+  clock?: Clock;
 }
 
 export class RateLimiter {
   private store: RateLimitStore;
+  private clock: Clock;
   constructor(private opts: RateLimiterOptions) {
-    this.store = opts.store ?? new MemoryStore(opts.algorithm ?? "fixed");
+    this.clock = opts.clock ?? systemClock;
+    this.store = opts.store ?? new MemoryStore(opts.algorithm ?? "fixed", this.clock);
   }
 
   /** Check (and consume) `cost` units for an identifier (IP, user id, API key…). */
@@ -144,7 +153,7 @@ export class RateLimiter {
       limit: this.opts.limit,
       remaining: r.remaining,
       reset: r.reset,
-      retryAfter: r.success ? 0 : Math.max(0, Math.ceil((r.reset - Date.now()) / 1000)),
+      retryAfter: r.success ? 0 : Math.max(0, Math.ceil((r.reset - this.clock.now()) / 1000)),
     };
   }
 }
@@ -254,3 +263,23 @@ export function expressRateLimit(
     else res.status(429).json({ error: "rate_limited", retryAfter: result.retryAfter });
   };
 }
+
+/* ------------------------------ new in 1.2 ------------------------------ */
+
+export { systemClock, ManualClock, type Clock } from "./clock";
+export {
+  TokenBucketStore,
+  LeakyBucketStore,
+  SlidingWindowCounterStore,
+  type TokenBucketStoreOptions,
+  type LeakyBucketStoreOptions,
+  type SlidingWindowCounterStoreOptions,
+} from "./stores";
+export {
+  combineLimiters,
+  CombinedLimiter,
+  routeLimiter,
+  RouteLimiter,
+  type LimiterLike,
+} from "./compose";
+export { standardRateLimitHeaders, type StandardHeadersOptions } from "./headers";

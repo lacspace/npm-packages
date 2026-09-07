@@ -14,11 +14,15 @@
 
 > Three algorithms over a **pluggable store** (in-memory built in; implement one interface for Redis/Upstash). Returns standard IETF `RateLimit-*` headers. Drop it into any Express/Fastify route, Next.js Route Handler, middleware or edge function.
 
-- 🎛️ `fixed` · `sliding` · `token-bucket` algorithms
+- 🎛️ `fixed` · `sliding` (log) · `token-bucket` · **`leaky-bucket`** · **weighted sliding-window counter** algorithms
 - 🔌 Pluggable `RateLimitStore` (memory included; bring your own Redis)
-- 📨 `rateLimitHeaders()` → `RateLimit-Limit/Remaining/Reset` + `Retry-After`
+- 📨 `rateLimitHeaders()` / **`standardRateLimitHeaders()`** → IETF `RateLimit-*` **+ legacy `X-RateLimit-*`** + `Retry-After`
 - 💰 Per-request `cost` (weight expensive endpoints heavier)
+- 🧮 **Composite limiters** (`combineLimiters` — strictest wins) & **per-route limiters** (`routeLimiter`)
+- ⏱️ **Injectable clock** (`ManualClock`) for deterministic tests
 - ⚡ Zero dependencies · 🌍 isomorphic (Node, edge, workers) · 📦 ESM + CJS · fully typed
+
+> **New in 1.2.0** — leaky-bucket & weighted sliding-window-counter algorithms, composite + per-route limiters, legacy `X-RateLimit-*` headers, and an injectable clock. Fully backward compatible — nothing existing changed. [Jump to the 1.2 guide ↓](#new-in-120--more-algorithms-composition--an-injectable-clock)
 
 ## Install
 
@@ -80,8 +84,11 @@ const limiter = rateLimit({ limit: 100, windowMs: 60_000, store: redisStore, pre
 | Algorithm | Behaviour |
 | --- | --- |
 | `fixed` | simple counter reset every window — cheapest |
-| `sliding` | rolling window, smooth — no burst at window edges |
+| `sliding` | rolling window log, smooth — no burst at window edges |
 | `token-bucket` | steady refill, allows controlled bursts |
+| `SlidingWindowCounterStore` | weighted 2-window approximation of the log — smooth, O(1) memory |
+| `LeakyBucketStore` | constant outflow, no bursts (smooth pacing) |
+| `TokenBucketStore` | explicit burst (capacity) **+** decoupled refill rate |
 
 ## The Lacspace WebKit
 
@@ -112,6 +119,89 @@ app.use(expressRateLimit(limiter, { keyFn: (req) => req.user?.id ?? ipKeyFromReq
 ```
 
 `ipKeyFromRequest` reads `X-Forwarded-For`, `CF-Connecting-IP`, `X-Real-IP` and friends; `rateLimitResponse(result)` builds the 429 yourself if you prefer.
+
+## New in 1.2.0 — more algorithms, composition & an injectable clock
+
+All additive — every existing export, option and default is unchanged.
+
+### More algorithms (opt-in via `store`)
+
+```ts
+import {
+  rateLimit,
+  LeakyBucketStore,
+  SlidingWindowCounterStore,
+  TokenBucketStore,
+} from "@lacspace/rate-limit";
+
+// Leaky bucket — constant outflow, no bursts.
+rateLimit({ limit: 10, windowMs: 1000, store: new LeakyBucketStore() });
+
+// Weighted sliding-window counter — smooth like the log, O(1) memory per key.
+rateLimit({ limit: 100, windowMs: 60_000, store: new SlidingWindowCounterStore() });
+
+// Token bucket with an explicit burst (capacity = limit) + decoupled refill rate.
+rateLimit({ limit: 20, windowMs: 60_000, store: new TokenBucketStore({ refill: 1, intervalMs: 1000 }) });
+```
+
+### Composite & per-route limiters
+
+```ts
+import { rateLimit, combineLimiters, routeLimiter } from "@lacspace/rate-limit";
+
+// Enforce several caps at once — the STRICTEST wins.
+const combined = combineLimiters(
+  rateLimit({ limit: 10, windowMs: 1_000 }),        // 10 / second
+  rateLimit({ limit: 1_000, windowMs: 86_400_000 }) // AND 1000 / day
+);
+const { success } = await combined.check(ip);
+
+// Named per-route limiters (each route has its own budget).
+const routes = routeLimiter({
+  "auth/login": rateLimit({ limit: 5, windowMs: 60_000 }),
+  search:       rateLimit({ limit: 30, windowMs: 60_000 }),
+}, /* optional fallback */ rateLimit({ limit: 100, windowMs: 60_000 }));
+
+await routes.check("search", ip);
+```
+
+### Standard headers (IETF + legacy `X-RateLimit-*`)
+
+```ts
+import { standardRateLimitHeaders } from "@lacspace/rate-limit";
+
+const headers = standardRateLimitHeaders(result);          // both header families
+const ietfOnly = standardRateLimitHeaders(result, { legacy: false });
+const deterministic = standardRateLimitHeaders(result, { now: 0 }); // pure — pass `now`
+```
+
+Emits `RateLimit-Limit/Remaining/Reset` (Reset = seconds until reset), `X-RateLimit-Limit/Remaining/Reset` (Reset = epoch seconds) and `Retry-After` when blocked. `rateLimitHeaders()` (IETF-only) is unchanged.
+
+### Injectable clock (deterministic tests)
+
+```ts
+import { rateLimit, ManualClock, TokenBucketStore } from "@lacspace/rate-limit";
+
+const clock = new ManualClock(0);
+const limiter = rateLimit({ limit: 5, windowMs: 1000, clock, store: new TokenBucketStore({ clock }) });
+await limiter.check("k");
+clock.advance(1000); // drive time forward without real sleeps
+```
+
+### API additions
+
+| Export | Signature | Purpose |
+| --- | --- | --- |
+| `LeakyBucketStore` | `new LeakyBucketStore({ clock? })` | Constant-outflow leaky bucket store |
+| `SlidingWindowCounterStore` | `new SlidingWindowCounterStore({ clock? })` | Weighted sliding-window counter store |
+| `TokenBucketStore` | `new TokenBucketStore({ clock?, refill?, intervalMs? })` | Token bucket with explicit burst + refill |
+| `combineLimiters` | `(...limiters) => CombinedLimiter` | Enforce all; strictest result wins |
+| `routeLimiter` | `(routes, fallback?) => RouteLimiter` | Named per-route limiters |
+| `standardRateLimitHeaders` | `(result, { now?, legacy? }?) => Record<string,string>` | IETF + legacy headers (pure) |
+| `ManualClock` / `systemClock` | `new ManualClock(start?)` / `Clock` | Injectable clock |
+| `RateLimiterOptions.clock` | `clock?: Clock` | Optional clock for the built-in store |
+
+All algorithms honour cost-weighting (`check(key, cost)`) and the pluggable `RateLimitStore` interface.
 
 ## Licensing
 

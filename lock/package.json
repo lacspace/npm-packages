@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/lock",
-  "version": "1.0.6",
-  "description": "Account lockout & brute-force protection (server lock) — N-strikes, exponential backoff, self-resetting window, pluggable store. Zero-dependency, isomorphic.",
+  "version": "1.1.0",
+  "description": "Account lockout & brute-force protection (server lock) — N-strikes, exponential + progressive/tiered backoff, per-account/per-IP composite locking, allow/deny lists, CAPTCHA step-up threshold, onLock hook, self-resetting window, pluggable store. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -39,7 +39,15 @@
     "failed-login",
     "exponential-backoff",
     "credential-stuffing",
-    "rate-limit"
+    "rate-limit",
+    "progressive-delay",
+    "tiered-backoff",
+    "captcha-threshold",
+    "step-up",
+    "allowlist",
+    "denylist",
+    "ip-throttle",
+    "composite-key"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

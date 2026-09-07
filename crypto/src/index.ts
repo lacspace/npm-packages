@@ -363,3 +363,19 @@ export class Keyring {
     return this.encrypt(pt, opts);
   }
 }
+
+/* ------------------------------ additive helpers (v1.2.0) ------------------------------ */
+
+export {
+  timingSafeEqual,
+  sha384,
+  sha512,
+  hmacHex,
+  hmacBase64url,
+  toBase64,
+  fromBase64,
+  randomString,
+  randomUUID,
+  randomInt,
+  DEFAULT_RANDOM_ALPHABET,
+} from "./extras";

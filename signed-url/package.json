@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/signed-url",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "HMAC-signed, expiring URLs & tokens over Web Crypto — secure download links, magic-login links, unsubscribe links and one-time-action tokens. Tamper-proof, timing-safe, zero-config. Isomorphic (Node, edge, browser).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,13 @@
     "web-crypto",
     "edge",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "key-rotation",
+    "one-time-token",
+    "nonce",
+    "signed-claims",
+    "ip-binding",
+    "clock-tolerance"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

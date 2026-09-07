@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/webauthn",
-  "version": "1.1.2",
-  "description": "Passkeys / biometric (FaceID, fingerprint, security keys) — browser ceremony helpers + server challenge, options and assertion verification (ES256/RS256) over Web Crypto. Zero-dependency, isomorphic.",
+  "version": "1.2.0",
+  "description": "Passkeys / biometric (FaceID, fingerprint, security keys) — browser ceremony helpers + server challenge, options and assertion verification (ES256/RS256/Ed25519) over Web Crypto, with passkey-sync (backup) flags, AAGUID, UV/resident-key policy and transports. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -43,7 +43,15 @@
     "fido",
     "passwordless-login",
     "conditional-ui",
-    "authentication"
+    "authentication",
+    "ed25519",
+    "passkey-sync",
+    "backup-eligible",
+    "aaguid",
+    "discoverable-credential",
+    "resident-key",
+    "user-verification",
+    "transports"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

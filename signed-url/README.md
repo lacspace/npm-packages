@@ -14,6 +14,8 @@
 
 > Two things every backend re-implements badly: **signed tokens** (magic-login links, email verification, unsubscribe, one-time actions) and **signed URLs** (expiring, tamper-proof download / image-proxy links — self-hosted, S3-presigned-style). This does both, correctly, in a few bytes.
 
+> **New in 1.1.0** — an additive *secure layer* (`signSecure` / `verifySecure` / `signSecureUrl` / `verifySecureUrl`) adding **key rotation** (named secrets), **binding** (method / IP / path-prefix), a **single-use nonce** + `consumeNonce` checker, a **`clockTolerance`** leeway, and **signed claims**. Every existing helper is unchanged and cross-compatible with the new one.
+
 - 🔐 **Tamper-proof** — any change to the data or URL breaks the signature
 - ⏱️ **Expiring** — `expiresIn` / `expiresAt`, with clock-skew tolerance
 - 🛡️ **Timing-safe** verification (built on [`@lacspace/crypto`](https://www.npmjs.com/package/@lacspace/crypto), Web Crypto — never hand-rolled)
@@ -80,6 +82,41 @@ if (!r.valid) return new Response("Link expired or invalid", { status: 403 });
 
 Query-param order is normalised, so the link verifies no matter how params get reordered — and changing the path or **any** param invalidates it.
 
+## Secure layer — rotation, binding, nonce, claims (new in 1.1.0)
+
+`signSecure` / `verifySecure` are a drop-in superset of `sign` / `verify` (same token
+format, cross-compatible), and `signSecureUrl` / `verifySecureUrl` do the same for URLs.
+Everything below is optional — omit it all and you get the classic behaviour.
+
+```ts
+import { signSecure, verifySecure, consumeNonce } from "@lacspace/signed-url";
+
+// Key rotation: sign with the active key, verify against the whole set.
+const token = await signSecure({ userId: 42 }, {
+  keys: { "2024": OLD_SECRET, "2025": NEW_SECRET },
+  keyId: "2025",                              // stamped into the signature
+  bind: { method: "POST", ip: req.ip, pathPrefix: "/admin/" }, // constraints
+  nonce: true,                                // random single-use nonce
+  claims: { role: "owner" },                  // tamper-proof metadata
+  expiresIn: 900,
+});
+
+const r = await verifySecure(token, {
+  keys: { "2024": OLD_SECRET, "2025": NEW_SECRET }, // rotate secrets freely
+  context: { method: req.method, ip: req.ip, path: url.pathname }, // enforced
+  clockTolerance: 30,                         // 30s leeway on expiry
+});
+if (r.valid) {
+  // r.data, r.claims, r.nonce, r.keyId
+  // Enforce one-time use with YOUR store (library owns no storage):
+  const prior = await store.get(r.nonce!);           // number | undefined
+  const c = consumeNonce(prior, { maxUses: 1 });
+  if (!c.ok) return reject("already used");
+  await store.set(r.nonce!, c.uses);
+}
+// r.reason may also be "unknown-key" (wrong key set) or "binding" (constraint mismatch).
+```
+
 ## API
 
 | Function | Description |
@@ -91,8 +128,13 @@ Query-param order is normalised, so the link verifies no matter how params get r
 | `verifyUrl(url, { secret })` | verify signature + expiry |
 | `magicLink(baseUrl, data, opts)` | base URL + signed `token` param |
 | `readMagicLink(url, opts)` | verify the embedded token |
+| `signSecure(data, { secret? \| keys?+keyId?, bind?, nonce?, claims?, ...expiry })` | token + rotation / binding / nonce / claims |
+| `verifySecure(token, { secret? \| keys?, context?, clockTolerance?, ... })` | `{ valid, data?, claims?, nonce?, keyId?, reason?, expiresAt? }` |
+| `signSecureUrl(url, opts)` / `verifySecureUrl(url, opts)` | the same, for URLs |
+| `generateNonce(bytes?)` | random hex nonce (default 16 bytes) |
+| `consumeNonce(previousUses?, { maxUses? })` | pure single-use / max-N checker → `{ ok, uses, remaining }` |
 
-`reason` is one of `"malformed" | "bad-signature" | "expired"`. Default algorithm is `SHA-256` (`SHA-384` / `SHA-512` also supported).
+`reason` is one of `"malformed" | "bad-signature" | "expired"` (classic) plus `"unknown-key" | "binding"` (secure layer). Default algorithm is `SHA-256` (`SHA-384` / `SHA-512` also supported).
 
 ## Licensing
 

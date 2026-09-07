@@ -14,6 +14,8 @@
 
 > Generate prefixed, high-entropy keys (e.g. `lac_live_…`), return the **SHA-256 hash** to store and the **last 4** to display, and verify in **constant time**. You never persist the raw key — exactly how Stripe/GitHub-style keys work.
 
+> **New in 1.3.0** — a storage-agnostic key-record toolkit: public `fingerprint`/`maskKey` labels, hierarchical `hasScope` (`billing:*`), `isExpired`, `rotateApiKey` with a grace window, `isRevoked`/revocation lists, and `verifyKeyAgainst` (tells you *which* stored key matched, so you can update last-used). All additive — every 1.x export is unchanged.
+
 - 🔑 `generateApiKey` → `{ key, hash, prefix, last4 }`
 - ✅ `verifyApiKey` (constant-time) · `hashApiKey` · `parseApiKey`
 - ⚡ Zero deps (bar `@lacspace/crypto`) · 🌍 isomorphic · fully typed
@@ -82,6 +84,60 @@ app.use("/api", expressApiKey({ resolve: ({ prefix }) => db.apiKeys.findByPrefix
 
 isValidKeyFormat("lac_live_xxxxxxxxxxxxxxxx"); // cheap offline reject before hitting the DB
 ```
+
+## New in 1.3 — key records (scopes · expiry · rotation · revocation)
+
+Storage-agnostic: the library hashes & checks, **you** persist the record.
+
+```ts
+import {
+  generateApiKey, fingerprint, maskKey,
+  hasScope, isExpired, isRevoked, revoke, revocationList, isRevokedId,
+  rotateApiKey, verifyKeyAgainst, markUsed,
+} from "@lacspace/apikey";
+
+// identify a key in logs/UI without revealing the secret
+const { key, hash } = await generateApiKey({ prefix: "sk_live" });
+await fingerprint(key); // "fp_3b2c4d5e6f70"  (stable, non-reversible)
+maskKey(key);           // "sk_live_••••abcd"
+
+// hierarchical / wildcard scopes
+hasScope({ scopes: ["billing:*"] }, "billing:read"); // true
+hasScope(["*"], "anything");                          // true
+
+// expiry (same boundary as authenticateApiKey: expired iff now > expiresAt)
+isExpired({ hash, expiresAt: Date.now() - 1 }); // true
+
+// rotation with a grace window — old key keeps working for 24h
+let record = { id: "k1", hash, prefix: "sk_live", scopes: ["read"] };
+const rot = await rotateApiKey(record, { graceMs: 86_400_000 });
+// show rot.key once; persist rot.record (new hash + previousHash during grace)
+
+// verify against your stored records → learn WHICH one matched, then update last-used
+const match = await verifyKeyAgainst(rot.key, [rot.record], { active: true });
+if (match) await save(markUsed(match.record)); // match.matched: "current" | "previous"
+
+// revocation
+record = revoke(record);                 // { ...record, revoked: true, revokedAt }
+isRevoked(record);                       // true
+const denylist = revocationList(["k9"]); // Set-backed lookup
+isRevokedId("k1", denylist);             // false
+```
+
+| Export | Description |
+| --- | --- |
+| `fingerprint(key, opts?)` | short, stable, non-reversible public id (`fp_…`) for logs/UI |
+| `parseKey(key)` | `{ prefix, secret, last4 }` |
+| `maskKey(key, opts?)` | display-safe `"<prefix>_••••<last4>"` |
+| `hasScope(rec\|scopes, scope)` | wildcard/hierarchical scope check (`*`, `billing:*`, parent) |
+| `hasAllScopes` / `hasAnyScope` | all- / any-of scope checks · `scopeSatisfies(granted, required)` |
+| `isExpired(rec, now?)` | `now > expiresAt` (matches `authenticateApiKey`) |
+| `isRevoked(rec, now?)` · `revoke(rec, now?)` | revocation flag/time · pure revoke helper |
+| `isRevokedId(id, list)` · `revocationList(ids)` | revocation-list lookup |
+| `rotateApiKey(rec, opts?)` | new secret, same id/metadata, optional `graceMs` window |
+| `verifyRecord(key, rec, opts?)` | verify one record → `{ record, matched }` \| `null` (honours grace) |
+| `verifyKeyAgainst(key, records, opts?)` | verify many → first match (`active` skips expired/revoked) |
+| `markUsed(rec, now?)` | copy with `lastUsedAt` set |
 
 ## Licensing
 

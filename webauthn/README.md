@@ -12,7 +12,9 @@
 
 </div>
 
-> Everything for passwordless / biometric auth in one small package: **browser ceremony helpers**, **server challenge & options builders**, and **real assertion verification** (ES256/RS256) over Web Crypto — including the fiddly ES256 DER→P1363 conversion and a compact CBOR/COSE parser that extracts the public key at registration.
+> Everything for passwordless / biometric auth in one small package: **browser ceremony helpers**, **server challenge & options builders**, and **real assertion verification** (ES256/RS256/Ed25519) over Web Crypto — including the fiddly ES256 DER→P1363 conversion and a compact CBOR/COSE parser that extracts the public key at registration.
+
+> **New in 1.2.0** — additive & fully backward compatible: **Ed25519 (COSE −8)** verification alongside ES256/RS256 · **passkey-sync flags** on every verified result (`backupEligible` **BE**, `backupState` **BS**, `userPresent` **UP**, `userVerified` **UV**) plus the **`aaguid`** and echoed **`transports`** · **UV / resident-key policy** (`requireUserVerification`, `requireResidentKey`) · richer `allow/excludeCredentials` descriptors carrying `transports` · new helpers `readAuthenticatorData`, `parseAuthenticatorFlags`, `formatAaguid`.
 
 - 👆 Browser: `startRegistration` / `startAuthentication`, `isPlatformAuthenticatorAvailable`
 - 🖥️ Server: `generateChallenge`, `generateRegistrationOptions`, `generateAuthenticationOptions`
@@ -80,15 +82,48 @@ if (verified) { /* update stored counter = newCounter, log the user in */ }
 > credential. When the option is omitted, behaviour is unchanged (only User-Present is required).
 > Both verifiers also return `userVerified` so you can record or branch on it.
 
+## Passkey-sync flags, AAGUID & policy (1.2.0)
+
+Every verified result now surfaces the authenticator-data flags so you can be sync-aware and, if you like, enforce policy:
+
+```ts
+const r = await verifyRegistration({ /* …, */ transports: response.transports });
+// r.backupEligible → credential can sync across devices (a "passkey")
+// r.backupState    → it is currently backed up / synced
+// r.userPresent, r.userVerified, r.aaguid (authenticator model), r.transports (store these)
+
+const a = await verifyAuthentication({ /* …, */
+  requireUserVerification: true,   // reject unless UV=1
+});
+// a.userPresent / a.userVerified / a.backupEligible / a.backupState
+
+// Registration policy: require a discoverable (resident) key using the browser's credProps.rk
+await verifyRegistration({ /* …, */ requireResidentKey: true, residentKey: response.residentKey });
+```
+
+**Ed25519.** `verifyRegistration` extracts OKP/Ed25519 keys and `verifyAuthentication` verifies them (`algorithm: "Ed25519"`), joining the existing `"ES256"` / `"RS256"`.
+
+**Transports.** `startRegistration` returns `transports` (and `residentKey` from `credProps`); store them and pass credential descriptors — `allowCredentials: [{ id, transports }]` — to `generateAuthenticationOptions` (a bare `string` ID is still accepted).
+
+**Read any authenticatorData** without verifying:
+
+```ts
+import { readAuthenticatorData } from "@lacspace/webauthn";
+const info = readAuthenticatorData(response.authenticatorData);
+// { rpIdHash, flags: { userPresent, userVerified, backupEligible, backupState, … }, signCount, aaguid?, credentialId? }
+```
+
 ## API
 
 | Export | Where | Description |
 | --- | --- | --- |
 | `isWebAuthnSupported` / `isPlatformAuthenticatorAvailable` | browser | feature detection |
-| `startRegistration` / `startAuthentication` | browser | run the ceremony |
+| `startRegistration` / `startAuthentication` | browser | run the ceremony (registration also returns `transports` + `residentKey`) |
 | `generateChallenge` | server | random challenge |
-| `generateRegistrationOptions` / `generateAuthenticationOptions` | server | build options JSON |
-| `verifyRegistration` / `verifyAuthentication` | server | verify + extract key |
+| `generateRegistrationOptions` / `generateAuthenticationOptions` | server | build options JSON (`residentKey`, `attestation`, transports descriptors) |
+| `verifyRegistration` / `verifyAuthentication` | server | verify + extract key (ES256/RS256/Ed25519), flags, AAGUID, UV / resident-key policy |
+| `readAuthenticatorData` | any | parse a raw `authenticatorData` buffer into flags / signCount / AAGUID / credentialId |
+| `parseAuthenticatorFlags` / `formatAaguid` | any | decode the flag byte · format a 16-byte AAGUID |
 
 ## The Lacspace Security Kit
 

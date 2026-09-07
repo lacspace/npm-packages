@@ -15,6 +15,11 @@
  * Zero dependencies · isomorphic (Web Crypto) · fully typed.
  */
 
+import { parseAuthenticatorFlags, formatAaguid } from "./flags";
+
+export type { AuthenticatorFlagSet } from "./flags";
+export { parseAuthenticatorFlags, formatAaguid } from "./flags";
+
 /* ------------------------------ encoding ------------------------------ */
 
 function getCrypto(): Crypto {
@@ -119,16 +124,27 @@ function cborDecode(d: Uint8Array): CborValue {
 
 /* ------------------------------ COSE → JWK ------------------------------ */
 
-export type CoseAlg = "ES256" | "RS256";
+export type CoseAlg = "ES256" | "RS256" | "Ed25519";
 
 function coseAlgName(alg: number): CoseAlg {
   if (alg === -7) return "ES256";
   if (alg === -257) return "RS256";
-  throw new Error(`unsupported COSE algorithm ${alg} (only ES256 / RS256)`);
+  if (alg === -8) return "Ed25519";
+  throw new Error(`unsupported COSE algorithm ${alg} (only ES256 / RS256 / Ed25519)`);
 }
 
 function coseToJwk(cose: Map<number | string, CborValue>): JsonWebKey {
   const kty = cose.get(1);
+  if (kty === 1) {
+    // OKP (Octet Key Pair) — Ed25519 / Ed448.
+    const crv = cose.get(-1);
+    return {
+      kty: "OKP",
+      crv: crv === 6 ? "Ed25519" : crv === 7 ? "Ed448" : "Ed25519",
+      x: toBase64url(cose.get(-2) as Uint8Array),
+      ext: true,
+    };
+  }
   if (kty === 2) {
     const crv = cose.get(-1);
     return {
@@ -152,7 +168,10 @@ interface ParsedAuthData {
   flags: number;
   userPresent: boolean;
   userVerified: boolean;
+  backupEligible: boolean;
+  backupState: boolean;
   signCount: number;
+  aaguid?: string;
   credentialId?: Uint8Array;
   publicKeyCose?: Map<number | string, CborValue>;
 }
@@ -160,20 +179,59 @@ interface ParsedAuthData {
 function parseAuthData(bytes: Uint8Array): ParsedAuthData {
   const rpIdHash = bytes.slice(0, 32);
   const flags = bytes[32]!;
+  const f = parseAuthenticatorFlags(flags);
   const signCount = ((bytes[33]! << 24) | (bytes[34]! << 16) | (bytes[35]! << 8) | bytes[36]!) >>> 0;
   const result: ParsedAuthData = {
     rpIdHash,
     flags,
-    userPresent: !!(flags & 0x01),
-    userVerified: !!(flags & 0x04),
+    userPresent: f.userPresent,
+    userVerified: f.userVerified,
+    backupEligible: f.backupEligible,
+    backupState: f.backupState,
     signCount,
   };
-  if (flags & 0x40) {
+  if (f.attestedCredentialData) {
+    result.aaguid = formatAaguid(bytes.slice(37, 53));
     const idLen = (bytes[53]! << 8) | bytes[54]!;
     result.credentialId = bytes.slice(55, 55 + idLen);
     result.publicKeyCose = cborDecode(bytes.slice(55 + idLen)) as Map<number | string, CborValue>;
   }
   return result;
+}
+
+/** Structured view of a raw `authenticatorData` buffer (base64url or bytes). */
+export interface AuthenticatorDataInfo {
+  /** SHA-256 of the RP ID, base64url. */
+  rpIdHash: string;
+  /** Decoded flag bits (UP / UV / BE / BS / AT / ED). */
+  flags: import("./flags").AuthenticatorFlagSet;
+  /** Signature counter. */
+  signCount: number;
+  /** AAGUID (`8-4-4-4-12` hex) — present only when attested credential data is included. */
+  aaguid?: string;
+  /** Credential ID, base64url — present only when attested credential data is included. */
+  credentialId?: string;
+}
+
+/**
+ * Parse a raw `authenticatorData` buffer (from a registration or authentication
+ * response) into its flags, sign counter, AAGUID and credential ID. Read-only —
+ * does not verify anything. Handy for logging passkey-sync (BE/BS) state.
+ */
+export function readAuthenticatorData(data: string | Uint8Array): AuthenticatorDataInfo {
+  const bytes = typeof data === "string" ? fromBase64url(data) : data;
+  const flags = parseAuthenticatorFlags(bytes[32]!);
+  const info: AuthenticatorDataInfo = {
+    rpIdHash: toBase64url(bytes.slice(0, 32)),
+    flags,
+    signCount: ((bytes[33]! << 24) | (bytes[34]! << 16) | (bytes[35]! << 8) | bytes[36]!) >>> 0,
+  };
+  if (flags.attestedCredentialData) {
+    info.aaguid = formatAaguid(bytes.slice(37, 53));
+    const idLen = (bytes[53]! << 8) | bytes[54]!;
+    info.credentialId = toBase64url(bytes.slice(55, 55 + idLen));
+  }
+  return info;
 }
 
 /* ------------------------------ ECDSA DER → raw ------------------------------ */
@@ -210,6 +268,28 @@ export function generateChallenge(bytes = 32): string {
   return toBase64url(buf);
 }
 
+/** Hints for how an authenticator can be reached. */
+export type AuthenticatorTransport = "usb" | "nfc" | "ble" | "internal" | "hybrid" | "smart-card";
+
+/**
+ * A stored credential reference for `allowCredentials` / `excludeCredentials`.
+ * A bare base64url `string` (the credential ID) is still accepted; the object
+ * form additionally carries the `transports` captured at registration.
+ */
+export interface CredentialDescriptor {
+  /** Credential ID, base64url. */
+  id: string;
+  /** Transports captured at registration (echoed to hint the browser). */
+  transports?: AuthenticatorTransport[];
+}
+
+function toDescriptor(c: string | CredentialDescriptor): { type: "public-key"; id: string; transports?: AuthenticatorTransport[] } {
+  if (typeof c === "string") return { type: "public-key", id: c };
+  return c.transports && c.transports.length
+    ? { type: "public-key", id: c.id, transports: c.transports }
+    : { type: "public-key", id: c.id };
+}
+
 export interface RegistrationOptionsInput {
   rpName: string;
   rpID: string;
@@ -221,7 +301,12 @@ export interface RegistrationOptionsInput {
   /** "platform" (FaceID/fingerprint) or "cross-platform" (security keys). */
   authenticatorAttachment?: "platform" | "cross-platform";
   userVerification?: "required" | "preferred" | "discouraged";
-  excludeCredentials?: string[];
+  /** Resident / discoverable-key preference (default `"preferred"`). */
+  residentKey?: "required" | "preferred" | "discouraged";
+  /** Attestation conveyance preference (default `"none"`). */
+  attestation?: "none" | "indirect" | "direct" | "enterprise";
+  /** Credentials the user already has — as base64url IDs or {@link CredentialDescriptor}s. */
+  excludeCredentials?: (string | CredentialDescriptor)[];
 }
 
 /** Build `PublicKeyCredentialCreationOptions` (JSON, base64url) for the browser. */
@@ -236,13 +321,13 @@ export function generateRegistrationOptions(o: RegistrationOptionsInput) {
       { type: "public-key", alg: -257 },
     ],
     timeout: o.timeout ?? 60000,
-    attestation: "none",
+    attestation: o.attestation ?? "none",
     authenticatorSelection: {
       authenticatorAttachment: o.authenticatorAttachment,
       userVerification: o.userVerification ?? "preferred",
-      residentKey: "preferred",
+      residentKey: o.residentKey ?? "preferred",
     },
-    excludeCredentials: (o.excludeCredentials ?? []).map((id) => ({ type: "public-key", id })),
+    excludeCredentials: (o.excludeCredentials ?? []).map(toDescriptor),
   };
 }
 
@@ -251,7 +336,8 @@ export interface AuthenticationOptionsInput {
   challenge?: string;
   timeout?: number;
   userVerification?: "required" | "preferred" | "discouraged";
-  allowCredentials?: string[];
+  /** Credentials to allow — as base64url IDs or {@link CredentialDescriptor}s (with transports). */
+  allowCredentials?: (string | CredentialDescriptor)[];
 }
 
 /** Build `PublicKeyCredentialRequestOptions` (JSON, base64url) for the browser. */
@@ -261,7 +347,7 @@ export function generateAuthenticationOptions(o: AuthenticationOptionsInput) {
     rpId: o.rpID,
     timeout: o.timeout ?? 60000,
     userVerification: o.userVerification ?? "preferred",
-    allowCredentials: (o.allowCredentials ?? []).map((id) => ({ type: "public-key", id })),
+    allowCredentials: (o.allowCredentials ?? []).map(toDescriptor),
   };
 }
 
@@ -273,8 +359,18 @@ export interface RegistrationResult {
   publicKey: JsonWebKey;
   algorithm: CoseAlg;
   counter: number;
+  /** Whether a user was present (UP flag) at registration. */
+  userPresent: boolean;
   /** Whether the authenticator verified the user (biometric / PIN) at registration. */
   userVerified: boolean;
+  /** BE flag — the credential is eligible for backup / multi-device sync (a synced passkey). */
+  backupEligible: boolean;
+  /** BS flag — the credential is currently backed up / synced. */
+  backupState: boolean;
+  /** Authenticator model identifier (`8-4-4-4-12` hex); all-zero for privacy-preserving authenticators. */
+  aaguid: string;
+  /** Transports echoed from the browser response (store with the credential). */
+  transports?: AuthenticatorTransport[];
 }
 
 export interface VerifyRegistrationInput {
@@ -285,6 +381,12 @@ export interface VerifyRegistrationInput {
   expectedRPID: string;
   /** Require the User-Verified (UV) flag — reject if biometric/PIN was not performed. */
   requireUserVerification?: boolean;
+  /** Require a resident / discoverable credential — reject unless {@link residentKey} is `true`. */
+  requireResidentKey?: boolean;
+  /** `credProps.rk` from the browser's client-extension results (whether a discoverable key was created). */
+  residentKey?: boolean;
+  /** Transports from `response.getTransports()` — echoed into the result to store with the credential. */
+  transports?: AuthenticatorTransport[];
 }
 
 /** Verify a registration response and extract the credential's public key. */
@@ -301,16 +403,24 @@ export async function verifyRegistration(input: VerifyRegistrationInput): Promis
   if (!authData.credentialId || !authData.publicKeyCose) throw new Error("no attested credential data");
   if (input.requireUserVerification && !authData.userVerified)
     throw new Error("user verification required but UV flag not set");
+  if (input.requireResidentKey && input.residentKey !== true)
+    throw new Error("resident/discoverable key required but not created");
 
   const alg = coseAlgName(authData.publicKeyCose.get(3) as number);
-  return {
+  const result: RegistrationResult = {
     verified: true,
     credentialId: toBase64url(authData.credentialId),
     publicKey: coseToJwk(authData.publicKeyCose),
     algorithm: alg,
     counter: authData.signCount,
+    userPresent: authData.userPresent,
     userVerified: authData.userVerified,
+    backupEligible: authData.backupEligible,
+    backupState: authData.backupState,
+    aaguid: authData.aaguid ?? "00000000-0000-0000-0000-000000000000",
   };
+  if (input.transports && input.transports.length) result.transports = input.transports;
+  return result;
 }
 
 export interface VerifyAuthenticationInput {
@@ -331,8 +441,14 @@ export interface VerifyAuthenticationInput {
 export interface AuthenticationResult {
   verified: boolean;
   newCounter: number;
+  /** Whether a user was present (UP flag) for this assertion. */
+  userPresent: boolean;
   /** Whether the authenticator verified the user (biometric / PIN) for this assertion. */
   userVerified: boolean;
+  /** BE flag — the credential is eligible for backup / multi-device sync. */
+  backupEligible: boolean;
+  /** BS flag — the credential is currently backed up / synced. */
+  backupState: boolean;
 }
 
 /** Verify an authentication (login) assertion. Throws on any check failure. */
@@ -372,6 +488,14 @@ export async function verifyAuthentication(input: VerifyAuthenticationInput): Pr
       signature as unknown as BufferSource,
       signedData as unknown as BufferSource,
     );
+  } else if (input.algorithm === "Ed25519") {
+    const key = await c.subtle.importKey("jwk", input.publicKey, { name: "Ed25519" }, false, ["verify"]);
+    verified = await c.subtle.verify(
+      { name: "Ed25519" },
+      key,
+      signature as unknown as BufferSource,
+      signedData as unknown as BufferSource,
+    );
   } else {
     const key = await c.subtle.importKey("jwk", input.publicKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     verified = await c.subtle.verify(
@@ -383,7 +507,14 @@ export async function verifyAuthentication(input: VerifyAuthenticationInput): Pr
   }
 
   if (!verified) throw new Error("signature verification failed");
-  return { verified: true, newCounter: authData.signCount, userVerified: authData.userVerified };
+  return {
+    verified: true,
+    newCounter: authData.signCount,
+    userPresent: authData.userPresent,
+    userVerified: authData.userVerified,
+    backupEligible: authData.backupEligible,
+    backupState: authData.backupState,
+  };
 }
 
 /* ------------------------------ browser helpers ------------------------------ */
@@ -414,12 +545,18 @@ export async function startRegistration(options: ReturnType<typeof generateRegis
   };
   const cred = (await (navigator as Navigator).credentials.create({ publicKey: publicKey as unknown as PublicKeyCredentialCreationOptions })) as PublicKeyCredential;
   const res = cred.response as AuthenticatorAttestationResponse;
+  const getTransports = (res as { getTransports?: () => string[] }).getTransports;
+  const credProps = (cred.getClientExtensionResults?.() as { credProps?: { rk?: boolean } } | undefined)?.credProps;
   return {
     id: cred.id,
     rawId: toBase64url(cred.rawId),
     type: cred.type,
     clientDataJSON: toBase64url(res.clientDataJSON),
     attestationObject: toBase64url(res.attestationObject),
+    /** Transports for this authenticator — pass to `verifyRegistration` and store. */
+    transports: (typeof getTransports === "function" ? getTransports.call(res) : []) as AuthenticatorTransport[],
+    /** `credProps.rk` — whether a discoverable (resident) key was created, when the browser reports it. */
+    residentKey: credProps?.rk,
   };
 }
 

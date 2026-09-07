@@ -149,6 +149,33 @@ export async function authenticateApiKey(key: string, opts: AuthenticateApiKeyOp
   return record;
 }
 
+/* -------- key records: fingerprints, scopes, expiry, rotation, revocation -------- */
+export {
+  fingerprint,
+  parseKey,
+  maskKey,
+  scopeSatisfies,
+  hasScope,
+  hasAllScopes,
+  hasAnyScope,
+  isExpired,
+  isRevoked,
+  revoke,
+  isRevokedId,
+  revocationList,
+  rotateApiKey,
+  verifyRecord,
+  verifyKeyAgainst,
+  markUsed,
+} from "./records";
+export type {
+  StoredApiKey,
+  RotateOptions,
+  RotatedApiKey,
+  KeyMatch,
+  VerifyRecordOptions,
+} from "./records";
+
 /** Minimal Express-style middleware: verifies the API key → `req.apiKey`, else 401. */
 export function expressApiKey(opts: AuthenticateApiKeyOptions & { headerName?: string; recordKey?: string }) {
   const recordKey = opts.recordKey ?? "apiKey";

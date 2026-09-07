@@ -277,3 +277,29 @@ export async function readMagicLink<T = TokenData>(
   if (!token) return { valid: false, reason: "malformed" };
   return verify<T>(token, opts);
 }
+
+/* ------------------------------------------------------------------ *
+ * Secure layer (new in 1.1.0): key rotation, binding, nonce, claims.
+ * Additive superset — see ./secure. Classic exports above are unchanged.
+ * ------------------------------------------------------------------ */
+export {
+  signSecure,
+  verifySecure,
+  signSecureUrl,
+  verifySecureUrl,
+  generateNonce,
+  consumeNonce,
+} from "./secure";
+export type {
+  KeySet,
+  BindConstraints,
+  RequestContext,
+  SecureFailReason,
+  SecureSignOptions,
+  SecureVerifyOptions,
+  SecureVerifyResult,
+  SecureSignUrlOptions,
+  SecureVerifyUrlOptions,
+  ConsumeNonceOptions,
+  ConsumeNonceResult,
+} from "./secure";

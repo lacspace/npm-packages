@@ -73,10 +73,13 @@ randomBytes(16);                             // CSPRNG bytes
 | `encrypt` / `decrypt` | AES-256-GCM with a 32-byte key |
 | `encryptWithPassword` / `decryptWithPassword` | passphrase (PBKDF2 + AES-GCM) |
 | `generateKey` | random 256-bit key (base64url) |
-| `sha256` / `digest` / `hmac` / `hmacVerify` | hashing & MAC |
-| `deriveBits` | PBKDF2 key derivation |
-| `randomBytes` / `constantTimeEqual` | primitives |
-| `toHex` / `fromHex` / `toBase64url` / `fromBase64url` | encoding |
+| `sha256` / `sha384` / `sha512` / `digest` | hashing |
+| `hmac` / `hmacHex` / `hmacBase64url` / `hmacVerify` | MAC (bytes / hex / base64url) |
+| `hkdf` / `deriveBits` | HKDF & PBKDF2 key derivation |
+| `Keyring` | versioned keys for zero-downtime rotation |
+| `randomBytes` / `randomString` / `randomUUID` / `randomInt` | secure random (unbiased) |
+| `constantTimeEqual` / `timingSafeEqual` | timing-safe compare |
+| `toHex` / `fromHex` / `toBase64url` / `fromBase64url` / `toBase64` / `fromBase64` | encoding |
 
 ## The Lacspace Security Kit
 
@@ -113,6 +116,30 @@ const migrated = await ring.reEncrypt(oldBlob);    // re-key to primary
 ```
 
 Also `decryptBytes()` for binary-safe payloads (files, protobufs).
+
+## New in 1.2 — more hashing, base64 & secure random
+
+```ts
+import {
+  timingSafeEqual, sha384, sha512, hmacHex, hmacBase64url,
+  toBase64, fromBase64, randomString, randomUUID, randomInt,
+} from "@lacspace/crypto";
+
+timingSafeEqual(a, b);                       // alias for constantTimeEqual
+await sha384("hi"); await sha512("hi");      // hex digests (SHA-256 already existed)
+await hmacHex(secret, "payload");            // HMAC as hex
+await hmacBase64url(secret, "payload");      // HMAC as base64url
+
+toBase64(bytes); fromBase64("aGVsbG8=");     // standard (padded) base64
+
+randomString(24);                            // 24-char URL-safe base62 token
+randomString(6, "0123456789");               // custom alphabet (unbiased)
+randomUUID();                                // RFC-4122 v4 UUID
+randomInt(6);                                // unbiased int in [0, 6)
+randomInt(100, 200);                         // unbiased int in [100, 200)
+```
+
+All random helpers use the platform CSPRNG with rejection sampling, so there is no modulo bias.
 
 ## Licensing
 

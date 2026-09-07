@@ -20,8 +20,13 @@ export interface LicenseViolation {
   name: string;
   version: string;
   license: string | null;
-  /** "deny" = matched a denied pattern; "not-allowed" = outside the allowlist. */
-  reason: "deny" | "not-allowed";
+  /**
+   * Why the package failed the policy:
+   *  - "deny"        matched a denied pattern
+   *  - "not-allowed" outside the allowlist
+   *  - "severity"    category is more restrictive than `maxSeverity`
+   */
+  reason: "deny" | "not-allowed" | "severity";
 }
 
 export interface LicenseSummary {
@@ -39,6 +44,25 @@ export interface LicensePolicy {
   allow?: string[];
   /** Denylist patterns; any match is a violation. */
   deny?: string[];
+  /**
+   * Most-restrictive licence category tolerated. Anything ranked stricter than
+   * this is a "severity" violation. Ordered permissive < weak-copyleft <
+   * strong-copyleft < unknown. When unset, no severity gate is applied.
+   */
+  maxSeverity?: LicenseCategory;
+}
+
+/** Severity ranking of a licence category (higher = more restrictive/riskier). */
+export const SEVERITY_ORDER: Record<LicenseCategory, number> = {
+  permissive: 0,
+  "weak-copyleft": 1,
+  "strong-copyleft": 2,
+  unknown: 3,
+};
+
+/** Numeric severity rank for a category (see {@link SEVERITY_ORDER}). */
+export function severityRank(category: LicenseCategory): number {
+  return SEVERITY_ORDER[category];
 }
 
 // Prefix/exact matchers per category. Checked in order: strong, weak, permissive.
@@ -103,6 +127,8 @@ export function licenseMatches(license: string | null, patterns: string[]): bool
 /**
  * Evaluate an allow/deny policy against a licence.
  *  - A match against any `deny` pattern is a "deny" violation.
+ *  - If `maxSeverity` is set, a licence whose category ranks stricter than it is
+ *    a "severity" violation (checked after deny, before the allowlist).
  *  - If `allow` is non-empty, a licence matching none of the allow patterns is
  *    a "not-allowed" violation. For "A OR B" the package passes if *any*
  *    component is allowed.
@@ -114,6 +140,11 @@ export function evaluatePolicy(
   const deny = policy.deny ?? [];
   const allow = policy.allow ?? [];
   if (deny.length && licenseMatches(license, deny)) return "deny";
+  if (policy.maxSeverity) {
+    if (severityRank(classifyLicense(license)) > severityRank(policy.maxSeverity)) {
+      return "severity";
+    }
+  }
   if (allow.length) {
     const ids = license ? splitExpression(license) : [];
     const anyAllowed =

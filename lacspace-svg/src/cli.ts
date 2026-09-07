@@ -4,12 +4,15 @@ import { basename, join, dirname } from "node:path";
 import { optimize } from "./optimize.js";
 import type { OptimizeOptions } from "./optimize.js";
 import { toJsx } from "./jsx.js";
+import { toComponent } from "./component.js";
+import type { Framework } from "./component.js";
 import { toDataUri } from "./datauri.js";
 import { buildSprite } from "./sprite.js";
 import type { SpriteInput } from "./sprite.js";
 import { info } from "./info.js";
+import { dimensions } from "./dimensions.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const useColor = !process.env.NO_COLOR && stdout.isTTY;
 const RAW = {
@@ -19,7 +22,10 @@ const RAW = {
 const c = (k: keyof typeof RAW, s: string): string => (useColor ? `${RAW[k]}${s}${RAW.reset}` : s);
 const log = (s = ""): void => void stderr.write(s + "\n");
 
-const COMMANDS = new Set(["optimize", "jsx", "react", "data-uri", "datauri", "sprite", "info"]);
+const COMMANDS = new Set([
+  "optimize", "jsx", "react", "data-uri", "datauri", "sprite", "info",
+  "vue", "svelte", "solid", "component", "dimensions",
+]);
 
 interface Args {
   command: string;
@@ -34,6 +40,12 @@ interface Args {
   name?: string;
   ts: boolean;
   ref: boolean;
+  framework?: Framework;
+  currentColor: boolean;
+  keepColors?: string[];
+  hoist: boolean;
+  keepDefaultAttrs: boolean;
+  fixDimensions: boolean;
   encoding: "uri" | "base64";
   css: boolean;
   multipass: boolean;
@@ -45,7 +57,8 @@ interface Args {
 function parseArgs(list: string[]): Args {
   const a: Args = {
     command: "optimize", files: [], removeDimensions: false, keepIds: false,
-    keepTitle: false, pretty: false, ts: false, ref: false, encoding: "uri",
+    keepTitle: false, pretty: false, ts: false, ref: false, currentColor: false,
+    hoist: false, keepDefaultAttrs: false, fixDimensions: false, encoding: "uri",
     css: false, multipass: false, json: false, help: false, version: false,
   };
   let first = true;
@@ -68,6 +81,15 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--name") a.name = nextVal();
     else if (arg === "--ts" || arg === "--typescript") a.ts = true;
     else if (arg === "--ref") a.ref = true;
+    else if (arg === "--framework") {
+      const v = nextVal();
+      if (v === "react" || v === "vue" || v === "svelte" || v === "solid") a.framework = v;
+      else fail(`unknown framework: ${v} (use react|vue|svelte|solid)`);
+    } else if (arg === "--current-color" || arg === "--currentcolor") a.currentColor = true;
+    else if (arg === "--keep-colors") a.keepColors = nextVal().split(",").map((s) => s.trim()).filter(Boolean);
+    else if (arg === "--hoist") a.hoist = true;
+    else if (arg === "--keep-default-attrs") a.keepDefaultAttrs = true;
+    else if (arg === "--fix-dimensions") a.fixDimensions = true;
     else if (arg === "--encoding") {
       const v = nextVal();
       a.encoding = v === "base64" ? "base64" : "uri";
@@ -91,22 +113,33 @@ ${c("bold", "Usage")}
   cat icon.svg | npx lacspace-svg optimize
 
 ${c("bold", "Commands")}
-  optimize   ${c("dim", "(default) minify/clean an SVG, report bytes saved")}
+  optimize   ${c("dim", "(default) minify/clean an SVG (or a batch), report bytes saved")}
   jsx        ${c("dim", "convert an SVG to a React/JSX component")}
+  vue        ${c("dim", "convert an SVG to a Vue 3 single-file component")}
+  svelte     ${c("dim", "convert an SVG to a Svelte component")}
+  solid      ${c("dim", "convert an SVG to a Solid component")}
+  component  ${c("dim", "convert an SVG (--framework react|vue|svelte|solid)")}
   data-uri   ${c("dim", "emit a data:image/svg+xml URI (URL-encoded or base64)")}
   sprite     ${c("dim", "combine many SVGs into one <symbol> sprite sheet")}
   info       ${c("dim", "print dimensions, element counts & safety warnings")}
+  dimensions ${c("dim", "print width / height / viewBox of the root <svg>")}
 
 ${c("bold", "Options")}
   -o, --out <file>        Write output to a file instead of stdout
       --out-dir <dir>     Write one output file per input into <dir>
       --precision <n>     Decimal places for number rounding (default 3)
       --remove-dimensions Drop width/height in favour of viewBox (opt-in)
+      --fix-dimensions    Derive a missing viewBox from width/height (and vice-versa)
+      --current-color     Replace literal fill/stroke colours with currentColor
+      --keep-colors <l>   Comma list of colours to keep literal (with --current-color)
+      --hoist             Hoist attributes shared by all children onto their group
+      --keep-default-attrs Keep presentation attrs set to their default value
       --keep-ids          Keep unused id attributes
       --keep-title        Keep <title>/<desc> (default: kept unless this is off)
       --pretty            Pretty-print instead of minifying
-      --name <Comp>       (jsx) component name
-      --ts                (jsx) emit TypeScript
+      --name <Comp>       (component) component name
+      --framework <f>     (component) react | vue | svelte | solid
+      --ts                (component) emit TypeScript
       --ref               (jsx) forwardRef to the root <svg>
       --encoding <e>      (data-uri) uri | base64 (default uri)
       --css               (data-uri) wrap as background-image:url("…")
@@ -118,10 +151,14 @@ ${c("bold", "Options")}
 ${c("bold", "Examples")}
   npx lacspace-svg logo.svg -o logo.min.svg
   npx lacspace-svg optimize icons/*.svg --out-dir dist --precision 2
+  npx lacspace-svg optimize icons/*.svg --current-color
   npx lacspace-svg jsx logo.svg --name Logo --ts --ref
+  npx lacspace-svg vue logo.svg --name Logo --ts
+  npx lacspace-svg svelte logo.svg --name Logo
+  npx lacspace-svg component logo.svg --framework solid --ts
   npx lacspace-svg data-uri icon.svg --css
   npx lacspace-svg sprite icons/*.svg -o sprite.svg
-  npx lacspace-svg info logo.svg
+  npx lacspace-svg dimensions logo.svg
   cat logo.svg | npx lacspace-svg optimize
 `;
 
@@ -204,10 +241,17 @@ function optimizeOpts(a: Args): OptimizeOptions {
     removeDimensions: a.removeDimensions,
     removeUnusedIds: !a.keepIds,
     removeTitle: !a.keepTitle,
+    removeDefaultAttrs: !a.keepDefaultAttrs,
+    moveElemsAttrsToGroup: a.hoist,
     multipass: a.multipass,
     pretty: a.pretty,
   };
   if (a.precision !== undefined) o.precision = a.precision;
+  if (a.currentColor) o.currentColor = a.keepColors ? { keep: a.keepColors } : true;
+  if (a.fixDimensions) {
+    o.addViewBox = true;
+    o.addDimensions = true;
+  }
   return o;
 }
 
@@ -231,6 +275,16 @@ function cmdOptimize(a: Args, inputs: { path: string; content: string }[]): void
       log(`  ${c("dim", `${r.res.before} → ${r.res.after} bytes`)}  ${c("green", `-${r.res.savedPct}%`)}`);
     }
   }
+  if (results.length > 1) {
+    const before = results.reduce((s, r) => s + r.res.before, 0);
+    const after = results.reduce((s, r) => s + r.res.after, 0);
+    const pct = before === 0 ? 0 : Math.round(((before - after) / before) * 1000) / 10;
+    log(
+      `\n  ${c("bold", `${results.length} files`)}  ` +
+        `${c("dim", `${before} → ${after} bytes`)}  ${c("green", `-${pct}%`)} ` +
+        `${c("dim", `(${before - after} bytes saved)`)}`,
+    );
+  }
 }
 
 function cmdJsx(a: Args, inputs: { path: string; content: string }[]): void {
@@ -251,6 +305,43 @@ function cmdJsx(a: Args, inputs: { path: string; content: string }[]): void {
       if (inputs.length > 1) log(c("dim", `\n// ${f.path} → ${name}`));
       stdout.write(code! + (code!.endsWith("\n") ? "" : "\n"));
     }
+  }
+}
+
+const EXT: Record<Framework, string> = { react: "", vue: ".vue", svelte: ".svelte", solid: "" };
+
+function cmdComponent(a: Args, inputs: { path: string; content: string }[], framework: Framework): void {
+  for (const f of inputs) {
+    const name = a.name ?? (f.path === "<stdin>" ? "SvgComponent" : pascalCase(f.path));
+    let code: string;
+    try {
+      code = toComponent(f.content, { framework, name, typescript: a.ts });
+    } catch (err) {
+      fail((err as Error).message, a.json);
+    }
+    if (a.out || a.outDir) {
+      const ext = EXT[framework] || (a.ts ? ".tsx" : ".jsx");
+      const fname = (f.path === "<stdin>" ? name : pascalCase(f.path)) + ext;
+      writeOut(a, fname, code!);
+    } else {
+      if (inputs.length > 1) log(c("dim", `\n// ${f.path} → ${name} (${framework})`));
+      stdout.write(code! + (code!.endsWith("\n") ? "" : "\n"));
+    }
+  }
+}
+
+function cmdDimensions(a: Args, inputs: { path: string; content: string }[]): void {
+  for (const f of inputs) {
+    const d = dimensions(f.content);
+    if (a.json) {
+      stdout.write(JSON.stringify({ file: f.path, ...d }) + "\n");
+      continue;
+    }
+    log(`\n${c("bold", c("magenta", "◆ lacspace-svg dimensions"))}  ${c("dim", f.path)}`);
+    log(`  ${c("cyan", "width")}     ${d.width ?? c("dim", "—")}`);
+    log(`  ${c("cyan", "height")}    ${d.height ?? c("dim", "—")}`);
+    log(`  ${c("cyan", "viewBox")}   ${d.viewBox ?? c("dim", "—")}`);
+    log("");
   }
 }
 
@@ -325,9 +416,14 @@ function main(): void {
 
   switch (args.command) {
     case "jsx": return cmdJsx(args, inputs);
+    case "vue": return cmdComponent(args, inputs, "vue");
+    case "svelte": return cmdComponent(args, inputs, "svelte");
+    case "solid": return cmdComponent(args, inputs, "solid");
+    case "component": return cmdComponent(args, inputs, args.framework ?? "react");
     case "data-uri": return cmdDataUri(args, inputs);
     case "sprite": return cmdSprite(args, inputs);
     case "info": return cmdInfo(args, inputs);
+    case "dimensions": return cmdDimensions(args, inputs);
     default: return cmdOptimize(args, inputs);
   }
 }

@@ -123,7 +123,7 @@ function parseBlock(lines: string[], startLine: number): HttpFileRequest | undef
           const source = arg.slice(eq + 1).trim();
           if (cname && source) captures.push({ name: cname, source });
         }
-      } else if (directive === "assert") {
+      } else if (directive === "assert" || directive === "expect") {
         if (arg) assertions.push({ expr: arg });
       }
     }
@@ -163,7 +163,7 @@ function parseBlock(lines: string[], startLine: number): HttpFileRequest | undef
       if (at) {
         const directive = at[1]!.toLowerCase();
         const arg = at[2]!.trim();
-        if (directive === "assert" && arg) assertions.push({ expr: arg });
+        if ((directive === "assert" || directive === "expect") && arg) assertions.push({ expr: arg });
         else if (directive === "capture") {
           const eq = arg.indexOf("=");
           if (eq !== -1) captures.push({ name: arg.slice(0, eq).trim(), source: arg.slice(eq + 1).trim() });
@@ -181,7 +181,7 @@ function parseBlock(lines: string[], startLine: number): HttpFileRequest | undef
   // Body: the rest of the block. Directive comments (`# @name/@capture/@assert`)
   // may trail the body — pull those out and keep everything else as the body.
   const bodyLines: string[] = [];
-  const directive = /^\s*(?:#+|\/\/)\s*@(name|capture|assert)\b\s*(.*)$/;
+  const directive = /^\s*(?:#+|\/\/)\s*@(name|capture|assert|expect)\b\s*(.*)$/;
   for (const line of lines.slice(i)) {
     const m = directive.exec(line);
     if (m) {
@@ -195,7 +195,7 @@ function parseBlock(lines: string[], startLine: number): HttpFileRequest | undef
           const source = arg.slice(eq + 1).trim();
           if (cname && source) captures.push({ name: cname, source });
         }
-      } else if (kind === "assert" && arg) {
+      } else if ((kind === "assert" || kind === "expect") && arg) {
         assertions.push({ expr: arg });
       }
       continue;

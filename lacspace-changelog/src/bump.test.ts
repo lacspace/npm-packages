@@ -87,6 +87,25 @@ describe("recommendBump — release-as override", () => {
   });
 });
 
+describe("recommendBump — custom majorTypes (config-driven)", () => {
+  it("forces a major for a configured major type", () => {
+    const r = recommendBump(cx(["breaking: rip", "fix: y"]), "1.4.2", {
+      majorTypes: ["breaking"],
+    });
+    expect(r.level).toBe("major");
+    expect(r.next).toBe("2.0.0");
+  });
+  it("does not treat the type as major without config", () => {
+    const r = recommendBump(cx(["breaking: rip"]), "1.4.2");
+    expect(r.level).toBe("none");
+  });
+  it("respects custom minor/patch type lists", () => {
+    const r = recommendBump(cx(["ui: new"]), "1.4.2", { minorTypes: ["ui"] });
+    expect(r.level).toBe("minor");
+    expect(r.next).toBe("1.5.0");
+  });
+});
+
 describe("recommendBump — stats", () => {
   it("counts contributions", () => {
     const r = recommendBump(

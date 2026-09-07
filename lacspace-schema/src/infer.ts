@@ -10,6 +10,7 @@
  */
 import type { JsonValue, JSONSchema, JsonSchemaType } from "./types.js";
 import { isPlainObject, safeKeys, safeSet } from "./util.js";
+import { detectFormat } from "./formats.js";
 
 /** Options controlling schema inference. */
 export interface InferOptions {
@@ -47,24 +48,7 @@ function kindOf(v: JsonValue): Kind {
   }
 }
 
-// --- string format detection ------------------------------------------------
-
-const FORMATS: Array<[string, RegExp]> = [
-  ["uuid", /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i],
-  ["date-time", /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/],
-  ["date", /^\d{4}-\d{2}-\d{2}$/],
-  ["email", /^[^\s@]+@[^\s@]+\.[^\s@]+$/],
-  ["ipv4", /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/],
-  ["uri", /^[a-z][a-z0-9+.-]*:\/\/[^\s]+$/i],
-];
-
-function detectFormat(values: string[]): string | undefined {
-  if (values.length === 0) return undefined;
-  for (const [name, re] of FORMATS) {
-    if (values.every((v) => re.test(v))) return name;
-  }
-  return undefined;
-}
+// --- string format detection (see ./formats.ts) -----------------------------
 
 // --- enum detection ---------------------------------------------------------
 

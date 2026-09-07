@@ -21,6 +21,11 @@
  *
  * schemaToTs(schema, { name: "User", enum: true });
  * schemaToExample(schema); // a sample object satisfying the schema
+ *
+ * // 0.2.0: validate data, emit Zod, and round-trip OpenAPI components
+ * validate(schema, { id: 1, email: "a@x.com", role: "admin" }); // { valid, errors }
+ * schemaToZod(schema, { name: "User" });                        // Zod source
+ * fromOpenApi(openApiDoc).schemas;                              // named schemas
  * ```
  */
 export { inferSchema, inferNode } from "./infer.js";
@@ -31,4 +36,12 @@ export { schemaToExample } from "./example.js";
 export type { ExampleOptions } from "./example.js";
 export { diffSchemas } from "./diff.js";
 export type { DiffResult, DiffEntry, DiffKind } from "./diff.js";
+export { validate } from "./validate.js";
+export type { ValidationResult, ValidationError, ValidateOptions } from "./validate.js";
+export { schemaToZod, jsonToZod } from "./zod.js";
+export type { ZodOptions } from "./zod.js";
+export { fromOpenApi, toOpenApi } from "./openapi.js";
+export type { OpenApiExtract, ToOpenApiOptions } from "./openapi.js";
+export { resolveRef, refName } from "./refs.js";
+export { detectFormat, matchesFormat, FORMAT_PATTERNS } from "./formats.js";
 export type { JsonValue, JSONSchema, JsonSchemaType } from "./types.js";

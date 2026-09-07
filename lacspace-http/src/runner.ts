@@ -34,6 +34,8 @@ export interface RequestRunResult {
   line: number;
   /** Unresolved `{{vars}}` encountered while building the request. */
   missingVars: string[];
+  /** The concrete request that was (or would be) sent, after interpolation. */
+  request: RequestSpec;
   /** Set when the request could not be sent at all. */
   error?: string;
   response?: ResponseRecord;
@@ -84,6 +86,8 @@ export async function runHttpFile(source: string, opts: RunOptions = {}): Promis
   if (opts.maxRedirects !== undefined) sendOpts.maxRedirects = opts.maxRedirects;
   if (opts.followRedirects !== undefined) sendOpts.followRedirects = opts.followRedirects;
   if (opts.fetchImpl !== undefined) sendOpts.fetchImpl = opts.fetchImpl;
+  if (opts.retry !== undefined) sendOpts.retry = opts.retry;
+  if (opts.sleepImpl !== undefined) sendOpts.sleepImpl = opts.sleepImpl;
 
   for (const req of selected) {
     const { spec, missing } = resolveSpec(req, scope);
@@ -92,6 +96,7 @@ export async function runHttpFile(source: string, opts: RunOptions = {}): Promis
       url: spec.url,
       line: req.line,
       missingVars: missing,
+      request: spec,
       assertions: [],
       captured: {},
       ok: false,

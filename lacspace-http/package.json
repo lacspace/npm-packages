@@ -1,6 +1,6 @@
 {
   "name": "lacspace-http",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A keyless, zero-dependency terminal API client and .http/.rest file runner — send requests, chain captured tokens and assert responses as a CI test suite. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -28,7 +28,9 @@
     "http", "http-client", "rest-client", "api-client", "curl", "httpie",
     "postman", "http-file", "rest-file", "api-testing", "http-request", "cli",
     "typescript", "zero-dependency", "fetch", "assertions", "json-path", "ci",
-    "smoke-test", "http-runner"
+    "smoke-test", "http-runner",
+    "retry", "backoff", "har", "har-export", "benchmark", "load-test",
+    "latency", "percentile", "p95", "expect", "response-assertions"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

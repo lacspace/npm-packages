@@ -26,6 +26,7 @@ import {
   PRODUCT_CATEGORIES,
   COLORS,
 } from "./data.js";
+import { extraGenerators, EXTRA_GEN_ORDER } from "./extras.js";
 
 export interface GenContext {
   rng: RNG;
@@ -280,6 +281,9 @@ export const generators: Record<string, Generator> = {
   // Nepal-flavoured ids (locale-aware amount/tax numbers)
   pan: (ctx) => ctx.rng.digits(9),
   vat: (ctx) => ctx.rng.digits(9),
+
+  // 0.2.0 additions (uuid/ulid, colours, files, finance, …)
+  ...extraGenerators,
 };
 
 /** Short human sample values for the `list` command / discovery. */
@@ -294,6 +298,7 @@ export const GEN_ORDER: string[] = [
   "past", "future", "recent", "soon", "between", "timestamp", "date", "time",
   "int", "float", "bool", "oneOf", "weighted", "digit",
   "autoincrement", "nanoid", "objectId", "pan", "vat",
+  ...EXTRA_GEN_ORDER,
 ];
 
 /** Look up + invoke a generator by name, throwing a clear error if unknown. */

@@ -50,8 +50,20 @@ export {
 } from "./baseline.js";
 export type { Baseline, FileDelta, DiffResult, DeltaStatus, IncreaseThreshold } from "./baseline.js";
 
-export { buildJsonReport, toMarkdown, pct } from "./report.js";
+export { buildJsonReport, toMarkdown, toMarkdownComment, formatSummaryLine, pct } from "./report.js";
 export type { ReportContext } from "./report.js";
 
-export { parseConfig, loadConfig } from "./config.js";
+export { parseConfig, loadConfig, discoverConfig, CONFIG_FILENAMES } from "./config.js";
 export type { SizeConfig } from "./config.js";
+
+export { analyzeComposition, analyzeCompositionFile } from "./composition.js";
+export type {
+  CompositionResult,
+  CompositionOptions,
+  CompositionSegment,
+  SegmentKind,
+  StringLiteral,
+  LineSlice,
+  ModuleSlice,
+  TreemapNode,
+} from "./composition.js";

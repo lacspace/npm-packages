@@ -10,6 +10,13 @@ npx lacspace-license add "src/**/*.{ts,js}" --id MIT --write
 npx lacspace-license check --require-headers
 ```
 
+## New in 0.2.0
+
+- **`detect`** — identify the SPDX id of any `LICENSE` file with a confidence score (`detectLicenseInfo(text) → { spdx, confidence, name }`).
+- **`compat`** — flag dependency licences that are incompatible with your project (e.g. a GPL dependency in an MIT project) using a built-in compatibility matrix. Reads `--deps` or scans `node_modules`.
+- **`check --fix`** — repair a failing gate in place: write a missing `LICENSE`, align the `package.json` `license` field to the detected licence, and insert missing headers.
+- Everything additive and backward-compatible — no existing command, flag, or export changed.
+
 ## Why it exists
 
 - **Free & keyless** — no account, no API, no telemetry. It only ever reads and writes files on your disk.
@@ -89,6 +96,36 @@ $ npx lacspace-license check --require-headers
 # exits non-zero if the LICENSE is missing, mismatched, or any header is absent
 ```
 
+**Auto-repair a failing gate**
+
+```bash
+$ npx lacspace-license check --require-headers --fix
+  ✎ fixed · 3 repairs
+      + Wrote LICENSE (MIT).
+      + Added header: src/a.ts
+      + Added header: src/b.ts
+  ✓ all checks passed
+```
+
+**Detect an unknown LICENSE**
+
+```bash
+$ npx lacspace-license detect LICENSE
+◆ lacspace-license detect · LICENSE
+  ✓ Apache-2.0 · Apache License 2.0 · 100% confidence
+```
+
+**Check dependency-licence compatibility**
+
+```bash
+$ npx lacspace-license compat --id MIT --deps Apache-2.0,GPL-3.0-only
+◆ lacspace-license compat · project MIT · 2 licences
+  ✓ Apache-2.0     compatible    permissive — safe to include under MIT
+  ✗ GPL-3.0-only   incompatible  strong copyleft — forces the whole work under GPL-3.0-only
+  ✗ 1 incompatible: GPL-3.0-only          # exits non-zero
+# omit --deps to scan node_modules instead:  compat --prod
+```
+
 ## Comment syntax per language
 
 Headers are written with the correct comment style for each file:
@@ -110,7 +147,8 @@ Everything the CLI does is available as a fully-typed dual ESM/CJS library:
 ```ts
 import {
   generateLicense, addHeader, updateHeader, removeHeader,
-  styleForFile, detectLicense, scanDependencies, renderNotices, checkProject,
+  styleForFile, detectLicense, detectLicenseInfo, checkCompatibility,
+  scanDependencies, renderNotices, checkProject,
 } from "lacspace-license";
 ```
 
@@ -125,10 +163,13 @@ import {
 | `removeHeader` | `(content, style) => { changed, content }` |
 | `hasHeader` / `findHeader` | header detection helpers |
 | `detectLicense` | `(text: string) => string \| null` (fuzzy on whitespace/CRLF) |
+| `detectLicenseInfo` | `(text, minConfidence?) => { spdx, confidence, name }` |
 | `licenseMatches` | `(text: string, expectedId: string) => boolean` |
+| `checkCompatibility` | `(projectSpdx, depSpdxList) => CompatResult` (compatibility matrix) |
+| `verdictFor` | `(projectSpdx, depSpdx) => CompatIssue` (single pairing) |
 | `scanDependencies` | `(opts?) => DependencyNotice[]` (reads node_modules) |
 | `renderNotices` | `(notices, opts?) => string` (md or txt) |
-| `checkProject` | `(opts?) => CheckResult` (LICENSE + headers CI gate) |
+| `checkProject` | `(opts?) => CheckResult` — `opts.fix` repairs in place |
 | `resolveId` / `metaOf` / `supportedIds` | SPDX metadata helpers |
 
 ## CLI reference
@@ -142,6 +183,8 @@ Commands
   update <globs...>    Refresh the header (year/holder/id) on matching files
   remove <globs...>    Strip the licence header from matching files
   notices              Build THIRD-PARTY-NOTICES from node_modules
+  detect [file]        Identify the SPDX id of a LICENSE file (default: ./LICENSE)
+  compat [ids...]      Flag dependency licences incompatible with your project
   check                CI gate: LICENSE exists, matches package.json, headers
   list                 List supported SPDX ids
 
@@ -149,12 +192,14 @@ Options
   -a, --author <name>    Author name (defaults to package.json author)
       --holder <name>    Copyright holder (defaults to author)
   -y, --year <year>      Copyright year or range (default: current year)
-      --id, --spdx <id>  SPDX id for headers/check (default: package.json license)
+      --id, --spdx <id>  SPDX id for headers/check/compat (default: package.json license)
   -o, --output <file>    Output path (init → LICENSE, notices → THIRD-PARTY-NOTICES.md)
       --src <dir>        Source dir for check --require-headers (default: src)
       --template <str>   Custom header template ({{year}}/{{holder}}/{{id}})
+      --deps <ids>       compat: comma-separated dependency SPDX ids to test
       --require-headers  check: also require a header on every source file
-      --prod             notices: production dependencies only
+      --fix              check: write a missing LICENSE, align package.json, add headers
+      --prod             notices/compat: production dependencies only
       --no-text          notices: omit each dependency's bundled licence text
   -f, --format <fmt>     notices: md|txt
       --force            init: overwrite an existing LICENSE
@@ -172,6 +217,7 @@ Options
 - **Header detection is anchored at the top of the file** (after any shebang and blank lines). A licence header buried in the middle of a file is not managed — which is by design, so inner comments are never corrupted.
 - **`--prod` filtering is a shallow graph walk** from your root `package.json` dependencies; it approximates what a package manager resolves and does not read a lockfile.
 - **Licence detection covers the embedded set only.** An unusual or heavily-edited LICENSE may not be recognised (`check` reports it rather than guessing).
+- **`compat` is advisory, not legal advice.** It uses a conservative outbound-direction matrix (a strong-copyleft dependency inside a permissive project is flagged) and marks `weak-copyleft` (LGPL/MPL) deps for `review` rather than passing or failing them — always confirm borderline cases with counsel.
 - **`init` for copyleft licences** (GPL/AGPL/LGPL/MPL) writes the full canonical text; the per-file "how to apply" notice is included but you still add headers separately with `add`.
 - Custom `--template` headers must keep an `SPDX-License-Identifier:` or `Copyright` line so they can be detected on later runs.
 

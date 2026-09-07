@@ -1,12 +1,13 @@
 import { stdout, stderr, argv, exit, env } from "node:process";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { start } from "./server.js";
 import type { HandlerOptions, MountedRoute } from "./server.js";
-import { loadDb, loadConfig } from "./config.js";
+import { loadDb, loadConfig, loadOpenApi, readJson } from "./config.js";
 import type { Db } from "./db.js";
+import type { Cassette, ProxyConfig } from "./proxy.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const useColor = !env["NO_COLOR"] && stdout.isTTY !== false;
 const C = {
@@ -19,10 +20,16 @@ const log = (s = ""): void => void stderr.write(s + "\n");
 interface Args {
   db?: string;
   config?: string;
+  openapi?: string;
   port?: number;
   host?: string;
   delay?: number | [number, number];
   errorRate?: number;
+  errorStatuses?: number[];
+  proxy?: string;
+  record: boolean;
+  replay: boolean;
+  recordings?: string;
   cors: boolean;
   write: boolean;
   seed?: string;
@@ -38,16 +45,22 @@ function parseDelay(raw: string): number | [number, number] {
 }
 
 function parseArgs(list: string[]): Args {
-  const a: Args = { cors: true, write: false, quiet: false, help: false, version: false };
+  const a: Args = { cors: true, write: false, record: false, replay: false, quiet: false, help: false, version: false };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
     const nextVal = (): string => list[++i] ?? "";
     if (arg === "--db" || arg === "-d") a.db = nextVal();
     else if (arg === "--config" || arg === "-c") a.config = nextVal();
+    else if (arg === "--openapi" || arg === "-o") a.openapi = nextVal();
     else if (arg === "--port" || arg === "-p") a.port = Number(nextVal());
     else if (arg === "--host") a.host = nextVal();
     else if (arg === "--delay") a.delay = parseDelay(nextVal());
     else if (arg === "--error-rate" || arg === "-e") a.errorRate = Number(nextVal());
+    else if (arg === "--error-statuses") a.errorStatuses = nextVal().split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
+    else if (arg === "--proxy") a.proxy = nextVal();
+    else if (arg === "--record") a.record = true;
+    else if (arg === "--replay") a.replay = true;
+    else if (arg === "--recordings") a.recordings = nextVal();
     else if (arg === "--no-cors") a.cors = false;
     else if (arg === "--write" || arg === "-w") a.write = true;
     else if (arg === "--seed") a.seed = nextVal();
@@ -65,21 +78,29 @@ ${c("bold", c("magenta", "◆ lacspace-mock"))} ${c("dim", "— a keyless local 
 ${c("bold", "Usage")}
   npx lacspace-mock --db db.json [options]
   npx lacspace-mock --config mock.config.json [options]
+  npx lacspace-mock --openapi openapi.json [options]
+  npx lacspace-mock --proxy https://api.example.com --record [options]
   npx lacspace-mock db.json                 ${c("dim", "# bare path = --db")}
 
 ${c("bold", "Options")}
-  -d, --db <file>        JSON db (json-server shape: { users:[…], posts:[…] })
-  -c, --config <file>    mock.config.json (custom routes + db + options)
-  -p, --port <n>         Port to listen on (default 4000)
-      --host <addr>      Bind address (default 127.0.0.1 — local only)
-      --delay <ms|a-b>   Delay every response by ms (or a random ms in [a,b])
-  -e, --error-rate <p>   Randomly fail p (0..1) of responses with a 500 (chaos)
-      --no-cors          Disable the permissive CORS headers (on by default)
-  -w, --write            Persist CRUD mutations back to the --db file
-      --seed <str>       Seed the {{fake.*}} generator (stable data)
-  -q, --quiet            Do not log each request
-  -h, --help             Show this help
-  -v, --version          Print the version
+  -d, --db <file>          JSON db (json-server shape: { users:[…], posts:[…] })
+  -c, --config <file>      mock.config.json (custom routes + db + options)
+  -o, --openapi <file>     Import routes + example responses from an OpenAPI 3 spec
+  -p, --port <n>           Port to listen on (default 4000)
+      --host <addr>        Bind address (default 127.0.0.1 — local only)
+      --delay <ms|a-b>     Delay every response by ms (or a random ms in [a,b])
+  -e, --error-rate <p>     Randomly fail p (0..1) of responses (chaos)
+      --error-statuses <l> Comma list of chaos statuses to pick from (default 500)
+      --proxy <url>        Forward unknown routes to an upstream (record & replay)
+      --record             Proxy: hit upstream and save responses to --recordings
+      --replay             Proxy: serve only from --recordings (offline)
+      --recordings <file>  Cassette file for --proxy record/replay
+      --no-cors            Disable the permissive CORS headers (on by default)
+  -w, --write              Persist CRUD mutations back to the --db file
+      --seed <str>         Seed the {{fake.*}} generator (stable data)
+  -q, --quiet              Do not log each request
+  -h, --help               Show this help
+  -v, --version            Print the version
 
 ${c("bold", "Auto REST routes (per db collection, e.g. users)")}
   ${c("dim", "GET    /users            list (+ ?_page &_limit &_sort &_order & filters & q)")}
@@ -96,6 +117,10 @@ ${c("bold", "List query params")}
 ${c("bold", "Examples")}
   npx lacspace-mock --db db.json --port 4000
   npx lacspace-mock db.json --delay 200 --error-rate 0.1     ${c("dim", "# slow + flaky")}
+  npx lacspace-mock db.json --error-rate 0.2 --error-statuses 429,503
+  npx lacspace-mock --openapi openapi.json                   ${c("dim", "# mock straight from a spec")}
+  npx lacspace-mock --db db.json --proxy https://api.example.com --record --recordings tape.json
+  npx lacspace-mock --proxy https://api.example.com --replay --recordings tape.json  ${c("dim", "# offline")}
   npx lacspace-mock --config mock.config.json --write
   curl localhost:4000/users?role=admin
   curl -X POST localhost:4000/posts -d '{"title":"hi"}' -H content-type:application/json
@@ -109,7 +134,14 @@ function banner(url: string, mounted: MountedRoute[], args: Args): void {
     const d = Array.isArray(args.delay) ? `${args.delay[0]}-${args.delay[1]}ms` : `${args.delay}ms`;
     log(`  ${c("yellow", "◷")} ${c("dim", `delay ${d}`)}`);
   }
-  if (args.errorRate) log(`  ${c("red", "⚡")} ${c("dim", `chaos: ${Math.round(args.errorRate * 100)}% of responses fail`)}`);
+  if (args.errorRate) {
+    const pool = args.errorStatuses?.length ? args.errorStatuses.join("/") : "500";
+    log(`  ${c("red", "⚡")} ${c("dim", `chaos: ${Math.round(args.errorRate * 100)}% of responses fail (${pool})`)}`);
+  }
+  if (args.proxy) {
+    const mode = args.replay ? "replay" : args.record ? "record" : "auto";
+    log(`  ${c("magenta", "⇄")} ${c("dim", `proxy [${mode}] → ${args.proxy}${args.recordings ? ` (tape: ${args.recordings})` : ""}`)}`);
+  }
   if (args.write) log(`  ${c("cyan", "▤")} ${c("dim", `persisting mutations → ${args.db}`)}`);
   if (!args.cors) log(`  ${c("dim", "CORS disabled")}`);
   const custom = mounted.filter((m) => m.kind === "custom");
@@ -135,7 +167,7 @@ function statusColor(status: number): keyof typeof C {
 async function main(): Promise<void> {
   const args = parseArgs(argv.slice(2));
   if (args.version) { stdout.write(VERSION + "\n"); return; }
-  if (args.help || (!args.db && !args.config)) { stdout.write(HELP + "\n"); return; }
+  if (args.help || (!args.db && !args.config && !args.openapi && !args.proxy)) { stdout.write(HELP + "\n"); return; }
 
   // Build the config from --config and/or --db (flags override the file).
   let opts: HandlerOptions = { cors: args.cors };
@@ -149,12 +181,36 @@ async function main(): Promise<void> {
     filePort = port;
     fileHost = host;
   }
+  if (args.openapi) {
+    opts.routes = [...(opts.routes ?? []), ...loadOpenApi(args.openapi).routes];
+  }
   if (args.db) {
     opts.db = loadDb(args.db);
   }
   if (args.delay !== undefined) opts.delay = args.delay;
   if (args.errorRate !== undefined) opts.errorRate = args.errorRate;
+  if (args.errorStatuses !== undefined) opts.errorStatuses = args.errorStatuses;
   if (args.seed !== undefined) opts.seed = args.seed;
+
+  // Record-and-replay proxy for unknown routes.
+  if (args.proxy) {
+    const mode = args.replay ? "replay" : args.record ? "record" : "auto";
+    const tapePath = args.recordings ? resolve(args.recordings) : undefined;
+    let recordings: Cassette | undefined;
+    if (tapePath && existsSync(tapePath)) recordings = readJson(tapePath) as Cassette;
+    const proxy: ProxyConfig = { target: args.proxy, mode };
+    if (recordings) proxy.recordings = recordings;
+    if (tapePath && (mode === "record" || mode === "auto")) {
+      proxy.onRecord = (cassette): void => {
+        try {
+          writeFileSync(tapePath, JSON.stringify(cassette, null, 2) + "\n");
+        } catch (err) {
+          log(c("red", `  ✗ could not persist recordings to ${args.recordings}: ${(err as Error).message}`));
+        }
+      };
+    }
+    opts.proxy = proxy;
+  }
 
   // Persist mutations back to the db file when --write.
   if (args.write) {

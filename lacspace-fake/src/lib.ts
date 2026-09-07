@@ -31,22 +31,39 @@ export type { Locale, LocaleData } from "./data.js";
 export { generators, callGen, hasGen, slugify, GEN_ORDER } from "./generators.js";
 export type { GenContext, GenArg, Generator } from "./generators.js";
 
+export { extraGenerators, EXTRA_GEN_ORDER } from "./extras.js";
+
+export { compileTemplate, isTemplateSpec, templateBody } from "./template.js";
+
 export {
   parseFields,
   parseJsonSchema,
   parseArgString,
   specFromString,
   specFromJson,
+  compileFieldSpecString,
+  compileFieldValue,
+  dedupeKey,
   generateRows,
   generateValues,
 } from "./schema.js";
 export type { Field, Spec, GenerateOptions } from "./schema.js";
 
 export {
+  parseRelations,
+  generateDataset,
+  generateRelations,
+} from "./relations.js";
+export type { RelationsInput, EntityInput, CompiledEntity, Dataset } from "./relations.js";
+
+export {
   formatRows,
+  formatDataset,
   formatValues,
   toCsv,
   toSql,
+  toCreateTable,
+  inferSqlType,
   sqlValue,
   sqlIdent,
   columnsOf,

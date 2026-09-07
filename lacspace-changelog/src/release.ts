@@ -10,7 +10,7 @@ import { parseCommits } from "./commit.js";
 import type { ParsedCommit } from "./commit.js";
 import { recommendBump } from "./bump.js";
 import type { BumpOptions, BumpResult } from "./bump.js";
-import { renderSection, prependChangelog, DEFAULT_GROUPS, DEFAULT_HIDDEN } from "./changelog.js";
+import { renderSection, prependChangelog, changelogHasVersion, DEFAULT_GROUPS, DEFAULT_HIDDEN } from "./changelog.js";
 import type { RenderOptions } from "./changelog.js";
 import { parseRepository, urlTemplates } from "./repo.js";
 import {
@@ -112,6 +112,8 @@ export interface BuildSectionOptions {
   hiddenTypes?: string[];
   date?: string;
   includeOther?: boolean;
+  /** Append a Contributors section. Default false. */
+  contributors?: boolean;
 }
 
 /** Render the markdown section for a set of commits + a target version. */
@@ -130,6 +132,7 @@ export function buildSection(
   };
   if (opts.date) renderOpts.date = opts.date;
   if (opts.previousTag) renderOpts.previousTag = opts.previousTag;
+  if (opts.contributors) renderOpts.contributors = true;
   return renderSection(commits, renderOpts);
 }
 
@@ -139,10 +142,31 @@ export function readChangelog(path: string): string | undefined {
   return readFileSync(path, "utf8");
 }
 
-/** Prepend a section to a changelog file (creating it when missing). */
-export function writeChangelog(path: string, section: string): void {
+/**
+ * Prepend a section to a changelog file (creating it when missing). Pass
+ * `opts.version` + `skipIfExists` to avoid writing a release that is already
+ * documented. Returns true when the file was changed, false when a duplicate
+ * was skipped.
+ */
+export function writeChangelog(
+  path: string,
+  section: string,
+  opts: { version?: string; skipIfExists?: boolean } = {},
+): boolean {
   const existing = readChangelog(path);
-  writeFileSync(path, prependChangelog(section, existing));
+  if (
+    opts.skipIfExists &&
+    opts.version &&
+    existing &&
+    changelogHasVersion(existing, opts.version)
+  ) {
+    return false;
+  }
+  const prependOpts: { version?: string; skipIfExists?: boolean } = {};
+  if (opts.version) prependOpts.version = opts.version;
+  if (opts.skipIfExists) prependOpts.skipIfExists = opts.skipIfExists;
+  writeFileSync(path, prependChangelog(section, existing, prependOpts));
+  return true;
 }
 
 /** Write a new `version` into a package.json file, preserving formatting. */

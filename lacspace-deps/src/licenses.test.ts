@@ -6,6 +6,8 @@ import {
   splitExpression,
   evaluatePolicy,
   summarizeLicenses,
+  severityRank,
+  SEVERITY_ORDER,
 } from "./licenses.js";
 import type { InstalledPackage } from "./inventory.js";
 
@@ -80,6 +82,32 @@ describe("evaluatePolicy", () => {
   it("deny takes precedence and empty policy passes everything", () => {
     expect(evaluatePolicy("MIT", {})).toBeNull();
     expect(evaluatePolicy("GPL-3.0", { allow: ["GPL-*"], deny: ["GPL-*"] })).toBe("deny");
+  });
+});
+
+describe("severity gate (maxSeverity)", () => {
+  it("ranks categories permissive < weak < strong < unknown", () => {
+    expect(severityRank("permissive")).toBeLessThan(severityRank("weak-copyleft"));
+    expect(severityRank("weak-copyleft")).toBeLessThan(severityRank("strong-copyleft"));
+    expect(severityRank("strong-copyleft")).toBeLessThan(severityRank("unknown"));
+    expect(SEVERITY_ORDER.permissive).toBe(0);
+  });
+  it("flags a licence stricter than maxSeverity", () => {
+    expect(evaluatePolicy("GPL-3.0", { maxSeverity: "weak-copyleft" })).toBe("severity");
+    expect(evaluatePolicy("LGPL-3.0", { maxSeverity: "weak-copyleft" })).toBeNull();
+    expect(evaluatePolicy("MIT", { maxSeverity: "permissive" })).toBeNull();
+  });
+  it("treats unknown/null as the most severe", () => {
+    expect(evaluatePolicy(null, { maxSeverity: "strong-copyleft" })).toBe("severity");
+    expect(evaluatePolicy("MIT", { maxSeverity: "unknown" })).toBeNull();
+  });
+  it("deny still takes precedence over the severity gate", () => {
+    expect(evaluatePolicy("GPL-3.0", { deny: ["GPL-*"], maxSeverity: "unknown" })).toBe("deny");
+  });
+  it("collects severity violations through summarizeLicenses", () => {
+    const s = summarizeLicenses([pkg("b", "2.0.0", "GPL-3.0")], { maxSeverity: "weak-copyleft" });
+    expect(s.violations).toHaveLength(1);
+    expect(s.violations[0]!.reason).toBe("severity");
   });
 });
 

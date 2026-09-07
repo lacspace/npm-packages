@@ -1,6 +1,6 @@
 # lacspace-mock
 
-**Stand up a keyless local mock REST + GraphQL API from a plain JSON file — auto CRUD, filtering, templated routes, latency & error simulation, CORS. Zero dependencies.**
+**Stand up a keyless local mock REST + GraphQL API from a JSON db, an OpenAPI spec, or a small config — stateful CRUD, request validation, latency & chaos injection, a record-and-replay proxy, filtering, templated routes, CORS. Zero dependencies.**
 
 Point your frontend at a realistic backend before the real one exists. Drop a
 `db.json`, run one command, and you get json-server-style CRUD for every
@@ -14,6 +14,15 @@ npx lacspace-mock --db db.json
 # ◆ lacspace-mock — serving  ▶ http://127.0.0.1:4000
 curl localhost:4000/users?role=admin
 ```
+
+### New in 0.2.0
+
+- **Mock straight from an OpenAPI 3 spec** — `--openapi openapi.json` (or `mockFromOpenApi(doc)`) generates a route per operation with example responses built from your component schemas.
+- **Request validation** — validate incoming bodies / query / path params against a small JSON-Schema subset and return `400` with details (per-route `validate`, or per-collection `schemas`).
+- **Latency + chaos injection, upgraded** — the chaos rate can now inject a *pool* of statuses (`--error-statuses 429,503`), not just `500`; the decision is seedable/deterministic for tests.
+- **Record & replay proxy** — `--proxy <url> --record` forwards unknown routes to a real upstream and saves the responses to a cassette; `--replay` serves them back offline. Network sits behind an injectable `fetch`.
+- **Stateful CRUD + reset** — mutations persist across a session (they already did); the engine now exposes `engine.reset()` / `Store.reset()` to snap the db back to its original state.
+- **New pure, tested building blocks** exported: `validate`, `mockFromOpenApi`, `createProxy`, `rollChaos`, `resolveDelay`.
 
 ## Why it exists
 
@@ -118,21 +127,98 @@ the auto route). Paths support `:params` and a trailing `*` wildcard.
 JSON object/array whose string leaves are each rendered. Fake data is seeded
 (per endpoint) so it's **stable across restarts** — override with `--seed`.
 
+## Mock from an OpenAPI 3 spec
+
+Already have an OpenAPI/Swagger document? Turn it into a running mock — one route
+per operation, with an **example response synthesised from your component
+schemas** (respecting `example`/`enum`/`format`, resolving `$ref`s, merging
+`allOf`):
+
+```bash
+npx lacspace-mock --openapi openapi.json
+curl localhost:4000/products/1
+# { "id": 0, "title": "Widget", "price": 0, "status": "active" }
+```
+
+From code, `mockFromOpenApi(doc)` returns `{ routes, requestSchemas }` you can
+hand straight to `createEngine({ routes })`.
+
+## Request validation
+
+Reject malformed requests with a helpful `400` instead of silently accepting
+them. Two ways — per **custom route** (body / query / params) or per **collection**
+(CRUD writes), both using a small JSON-Schema subset (`type`, `required`,
+`properties`, `items`, `enum`, `minimum`/`maximum`, `minLength`/`maxLength`,
+`pattern`, `nullable`, `additionalProperties`):
+
+```json
+{
+  "db": "db.json",
+  "schemas": {
+    "users": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "minLength": 2 } } }
+  },
+  "routes": [
+    {
+      "method": "POST", "path": "/signup", "status": 201, "body": { "ok": true },
+      "validate": { "body": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string" } } } }
+    }
+  ]
+}
+```
+
+```bash
+curl -X POST localhost:4000/users -d '{"name":"X"}' -H content-type:application/json
+# 400 {"error":"request validation failed","details":[{"path":"name","message":"must be at least 2 chars"}]}
+```
+
 ## Simulating a real network
 
 ```bash
 npx lacspace-mock --db db.json --delay 200            # 200ms on every response
 npx lacspace-mock --db db.json --delay 50-400         # random jitter per request
-npx lacspace-mock --db db.json --error-rate 0.1       # 10% of responses become 500s (chaos)
+npx lacspace-mock --db db.json --error-rate 0.1       # 10% of responses fail (chaos)
+npx lacspace-mock --db db.json --error-rate 0.2 --error-statuses 429,503  # pick from a status pool
 ```
 
-## Persisting changes
+Per-route `delay` (fixed or `[min,max]`) is honoured too. The chaos decision is
+pure and seedable — pass `rng` to `createEngine` for deterministic tests.
 
-By default mutations live in memory (reset on restart). Pass `--write` to persist
-CRUD changes back to the `--db` file:
+## Record & replay (proxy)
+
+Forward routes you *haven't* mocked to a real upstream, record the responses, and
+replay them offline afterwards — great for capturing a fixture set once and
+developing against it on a plane:
+
+```bash
+# 1. Record: unknown routes hit the upstream and are saved to a cassette file.
+npx lacspace-mock --db db.json --proxy https://api.example.com --record --recordings tape.json
+
+# 2. Replay: serve only from the cassette — no network, deterministic.
+npx lacspace-mock --proxy https://api.example.com --replay --recordings tape.json
+```
+
+Modes: `--record` (always hit upstream + save), `--replay` (offline; `504` on a
+miss), default **auto** (replay a recording if present, else record). In code the
+network is an **injectable `fetch`** (`createProxy({ target, fetch })`), so the
+record→replay logic is unit-tested against a fake upstream — no sockets.
+
+## Persisting changes & resetting
+
+By default mutations live in memory but **persist for the life of the process** —
+a `POST` then a `GET` reflects the change. Pass `--write` to also persist CRUD
+changes back to the `--db` file:
 
 ```bash
 npx lacspace-mock --db db.json --write
+```
+
+From the library, `engine.reset()` (or `store.reset()`) snaps every collection
+back to the data it started with — handy between test cases:
+
+```ts
+const engine = createEngine({ db });
+await engine.handle({ method: "POST", url: "/users", body: '{"name":"Ben"}' });
+engine.reset(); // db is back to its original state
 ```
 
 ## Minimal GraphQL
@@ -186,27 +272,42 @@ await srv.close();
 | `render(tpl, ctx)` | `(string, TemplateContext) => string` | the template layer |
 | `createFaker(seed)` | `(string) => Faker` | the seeded fake-data generator |
 | `resolveGraphQL(store, q, vars?)` | `(Store, string, obj?) => GraphQLResult` | the GraphQL resolver |
-| `loadDb(file)` / `loadConfig(file)` | file loaders | parse `db.json` / `mock.config.json` |
+| `mockFromOpenApi(doc, opts?)` | `(OpenApiDoc) => { routes, requestSchemas }` | mock an OpenAPI 3 spec |
+| `exampleFromSchema(node, schemas, seen, depth)` | `→ unknown` | synthesise an example from a schema |
+| `validate(value, schema)` / `isValid(...)` | `→ ValidationError[]` / `boolean` | the JSON-Schema-subset validator |
+| `createProxy(config)` | `(ProxyConfig) => Proxy` | record-and-replay proxy (injectable `fetch`) |
+| `rollChaos(rate, statuses, rng)` | `→ { triggered, status }` | pure, seedable chaos decision |
+| `resolveDelay(delay, rng)` | `→ number` | resolve a fixed/`[min,max]` delay |
+| `engine.reset()` / `Store.reset()` | `() => void` | restore the db to its original state |
+| `loadDb(file)` / `loadConfig(file)` / `loadOpenApi(file)` | file loaders | parse `db.json` / `mock.config.json` / OpenAPI spec |
 
 ## CLI reference
 
 ```
 npx lacspace-mock --db db.json [options]
 npx lacspace-mock --config mock.config.json [options]
+npx lacspace-mock --openapi openapi.json [options]
+npx lacspace-mock --proxy https://api.example.com --record [options]
 npx lacspace-mock db.json                    # bare path = --db
 
--d, --db <file>        JSON db (json-server shape)
--c, --config <file>    mock.config.json (custom routes + db + options)
--p, --port <n>         Port to listen on (default 4000)
-    --host <addr>      Bind address (default 127.0.0.1 — local only)
-    --delay <ms|a-b>   Delay every response by ms (or a random ms in [a,b])
--e, --error-rate <p>   Randomly fail p (0..1) of responses with a 500
-    --no-cors          Disable the permissive CORS headers (on by default)
--w, --write            Persist CRUD mutations back to the --db file
-    --seed <str>       Seed the {{fake.*}} generator (stable data)
--q, --quiet            Do not log each request
--h, --help             Show help
--v, --version          Print the version
+-d, --db <file>          JSON db (json-server shape)
+-c, --config <file>      mock.config.json (custom routes + db + options)
+-o, --openapi <file>     Import routes + example responses from an OpenAPI 3 spec
+-p, --port <n>           Port to listen on (default 4000)
+    --host <addr>        Bind address (default 127.0.0.1 — local only)
+    --delay <ms|a-b>     Delay every response by ms (or a random ms in [a,b])
+-e, --error-rate <p>     Randomly fail p (0..1) of responses (chaos)
+    --error-statuses <l> Comma list of chaos statuses to pick from (default 500)
+    --proxy <url>        Forward unknown routes to an upstream (record & replay)
+    --record             Proxy: hit upstream and save responses to --recordings
+    --replay             Proxy: serve only from --recordings (offline)
+    --recordings <file>  Cassette file for --proxy record/replay
+    --no-cors            Disable the permissive CORS headers (on by default)
+-w, --write              Persist CRUD mutations back to the --db file
+    --seed <str>         Seed the {{fake.*}} generator (stable data)
+-q, --quiet              Do not log each request
+-h, --help               Show help
+-v, --version            Print the version
 ```
 
 Flags override values from `--config`. Data goes to stdout; the banner and the

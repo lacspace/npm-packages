@@ -8,6 +8,10 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import type { RouteConfig, MockConfig } from "./server.js";
 import type { Db } from "./db.js";
+import type { Schema } from "./validate.js";
+import type { ProxyConfig } from "./proxy.js";
+import { mockFromOpenApi } from "./openapi.js";
+import type { OpenApiDoc } from "./openapi.js";
 
 /** The on-disk shape of a `mock.config.json`. */
 export interface FileConfig {
@@ -19,8 +23,24 @@ export interface FileConfig {
   cors?: boolean;
   delay?: number | [number, number];
   errorRate?: number;
+  /** The pool of statuses chaos may inject (default `[500]`). */
+  errorStatuses?: number[];
+  /** Per-collection request-body schemas for CRUD validation. */
+  schemas?: Record<string, Schema>;
+  /** Record-and-replay passthrough proxy (`fetch` is not JSON-loadable). */
+  proxy?: Omit<ProxyConfig, "fetch" | "onRecord">;
+  /** An OpenAPI 3 spec file (relative to the config) to import routes from. */
+  openapi?: string;
   idKey?: string;
   seed?: string;
+}
+
+/** Load an OpenAPI 3 spec file and turn it into engine routes + request schemas. */
+export function loadOpenApi(file: string): { routes: RouteConfig[]; schemas: Record<string, Schema> } {
+  const doc = readJson(resolve(file)) as OpenApiDoc;
+  if (!doc || typeof doc !== "object") throw new Error(`OpenAPI spec must be a JSON object: ${file}`);
+  const { routes } = mockFromOpenApi(doc);
+  return { routes, schemas: {} };
 }
 
 /** Read + parse a JSON file, with a helpful error message on failure. */
@@ -65,10 +85,19 @@ export function loadConfig(file: string): { config: MockConfig; port?: number; h
 
   const config: MockConfig = {};
   if (db) config.db = db;
-  if (raw.routes) config.routes = raw.routes;
+  // Import OpenAPI routes first so explicit `routes` can still override them.
+  let routes: RouteConfig[] = [];
+  if (typeof raw.openapi === "string") {
+    routes = loadOpenApi(resolve(base, raw.openapi)).routes;
+  }
+  if (raw.routes) routes = [...raw.routes, ...routes];
+  if (routes.length) config.routes = routes;
   if (raw.cors !== undefined) config.cors = raw.cors;
   if (raw.delay !== undefined) config.delay = raw.delay;
   if (raw.errorRate !== undefined) config.errorRate = raw.errorRate;
+  if (raw.errorStatuses !== undefined) config.errorStatuses = raw.errorStatuses;
+  if (raw.schemas !== undefined) config.schemas = raw.schemas;
+  if (raw.proxy !== undefined) config.proxy = raw.proxy;
   if (raw.idKey !== undefined) config.idKey = raw.idKey;
   if (raw.seed !== undefined) config.seed = raw.seed;
 

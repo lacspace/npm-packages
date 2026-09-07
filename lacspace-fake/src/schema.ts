@@ -14,11 +14,14 @@ import { RNG } from "./prng.js";
 import type { Locale } from "./data.js";
 import { callGen } from "./generators.js";
 import type { GenArg, GenContext } from "./generators.js";
+import { compileTemplate, isTemplateSpec, templateBody } from "./template.js";
 
 export type Spec = (ctx: GenContext) => unknown;
 export interface Field {
   key: string;
   spec: Spec;
+  /** When true, no two rows may share this field's value (see `generateRows`). */
+  unique?: boolean;
 }
 
 /** Split "field=a,b,c" on top-level commas, respecting (...) nesting. */
@@ -59,9 +62,11 @@ export function parseArgString(inner: string): GenArg[] {
   return parts.map((p) => coerceArg(p));
 }
 
-/** Compile a string spec like `fullName` or `int(18..65)` into a resolver. */
+/** Compile a string spec like `fullName`, `int(18..65)` or `template(...)`. */
 export function specFromString(raw: string): Spec {
   const s = raw.trim();
+  // Template / expression fields: `template({{firstName}} {{lastName}})`.
+  if (isTemplateSpec(s)) return compileTemplate(templateBody(s), specFromString);
   const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*(?:\((.*)\))?$/.exec(s);
   if (!m) throw new Error(`Invalid generator spec: "${raw}"`);
   const name = m[1]!;
@@ -69,6 +74,25 @@ export function specFromString(raw: string): Spec {
   // Validate the generator exists eagerly (clear error at parse time).
   callGen(name, probeCtx(), args);
   return (ctx) => callGen(name, ctx, args);
+}
+
+/**
+ * Compile a raw field spec, unwrapping a `unique(...)` constraint wrapper. The
+ * wrapper marks the field for cross-row de-duplication in `generateRows`; the
+ * inner spec is any normal generator/template spec.
+ */
+export function compileFieldSpecString(raw: string): { spec: Spec; unique?: boolean } {
+  const s = raw.trim();
+  const u = /^unique\(([\s\S]*)\)$/.exec(s);
+  if (u && !isTemplateSpec(s)) return { spec: specFromString(u[1]!.trim()), unique: true };
+  return { spec: specFromString(s) };
+}
+
+/** Compile any JSON schema value into a spec + optional `unique` flag. */
+export function compileFieldValue(value: unknown): { spec: Spec; unique?: boolean } {
+  if (typeof value === "string") return compileFieldSpecString(value);
+  const unique = isRecord(value) && value["unique"] === true;
+  return { spec: specFromJson(value), unique };
 }
 
 // A throwaway context used only to validate a generator name at parse time.
@@ -170,7 +194,8 @@ export function parseFields(input: string): Field[] {
     const key = chunk.slice(0, idx).trim();
     const specStr = chunk.slice(idx + 1).trim();
     if (!key) throw new Error(`Field "${chunk}" has an empty key`);
-    return { key, spec: specFromString(specStr) };
+    const { spec, unique } = compileFieldSpecString(specStr);
+    return { key, spec, unique };
   });
 }
 
@@ -182,7 +207,10 @@ export function parseJsonSchema(schema: unknown): Field[] {
     isRecord(schema["fields"]) ? (schema["fields"] as Record<string, unknown>) :
     isRecord(schema["properties"]) && schema["type"] === "object" ? (schema["properties"] as Record<string, unknown>) :
     schema;
-  const fields = fieldsFromRecord(body);
+  const fields = Object.keys(body).map((key) => {
+    const { spec, unique } = compileFieldValue(body[key]);
+    return { key, spec, unique };
+  });
   if (fields.length === 0) throw new Error("The JSON schema has no fields");
   return fields;
 }
@@ -193,17 +221,50 @@ export interface GenerateOptions {
   locale?: Locale;
 }
 
+/** How many times a `unique` field is re-rolled before giving up. */
+const UNIQUE_MAX_TRIES = 10_000;
+
+/** Stable comparison key for uniqueness/dedupe sets. */
+export function dedupeKey(v: unknown): string {
+  return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+}
+
+/**
+ * Draw a value for a field, honouring a cross-row `unique` constraint by
+ * re-rolling (which advances the RNG) until an unseen value appears. Throws a
+ * clear error if the generator can't supply enough distinct values.
+ */
+function drawUnique(f: Field, ctx: GenContext, seen: Set<string>): unknown {
+  let val = f.spec(ctx);
+  let tries = 0;
+  while (seen.has(dedupeKey(val)) && tries < UNIQUE_MAX_TRIES) {
+    val = f.spec(ctx);
+    tries++;
+  }
+  if (seen.has(dedupeKey(val))) {
+    throw new Error(
+      `Could not generate a unique value for "${f.key}" after ${UNIQUE_MAX_TRIES} tries — the generator's value space is too small; use a higher-cardinality generator (e.g. uuid, ulid) or fewer rows.`,
+    );
+  }
+  seen.add(dedupeKey(val));
+  return val;
+}
+
 /** Generate `count` rows from a compiled field list. Deterministic under `seed`. */
 export function generateRows(fields: Field[], opts: GenerateOptions = {}): Record<string, unknown>[] {
   const count = Math.max(0, opts.count ?? 10);
   const seed = opts.seed ?? Math.floor(Math.random() * 0xffffffff);
   const locale = opts.locale ?? "en";
   const rng = new RNG(seed);
+  const uniqueSeen = new Map<string, Set<string>>();
+  for (const f of fields) if (f.unique) uniqueSeen.set(f.key, new Set());
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < count; i++) {
     const row: Record<string, unknown> = {};
     const ctx: GenContext = { rng, locale, index: i, row };
-    for (const f of fields) row[f.key] = f.spec(ctx);
+    for (const f of fields) {
+      row[f.key] = f.unique ? drawUnique(f, ctx, uniqueSeen.get(f.key)!) : f.spec(ctx);
+    }
     rows.push(row);
   }
   return rows;

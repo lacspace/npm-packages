@@ -11,8 +11,14 @@ import { merge, parseArrayStrategy } from "./merge.js";
 import { formatJson, getPath } from "./format.js";
 import { sortKeysDeep, JsonToolError } from "./util.js";
 import type { JsonValue } from "./util.js";
+import { pointer } from "./pointer.js";
+import { patch as applyPatch, diffPatch } from "./patch.js";
+import type { JsonPatch } from "./patch.js";
+import { flatten, unflatten } from "./flatten.js";
+import { canonicalize } from "./canonical.js";
+import { jsonPath, isJsonPath } from "./jsonpath.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const useColor = !process.env["NO_COLOR"] && stdout.isTTY !== false;
 const C = {
@@ -31,14 +37,18 @@ interface Args {
   to?: Format;
   query?: string;
   get?: string;
+  pointer?: string;
   schema?: string;
   indent: number;
   sortKeys: boolean;
+  canonical: boolean;
   min: boolean;
   raw: boolean;
   json: boolean;
   array?: string;
   arrayKey?: string;
+  delimiter?: string;
+  patch: boolean;
   help: boolean;
   version: boolean;
 }
@@ -50,8 +60,8 @@ function asFormat(v: string, flag: string): Format {
 
 function parseArgs(list: string[]): Args {
   const a: Args = {
-    positional: [], indent: 2, sortKeys: false, min: false, raw: false,
-    json: false, help: false, version: false,
+    positional: [], indent: 2, sortKeys: false, canonical: false, min: false, raw: false,
+    json: false, patch: false, help: false, version: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -60,14 +70,18 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--to") a.to = asFormat(nextVal(), "--to");
     else if (arg === "-q" || arg === "--query") a.query = nextVal();
     else if (arg === "--get") a.get = nextVal();
+    else if (arg === "--pointer" || arg === "-p") a.pointer = nextVal();
     else if (arg === "--schema") a.schema = nextVal();
     else if (arg === "--indent") a.indent = Number(nextVal());
     else if (arg === "--sort-keys") a.sortKeys = true;
+    else if (arg === "--canonical") a.canonical = true;
     else if (arg === "--min" || arg === "--minify") a.min = true;
     else if (arg === "--raw" || arg === "-r") a.raw = true;
     else if (arg === "--json") a.json = true;
+    else if (arg === "--patch") a.patch = true;
     else if (arg === "--array") a.array = nextVal();
     else if (arg === "--array-key") a.arrayKey = nextVal();
+    else if (arg === "--delimiter" || arg === "-d") a.delimiter = nextVal();
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg === "-v" || arg === "--version") a.version = true;
     else if (arg.startsWith("--") && arg.includes("=")) {
@@ -88,22 +102,30 @@ ${c("bold", "Usage")}
   cat data.json | npx lacspace-json <command> [flags]
 
 ${c("bold", "Commands")}
-  ${c("cyan", "query|get")} <input> -q "<expr>"   Run a jq-style query (default when -q is given)
+  ${c("cyan", "query|get")} <input> -q "<expr>"   Run a jq- or JSONPath ($…) query (default when -q is given)
   ${c("cyan", "convert")}   <input> --to <fmt>     JSON ⇄ YAML ⇄ TOML ⇄ CSV ⇄ NDJSON
   ${c("cyan", "validate")}  <data> --schema <s>    Validate against a JSON Schema (draft-07 subset)
-  ${c("cyan", "diff")}      <a> <b>                Structural diff of two documents
+  ${c("cyan", "diff")}      <a> <b> [--patch]      Structural diff (or an RFC 6902 JSON Patch)
+  ${c("cyan", "patch")}     <doc> <patch.json>     Apply an RFC 6902 JSON Patch to a document
   ${c("cyan", "merge")}     <a> <b> [...]          Deep-merge N documents
+  ${c("cyan", "flatten")}   <input>                Flatten to a { "a.b[0]": v } map
+  ${c("cyan", "unflatten")} <input>                Rebuild nesting from a flat map
+  ${c("cyan", "sort")}      <input> [--canonical]  Deep-sort keys (or emit canonical JSON)
   ${c("cyan", "format")}    <input>                Pretty-print / minify (default when only input given)
 
 ${c("bold", "Flags")}
       --from <fmt>     Input format override (json|yaml|toml|csv|ndjson)
       --to <fmt>       Output format (convert)
-  -q, --query <expr>   Query expression (see below)
+  -q, --query <expr>   Query expression — jq-style or JSONPath (see below)
       --get <path>     Shorthand: extract a single value at a path (.a.b[0])
+  -p, --pointer <ptr>  Resolve an RFC 6901 JSON Pointer (/a/b/0)
       --schema <file>  JSON Schema file (validate)
+      --patch          diff: emit an RFC 6902 JSON Patch instead of a report
       --indent <n>     Indent width for pretty JSON/YAML (default 2)
       --sort-keys      Sort object keys recursively
+      --canonical      Canonical JSON output (sorted keys, minimal whitespace)
       --min            Minify JSON output
+  -d, --delimiter <s>  Key delimiter for flatten/unflatten (default ".")
   -r, --raw            Print string scalars unquoted (great for shell)
       --json           Force machine-readable JSON output (diff/validate)
       --array <mode>   Merge array strategy: concat | replace | by-key
@@ -112,19 +134,20 @@ ${c("bold", "Flags")}
   -v, --version        Print the version
 
 ${c("bold", "Query language")} ${c("dim", "(hand-written, no eval)")}
-  ${c("dim", "paths")}   .users[0].name   .items[].price   .a[\"b c\"]
-  ${c("dim", "pipe")}    .users[] | select(.age > 21) | .name
-  ${c("dim", "funcs")}   keys values length type has(k) map(.x) unique reverse
-  ${c("dim", "        ")} sort_by(.x) group_by(.x) first last min max sum avg add flatten
+  ${c("dim", "jq paths")}   .users[0].name   .items[].price   .a[\"b c\"]
+  ${c("dim", "jq pipe ")}   .users[] | select(.age > 21) | .name
+  ${c("dim", "jq funcs")}   keys values length type has(k) map(.x) unique reverse …
+  ${c("dim", "jsonpath")}   $.store.book[*].price   $..author   $.items[?(@.price<10)]
 
 ${c("bold", "Examples")}
   echo '{"a":{"b":[1,2,3]}}' | npx lacspace-json --get .a.b[1]
-  npx lacspace-json query data.json -q ".users[] | select(.active) | .email" -r
+  echo '{"a":{"b":[1,2,3]}}' | npx lacspace-json --pointer /a/b/2
+  npx lacspace-json query data.json -q "$..price"
   npx lacspace-json convert config.toml --to yaml
-  cat data.csv | npx lacspace-json convert --from csv --to json
-  npx lacspace-json validate user.json --schema user.schema.json
-  npx lacspace-json diff old.json new.json
-  npx lacspace-json merge base.json override.json --array by-key --array-key id
+  npx lacspace-json diff old.json new.json --patch
+  npx lacspace-json patch doc.json changes.json
+  npx lacspace-json flatten config.json
+  npx lacspace-json sort data.json --canonical
 `;
 
 function fail(msg: string, json: boolean, extra: Record<string, unknown> = {}): never {
@@ -179,6 +202,7 @@ function loadInput(source: string | undefined, from: Format | undefined): Loaded
 }
 
 function printValue(value: JsonValue, a: Args): void {
+  if (a.canonical) { out(canonicalize(value) + "\n"); return; }
   if (a.raw && (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null)) {
     out(String(value ?? "") + "\n");
     return;
@@ -194,11 +218,18 @@ function printValue(value: JsonValue, a: Args): void {
 
 function cmdQuery(a: Args): void {
   const loaded = loadInput(a.positional[1], a.from);
+  if (a.pointer !== undefined) {
+    let val: JsonValue;
+    try { val = pointer(loaded.value, a.pointer); }
+    catch (err) { fail(err instanceof Error ? err.message : String(err), a.json); }
+    printValue(val!, a);
+    return;
+  }
   if (a.get) { printValue((getPath(loaded.value, a.get) ?? null) as JsonValue, a); return; }
   const expr = a.query;
-  if (!expr) fail('query needs an expression: -q "<expr>" (or use --get <path>)', a.json);
+  if (!expr) fail('query needs an expression: -q "<expr>" (or --get <path>, --pointer </p>)', a.json);
   let result: JsonValue;
-  try { result = query(loaded.value, expr!) as JsonValue; }
+  try { result = isJsonPath(expr!) ? (jsonPath(loaded.value, expr!) as JsonValue) : (query(loaded.value, expr!) as JsonValue); }
   catch (err) { fail(err instanceof Error ? err.message : String(err), a.json); }
   printValue(result!, a);
 }
@@ -240,6 +271,12 @@ function cmdDiff(a: Args): void {
   if (files.length < 2) fail("diff needs two inputs: diff <a> <b>", a.json);
   const aDoc = loadInput(files[0], a.from);
   const bDoc = loadInput(files[1], a.from);
+  if (a.patch) {
+    const ops = diffPatch(aDoc.value, bDoc.value);
+    out(formatJson(ops as JsonValue, { indent: a.indent, minify: a.min }) + "\n");
+    if (ops.length) exit(1);
+    return;
+  }
   const entries = diff(aDoc.value, bDoc.value);
   if (a.json) { out(JSON.stringify({ ok: true, changes: entries.length, diff: entries }) + "\n"); if (entries.length) exit(1); return; }
   if (entries.length === 0) { log(`\n${c("green", "✓ no differences")}\n`); return; }
@@ -280,9 +317,45 @@ function cmdFormat(a: Args): void {
   printValue(value, a);
 }
 
+function cmdPatch(a: Args): void {
+  const docSrc = a.positional[1];
+  const patchSrc = a.positional[2];
+  if (!patchSrc) fail("patch needs two inputs: patch <doc> <patch.json>", a.json);
+  const doc = loadInput(docSrc, a.from);
+  const patchDoc = loadInput(patchSrc, undefined);
+  if (!Array.isArray(patchDoc.value)) fail("patch file must be a JSON array of RFC 6902 operations", a.json);
+  let result: JsonValue;
+  try { result = applyPatch(doc.value, patchDoc.value as JsonPatch); }
+  catch (err) { fail(err instanceof Error ? err.message : String(err), a.json); }
+  printValue(result!, a);
+}
+
+function cmdFlatten(a: Args): void {
+  const loaded = loadInput(a.positional[1], a.from);
+  const opts = a.delimiter !== undefined ? { delimiter: a.delimiter } : {};
+  printValue(flatten(loaded.value, opts) as JsonValue, a);
+}
+
+function cmdUnflatten(a: Args): void {
+  const loaded = loadInput(a.positional[1], a.from);
+  const opts = a.delimiter !== undefined ? { delimiter: a.delimiter } : {};
+  let result: JsonValue;
+  try { result = unflatten(loaded.value, opts); }
+  catch (err) { fail(err instanceof Error ? err.message : String(err), a.json); }
+  printValue(result!, a);
+}
+
+function cmdSort(a: Args): void {
+  const loaded = loadInput(a.positional[1], a.from);
+  if (a.canonical) { out(canonicalize(loaded.value) + "\n"); return; }
+  let value: JsonValue = sortKeysDeep(loaded.value) as JsonValue;
+  if (a.to && a.to !== "json") { out(stringifyFormat(value, a.to, { indent: a.indent, minify: a.min })); return; }
+  out(formatJson(value, { indent: a.indent, minify: a.min }) + "\n");
+}
+
 // --- dispatch --------------------------------------------------------------
 
-const COMMANDS = new Set(["query", "get", "convert", "validate", "diff", "merge", "format"]);
+const COMMANDS = new Set(["query", "get", "convert", "validate", "diff", "merge", "format", "patch", "flatten", "unflatten", "sort"]);
 
 function main(): void {
   const args = parseArgs(argv.slice(2));
@@ -292,9 +365,9 @@ function main(): void {
   let cmd = args.positional[0];
   if (!cmd || !COMMANDS.has(cmd)) {
     // No explicit command. Infer: -q/--get → query, --to → convert, --schema → validate, else format.
-    if (args.positional.length === 0 && !isStdinPiped() && !args.query && !args.get) { out(HELP + "\n"); return; }
+    if (args.positional.length === 0 && !isStdinPiped() && !args.query && !args.get && args.pointer === undefined) { out(HELP + "\n"); return; }
     if (args.schema) { args.positional.unshift("validate"); cmd = "validate"; }
-    else if (args.query || args.get) { args.positional.unshift("query"); cmd = "query"; }
+    else if (args.query || args.get || args.pointer !== undefined) { args.positional.unshift("query"); cmd = "query"; }
     else if (args.to) { args.positional.unshift("convert"); cmd = "convert"; }
     else { args.positional.unshift("format"); cmd = "format"; }
   }
@@ -307,6 +380,10 @@ function main(): void {
     case "diff": cmdDiff(args); return;
     case "merge": cmdMerge(args); return;
     case "format": cmdFormat(args); return;
+    case "patch": cmdPatch(args); return;
+    case "flatten": cmdFlatten(args); return;
+    case "unflatten": cmdUnflatten(args); return;
+    case "sort": cmdSort(args); return;
   }
 }
 

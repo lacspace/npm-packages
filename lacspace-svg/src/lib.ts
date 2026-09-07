@@ -60,6 +60,18 @@ export type { OptimizeOptions, OptimizeResult } from "./optimize.js";
 export { toJsx, jsxAttrName, styleToObject, parseForJsx } from "./jsx.js";
 export type { JsxOptions } from "./jsx.js";
 
+export { toComponent, toVue, toSvelte, toSolid } from "./component.js";
+export type { ComponentOptions, Framework } from "./component.js";
+
+export { currentColorize, currentColorizeElement } from "./currentcolor.js";
+export type { CurrentColorOptions, CurrentColorResult } from "./currentcolor.js";
+
+export { dimensions, fixDimensions } from "./dimensions.js";
+export type { Dimensions, FixDimensionsOptions, FixDimensionsResult } from "./dimensions.js";
+
+export { batchOptimize } from "./batch.js";
+export type { BatchResult, BatchFileResult, BatchTotals } from "./batch.js";
+
 export { toDataUri, encodeSvgUri, encodeSvgBase64 } from "./datauri.js";
 export type { DataUriOptions, DataUriResult } from "./datauri.js";
 

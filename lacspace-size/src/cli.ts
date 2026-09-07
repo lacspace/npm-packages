@@ -1,16 +1,19 @@
 import { stdout, stderr, argv, exit, env, cwd } from "node:process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { analyze, pick } from "./analyze.js";
 import type { AnalyzeResult, Metric } from "./analyze.js";
 import { parseBudgetSpec, evaluateBudgets, budgetsPass } from "./budget.js";
 import type { Budget, BudgetResult } from "./budget.js";
 import { saveBaseline, loadBaseline, diffBaseline, exceedsMaxIncrease, parseMaxIncrease } from "./baseline.js";
 import type { DiffResult } from "./baseline.js";
-import { loadConfig } from "./config.js";
-import { buildJsonReport, toMarkdown, pct } from "./report.js";
+import { loadConfig, discoverConfig } from "./config.js";
+import { buildJsonReport, toMarkdown, toMarkdownComment, formatSummaryLine, pct } from "./report.js";
+import { analyzeCompositionFile } from "./composition.js";
+import type { CompositionResult } from "./composition.js";
 import { formatSize, formatDelta } from "./humansize.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const noColor = "NO_COLOR" in env || !stdout.isTTY;
 const C = {
@@ -30,6 +33,10 @@ interface Args {
   saveBaseline?: string;
   baseline?: string;
   maxIncrease?: string;
+  failOver?: string;
+  noConfig: boolean;
+  breakdown: boolean;
+  summary: boolean;
   top?: number;
   brotli: boolean;
   gzip: boolean;
@@ -49,6 +56,7 @@ function parseArgs(list: string[]): Args {
   const a: Args = {
     positional: [], metric: "gzip", budgets: [], brotli: true, gzip: true,
     includeMaps: false, includeHidden: false, includeNodeModules: false,
+    noConfig: false, breakdown: false, summary: false,
     binary: false, json: false, help: false, version: false,
   };
   for (let i = 0; i < list.length; i++) {
@@ -61,6 +69,10 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--save-baseline") a.saveBaseline = nextVal();
     else if (arg === "--baseline") a.baseline = nextVal();
     else if (arg === "--max-increase") a.maxIncrease = nextVal();
+    else if (arg === "--fail-over") a.failOver = nextVal();
+    else if (arg === "--no-config") a.noConfig = true;
+    else if (arg === "--breakdown") a.breakdown = true;
+    else if (arg === "--summary") a.summary = true;
     else if (arg === "--top") a.top = Number(nextVal());
     else if (arg === "--no-brotli") a.brotli = false;
     else if (arg === "--no-gzip") a.gzip = false;
@@ -98,17 +110,21 @@ ${c("bold", "Metrics & output")}
       --brotli-quality <0-11>     brotli quality (default 11)
       --binary                    Use KiB/MiB (1024) instead of kB/MB (1000)
       --json                      Machine-readable JSON to stdout
-  -f, --format <md>               Markdown report (great for PR comments)
+      --summary                   One compact status line (files · raw · gzip · Δ)
+  -f, --format <md|comment>       Markdown report (${c("dim", "comment")} = tight PR-comment table)
+      --breakdown                 Byte composition of a single file (treemap JSON w/ --json)
 
 ${c("bold", "Budgets (CI gate — non-zero exit on breach)")}
       --max <size>                Global budget on the total (e.g. 500kb)
   -b, --budget <pat:size>         Per-pattern budget (repeatable), ${c("dim", '"*.js:200kb"')}
   -c, --config <file>             Load metric/max/budgets from a JSON file
+      --no-config                 Ignore an auto-discovered ${c("dim", ".sizerc.json")}
 
 ${c("bold", "Baseline & regression diff")}
       --save-baseline <file>      Write a JSON snapshot of this run
       --baseline <file>           Compare this run to a saved snapshot
       --max-increase <size|%>     Fail if the total grew past this (e.g. 5kb / 10%)
+      --fail-over <size|%>        Alias of --max-increase (CI regression gate)
 
 ${c("bold", "File selection")}
       --include-maps              Include .map source maps (skipped by default)
@@ -123,9 +139,13 @@ ${c("bold", "Examples")}
   npx lacspace-size dist --metric brotli --top 15
   npx lacspace-size "src/**/*.js" --max 500kb --budget "*.css:50kb"
   npx lacspace-size dist --save-baseline .size.json
-  npx lacspace-size dist --baseline .size.json --max-increase 5%
+  npx lacspace-size dist --baseline .size.json --fail-over 5%
   npx lacspace-size bundle.js --json
   npx lacspace-size dist -f md > size-report.md
+  npx lacspace-size dist --baseline .size.json -f comment > comment.md
+  npx lacspace-size dist/bundle.js --breakdown
+  npx lacspace-size dist/bundle.js --breakdown --json > treemap.json
+  npx lacspace-size dist --summary
 `;
 
 function fail(msg: string, json: boolean): never {
@@ -231,6 +251,39 @@ function truncate(s: string, w: number): string {
   return "…" + s.slice(s.length - (w - 1));
 }
 
+const KIND_COLOR: Record<string, keyof typeof C> = {
+  code: "cyan", strings: "magenta", comments: "gray", whitespace: "yellow",
+};
+
+function renderBreakdown(path: string, comp: CompositionResult, a: Args): void {
+  const fmt = (n: number): string => formatSize(n, { binary: a.binary });
+  log(`\n${c("bold", c("magenta", "◆ lacspace-size"))} ${c("dim", "breakdown")}  ${c("cyan", path)}`);
+  log(`  ${c("dim", `${fmt(comp.totalBytes)} · ${comp.lines} line${comp.lines === 1 ? "" : "s"}`)}`);
+
+  log(`\n  ${c("bold", "Composition")}`);
+  const barW = 24;
+  for (const s of comp.segments) {
+    const filled = Math.round((s.percent / 100) * barW);
+    const bar = "█".repeat(filled) + c("gray", "░".repeat(barW - filled));
+    log(`  ${c(KIND_COLOR[s.kind] ?? "cyan", padEnd(s.kind, 11))} ${bar} ${padStart(s.percent.toFixed(1) + "%", 6)}  ${c("dim", fmt(s.bytes))}`);
+  }
+
+  if (comp.modules.length) {
+    log(`\n  ${c("bold", "Top modules")} ${c("dim", "(crude banner split)")}`);
+    for (const m of comp.modules.slice(0, 10)) {
+      log(`  ${padStart(m.percent.toFixed(1) + "%", 6)}  ${c("dim", padStart(fmt(m.bytes), 10))}  ${truncate(m.name, 50)}`);
+    }
+  }
+
+  if (comp.topStrings.length) {
+    log(`\n  ${c("bold", "Largest strings")}`);
+    for (const s of comp.topStrings.slice(0, 5)) {
+      log(`  ${c("dim", padStart(fmt(s.bytes), 10))}  L${s.line}  ${c("gray", truncate(JSON.stringify(s.value), 56))}`);
+    }
+  }
+  log("");
+}
+
 function main(): void {
   const a = parseArgs(argv.slice(2));
   if (a.version) { out(VERSION); return; }
@@ -240,12 +293,13 @@ function main(): void {
   if (a.metric === "brotli" && !a.brotli) fail("--metric brotli conflicts with --no-brotli", a.json);
   if (a.metric === "gzip" && !a.gzip) fail("--metric gzip conflicts with --no-gzip", a.json);
 
-  // Assemble budgets from --config + --max + --budget.
+  // Assemble budgets from --config (or an auto-discovered .sizerc.json) + --max + --budget.
   const budgetSpecs: Budget[] = [];
   let metric = a.metric;
-  if (a.config) {
+  const configPath = a.config ?? (a.noConfig ? undefined : discoverConfig(cwd()));
+  if (configPath) {
     let cfg;
-    try { cfg = loadConfig(a.config); } catch (e) { fail(`Config: ${(e as Error).message}`, a.json); }
+    try { cfg = loadConfig(configPath); } catch (e) { fail(`Config: ${(e as Error).message}`, a.json); }
     if (cfg!.metric && !argvHas("--metric") && !argvHas("-m")) metric = cfg!.metric;
     if (cfg!.max !== undefined && !a.max) budgetSpecs.push({ pattern: "**", max: cfg!.max });
     budgetSpecs.push(...cfg!.budgets);
@@ -279,6 +333,22 @@ function main(): void {
     fail(`No files matched: ${paths.join(", ")}`, a.json);
   }
 
+  // Composition breakdown of a single file (short-circuits the normal report).
+  if (a.breakdown) {
+    const target = result!.files[0]!; // files are sorted largest-first
+    let comp: CompositionResult;
+    try { comp = analyzeCompositionFile(join(cwd(), target.path)); } catch (e) { fail(`--breakdown: ${(e as Error).message}`, a.json); }
+    if (a.json) {
+      out(JSON.stringify({ ok: true, path: target.path, ...comp! }, null, 2));
+    } else if (a.summary) {
+      const top = comp!.segments[0]!;
+      out(`${target.path} · ${formatSize(comp!.totalBytes, { binary: a.binary })} · ${comp!.lines} lines · top ${top.kind} ${top.percent}%`);
+    } else {
+      renderBreakdown(target.path, comp!, a);
+    }
+    return;
+  }
+
   // Budgets.
   const budgetResults = evaluateBudgets(budgetSpecs, result!.files, metric);
   const budgetsOk = budgetsPass(budgetResults);
@@ -290,9 +360,11 @@ function main(): void {
     let base;
     try { base = loadBaseline(a.baseline); } catch (e) { fail(`--baseline: ${(e as Error).message}`, a.json); }
     diff = diffBaseline(result!, base!, metric);
-    if (a.maxIncrease) {
+    const increaseSpec = a.maxIncrease ?? a.failOver;
+    if (increaseSpec) {
+      const flag = a.maxIncrease ? "--max-increase" : "--fail-over";
       let threshold;
-      try { threshold = parseMaxIncrease(a.maxIncrease); } catch (e) { fail(`--max-increase: ${(e as Error).message}`, a.json); }
+      try { threshold = parseMaxIncrease(increaseSpec); } catch (e) { fail(`${flag}: ${(e as Error).message}`, a.json); }
       increaseBreached = exceedsMaxIncrease(diff, threshold!);
     }
   }
@@ -315,7 +387,13 @@ function main(): void {
     report.ok = budgetsOk && !increaseBreached;
     if (a.saveBaseline) report.baselineSaved = a.saveBaseline;
     out(JSON.stringify(report, null, 2));
-  } else if (a.format === "md") {
+  } else if (a.summary) {
+    out(formatSummaryLine(result!, ctx));
+    if (a.saveBaseline) log(c("dim", `baseline written to ${a.saveBaseline}`));
+  } else if (a.format === "comment") {
+    out(toMarkdownComment(result!, ctx));
+    if (a.saveBaseline) log(c("dim", `\nBaseline written to ${a.saveBaseline}`));
+  } else if (a.format === "md" || a.format === "markdown") {
     out(toMarkdown(result!, ctx));
     if (a.saveBaseline) log(c("dim", `\nBaseline written to ${a.saveBaseline}`));
   } else {

@@ -9,9 +9,11 @@ import {
 import type { HeaderFields } from "./headers.js";
 import { scanDependencies, renderNotices } from "./notices.js";
 import { checkProject } from "./check.js";
-import { findPackageJson, expandGlobs } from "./pkg.js";
+import { detectLicenseInfo } from "./detect.js";
+import { checkCompatibility } from "./compat.js";
+import { findPackageJson, expandGlobs, findLicenseFile } from "./pkg.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const NO_COLOR = Boolean(process.env.NO_COLOR) || !stdout.isTTY;
 const C = {
@@ -32,12 +34,14 @@ interface Args {
   src?: string;
   format?: string;
   template?: string;
+  deps?: string;
   requireHeaders: boolean;
   prod: boolean;
   noText: boolean;
   force: boolean;
   dryRun: boolean;
   write: boolean;
+  fix: boolean;
   json: boolean;
   help: boolean;
   version: boolean;
@@ -46,7 +50,7 @@ interface Args {
 function parseArgs(list: string[]): Args {
   const a: Args = {
     positional: [], requireHeaders: false, prod: false, noText: false,
-    force: false, dryRun: false, write: false, json: false, help: false, version: false,
+    force: false, dryRun: false, write: false, fix: false, json: false, help: false, version: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -59,6 +63,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--src") a.src = val();
     else if (arg === "--format" || arg === "-f") a.format = val();
     else if (arg === "--template") a.template = val();
+    else if (arg === "--deps") a.deps = val();
+    else if (arg === "--fix") a.fix = true;
     else if (arg === "--require-headers") a.requireHeaders = true;
     else if (arg === "--prod") a.prod = true;
     else if (arg === "--no-text") a.noText = true;
@@ -86,6 +92,8 @@ ${c("bold", "Commands")}
   update <globs...>    Refresh the header (year/holder/id) on matching files
   remove <globs...>    Strip the licence header from matching files
   notices              Build THIRD-PARTY-NOTICES from node_modules
+  detect [file]        Identify the SPDX id of a LICENSE file (default: ./LICENSE)
+  compat [ids...]      Flag dependency licences incompatible with your project
   check                CI gate: LICENSE exists, matches package.json, headers
   list                 List supported SPDX ids
 
@@ -97,8 +105,10 @@ ${c("bold", "Options")}
   -o, --output <file>    Output path (init: LICENSE, notices: THIRD-PARTY-NOTICES.md)
       --src <dir>        Source dir for check --require-headers (default: src)
       --template <str>   Custom header template ({{year}}/{{holder}}/{{id}})
+      --deps <ids>       compat: comma-separated dependency SPDX ids to test
       --require-headers  check: also require a header on every source file
-      --prod             notices: production dependencies only
+      --fix              check: write a missing LICENSE, align package.json, add headers
+      --prod             notices/compat: production dependencies only
       --no-text          notices: omit each dependency's bundled licence text
   -f, --format <fmt>     notices: md|txt · list/check: table|json
       --force            init: overwrite an existing LICENSE
@@ -115,7 +125,10 @@ ${c("bold", "Examples")}
   npx lacspace-license add "src/**/*.ts" --dry-run          ${c("dim", "# preview a diff")}
   npx lacspace-license update "src/**/*.ts" --year 2026 --write
   npx lacspace-license notices --prod -o THIRD-PARTY-NOTICES.md
-  npx lacspace-license check --require-headers --src src
+  npx lacspace-license detect LICENSE                       ${c("dim", "# what licence is this?")}
+  npx lacspace-license compat --id MIT --deps GPL-3.0,Apache-2.0
+  npx lacspace-license compat --prod                        ${c("dim", "# scan node_modules")}
+  npx lacspace-license check --require-headers --fix
   npx lacspace-license list
 `;
 
@@ -261,8 +274,11 @@ function runNotices(a: Args): void {
 
 // ---- check -------------------------------------------------------------------
 function runCheck(a: Args): void {
-  const checkOpts: Parameters<typeof checkProject>[0] = { cwd: cwd(), requireHeaders: a.requireHeaders };
+  const checkOpts: Parameters<typeof checkProject>[0] = { cwd: cwd(), requireHeaders: a.requireHeaders, fix: a.fix };
   if (a.src) checkOpts.src = a.src;
+  if (a.holder) checkOpts.holder = a.holder;
+  else if (a.author) checkOpts.holder = a.author;
+  if (a.year) checkOpts.year = a.year;
   const r = checkProject(checkOpts);
   if (a.json) {
     out(JSON.stringify({
@@ -273,6 +289,7 @@ function runCheck(a: Args): void {
       licenseMatches: r.licenseMatches ?? null,
       headersChecked: r.headersChecked,
       missingHeaders: r.missingHeaders.map((f) => relative(cwd(), f)),
+      fixed: r.fixed,
       issues: r.issues.map((i) => ({ ...i, file: i.file ? relative(cwd(), i.file) : undefined })),
     }));
     if (!r.ok) exit(1);
@@ -291,9 +308,87 @@ function runCheck(a: Args): void {
     for (const f of r.missingHeaders.slice(0, 15)) log(`      ${c("red", "•")} ${relative(cwd(), f)}`);
     if (r.missingHeaders.length > 15) log(`      ${c("dim", `…and ${r.missingHeaders.length - 15} more`)}`);
   }
+  if (r.fixed.length) {
+    log(`  ${c("green", "✎")} fixed ${c("dim", `· ${r.fixed.length} repair${r.fixed.length === 1 ? "" : "s"}`)}`);
+    for (const f of r.fixed.slice(0, 15)) log(`      ${c("green", "+")} ${f}`);
+    if (r.fixed.length > 15) log(`      ${c("dim", `…and ${r.fixed.length - 15} more`)}`);
+  }
   log("");
   if (r.ok) log(`  ${c("green", "✓ all checks passed")}\n`);
   else { log(`  ${c("red", `✗ ${r.issues.length} issue${r.issues.length === 1 ? "" : "s"}`)}\n`); exit(1); }
+}
+
+// ---- detect ------------------------------------------------------------------
+function runDetect(a: Args): void {
+  const file = a.positional[1] ?? findLicenseFile(cwd()) ?? "LICENSE";
+  const target = resolve(cwd(), file);
+  if (!existsSync(target)) fail(`No such file: ${relative(cwd(), target)}`, a.json);
+  let text: string;
+  try { text = readFileSync(target, "utf8"); }
+  catch { return fail(`Could not read ${relative(cwd(), target)}`, a.json); }
+  const info = detectLicenseInfo(text);
+  if (a.json) {
+    out(JSON.stringify({ ok: info.spdx !== null, file: relative(cwd(), target), spdx: info.spdx, confidence: info.confidence, name: info.name }));
+    if (info.spdx === null) exit(1);
+    return;
+  }
+  log(`\n${c("bold", c("magenta", "◆ lacspace-license detect"))} ${c("dim", `· ${relative(cwd(), target)}`)}`);
+  if (info.spdx) {
+    const pct = `${Math.round(info.confidence * 100)}%`;
+    log(`  ${c("green", "✓")} ${c("cyan", info.spdx)} ${c("dim", `· ${info.name} · ${pct} confidence`)}\n`);
+  } else {
+    log(`  ${c("yellow", "?")} could not identify this licence ${c("dim", `(best confidence ${Math.round(info.confidence * 100)}%)`)}\n`);
+    exit(1);
+  }
+}
+
+// ---- compat ------------------------------------------------------------------
+function runCompat(a: Args): void {
+  const pkg = findPackageJson(cwd());
+  const projectId = a.id ?? pkg?.license;
+  if (!projectId) fail("No project licence: pass --id <spdx> or set package.json license.", a.json);
+  const canon = resolveId(projectId!);
+  if (!canon) fail(`Unsupported project SPDX id: "${projectId}". Run \`list\`.`, a.json);
+
+  // dependency ids: explicit --deps / positional list, else scan node_modules
+  let depIds: string[] = [];
+  const explicit = [
+    ...(a.deps ? a.deps.split(",") : []),
+    ...a.positional.slice(1),
+  ].map((s) => s.trim()).filter(Boolean);
+  if (explicit.length) {
+    depIds = explicit;
+  } else {
+    const modulesDir = join(cwd(), "node_modules");
+    if (!existsSync(modulesDir)) fail("No dependency ids given and no node_modules found — pass --deps or install deps.", a.json);
+    const scanOpts: Parameters<typeof scanDependencies>[0] = { modulesDir, prod: a.prod, includeText: false };
+    if (pkg) scanOpts.rootPackage = pkg.path;
+    depIds = [...new Set(scanDependencies(scanOpts).map((d) => d.license))].sort();
+  }
+  if (!depIds.length) fail("No dependency licences to check.", a.json);
+
+  const r = checkCompatibility(canon!, depIds);
+  if (a.json) {
+    out(JSON.stringify(r));
+    if (!r.ok) exit(1);
+    return;
+  }
+  log(`\n${c("bold", c("magenta", "◆ lacspace-license compat"))} ${c("dim", `· project ${r.project} · ${r.issues.length} licence${r.issues.length === 1 ? "" : "s"}`)}`);
+  const mark: Record<string, [keyof typeof C, string]> = {
+    compatible: ["green", "✓"], incompatible: ["red", "✗"], review: ["yellow", "⚠"], unknown: ["dim", "?"],
+  };
+  for (const i of r.issues) {
+    const [col, sym] = mark[i.verdict]!;
+    log(`  ${c(col, sym)} ${c("cyan", i.canonical.padEnd(18))} ${c(col, i.verdict.padEnd(12))} ${c("dim", i.reason)}`);
+  }
+  log("");
+  if (r.ok) {
+    if (r.review.length) log(`  ${c("yellow", `⚠ compatible, but ${r.review.length} need review`)}\n`);
+    else log(`  ${c("green", "✓ all dependency licences are compatible")}\n`);
+  } else {
+    log(`  ${c("red", `✗ ${r.incompatible.length} incompatible: ${r.incompatible.join(", ")}`)}\n`);
+    exit(1);
+  }
 }
 
 // ---- list --------------------------------------------------------------------
@@ -327,6 +422,8 @@ function main(): void {
     case "update": return runHeaders(a, "update");
     case "remove": return runHeaders(a, "remove");
     case "notices": return runNotices(a);
+    case "detect": return runDetect(a);
+    case "compat": return runCompat(a);
     case "check": return runCheck(a);
     case "list": return runList(a);
     default:

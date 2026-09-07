@@ -56,12 +56,16 @@ export type { CommentStyle, HeaderFields, HeaderResult } from "./headers.js";
 
 export {
   detectLicense,
+  detectLicenseInfo,
   detectMatches,
   licenseMatches,
   sameLicense,
   normalizeLicenseText,
 } from "./detect.js";
-export type { DetectMatch } from "./detect.js";
+export type { DetectMatch, DetectInfo } from "./detect.js";
+
+export { checkCompatibility, verdictFor } from "./compat.js";
+export type { CompatResult, CompatIssue, CompatVerdict } from "./compat.js";
 
 export {
   scanDependencies,

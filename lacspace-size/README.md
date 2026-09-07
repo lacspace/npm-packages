@@ -14,6 +14,15 @@ npx lacspace-size dist
 
 It's the local, offline complement to [`lacspace-har`](https://developer.lacspace.com/tools/har) (network waterfalls) and [`lacspace-inspect`](https://developer.lacspace.com/tools/inspect) (live sites): point it at the files you actually ship.
 
+### New in 0.2.0
+
+- **`--breakdown`** — estimate a single file's byte composition (code / strings / comments / whitespace), surface its largest string literals & lines, do a crude bundler-banner **module split**, and emit a **treemap-friendly JSON** with `--json`.
+- **`-f comment`** — a tight, GitHub-PR-comment-ready Markdown table (file · raw · gzip · brotli · **Δ vs baseline** with +/- and %) plus a Total row.
+- **`--summary`** — one compact status line (`12 files · raw 1.2 MB · gzip 380 kB · budgets 2/3 · Δ +4.1 kB (+1.1%)`).
+- **`--fail-over <size|%>`** — a named CI regression gate (alias of `--max-increase`).
+- **Auto-discovered `.sizerc.json`** — commit your size policy and it's picked up with no `--config` flag (opt out with `--no-config`).
+- All additive & backward-compatible; every 0.1.0 flag, export and output field is unchanged.
+
 ## Why it exists
 
 - **Free & keyless** — no account, no API key, no upload. Your bundles never leave the machine.
@@ -51,14 +60,18 @@ Paths may be **files**, **directories** (walked recursively) or **globs** (`src/
 | `--gzip-level <0-9>` | zlib gzip level (default `9`) |
 | `--brotli-quality <0-11>` | brotli quality (default `11`) |
 | `--binary` | Use KiB/MiB (1024) instead of kB/MB (1000) |
-| `--json` | Machine-readable JSON to stdout |
-| `-f, --format <md>` | Markdown report (great for PR comments) |
+| `--json` | Machine-readable JSON to stdout (includes a `summary` line; `--breakdown` emits treemap JSON) |
+| `--summary` | One compact status line (files · raw · gzip · budgets · Δ) |
+| `-f, --format <md\|comment>` | Markdown report; `comment` = tight PR-comment table with a Δ column |
+| `--breakdown` | Byte-composition breakdown of a single file (the largest match) |
 | `--max <size>` | Global budget on the **total** (e.g. `500kb`) |
 | `-b, --budget <pat:size>` | Per-pattern budget, repeatable (e.g. `"*.js:200kb"`) |
 | `-c, --config <file>` | Load `metric` / `max` / `budgets` from a JSON file |
+| `--no-config` | Ignore an auto-discovered `.sizerc.json` |
 | `--save-baseline <file>` | Write a JSON snapshot of this run |
 | `--baseline <file>` | Compare this run to a saved snapshot |
 | `--max-increase <size\|%>` | Fail if the total grew past this (e.g. `5kb` or `10%`) |
+| `--fail-over <size\|%>` | CI regression gate (alias of `--max-increase`) |
 | `--include-maps` | Include `.map` source maps |
 | `--include-hidden` | Include dotfiles / dot-directories |
 | `--include-node-modules` | Descend into `node_modules` |
@@ -107,21 +120,41 @@ npx lacspace-size bundle.js
 #   gzip is 31.4% of raw (68.6% saved)
 ```
 
-Markdown report for a PR comment:
+Markdown report for a PR comment (full report, or a tight `comment` table with a Δ column):
 
 ```bash
 npx lacspace-size dist -f md > size-report.md
+npx lacspace-size dist --baseline .size.json -f comment > comment.md
+```
+
+A one-line summary, ideal for a CI job's log/step name:
+
+```bash
+npx lacspace-size dist --summary
+#   12 files · raw 1.2 MB · gzip 380 kB · brotli 320 kB · budgets 2/3
+```
+
+Break a single bundle down into where its bytes go — and get a treemap JSON:
+
+```bash
+npx lacspace-size dist/bundle.js --breakdown
+#   Composition
+#   code        ██████████████░░░░░░░░░░  58.2%  25.8 kB
+#   strings     █████░░░░░░░░░░░░░░░░░░░  22.1%   9.8 kB
+#   whitespace  █████░░░░░░░░░░░░░░░░░░░  18.9%   8.4 kB
+#   comments    ░░░░░░░░░░░░░░░░░░░░░░░░   0.9%   384 B
+npx lacspace-size dist/bundle.js --breakdown --json > treemap.json
 ```
 
 Machine-readable JSON for a custom gate:
 
 ```bash
-npx lacspace-size dist --json | jq '.total.gzip, .budgetsPass'
+npx lacspace-size dist --json | jq '.total.gzip, .budgetsPass, .summary'
 ```
 
 ### Config file
 
-Commit your size policy instead of long flag chains (`--config size.json`):
+Commit your size policy instead of long flag chains. Pass it with `--config size.json`, **or** drop a `.sizerc.json` in the working directory and it's discovered automatically (opt out with `--no-config`):
 
 ```json
 {
@@ -159,10 +192,15 @@ const pass = evaluateBudgets(budgets, result.files, "gzip").every((b) => b.ok);
 | `exceedsMaxIncrease` | `(diff, threshold) => boolean` | Regression gate |
 | `parseMaxIncrease` | `(input: string) => IncreaseThreshold` | Parse `"5kb"` / `"10%"` |
 | `parseSize` / `formatSize` / `formatDelta` | — | Human-size parse & format (decimal + binary) |
-| `buildJsonReport` / `toMarkdown` | — | Render the JSON / Markdown reports |
+| `buildJsonReport` / `toMarkdown` | — | Render the JSON / full Markdown reports |
+| `toMarkdownComment` | `(result, ctx) => string` | Tight PR-comment table with a Δ column |
+| `formatSummaryLine` | `(result, ctx) => string` | The compact one-line summary |
 | `parseConfig` / `loadConfig` | — | Read a JSON config file |
+| `discoverConfig` | `(cwd: string) => string \| undefined` | Find a `.sizerc.json` in a directory |
+| `analyzeComposition` | `(input: string \| Uint8Array, opts?) => CompositionResult` | Estimate a file's byte composition + treemap |
+| `analyzeCompositionFile` | `(path: string, opts?) => CompositionResult` | Read a file and estimate its composition |
 
-Types exported: `Metric`, `AnalyzeOptions`, `AnalyzeResult`, `Totals`, `ExtRollup`, `Sizes`, `FileMeasure`, `MeasureOptions`, `WalkOptions`, `Budget`, `BudgetResult`, `Baseline`, `DiffResult`, `FileDelta`, `DeltaStatus`, `IncreaseThreshold`, `SizeConfig`, `ReportContext`, `FormatSizeOptions`.
+Types exported: `Metric`, `AnalyzeOptions`, `AnalyzeResult`, `Totals`, `ExtRollup`, `Sizes`, `FileMeasure`, `MeasureOptions`, `WalkOptions`, `Budget`, `BudgetResult`, `Baseline`, `DiffResult`, `FileDelta`, `DeltaStatus`, `IncreaseThreshold`, `SizeConfig`, `ReportContext`, `FormatSizeOptions`, `CompositionResult`, `CompositionOptions`, `CompositionSegment`, `SegmentKind`, `StringLiteral`, `LineSlice`, `ModuleSlice`, `TreemapNode`.
 
 ## How the numbers are computed
 
@@ -176,6 +214,7 @@ Each file is compressed **independently**, exactly as most static hosts/CDNs ser
 
 - Files are measured **individually** — this is transfer size per asset, not a combined archive size, and it does not model HTTP/2 dictionary sharing across responses.
 - It measures **bytes on disk**; it does not parse JS to attribute size to individual modules or dependencies (use it alongside a bundler's stats output for that).
+- `--breakdown` is an **estimate** from a tiny hand-written scanner, not a real parser: regex literals, template interpolation and non-JS syntax are handled loosely, and the module split relies on bundler banner comments (`//# sourceURL=`, esbuild `// path/to/file.js`). It's for "roughly where did my bytes go", not byte-exact attribution.
 - gzip/brotli here are Node's `zlib`; a CDN using a different encoder or level may differ by a few bytes.
 - Budget globs match on path (and basename for slash-less patterns); they are not full `.gitignore` semantics.
 - Everything is synchronous and local — great for CI, but for tens of thousands of files the brotli pass dominates (use `--no-brotli` to skip it).

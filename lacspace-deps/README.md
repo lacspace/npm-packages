@@ -1,10 +1,16 @@
 # lacspace-deps
 
-**A keyless dependency & licence auditor for any Node/JS project.** Point it at a repo and it reads `package.json`, the lockfile and your local `node_modules` and tells you what your supply chain actually looks like: **licences** (with an allow/deny policy), **install size** on disk, **duplicate versions**, **unused & missing** dependencies, and — opt-in — **outdated** packages. It exits non-zero on policy violations, so it drops straight into CI.
+**A keyless dependency & licence auditor for any Node/JS project.** Point it at a repo and it reads `package.json`, the lockfile and your local `node_modules` and tells you what your supply chain actually looks like: **licences** (allow/deny + `maxSeverity` policy, from flags or a `.depsrc.json`), **install size** on disk, **duplicate versions**, **unused & missing** dependencies, a **CycloneDX/SPDX SBOM** export, and — opt-in — **outdated** packages. It exits non-zero on policy violations, so it drops straight into CI.
 
 ```bash
 npx lacspace-deps
 ```
+
+**New in 0.2.0**
+
+- **SBOM export** — emit a CycloneDX 1.5 or SPDX 2.3 JSON software bill of materials for the dependency tree: `lacspace-deps sbom --format cyclonedx|spdx`.
+- **`.depsrc.json` policy file** — keep your allow/deny lists, `maxSeverity` and `failOn` gates in the repo; auto-discovered, with `--policy <path>` to point elsewhere. CLI flags override it.
+- **`--max-severity`** — fail on anything stricter than a chosen licence category (`permissive` < `weak-copyleft` < `strong-copyleft` < `unknown`), no glob lists required.
 
 ```
 ◆ lacspace-deps  my-app@1.4.0
@@ -62,14 +68,18 @@ Most projects have no idea what they're actually shipping. `lacspace-deps` answe
 ```
 lacspace-deps [dir] [options]
 lacspace-deps <licenses|size|duplicates|unused|outdated> [dir] [options]
+lacspace-deps sbom [dir] --format cyclonedx|spdx
 ```
 
-`dir` defaults to the current directory. The first positional may be a **focus** keyword to print just one section.
+`dir` defaults to the current directory. The first positional may be a **focus** keyword to print just one section, or the `sbom` command to emit a bill of materials.
 
 | Flag | Description |
 | --- | --- |
 | `--allow <list>` | Comma list of allowed licence globs, e.g. `"MIT,ISC,Apache-2.0,BSD-*"`. Anything outside the list is a violation. |
 | `--deny <list>` | Comma list of denied licence globs, e.g. `"GPL-*,AGPL-*"`. Any match is a violation. |
+| `--max-severity <cat>` | Strictest licence category tolerated: `permissive`, `weak-copyleft`, `strong-copyleft` or `unknown`. Anything stricter is a violation. |
+| `--policy <path>` | Load an explicit `.depsrc.json` policy file (default: auto-discover one in `dir`). |
+| `-f, --format <fmt>` | For `sbom`: `cyclonedx` (default) or `spdx`. Otherwise `md` for a Markdown report. |
 | `--outdated` | Also check the npm registry for newer versions (**the only networked feature**). |
 | `--registry <url>` | Registry base URL for `--outdated` (default `https://registry.npmjs.org`). |
 | `--prod` | Ignore `devDependencies`. |
@@ -79,7 +89,6 @@ lacspace-deps <licenses|size|duplicates|unused|outdated> [dir] [options]
 | `--no-tooling-ignore` | Don't auto-ignore common build tooling in the unused check. |
 | `--fail-on <list>` | Exit non-zero on any of: `unused,missing,license,outdated,duplicates`. |
 | `--json` | Machine-readable JSON output. |
-| `-f, --format md` | Markdown report (great for a CI job summary). |
 | `-h, --help` | Show help. |
 | `-v, --version` | Print the version. |
 
@@ -106,12 +115,38 @@ npx lacspace-deps unused --fail-on unused,missing
 # Which packages are installed at more than one version?
 npx lacspace-deps duplicates
 
+# Enforce a category ceiling instead of glob lists (fails on strong-copyleft/unknown)
+npx lacspace-deps --max-severity weak-copyleft --fail-on license
+
+# Export a CycloneDX SBOM
+npx lacspace-deps sbom --format cyclonedx > bom.json
+
+# Export an SPDX SBOM for a sub-project
+npx lacspace-deps sbom ./my-app --format spdx > sbom.spdx.json
+
 # Check the registry for outdated majors (opt-in, online)
 npx lacspace-deps outdated ./my-app
 
 # Write a Markdown report for a CI job summary
 npx lacspace-deps -f md > deps-report.md
 ```
+
+### Policy file (`.depsrc.json`)
+
+Drop a `.depsrc.json` in your project root and it's picked up automatically (or point at one with `--policy <path>`). CLI flags override anything in the file.
+
+```json
+{
+  "allow": ["MIT", "ISC", "Apache-2.0", "BSD-*"],
+  "deny": ["GPL-*", "AGPL-*"],
+  "maxSeverity": "weak-copyleft",
+  "failOn": ["missing", "duplicates"],
+  "ignoreUnused": ["some-cli-tool"],
+  "prod": true
+}
+```
+
+The licence keys may also be nested under a `"policy"` object (`{ "policy": { "allow": […] }, "failOn": […] }`). Unknown or wrong-typed fields are ignored.
 
 Example — the licence gate failing in CI:
 
@@ -151,7 +186,15 @@ report.size.totalBytes;     // total install size on disk
 | `buildInventory` | `(dir, opts?) => Inventory` | Parse `package.json` + lockfile + scan `node_modules`. |
 | `summarizeLicenses` | `(installed, policy?) => LicenseSummary` | Classify + apply allow/deny. |
 | `classifyLicense` | `(license) => LicenseCategory` | Categorise a single SPDX string. |
-| `evaluatePolicy` | `(license, policy) => "deny" \| "not-allowed" \| null` | Test one licence against a policy. |
+| `evaluatePolicy` | `(license, policy) => "deny" \| "not-allowed" \| "severity" \| null` | Test one licence against a policy (deny / allowlist / `maxSeverity`). |
+| `severityRank` | `(category) => number` | Numeric severity of a licence category (permissive `0` → unknown `3`). |
+| `loadConfig` | `(dir, explicit?) => { config, path }` | Read + normalise a `.depsrc.json` policy file. |
+| `normalizeConfig` | `(raw) => DepsConfig` | Pure: validate an arbitrary object into a config. |
+| `mergeConfig` | `(base, override) => DepsConfig` | Pure: layer CLI flags over a file config. |
+| `configToAuditOptions` | `(config) => AuditOptions` | Turn a config into options for `audit()`. |
+| `buildSbom` | `(inventory, { format, now?, serialNumber?, namespace? }) => CycloneDxDocument \| SpdxDocument` | Generate a CycloneDX/SPDX SBOM. |
+| `buildCycloneDx` / `buildSpdx` | `(components, meta) => …Document` | Pure SBOM document builders. |
+| `purlFor` | `(name, version) => string` | Build an npm Package-URL (`pkg:npm/name@version`). |
 | `measureSizes` | `(installed, opts?) => SizeReport` | Per-package install size + totals. |
 | `dirSize` | `(dir) => { bytes; files }` | Recursive size (skips nested `node_modules`). |
 | `findDuplicates` | `(installed) => DuplicateEntry[]` | Packages at multiple versions. |

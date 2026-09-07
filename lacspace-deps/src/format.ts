@@ -75,7 +75,7 @@ export function renderHuman(r: AuditReport, c: Colorize, topN = 8): string {
   if (r.licenses.violations.length) {
     push(`    ${c("red", `✗ ${r.licenses.violations.length} policy violation(s)`)}`);
     for (const v of r.licenses.violations.slice(0, 10)) {
-      const why = v.reason === "deny" ? "denied" : "not in allowlist";
+      const why = v.reason === "deny" ? "denied" : v.reason === "severity" ? "over max-severity" : "not in allowlist";
       push(`      ${c("red", "•")} ${v.name}@${v.version} ${c("dim", `— ${v.license ?? "UNKNOWN"} (${why})`)}`);
     }
     if (r.licenses.violations.length > 10) push(`      ${c("dim", `…and ${r.licenses.violations.length - 10} more`)}`);

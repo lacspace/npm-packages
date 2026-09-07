@@ -65,6 +65,13 @@ export function resolveLhs(lhs: string, rec: ResponseRecord): unknown {
     const root = rec.json !== undefined ? rec.json : tryParse(rec.body);
     return evalPath(root, path);
   }
+  if (l === "json") return rec.json !== undefined ? rec.json : tryParse(rec.body);
+  if (l.startsWith("json.")) {
+    // Sugar for `body.<path>`: `json.foo.bar` == `body.$.foo.bar`.
+    const path = l.slice(5);
+    const root = rec.json !== undefined ? rec.json : tryParse(rec.body);
+    return evalPath(root, path);
+  }
   if (l.startsWith("header.")) {
     return rec.headers[l.slice(7).toLowerCase()];
   }

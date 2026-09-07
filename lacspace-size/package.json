@@ -1,7 +1,7 @@
 {
   "name": "lacspace-size",
-  "version": "0.1.0",
-  "description": "Measure build-output & bundle size as raw + gzip + brotli, enforce size budgets in CI, and diff against a saved baseline to catch regressions. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Measure build-output & bundle size as raw + gzip + brotli, enforce size budgets in CI, diff against a saved baseline, break a bundle down into a byte-composition treemap, and post a PR-comment size table. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-size": "dist/cli.js"
@@ -28,7 +28,9 @@
     "bundle-size", "size-limit", "gzip-size", "brotli-size", "bundle-analyzer",
     "size-budget", "dist-size", "build-size", "size-report", "size-diff",
     "baseline", "ci-gate", "regression", "compression", "gzip", "brotli",
-    "cli", "typescript", "zero-dependency", "bundlesize", "file-size"
+    "cli", "typescript", "zero-dependency", "bundlesize", "file-size",
+    "treemap", "bundle-composition", "size-breakdown", "pr-comment",
+    "markdown-report", "sizerc", "fail-over", "size-summary", "glob"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

@@ -11,6 +11,8 @@
 
 import type { SvgElement, SvgNode, SvgRoot } from "./parse.js";
 import { parseSvg, serialize, walk, findRootSvg, removeAttr, getAttr, setAttr } from "./parse.js";
+import type { CurrentColorOptions } from "./currentcolor.js";
+import { currentColorizeElement } from "./currentcolor.js";
 
 /** Toggle set for {@link optimize}. All booleans default to `true` unless noted. */
 export interface OptimizeOptions {
@@ -24,6 +26,10 @@ export interface OptimizeOptions {
   removeTitle?: boolean;
   removeEmptyAttrs?: boolean;
   removeEmptyContainers?: boolean;
+  /** Drop presentation attributes set to their SVG default (`fill-opacity="1"` …). */
+  removeDefaultAttrs?: boolean;
+  /** Hoist an inheritable attribute shared by every child of a group onto the group. Opt-in — default `false`. */
+  moveElemsAttrsToGroup?: boolean;
   /** Remove `id`s that nothing references. Keeps referenced ids. */
   removeUnusedIds?: boolean;
   collapseWhitespace?: boolean;
@@ -36,8 +42,12 @@ export interface OptimizeOptions {
   cleanupTransforms?: boolean;
   /** Add a `viewBox` derived from `width`/`height` when missing. */
   addViewBox?: boolean;
+  /** Add `width`/`height` derived from the `viewBox` when missing. Opt-in — default `false`. */
+  addDimensions?: boolean;
   /** Remove `width`/`height` in favour of `viewBox`. Opt-in — default `false`. */
   removeDimensions?: boolean;
+  /** Replace literal `fill`/`stroke` colours with `currentColor`. Opt-in — `true` or an options object. */
+  currentColor?: boolean | CurrentColorOptions;
   /** Run the whole pipeline repeatedly until the output stabilizes. */
   multipass?: boolean;
   /** Pretty-print the result instead of minifying. */
@@ -67,7 +77,31 @@ const CONTAINERS = new Set(["g", "defs", "a", "marker", "mask", "pattern", "swit
 /** Elements where whitespace-only text is significant and must be preserved. */
 const TEXT_PRESERVING = new Set(["text", "tspan", "textPath", "tref", "style", "script", "title", "desc", "pre"]);
 /** Editor-only namespace declarations that are safe to drop with editor data. */
-const EDITOR_NS = new Set(["xmlns:inkscape", "xmlns:sodipodi", "xmlns:dc", "xmlns:cc", "xmlns:rdf"]);
+const EDITOR_NS = new Set([
+  "xmlns:inkscape", "xmlns:sodipodi", "xmlns:dc", "xmlns:cc", "xmlns:rdf",
+  "xmlns:sketch", "xmlns:i", "xmlns:graph", "xmlns:x",
+]);
+/** Editor-specific attribute/element name prefixes (inkscape, sodipodi, sketch, adobe illustrator). */
+const EDITOR_PREFIXES = ["sodipodi:", "inkscape:", "sketch:", "i:", "graph:"];
+/** True when an attribute/element name belongs to an editor namespace. */
+const isEditorName = (name: string): boolean =>
+  EDITOR_PREFIXES.some((p) => name.startsWith(p)) || EDITOR_NS.has(name);
+
+/** Presentation attributes whose listed value equals the SVG default (safe to drop). */
+const DEFAULT_ATTRS: Record<string, string> = {
+  "fill-opacity": "1", "stroke-opacity": "1", "opacity": "1", "stroke-width": "1",
+  "stroke-linecap": "butt", "stroke-linejoin": "miter", "stroke-miterlimit": "4",
+  "stroke-dasharray": "none", "stroke-dashoffset": "0", "fill-rule": "nonzero",
+  "clip-rule": "nonzero", "font-style": "normal", "font-weight": "normal",
+  "font-stretch": "normal", "font-variant": "normal", "text-anchor": "start",
+};
+/** Inheritable presentation attributes eligible for hoisting onto a group. */
+const INHERITABLE = new Set([
+  "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin",
+  "stroke-miterlimit", "stroke-opacity", "stroke-dasharray", "stroke-dashoffset",
+  "fill-opacity", "fill-rule", "clip-rule", "color", "font-family", "font-size",
+  "font-weight", "font-style", "text-anchor", "letter-spacing", "word-spacing",
+]);
 const byteLen = (s: string): number => Buffer.byteLength(s, "utf8");
 
 /** Optimize an SVG string. Parses, runs the pipeline, and serializes. */
@@ -112,12 +146,7 @@ function applyPipeline(root: SvgRoot, opts: OptimizeOptions, precision: number):
     stripElementChildren(el, opts);
 
     if (on(opts.removeEditorData)) {
-      el.attributes = el.attributes.filter(
-        (a) =>
-          !a.name.startsWith("sodipodi:") &&
-          !a.name.startsWith("inkscape:") &&
-          !EDITOR_NS.has(a.name),
-      );
+      el.attributes = el.attributes.filter((a) => !isEditorName(a.name));
     }
     if (referenced) {
       const id = getAttr(el, "id");
@@ -131,9 +160,17 @@ function applyPipeline(root: SvgRoot, opts: OptimizeOptions, precision: number):
     if (on(opts.cleanupTransforms)) cleanupTransform(el);
     if (on(opts.roundNumbers)) roundElementNumbers(el, precision);
     if (on(opts.normalizeColors)) normalizeElementColors(el);
+    if (opts.currentColor) {
+      const cc: CurrentColorOptions = opts.currentColor === true ? {} : opts.currentColor;
+      currentColorizeElement(el, cc);
+    }
+    if (on(opts.removeDefaultAttrs)) removeDefaultElementAttrs(el);
     if (on(opts.collapseWhitespace)) collapseElementWhitespace(el);
     void parent;
   });
+
+  // Hoisting common child attributes onto a group needs the whole subtree.
+  if (opts.moveElemsAttrsToGroup === true) hoistCommonAttrs(root);
 
   // Empty-container removal needs a post-order pass (children first).
   if (on(opts.removeEmptyContainers)) removeEmptyContainers(root);
@@ -166,7 +203,7 @@ function stripElementChildren(el: SvgElement, opts: OptimizeOptions): void {
     if (c.type === "element") {
       if (c.name === "metadata" && on(opts.removeMetadata)) return false;
       if ((c.name === "title" || c.name === "desc") && opts.removeTitle === true) return false;
-      if (on(opts.removeEditorData) && (c.name.startsWith("sodipodi:") || c.name.startsWith("inkscape:"))) {
+      if (on(opts.removeEditorData) && isEditorName(c.name)) {
         return false;
       }
     }
@@ -207,6 +244,40 @@ function removeEmptyContainers(node: SvgRoot | SvgElement): void {
     if (getAttr(c, "id") !== undefined) return true;
     return meaningful;
   });
+}
+
+/** Drop presentation attributes whose value equals the SVG default. */
+function removeDefaultElementAttrs(el: SvgElement): void {
+  el.attributes = el.attributes.filter((a) => {
+    const def = DEFAULT_ATTRS[a.name];
+    if (def === undefined) return true;
+    const v = a.value.trim();
+    if (v === def) return false;
+    const dn = Number(def);
+    const vn = Number(v);
+    if (Number.isFinite(dn) && Number.isFinite(vn) && dn === vn) return false;
+    return true;
+  });
+}
+
+/** Hoist an inheritable attribute shared (identically) by every element child of a group. */
+function hoistCommonAttrs(root: SvgRoot): void {
+  const visit = (el: SvgElement): void => {
+    for (const c of el.children) if (c.type === "element") visit(c);
+    if (!CONTAINERS.has(el.name)) return;
+    const kids = el.children.filter((c): c is SvgElement => c.type === "element");
+    if (kids.length < 2) return;
+    const first = kids[0]!;
+    for (const a of [...first.attributes]) {
+      if (!INHERITABLE.has(a.name)) continue;
+      if (getAttr(el, a.name) !== undefined) continue; // group already sets it
+      const val = a.value;
+      if (!kids.every((k) => getAttr(k, a.name) === val)) continue;
+      setAttr(el, a.name, val);
+      for (const k of kids) removeAttr(k, a.name);
+    }
+  };
+  for (const c of root.children) if (c.type === "element") visit(c);
 }
 
 // ------------------------------ transforms ---------------------------------
@@ -353,6 +424,14 @@ function handleDimensions(svg: SvgElement, opts: OptimizeOptions): void {
     const hn = parseFloat(h);
     if (Number.isFinite(wn) && Number.isFinite(hn) && /^\d*\.?\d+$/.test(w.trim()) && /^\d*\.?\d+$/.test(h.trim())) {
       setAttr(svg, "viewBox", `0 0 ${wn} ${hn}`);
+    }
+  }
+  if (opts.addDimensions === true && (!w || !h)) {
+    const cur = getAttr(svg, "viewBox");
+    const nums = cur ? cur.trim().split(/[\s,]+/).map(Number) : [];
+    if (nums.length === 4 && nums.every((n) => Number.isFinite(n))) {
+      if (!w) setAttr(svg, "width", String(nums[2]));
+      if (!h) setAttr(svg, "height", String(nums[3]));
     }
   }
   if (opts.removeDimensions === true && getAttr(svg, "viewBox")) {

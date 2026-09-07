@@ -1,6 +1,6 @@
 {
   "name": "lacspace-deps",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Keyless dependency & licence auditor for Node/JS projects — licences, install size, duplicates, unused/missing deps and risky patterns, as a CI gate. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -28,7 +28,9 @@
     "dependencies", "dependency-audit", "license-checker", "license-compliance",
     "spdx", "supply-chain", "unused-dependencies", "depcheck", "outdated",
     "install-size", "node-modules", "duplicates", "lockfile", "package-lock",
-    "audit", "cli", "typescript", "zero-dependency", "sbom", "ci"
+    "audit", "cli", "typescript", "zero-dependency", "sbom", "ci",
+    "cyclonedx", "bom", "sbom-generator", "license-policy", "depsrc",
+    "policy", "purl", "compliance"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

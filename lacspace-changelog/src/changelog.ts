@@ -6,6 +6,7 @@
 import type { ParsedCommit } from "./commit.js";
 import type { UrlTemplates } from "./repo.js";
 import { urlTemplates } from "./repo.js";
+import { collectContributors, renderContributors } from "./contributors.js";
 
 /** One group in the changelog (a heading + the commit types it collects). */
 export interface CommitGroup {
@@ -65,6 +66,10 @@ export interface RenderOptions {
   includeOther?: boolean;
   /** Heading level for the version title (2 = `##`). Default 2. */
   headingLevel?: number;
+  /** Append a "Contributors" section aggregated from the commit authors. Default false. */
+  contributors?: boolean;
+  /** Heading text for the contributors section. Default "Contributors". */
+  contributorsTitle?: string;
 }
 
 function today(): string {
@@ -168,6 +173,15 @@ export function renderSection(
     }
   }
 
+  // Contributors (opt-in), aggregated from commit authors + co-authors.
+  if (opts.contributors) {
+    const people = collectContributors(commits);
+    const cOpts: { headingLevel: number; title?: string } = { headingLevel: level + 1 };
+    if (opts.contributorsTitle) cOpts.title = opts.contributorsTitle;
+    const block = renderContributors(people, cOpts);
+    if (block) out.push(block);
+  }
+
   // Trim trailing blank lines to exactly one.
   while (out.length && out[out.length - 1] === "") out.pop();
   return out.join("\n") + "\n";
@@ -188,15 +202,61 @@ generated from [Conventional Commits](https://www.conventionalcommits.org) and
 follows [Semantic Versioning](https://semver.org).
 `;
 
+// A version header, either Keep-a-Changelog `## [1.2.0]` or the plain
+// `## 1.2.0 (date)` this tool emits, optionally linked.
+const VERSION_HEADER_RE =
+  /^#{2,3}\s+(?:\[)?v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/;
+
+/**
+ * Extract the version numbers already present in a changelog body, in the order
+ * they appear. Recognises both `## [1.2.0]` (keep-a-changelog) and
+ * `## 1.2.0 (2026-09-07)` headers, linked or plain, with or without a `v`.
+ */
+export function parseVersionHeaders(md: string): string[] {
+  const out: string[] = [];
+  for (const line of md.replace(/\r\n/g, "\n").split("\n")) {
+    const m = VERSION_HEADER_RE.exec(line);
+    if (m) out.push(m[1]!);
+  }
+  return out;
+}
+
+/** True when `md` already documents `version` (normalising a leading `v`). */
+export function changelogHasVersion(md: string, version: string): boolean {
+  const want = version.replace(/^v/, "");
+  return parseVersionHeaders(md).includes(want);
+}
+
+/** Options for {@link prependChangelog}. */
+export interface PrependOptions {
+  /** The version being inserted — enables duplicate detection. */
+  version?: string;
+  /**
+   * When true and `version` already appears in `existing`, return the existing
+   * body unchanged instead of prepending a duplicate. Default false.
+   */
+  skipIfExists?: boolean;
+}
+
 /**
  * Insert a rendered section into an existing changelog body (below the top
  * `# Changelog` header, above the first prior entry), or build a new file when
- * `existing` is empty/undefined.
+ * `existing` is empty/undefined. Pass `opts.version` + `skipIfExists` to avoid
+ * prepending a release that is already documented.
  */
 export function prependChangelog(
   section: string,
   existing?: string,
+  opts: PrependOptions = {},
 ): string {
+  if (
+    opts.skipIfExists &&
+    opts.version &&
+    existing &&
+    changelogHasVersion(existing, opts.version)
+  ) {
+    return existing.replace(/\r\n/g, "\n");
+  }
   const body = section.trimEnd() + "\n";
   if (!existing || !existing.trim()) {
     return `${CHANGELOG_HEADER}\n${body}`;

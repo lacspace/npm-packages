@@ -8,6 +8,16 @@ export interface DetectMatch {
   score: number;
 }
 
+/** A confidence-scored detection result (see {@link detectLicenseInfo}). */
+export interface DetectInfo {
+  /** Best-guess canonical SPDX id, or `null` when nothing scores high enough. */
+  spdx: string | null;
+  /** Confidence in `[0,1]`: the fraction of the winning template's body matched. */
+  confidence: number;
+  /** Human-readable licence name for `spdx`, or `null`. */
+  name: string | null;
+}
+
 const PLACEHOLDER = /\{\{\s*(?:year|holder)\s*\}\}/g;
 
 /**
@@ -39,6 +49,43 @@ function fixedSegments(template: string): string[] {
 export function detectLicense(text: string): string | null {
   const matches = detectMatches(text);
   return matches.length ? matches[0]!.id : null;
+}
+
+/**
+ * A softer, confidence-scored detector: for every supported licence it measures
+ * what fraction of that template's fixed body appears in `text` (even a partial
+ * match), then reports the best candidate with a confidence in `[0,1]`. Unlike
+ * {@link detectLicense} — which requires *every* body segment to be present —
+ * this tolerates edits and truncation and always yields a confidence you can
+ * threshold. Below `minConfidence` (default 0.6) `spdx` is `null`.
+ *
+ * ```ts
+ * detectLicenseInfo(someLicenseText); // { spdx: "MIT", confidence: 1, name: "MIT License" }
+ * ```
+ */
+export function detectLicenseInfo(text: string, minConfidence = 0.6): DetectInfo {
+  const hay = normalizeLicenseText(text);
+  let best: { id: string; conf: number; total: number } | null = null;
+  for (const id of supportedIds()) {
+    const segs = fixedSegments(templateOf(id));
+    let matched = 0;
+    let total = 0;
+    for (const s of segs) {
+      total += s.length;
+      if (hay.includes(s)) matched += s.length;
+    }
+    if (total === 0) continue;
+    const conf = matched / total;
+    // Prefer higher confidence; break ties toward the more specific (larger) template.
+    if (!best || conf > best.conf || (conf === best.conf && total > best.total)) {
+      best = { id, conf, total };
+    }
+  }
+  const round = (n: number): number => Math.round(n * 10000) / 10000;
+  if (!best || best.conf < minConfidence) {
+    return { spdx: null, confidence: best ? round(best.conf) : 0, name: null };
+  }
+  return { spdx: best.id, confidence: round(best.conf), name: LICENSE_META[best.id]?.name ?? null };
 }
 
 /** All matching licences, best (highest score) first. */

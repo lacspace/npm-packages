@@ -103,3 +103,55 @@ export function geoPayload(lat: number, lng: number, altitude?: number): string 
 export function urlPayload(url: string): string {
   return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url) ? url : `https://${url}`;
 }
+
+/** Escape an iCalendar text value (RFC 5545: \ ; , and newlines). */
+export function escapeIcs(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+
+export interface CalendarPayload {
+  title: string;
+  /** Event start; a `Date` or anything `new Date()` accepts (ISO recommended). */
+  start: Date | string;
+  /** Event end (optional). */
+  end?: Date | string;
+  location?: string;
+  description?: string;
+  /** All-day event: emit `VALUE=DATE` (no time component). */
+  allDay?: boolean;
+}
+
+/**
+ * A VEVENT payload (RFC 5545). Timed events are written in UTC
+ * (`YYYYMMDDTHHMMSSZ`); all-day events use `DTSTART;VALUE=DATE:YYYYMMDD`.
+ */
+export function calendarPayload(p: CalendarPayload): string {
+  const toDate = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
+  const start = toDate(p.start);
+  if (Number.isNaN(start.getTime())) throw new Error("calendar requires a valid start date");
+  const fmtUtc = (d: Date): string => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const fmtDate = (d: Date): string => d.toISOString().slice(0, 10).replace(/-/g, "");
+
+  const lines = ["BEGIN:VEVENT", `SUMMARY:${escapeIcs(p.title)}`];
+  if (p.allDay) {
+    lines.push(`DTSTART;VALUE=DATE:${fmtDate(start)}`);
+    if (p.end !== undefined) {
+      const e = toDate(p.end);
+      if (!Number.isNaN(e.getTime())) lines.push(`DTEND;VALUE=DATE:${fmtDate(e)}`);
+    }
+  } else {
+    lines.push(`DTSTART:${fmtUtc(start)}`);
+    if (p.end !== undefined) {
+      const e = toDate(p.end);
+      if (!Number.isNaN(e.getTime())) lines.push(`DTEND:${fmtUtc(e)}`);
+    }
+  }
+  if (p.location) lines.push(`LOCATION:${escapeIcs(p.location)}`);
+  if (p.description) lines.push(`DESCRIPTION:${escapeIcs(p.description)}`);
+  lines.push("END:VEVENT");
+  return lines.join("\n");
+}

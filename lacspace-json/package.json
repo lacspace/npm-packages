@@ -1,7 +1,7 @@
 {
   "name": "lacspace-json",
-  "version": "0.1.0",
-  "description": "The friendly jq — query, convert (JSON/YAML/TOML/CSV/NDJSON), validate, diff and merge structured data from a file, glob or stdin. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "The friendly jq — query (jq + JSONPath), convert (JSON/YAML/TOML/CSV/NDJSON), validate, diff, JSON Patch/Pointer, flatten, canonicalize and merge structured data from a file, glob or stdin. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-json": "dist/cli.js"
@@ -28,7 +28,9 @@
     "jq", "json", "yaml", "toml", "csv", "ndjson", "json-schema",
     "json-diff", "json-merge", "json-query", "jsonpath", "convert",
     "validate", "cli", "typescript", "zero-dependency", "data",
-    "transform", "pretty-print", "minify", "stdin"
+    "transform", "pretty-print", "minify", "stdin",
+    "json-patch", "rfc6902", "json-pointer", "rfc6901", "flatten",
+    "unflatten", "canonicalize", "canonical-json", "sort-keys", "diff-patch"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

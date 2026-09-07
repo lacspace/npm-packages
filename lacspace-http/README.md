@@ -10,6 +10,14 @@ npx lacspace-http https://httpbin.org/get
 
 No API key. No account. No telemetry. Nothing leaves your machine except the requests you ask it to send. Built entirely on the global `fetch` and Node built-ins — the `.http` parser, the JSON-path evaluator and the assertion engine are all hand-written (no `eval`), so there are **zero runtime dependencies**.
 
+### New in 0.2.0
+
+- **Retry with backoff** — `--retry N` (`--retry-delay`, `--retry-status`) retries transient failures (network errors + 408/425/429/5xx) with exponential backoff + jitter.
+- **HAR 1.2 export** — `--har out.har` writes a standard HAR log of any run, openable in Chrome DevTools / Insomnia / Postman.
+- **`--repeat N` benchmark** — fire a request N times and print a `min / mean / median / p95 / p99 / max` timing summary (`--json` for machine output).
+- **`# @expect` directive** — an alias for `# @assert`, plus **`json.<path>`** as sugar for `body.$.<path>` (e.g. `# @expect json.user == "ada"`).
+- All reachable from the library too: `runBenchmark` / `summarizeTimings`, `toHar`, `retryDecision` / `normalizeRetry`, and a `retry` option on `sendRequest` / `runHttpFile`.
+
 ## Install
 
 ```bash
@@ -55,6 +63,15 @@ lacspace-http GET https://api.example.com/me -b "$TOKEN" --curl
 
 # Machine-readable record for scripts / jq
 lacspace-http https://httpbin.org/get --json | jq .status
+
+# Retry a flaky endpoint up to 3 times with exponential backoff
+lacspace-http https://api.example.com/flaky --retry 3 --retry-delay 500
+
+# Benchmark: send it 50 times and print min/mean/p95/max
+lacspace-http https://httpbin.org/get --repeat 50
+
+# Write a HAR 1.2 log you can open in Chrome DevTools
+lacspace-http https://httpbin.org/get --har run.har
 ```
 
 Meta (status line, timing, size, headers) goes to **stderr**; the response body goes to **stdout**, so `| jq` and `> file` just work.
@@ -135,12 +152,13 @@ lacspace-http run api.http --env-file http-client.env.json --env dev
 | --- | --- |
 | status code | `# @assert status == 200` |
 | JSON body (json-path) | `# @assert body.$.data.items[0].id == 1` |
+| JSON body (short sugar) | `# @expect json.data.items[0].id == 1` |
 | response header | `# @assert header.content-type contains json` |
 | request time (ms) | `# @assert time < 800` |
 | existence / emptiness | `# @assert body.$.error empty` · `body.$.token exists` |
 | regex | `# @assert header.location matches ^/v2/` |
 
-Operators: `==` `!=` `<` `<=` `>` `>=` `contains` `matches` `exists` `empty`. The `body.<path>` and `header.<name>` grammar is the same one `# @capture <name> = <source>` uses.
+Operators: `==` `!=` `<` `<=` `>` `>=` `contains` `matches` `exists` `empty`. The `body.<path>` and `header.<name>` grammar is the same one `# @capture <name> = <source>` uses. **`# @expect`** is an alias for `# @assert`, and **`json.<path>`** is short for `body.$.<path>`.
 
 ## CLI reference
 
@@ -158,6 +176,11 @@ Operators: `==` `!=` `<` `<=` `>` `>=` `contains` `matches` `exists` `empty`. Th
 | `--no-redirect` | Do not follow redirects |
 | `--max-redirects N` | Follow at most *N* redirects (default `5`) |
 | `--max-size <n>` | Cap the response body read, e.g. `10mb` (default 10 MB) |
+| `--retry N` | Retry transient failures up to *N* times (exponential backoff + jitter) |
+| `--retry-delay <ms>` | Base backoff delay between retries (default `300`) |
+| `--retry-status L` | Comma list of retryable status codes (default `408,425,429,500,502,503,504`) |
+| `--repeat N` | Send the request *N* times and print a timing summary (bench mode) |
+| `--har <file>` | Write a HAR 1.2 log of the run to a file |
 | `-i, --include` | Show response headers |
 | `-v, --verbose` | Show the request line, headers and body too |
 | `-o, --out <file>` | Write the response body to a file |
@@ -196,7 +219,13 @@ import {
 | `parseEnvJson(json, env)` / `parseDotenv(text)` | env-file loaders |
 | `evalPath(root, path)` / `parseJsonPath(path)` | the JSON-path evaluator |
 | `parseAssertion` / `evalAssertion` / `runAssertion` | the assertion engine |
+| `summarizeTimings(samples)` | `(number[]) => BenchStats` — min/mean/median/p95/p99/max/stdev |
+| `runBenchmark(spec, opts?)` | `(RequestSpec, BenchOptions) => Promise<BenchOutcome>` — send N times |
+| `toHar(entries, opts?)` | `(HarEntryInput[], HarOptions) => HarLog` — build a HAR 1.2 log |
+| `retryDecision` / `normalizeRetry` / `backoffDelay` | the (pure) retry-decision engine |
 | `humanSize` / `statusColor` / `prettyJson` | output helpers |
+
+`sendRequest` and `runHttpFile` take a `retry` option (a count or a partial `RetryPolicy`) and an injectable `sleepImpl`, so retry/backoff is fully testable without sleeping.
 
 `sendRequest` and `runHttpFile` accept a `fetchImpl` so you can inject a mock in tests — nothing here touches the network on its own.
 

@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkProject } from "./check.js";
 import { generateLicense } from "./generate.js";
-import { addHeader, styleForFile } from "./headers.js";
+import { detectLicense } from "./detect.js";
+import { addHeader, styleForFile, hasHeader } from "./headers.js";
 
 let root: string;
 
@@ -88,5 +89,65 @@ describe("checkProject — --require-headers exit behaviour", () => {
     write("lib/a.ts", "export const a = 1;\n");
     const r = checkProject({ cwd: root, requireHeaders: true, src: "lib" });
     expect(r.missingHeaders.length).toBe(1);
+  });
+
+  it("reports an empty fixed[] when fix is off", () => {
+    write("LICENSE", generateLicense("MIT", { holder: "X" }).text);
+    write("package.json", JSON.stringify({ name: "p", license: "MIT" }));
+    const r = checkProject({ cwd: root });
+    expect(r.fixed).toEqual([]);
+  });
+});
+
+describe("checkProject — --fix", () => {
+  const style = styleForFile("a.ts")!;
+
+  it("writes a missing LICENSE from the declared licence", () => {
+    write("package.json", JSON.stringify({ name: "p", license: "MIT", author: "Acme" }));
+    const r = checkProject({ cwd: root, fix: true });
+    expect(existsSync(join(root, "LICENSE"))).toBe(true);
+    expect(detectLicense(readFileSync(join(root, "LICENSE"), "utf8"))).toBe("MIT");
+    expect(r.fixed.some((f) => /Wrote LICENSE/.test(f))).toBe(true);
+    expect(r.ok).toBe(true);
+  });
+
+  it("leaves the no-license-file issue when the declaration is unresolvable", () => {
+    write("package.json", JSON.stringify({ name: "p", license: "SEE LICENSE IN LICENSE" }));
+    const r = checkProject({ cwd: root, fix: true });
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "no-license-file")).toBe(true);
+    expect(existsSync(join(root, "LICENSE"))).toBe(false);
+  });
+
+  it("aligns package.json license to the detected LICENSE", () => {
+    write("LICENSE", generateLicense("Apache-2.0", { holder: "X" }).text);
+    write("package.json", JSON.stringify({ name: "p", license: "MIT" }));
+    const r = checkProject({ cwd: root, fix: true });
+    expect(r.licenseMatches).toBe(true);
+    expect(r.declared).toBe("Apache-2.0");
+    expect(r.fixed.some((f) => /package\.json/.test(f))).toBe(true);
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    expect(pkg.license).toBe("Apache-2.0");
+    expect(r.ok).toBe(true);
+  });
+
+  it("adds missing headers to source files", () => {
+    write("LICENSE", generateLicense("MIT", { holder: "X" }).text);
+    write("package.json", JSON.stringify({ name: "p", license: "MIT", author: "Acme" }));
+    write("src/a.ts", "export const a = 1;\n");
+    const r = checkProject({ cwd: root, requireHeaders: true, fix: true });
+    expect(r.missingHeaders).toEqual([]);
+    expect(r.ok).toBe(true);
+    expect(hasHeader(readFileSync(join(root, "src/a.ts"), "utf8"), style)).toBe(true);
+    expect(r.fixed.some((f) => /Added header/.test(f))).toBe(true);
+  });
+
+  it("is idempotent — a second fixed run makes no repairs", () => {
+    write("package.json", JSON.stringify({ name: "p", license: "MIT", author: "Acme" }));
+    write("src/a.ts", "export const a = 1;\n");
+    checkProject({ cwd: root, requireHeaders: true, fix: true });
+    const second = checkProject({ cwd: root, requireHeaders: true, fix: true });
+    expect(second.fixed).toEqual([]);
+    expect(second.ok).toBe(true);
   });
 });

@@ -46,6 +46,8 @@ export interface ParsedCommit {
   scope?: string;
   /** True when `!` before `:` OR a `BREAKING CHANGE:` footer is present. */
   breaking: boolean;
+  /** True when the header specifically used the `type!:` bang syntax. */
+  bang?: boolean;
   /** The description of a breaking change, when a `BREAKING CHANGE:` footer exists. */
   breakingDescription?: string;
   /** The commit subject (after `type(scope): ` for conventional commits). */
@@ -189,12 +191,16 @@ export function parseCommit(raw: RawCommit | string): ParsedCommit {
   let scope: string | undefined;
   let subject = subjectForParse;
   let conventional = false;
+  let bang = false;
   if (header) {
     conventional = true;
     type = header[1]!.toLowerCase();
     const rawScope = header[2];
     if (rawScope && rawScope.trim()) scope = rawScope.trim();
-    if (header[3] === "!") breaking = true;
+    if (header[3] === "!") {
+      breaking = true;
+      bang = true;
+    }
     subject = header[4]!.trim();
   }
 
@@ -217,6 +223,7 @@ export function parseCommit(raw: RawCommit | string): ParsedCommit {
     revert,
   };
   if (scope !== undefined) result.scope = scope;
+  if (bang) result.bang = true;
   if (breakingDescription !== undefined) result.breakingDescription = breakingDescription;
   if (body !== undefined) result.body = body;
   if (prNumber !== undefined) result.prNumber = prNumber;

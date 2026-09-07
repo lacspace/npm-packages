@@ -1,6 +1,6 @@
 {
   "name": "lacspace-qr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generate scannable QR codes to the terminal, SVG or PNG from a hand-written, spec-correct encoder — presets for URL, WiFi, vCard, email, SMS and geo, plus batch mode. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -26,9 +26,11 @@
   },
   "keywords": [
     "qr", "qrcode", "qr-code", "qr-generator", "qrcode-generator",
-    "reed-solomon", "svg", "png", "terminal", "wifi-qr", "vcard",
+    "reed-solomon", "svg", "png", "terminal", "ansi", "wifi-qr", "vcard",
     "barcode", "offline", "cli", "typescript", "zero-dependency",
-    "no-dependencies", "isomorphic", "encoder", "ecc"
+    "no-dependencies", "isomorphic", "encoder", "ecc",
+    "styled-qr", "qr-logo", "gradient", "dots", "rounded",
+    "calendar", "ics", "vevent", "batch", "mailto", "geo"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

@@ -1,7 +1,7 @@
 {
   "name": "lacspace-fake",
-  "version": "0.1.0",
-  "description": "Keyless, deterministic fake / seed data generator — schema-driven rows to JSON, NDJSON, CSV or SQL INSERTs, with a Nepal locale. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Keyless, deterministic fake / seed data generator — schema-driven rows to JSON, NDJSON, CSV or SQL (with CREATE TABLE DDL), plus relations/foreign keys, template fields, unique constraints and en/ne/es/fr locales. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-fake": "dist/cli.js"
@@ -29,7 +29,9 @@
     "data-generator", "sql-insert", "csv", "ndjson", "json",
     "schema", "deterministic", "seeded-prng", "nepal", "npr",
     "database-seeding", "cli", "typescript", "zero-dependency", "lorem-ipsum",
-    "uuid", "test-data"
+    "uuid", "test-data", "ulid", "create-table", "ddl", "foreign-keys",
+    "relations", "referential-integrity", "locale", "template", "unique",
+    "iban", "credit-card", "semver", "timezone", "mime-type"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

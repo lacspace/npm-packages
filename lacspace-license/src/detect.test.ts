@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectLicense, licenseMatches, sameLicense, normalizeLicenseText } from "./detect.js";
+import { detectLicense, detectLicenseInfo, licenseMatches, sameLicense, normalizeLicenseText } from "./detect.js";
 import { generateLicense } from "./generate.js";
 
 describe("detectLicense — identify a LICENSE text", () => {
@@ -60,6 +60,47 @@ describe("licenseMatches / sameLicense", () => {
     expect(sameLicense("GPL-3.0", "GPL-3.0-only")).toBe(true);
     expect(sameLicense("MIT", "MIT")).toBe(true);
     expect(sameLicense("MIT", "ISC")).toBe(false);
+  });
+});
+
+describe("detectLicenseInfo — confidence scoring", () => {
+  it("returns spdx + full confidence + name for an exact MIT text", () => {
+    const info = detectLicenseInfo(generateLicense("MIT", { holder: "X", year: 2026 }).text);
+    expect(info.spdx).toBe("MIT");
+    expect(info.confidence).toBe(1);
+    expect(info.name).toBe("MIT License");
+  });
+
+  it("identifies Apache-2.0 with a name", () => {
+    const info = detectLicenseInfo(generateLicense("Apache-2.0", { holder: "X" }).text);
+    expect(info.spdx).toBe("Apache-2.0");
+    expect(info.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it("returns null spdx and low confidence for non-licence prose", () => {
+    const info = detectLicenseInfo("just some notes about the weather and nothing legal here.");
+    expect(info.spdx).toBeNull();
+    expect(info.confidence).toBeLessThan(0.6);
+    expect(info.name).toBeNull();
+  });
+
+  it("keeps confidence within [0,1]", () => {
+    const info = detectLicenseInfo(generateLicense("ISC", { holder: "X" }).text);
+    expect(info.confidence).toBeGreaterThan(0);
+    expect(info.confidence).toBeLessThanOrEqual(1);
+  });
+
+  it("still identifies MIT wrapped in extra preamble/notes", () => {
+    const mit = generateLicense("MIT", { holder: "X", year: 2026 }).text;
+    const wrapped = `Project Foo\n===========\n\n${mit}\n\nSee also NOTICE for attributions.\n`;
+    const info = detectLicenseInfo(wrapped);
+    expect(info.spdx).toBe("MIT");
+    expect(info.confidence).toBe(1);
+  });
+
+  it("distinguishes AGPL-3.0 from GPL-3.0", () => {
+    expect(detectLicenseInfo(generateLicense("AGPL-3.0-only").text).spdx).toBe("AGPL-3.0-only");
+    expect(detectLicenseInfo(generateLicense("GPL-3.0-only").text).spdx).toBe("GPL-3.0-only");
   });
 });
 

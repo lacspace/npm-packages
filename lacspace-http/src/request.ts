@@ -5,6 +5,8 @@
  * command. The `fetch` implementation is injectable so tests never touch the
  * network.
  */
+import { normalizeRetry, retryDecision } from "./retry.js";
+import type { RetryPolicy } from "./retry.js";
 
 /** A concrete, ready-to-send HTTP request. */
 export interface RequestSpec {
@@ -143,6 +145,13 @@ export interface SendOptions {
   followRedirects?: boolean;
   /** Inject a `fetch` implementation (defaults to the global). */
   fetchImpl?: typeof fetch;
+  /**
+   * Retry transient failures. A bare number sets the max retry count; an object
+   * tunes delay/backoff/status codes. Defaults to no retries (backward-compatible).
+   */
+  retry?: Partial<RetryPolicy> | number;
+  /** Inject the delay used between retries (defaults to real `setTimeout`). */
+  sleepImpl?: (ms: number) => Promise<void>;
 }
 
 /** A structured, serialisable record of an HTTP response. */
@@ -170,6 +179,8 @@ export interface ResponseRecord {
   truncated: boolean;
   /** True if a followed redirect crossed to a different host. */
   crossHostRedirect: boolean;
+  /** Number of attempts made (1 unless retries kicked in). */
+  attempts?: number;
 }
 
 const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
@@ -236,6 +247,35 @@ function hostOf(url: string): string {
  * `maxSize` bytes.
  */
 export async function sendRequest(spec: RequestSpec, opts: SendOptions = {}): Promise<ResponseRecord> {
+  const policy = normalizeRetry(opts.retry);
+  const sleep = opts.sleepImpl ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  let attempt = 0;
+  for (;;) {
+    let rec: ResponseRecord | undefined;
+    let error: unknown;
+    try {
+      rec = await sendOnce(spec, opts);
+    } catch (err) {
+      error = err;
+    }
+    const outcome = rec ? { status: rec.status } : { error };
+    const verdict = retryDecision(attempt, outcome, policy);
+    if (verdict.retry) {
+      await sleep(verdict.delayMs);
+      attempt++;
+      continue;
+    }
+    if (rec) {
+      rec.attempts = attempt + 1;
+      return rec;
+    }
+    throw error;
+  }
+}
+
+/** A single send attempt (no retries) — the original request pipeline. */
+async function sendOnce(spec: RequestSpec, opts: SendOptions): Promise<ResponseRecord> {
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const maxSize = opts.maxSize ?? 10 * 1024 * 1024;
   const maxRedirects = opts.maxRedirects ?? 5;

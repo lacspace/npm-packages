@@ -48,3 +48,22 @@ export type { CheckOptions, I18nReport, FailCategory } from "./check.js";
 
 export { renderHuman, renderMarkdown, toJson } from "./report.js";
 export type { Colorize } from "./report.js";
+
+// --- new in 0.2.0 ---
+
+export { parseIcu, isValidIcu, checkIcu } from "./icu.js";
+export type { IcuNode, IcuOption, IcuParseResult, IcuCheckResult } from "./icu.js";
+
+export {
+  convert, parseToFlat, serializeFlat, parsePo, serializePo, convertFormatFromPath,
+} from "./convert.js";
+export type { ConvertFormat } from "./convert.js";
+
+export { mergeLocale, syncLocales, isMarker, DEFAULT_MARKER } from "./sync.js";
+export type { SyncOptions, MergeResult, SyncFileResult } from "./sync.js";
+
+export { localeCoverage, coverageReport, belowThreshold } from "./coverage.js";
+export type { CoverageOptions, LocaleCoverage } from "./coverage.js";
+
+export { findKeyUsage, reconcile } from "./usage.js";
+export type { KeyUsage, Reconciliation } from "./usage.js";

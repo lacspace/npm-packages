@@ -7,6 +7,7 @@ import { pick } from "./analyze.js";
 import type { AnalyzeResult, Metric } from "./analyze.js";
 import type { BudgetResult } from "./budget.js";
 import type { DiffResult } from "./baseline.js";
+import type { CompositionResult } from "./composition.js";
 
 export interface ReportContext {
   metric: Metric;
@@ -15,6 +16,8 @@ export interface ReportContext {
   /** Limit files shown; undefined means all. */
   top?: number;
   binary?: boolean;
+  /** Optional single-file composition breakdown to fold into JSON output. */
+  composition?: CompositionResult;
 }
 
 /** Build a plain JSON-serializable report object. */
@@ -66,9 +69,99 @@ export function buildJsonReport(result: AnalyzeResult, ctx: ReportContext): Reco
       removed: ctx.diff.removed.map(fileDeltaJson),
       grew: ctx.diff.grew.map(fileDeltaJson),
       shrank: ctx.diff.shrank.map(fileDeltaJson),
+      changed: [...ctx.diff.grew, ...ctx.diff.shrank].map(fileDeltaJson),
     };
   }
+  if (ctx.composition) {
+    const comp = ctx.composition;
+    out.composition = {
+      totalBytes: comp.totalBytes,
+      lines: comp.lines,
+      segments: comp.segments,
+      topStrings: comp.topStrings,
+      topLines: comp.topLines,
+      modules: comp.modules,
+      treemap: comp.treemap,
+    };
+  }
+  out.summary = formatSummaryLine(result, ctx);
   return out;
+}
+
+/**
+ * A single compact status line, e.g.
+ * `12 files · raw 1.2 MB · gzip 380 kB · brotli 320 kB · budgets 2/3 · Δ +4.1 kB (+1.1%)`.
+ * Pure and colour-free; the CLI may wrap it in colour.
+ */
+export function formatSummaryLine(result: AnalyzeResult, ctx: ReportContext): string {
+  const fmt = (n: number): string => formatSize(n, { binary: ctx.binary });
+  const parts: string[] = [];
+  parts.push(`${result.total.files} file${result.total.files === 1 ? "" : "s"}`);
+  parts.push(`raw ${fmt(result.total.raw)}`);
+  if (result.withGzip) parts.push(`gzip ${fmt(result.total.gzip)}`);
+  if (result.withBrotli) parts.push(`brotli ${fmt(result.total.brotli)}`);
+  if (ctx.budgets && ctx.budgets.length) {
+    const passed = ctx.budgets.filter((b) => b.ok).length;
+    parts.push(`budgets ${passed}/${ctx.budgets.length}`);
+  }
+  if (ctx.diff) {
+    const d = ctx.diff;
+    parts.push(`Δ ${formatDelta(d.delta, { binary: ctx.binary })} (${d.percent >= 0 ? "+" : ""}${d.percent.toFixed(2)}%)`);
+  }
+  return parts.join(" · ");
+}
+
+/**
+ * A tight, GitHub-PR-comment-ready Markdown table: one row per file with raw /
+ * gzip / brotli and, when a baseline diff is supplied, a signed `Δ` column
+ * (with +/-) plus a total row. Distinct from {@link toMarkdown}, which renders
+ * the fuller multi-section report.
+ */
+export function toMarkdownComment(result: AnalyzeResult, ctx: ReportContext): string {
+  const fmt = (n: number): string => formatSize(n, { binary: ctx.binary });
+  const metric = ctx.metric;
+  const diffByPath = new Map<string, number>();
+  if (ctx.diff) for (const f of ctx.diff.files) diffByPath.set(f.path, f.delta);
+
+  const lines: string[] = [];
+  lines.push(`### 📦 Size report`);
+  lines.push("");
+  const summary = formatSummaryLine(result, ctx);
+  lines.push(summary.replace(/·/g, "·"));
+  lines.push("");
+
+  const cols = ["File", "Raw"];
+  if (result.withGzip) cols.push("Gzip");
+  if (result.withBrotli) cols.push("Brotli");
+  if (ctx.diff) cols.push(`Δ ${metric}`);
+  lines.push(`| ${cols.join(" | ")} |`);
+  lines.push(`| ${cols.map((_, i) => (i === 0 ? "---" : "---:")).join(" | ")} |`);
+
+  for (const f of topN(result.files, ctx.top)) {
+    const row = ["`" + f.path + "`", fmt(f.raw)];
+    if (result.withGzip) row.push(fmt(f.gzip));
+    if (result.withBrotli) row.push(fmt(f.brotli));
+    if (ctx.diff) {
+      const delta = diffByPath.get(f.path) ?? 0;
+      row.push(delta === 0 ? "—" : formatDelta(delta, { binary: ctx.binary }));
+    }
+    lines.push(`| ${row.join(" | ")} |`);
+  }
+
+  // Total row.
+  const totalRow = ["**Total**", `**${fmt(result.total.raw)}**`];
+  if (result.withGzip) totalRow.push(`**${fmt(result.total.gzip)}**`);
+  if (result.withBrotli) totalRow.push(`**${fmt(result.total.brotli)}**`);
+  if (ctx.diff) totalRow.push(`**${formatDelta(ctx.diff.delta, { binary: ctx.binary })}** (${ctx.diff.percent >= 0 ? "+" : ""}${ctx.diff.percent.toFixed(2)}%)`);
+  lines.push(`| ${totalRow.join(" | ")} |`);
+  lines.push("");
+
+  if (ctx.budgets && ctx.budgets.length) {
+    const failed = ctx.budgets.filter((b) => !b.ok);
+    lines.push(failed.length ? `❌ ${failed.length} budget${failed.length === 1 ? "" : "s"} over` : `✅ all budgets pass`);
+    lines.push("");
+  }
+  return lines.join("\n");
 }
 
 function fileDeltaJson(d: { path: string; before: number; after: number; delta: number }): Record<string, number | string> {

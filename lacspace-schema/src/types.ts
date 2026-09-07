@@ -55,5 +55,7 @@ export interface JSONSchema {
   maxLength?: number;
   minItems?: number;
   maxItems?: number;
+  /** OpenAPI 3.0-style nullable flag (treated as allowing `null`). */
+  nullable?: boolean;
   [key: string]: unknown;
 }

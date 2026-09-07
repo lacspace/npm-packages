@@ -52,6 +52,8 @@ export {
   licenseMatches,
   patternToRegExp,
   splitExpression,
+  severityRank,
+  SEVERITY_ORDER,
 } from "./licenses.js";
 export type {
   LicenseCategory,
@@ -60,6 +62,42 @@ export type {
   LicenseSummary,
   LicensePolicy,
 } from "./licenses.js";
+
+export {
+  normalizeConfig,
+  mergeConfig,
+  configToPolicy,
+  configToAuditOptions,
+  findConfigPath,
+  loadConfig,
+  CONFIG_FILENAMES,
+} from "./policy.js";
+export type { DepsConfig } from "./policy.js";
+
+export {
+  buildSbom,
+  buildCycloneDx,
+  buildSpdx,
+  componentsFromInventory,
+  componentsFromInstalled,
+  componentsFromDeclared,
+  purlFor,
+  spdxId,
+  TOOL_NAME,
+  TOOL_VERSION,
+  TOOL_VENDOR,
+} from "./sbom.js";
+export type {
+  SbomFormat,
+  SbomComponent,
+  SbomMeta,
+  SbomOptions,
+  CycloneDxDocument,
+  CycloneDxComponent,
+  SpdxDocument,
+  SpdxPackage,
+  SpdxRelationship,
+} from "./sbom.js";
 
 export { measureSizes, dirSize, formatBytes } from "./size.js";
 export type { SizeEntry, SizeReport, SizeOptions } from "./size.js";

@@ -6,6 +6,7 @@
  */
 import type { JsonValue, JSONSchema, JsonSchemaType } from "./types.js";
 import { safeSet } from "./util.js";
+import { resolveRef } from "./refs.js";
 
 /** Options for {@link schemaToExample}. */
 export interface ExampleOptions {
@@ -28,14 +29,6 @@ const FORMAT_SAMPLES: Record<string, string> = {
   hostname: "example.com",
 };
 
-function resolveRef(root: JSONSchema, ref: string): JSONSchema | null {
-  if (ref === "#") return root;
-  const m = /^#\/(definitions|\$defs)\/(.+)$/.exec(ref);
-  if (!m) return null;
-  const bucket = (root[m[1] as "definitions" | "$defs"] ?? {}) as Record<string, JSONSchema>;
-  return bucket[decodeURIComponent(m[2]!)] ?? null;
-}
-
 function pickType(schema: JSONSchema): JsonSchemaType | undefined {
   const t = schema.type;
   if (typeof t === "string") return t;
@@ -50,9 +43,13 @@ function pickType(schema: JSONSchema): JsonSchemaType | undefined {
 
 function stringExample(schema: JSONSchema): string {
   if (schema.format && FORMAT_SAMPLES[schema.format]) return FORMAT_SAMPLES[schema.format]!;
-  let s = "string";
+  // Derive a hint from the schema's title/description when available.
+  let s = typeof schema.title === "string" && schema.title ? schema.title.toLowerCase() : "string";
   if (typeof schema.minLength === "number" && schema.minLength > s.length) {
     s = s.padEnd(schema.minLength, "x");
+  }
+  if (typeof schema.maxLength === "number" && schema.maxLength >= 0 && s.length > schema.maxLength) {
+    s = s.slice(0, schema.maxLength);
   }
   return s;
 }

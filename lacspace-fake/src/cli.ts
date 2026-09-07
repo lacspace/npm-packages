@@ -6,10 +6,11 @@ import type { Locale } from "./data.js";
 import { GEN_ORDER, callGen } from "./generators.js";
 import type { GenContext } from "./generators.js";
 import { parseFields, parseJsonSchema, generateRows, generateValues, specFromString } from "./schema.js";
-import { formatRows, formatValues, isFormat } from "./format.js";
+import { parseRelations, generateDataset } from "./relations.js";
+import { formatRows, formatDataset, formatValues, isFormat } from "./format.js";
 import type { Format } from "./format.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const NO_COLOR = Boolean(env["NO_COLOR"]) || !stdout.isTTY;
 const RAW = {
@@ -30,6 +31,8 @@ interface Args {
   out?: string;
   fields?: string;
   schema?: string;
+  relations?: string;
+  ddl: boolean;
   help: boolean;
   version: boolean;
 }
@@ -37,7 +40,7 @@ interface Args {
 function parseArgs(list: string[]): Args {
   const a: Args = {
     positional: [], locale: "en", count: 10, format: "json",
-    pretty: false, help: false, version: false,
+    pretty: false, ddl: false, help: false, version: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -45,7 +48,7 @@ function parseArgs(list: string[]): Args {
     if (arg === "--seed" || arg === "-s") a.seed = nextVal();
     else if (arg === "--locale" || arg === "-l") {
       const l = nextVal();
-      if (!isLocale(l)) fail(`Unknown locale "${l}". Use "en" or "ne".`, false);
+      if (!isLocale(l)) fail(`Unknown locale "${l}". Use "en", "ne", "es" or "fr".`, false);
       a.locale = l;
     } else if (arg === "--count" || arg === "-n") a.count = Math.max(0, Math.floor(Number(nextVal())) || 0);
     else if (arg === "--format" || arg === "-f") {
@@ -54,9 +57,11 @@ function parseArgs(list: string[]): Args {
       a.format = f;
     } else if (arg === "--table" || arg === "-t") a.table = nextVal();
     else if (arg === "--pretty") a.pretty = true;
+    else if (arg === "--ddl") a.ddl = true;
     else if (arg === "--out" || arg === "-o") a.out = nextVal();
     else if (arg === "--fields") a.fields = nextVal();
     else if (arg === "--schema") a.schema = nextVal();
+    else if (arg === "--relations") a.relations = nextVal();
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg === "-v" || arg === "--version") a.version = true;
     else if (!arg.startsWith("-")) a.positional.push(arg);
@@ -69,35 +74,41 @@ const HELP = `
 ${c("bold", c("magenta", "◆ lacspace-fake"))} ${c("dim", "— keyless, deterministic fake / seed data generator")}
 
 ${c("bold", "Usage")}
-  npx lacspace-fake --fields "<spec>" [options]     ${c("dim", "# schema rows")}
-  npx lacspace-fake --schema <file.json> [options]  ${c("dim", "# JSON schema rows")}
-  npx lacspace-fake <generator> [options]           ${c("dim", "# N values of one generator")}
-  npx lacspace-fake list                            ${c("dim", "# every generator + a sample")}
+  npx lacspace-fake --fields "<spec>" [options]      ${c("dim", "# schema rows")}
+  npx lacspace-fake --schema <file.json> [options]   ${c("dim", "# JSON schema rows")}
+  npx lacspace-fake --relations <file.json> [options] ${c("dim", "# linked tables (FKs)")}
+  npx lacspace-fake <generator> [options]            ${c("dim", "# N values of one generator")}
+  npx lacspace-fake list                             ${c("dim", "# every generator + a sample")}
 
 ${c("bold", "Options")}
-  -n, --count <n>      How many rows/values to generate (default 10)
-  -f, --format <fmt>   json | ndjson | csv | sql (default json)
-  -t, --table <name>   Table name for -f sql (INSERT INTO <name> ...)
-      --fields <spec>  Inline schema: "key:gen,key:gen(args),..."
-      --schema <file>  JSON schema file (nested objects + arrays supported)
-  -s, --seed <str>     Seed for reproducible output (number or any string)
-  -l, --locale <loc>   en (default) or ne (Nepal-aware)
-      --pretty         Pretty-print JSON
-  -o, --out <file>     Write to a file instead of stdout
-  -h, --help           Show this help
-  -v, --version        Print the version
+  -n, --count <n>        How many rows/values to generate (default 10)
+  -f, --format <fmt>     json | ndjson | csv | sql (default json)
+  -t, --table <name>     Table name for -f sql (INSERT INTO <name> ...)
+      --ddl              For -f sql: also emit CREATE TABLE with inferred types
+      --fields <spec>    Inline schema: "key:gen,key:gen(args),..."
+      --schema <file>    JSON schema file (nested objects + arrays supported)
+      --relations <file> JSON relations schema → linked entities with foreign keys
+  -s, --seed <str>       Seed for reproducible output (number or any string)
+  -l, --locale <loc>     en (default), ne (Nepal), es (Spanish) or fr (French)
+      --pretty           Pretty-print JSON
+  -o, --out <file>       Write to a file instead of stdout
+  -h, --help             Show this help
+  -v, --version          Print the version
 
 ${c("bold", "Inline field syntax")}
   ${c("dim", 'key:generator            e.g.  name:fullName')}
   ${c("dim", 'key:generator(args)      e.g.  age:int(18..65)  role:oneOf(admin|user)')}
+  ${c("dim", 'unique(gen)              e.g.  email:unique(email)     no dupes across rows')}
+  ${c("dim", 'template(...)            e.g.  full:template({{firstName}} {{lastName}})')}
   ${c("dim", 'ranges use ..            lists use |            weighted uses value:weight')}
 
 ${c("bold", "Examples")}
   npx lacspace-fake --fields "id:autoincrement,name:fullName,email:email,age:int(18..65)" -n 5
-  npx lacspace-fake --fields "id:autoincrement,name:fullName,role:oneOf(admin|user)" -f sql --table users
-  npx lacspace-fake --fields "user:fullName,phone:phone" --locale ne -n 3
-  npx lacspace-fake --schema users.json -n 50 -f csv -o users.csv
-  npx lacspace-fake email -n 5 --seed 42
+  npx lacspace-fake --fields "id:autoincrement,name:fullName,role:oneOf(admin|user)" -f sql --table users --ddl
+  npx lacspace-fake --fields "u:unique(uuid),handle:template({{firstName}}.{{lastName}})" -n 3
+  npx lacspace-fake --fields "user:fullName,phone:phone" --locale fr -n 3
+  npx lacspace-fake --relations shop.json -f sql --ddl
+  npx lacspace-fake ulid -n 5 --seed 42
   npx lacspace-fake list
 
 ${c("dim", "Free · keyless · zero-dependency · runs fully offline · no telemetry")}
@@ -163,12 +174,38 @@ function main(): void {
 
   const cmd = a.positional[0];
 
-  if (a.help || (a.positional.length === 0 && !a.fields && !a.schema)) {
+  if (a.help || (a.positional.length === 0 && !a.fields && !a.schema && !a.relations)) {
     stdout.write(HELP + "\n");
     return;
   }
 
   if (cmd === "list") { runList(a); return; }
+
+  // --- relations / linked datasets ----------------------------------------
+  if (a.relations) {
+    let raw: string;
+    try {
+      raw = a.relations === "-" ? readStdin() : readFileSync(a.relations, "utf8");
+    } catch (err) {
+      fail(`Could not read relations file "${a.relations}": ${(err as Error).message}`, false);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw!);
+    } catch (err) {
+      fail(`Relations file is not valid JSON: ${(err as Error).message}`, false);
+    }
+    let text: string;
+    try {
+      const entities = parseRelations(parsed);
+      const dataset = generateDataset(entities, { seed: a.seed, locale: a.locale });
+      text = formatDataset(dataset, { format: a.format, pretty: a.pretty, ddl: a.ddl });
+    } catch (err) {
+      fail((err as Error).message, false);
+    }
+    output(text!, a);
+    return;
+  }
 
   // --- JSON schema file ---------------------------------------------------
   if (a.schema) {
@@ -188,7 +225,7 @@ function main(): void {
     try {
       const fields = parseJsonSchema(parsed);
       const rows = generateRows(fields, { count: a.count, seed: a.seed, locale: a.locale });
-      text = formatRows(rows, { format: a.format, pretty: a.pretty, table: a.table });
+      text = formatRows(rows, { format: a.format, pretty: a.pretty, table: a.table, ddl: a.ddl });
     } catch (err) {
       fail((err as Error).message, false);
     }
@@ -202,7 +239,7 @@ function main(): void {
     try {
       const fields = parseFields(a.fields);
       const rows = generateRows(fields, { count: a.count, seed: a.seed, locale: a.locale });
-      text = formatRows(rows, { format: a.format, pretty: a.pretty, table: a.table });
+      text = formatRows(rows, { format: a.format, pretty: a.pretty, table: a.table, ddl: a.ddl });
     } catch (err) {
       fail((err as Error).message, false);
     }
@@ -218,7 +255,7 @@ function main(): void {
     // validate eagerly for a clean error
     specFromString(specStr);
     const values = generateValues(specStr, { count: a.count, seed: a.seed, locale: a.locale });
-    text = formatValues(values, column, { format: a.format, pretty: a.pretty, table: a.table });
+    text = formatValues(values, column, { format: a.format, pretty: a.pretty, table: a.table, ddl: a.ddl });
   } catch (err) {
     fail((err as Error).message, false);
   }

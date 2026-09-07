@@ -6,8 +6,13 @@ import { runHttpFile } from "./runner.js";
 import type { RequestRunResult } from "./runner.js";
 import { parseEnvJson, parseDotenv, parseKvPairs } from "./vars.js";
 import { humanSize, statusColor, prettyJson, paint } from "./format.js";
+import type { RetryPolicy } from "./retry.js";
+import { runBenchmark } from "./bench.js";
+import type { BenchOutcome } from "./bench.js";
+import { toHar } from "./har.js";
+import type { HarEntryInput } from "./har.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const NO_COLOR = !!env["NO_COLOR"];
 const COLOR = !NO_COLOR;
 
@@ -48,6 +53,11 @@ interface Args {
   envName?: string;
   envFile?: string;
   name?: string;
+  retry?: number;
+  retryDelay?: number;
+  retryStatus?: string;
+  repeat?: number;
+  har?: string;
   help: boolean;
   version: boolean;
 }
@@ -98,6 +108,11 @@ function parseArgs(list: string[]): Args {
       case "--env": a.envName = nextVal(); break;
       case "--env-file": a.envFile = nextVal(); break;
       case "--name": a.name = nextVal(); break;
+      case "--retry": a.retry = Number(nextVal()); break;
+      case "--retry-delay": a.retryDelay = Number(nextVal()); break;
+      case "--retry-status": a.retryStatus = nextVal(); break;
+      case "--repeat": a.repeat = Number(nextVal()); break;
+      case "--har": a.har = nextVal(); break;
       case "-h": case "--help": a.help = true; break;
       case "--version": a.version = true; break;
       default:
@@ -129,6 +144,13 @@ ${c("bold", "Request options")}
       --no-redirect      Do not follow redirects
       --max-redirects N  Follow at most N redirects (default 5)
       --max-size <n>     Cap the response body read (e.g. 10mb, default 10MB)
+      --retry N          Retry transient failures up to N times (backoff)
+      --retry-delay <ms> Base backoff delay between retries (default 300)
+      --retry-status L   Comma list of retryable status codes (default 408,425,429,5xx)
+
+${c("bold", "Benchmark & export")}
+      --repeat N         Send the request N times; print min/avg/p95/max timing
+      --har <file>       Write a HAR 1.2 log of the run to a file
 
 ${c("bold", "Output options")}
   -i, --include          Show response headers
@@ -151,17 +173,41 @@ ${c("bold", "Runner options (run)")}
 ${c("bold", ".http directives")}
   ${c("dim", "# @name login             name a request (for --name and chaining)")}
   ${c("dim", "# @capture tok = body.$.token   grab a value for later requests")}
-  ${c("dim", "# @assert status == 200   fail the run if the check fails")}
+  ${c("dim", "# @assert status == 200   fail the run if the check fails (# @expect is an alias)")}
   ${c("dim", "# @assert body.$.ok == true · header.content-type contains json · time < 800")}
+  ${c("dim", "# @expect json.user == \"ada\"   json.<path> is sugar for body.$.<path>")}
 
 ${c("bold", "Examples")}
   npx lacspace-http https://httpbin.org/get
   npx lacspace-http POST https://httpbin.org/post -j name=Ada -j admin:=true
   npx lacspace-http https://api.example.com/me -b "$TOKEN" -i
   npx lacspace-http GET https://httpbin.org/get --curl
+  npx lacspace-http https://api.example.com/flaky --retry 3 --retry-delay 500
+  npx lacspace-http https://httpbin.org/get --repeat 50
+  npx lacspace-http https://httpbin.org/get --har run.har
   npx lacspace-http run api.http --env dev
-  npx lacspace-http run smoke.http --var host=http://localhost:3000
+  npx lacspace-http run smoke.http --var host=http://localhost:3000 --har smoke.har
 `;
+
+/** Build a retry policy from CLI flags, or undefined if none were given. */
+function buildRetry(args: Args): Partial<RetryPolicy> | undefined {
+  if (args.retry === undefined && args.retryDelay === undefined && args.retryStatus === undefined) {
+    return undefined;
+  }
+  const policy: Partial<RetryPolicy> = {};
+  policy.retries = args.retry !== undefined && !Number.isNaN(args.retry) ? args.retry : 1;
+  if (args.retryDelay !== undefined && !Number.isNaN(args.retryDelay)) policy.delayMs = args.retryDelay;
+  if (args.retryStatus) {
+    const statuses = args.retryStatus.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n));
+    if (statuses.length) policy.statuses = statuses;
+  }
+  return policy;
+}
+
+/** Serialise entries to a HAR 1.2 file. */
+function writeHar(path: string, entries: HarEntryInput[]): void {
+  writeFileSync(path, JSON.stringify(toHar(entries), null, 2));
+}
 
 function readStdin(): string {
   try { return readFileSync(0, "utf8"); } catch { return ""; }
@@ -220,6 +266,14 @@ async function runAdHoc(args: Args): Promise<void> {
   if (args.timeout !== undefined) sendOpts.timeoutMs = args.timeout;
   if (args.maxSize !== undefined) sendOpts.maxSize = args.maxSize;
   if (args.maxRedirects !== undefined) sendOpts.maxRedirects = args.maxRedirects;
+  const retry = buildRetry(args);
+  if (retry !== undefined) sendOpts.retry = retry;
+
+  // Benchmark mode: send the request N times and print a timing summary.
+  if (args.repeat !== undefined && args.repeat > 1) {
+    await runBench(spec, sendOpts, args);
+    return;
+  }
 
   let rec: ResponseRecord;
   try {
@@ -227,6 +281,8 @@ async function runAdHoc(args: Args): Promise<void> {
   } catch (err) {
     fail((err as Error).message, args.jsonOut);
   }
+
+  if (args.har) writeHar(args.har, [{ spec, response: rec }]);
 
   if (args.jsonOut) {
     stdout.write(JSON.stringify({
@@ -295,6 +351,46 @@ function printMeta(rec: ResponseRecord, includeHeaders: boolean): void {
   log("");
 }
 
+// ---- benchmark mode -------------------------------------------------------
+
+async function runBench(spec: RequestSpec, sendOpts: SendOptions, args: Args): Promise<void> {
+  const repeat = Math.floor(args.repeat!);
+  const outcome = await runBenchmark(spec, { ...sendOpts, repeat, keepRecords: !!args.har });
+
+  if (args.har && outcome.records) {
+    writeHar(args.har, outcome.records.map((response) => ({ spec, response })));
+  }
+
+  if (args.jsonOut) {
+    stdout.write(JSON.stringify({
+      method: spec.method, url: spec.url, repeat,
+      ...outcome.stats,
+      statuses: outcome.statuses, errors: outcome.errors, ok: outcome.ok,
+    }) + "\n");
+    return;
+  }
+
+  printBench(spec, repeat, outcome);
+}
+
+function printBench(spec: RequestSpec, repeat: number, o: BenchOutcome): void {
+  const s = o.stats;
+  const ms = (n: number): string => `${n.toFixed(1)}ms`;
+  log(`\n${c("bold", c("magenta", "◆ lacspace-http bench"))}  ${c("dim", `${spec.method} ${spec.url}`)}`);
+  log(`  ${c("dim", `${repeat} requests · ${o.ok} ok · ${o.errors} error(s)`)}`);
+  const statusList = Object.entries(o.statuses).map(([k, v]) => `${k}×${v}`).join("  ");
+  if (statusList) log(`  ${c("dim", "status")} ${statusList}`);
+  log("");
+  log(`  ${c("cyan", "min   ")} ${ms(s.min)}`);
+  log(`  ${c("cyan", "mean  ")} ${ms(s.mean)}`);
+  log(`  ${c("cyan", "median")} ${ms(s.median)}`);
+  log(`  ${c("cyan", "p95   ")} ${ms(s.p95)}`);
+  log(`  ${c("cyan", "p99   ")} ${ms(s.p99)}`);
+  log(`  ${c("cyan", "max   ")} ${ms(s.max)}`);
+  log(`  ${c("dim", `stdev ${ms(s.stdev)} · total ${ms(s.total)}`)}`);
+  log("");
+}
+
 // ---- .http file runner mode ----------------------------------------------
 
 function loadEnvVars(args: Args): Record<string, string> {
@@ -336,6 +432,8 @@ async function runFile(args: Args): Promise<void> {
   if (args.timeout !== undefined) runOpts.timeoutMs = args.timeout;
   if (args.maxSize !== undefined) runOpts.maxSize = args.maxSize;
   if (args.maxRedirects !== undefined) runOpts.maxRedirects = args.maxRedirects;
+  const retry = buildRetry(args);
+  if (retry !== undefined) runOpts.retry = retry;
 
   if (!args.jsonOut) {
     log(`\n${c("bold", c("magenta", "◆ lacspace-http run"))}  ${c("dim", file)}`);
@@ -344,6 +442,13 @@ async function runFile(args: Args): Promise<void> {
   }
 
   const result = await runHttpFile(source, runOpts);
+
+  if (args.har) {
+    const entries: HarEntryInput[] = result.results
+      .filter((r) => r.response !== undefined)
+      .map((r) => ({ spec: r.request, response: r.response! }));
+    writeHar(args.har, entries);
+  }
 
   if (args.jsonOut) {
     stdout.write(JSON.stringify({

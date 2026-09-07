@@ -30,6 +30,8 @@ export class Store {
   private db: Db;
   private readonly rawRoot: Record<string, unknown>;
   private readonly onChange: ((db: Db) => void) | undefined;
+  /** A deep clone of the collections as first seen, for {@link Store.reset}. */
+  private readonly initial: Db;
 
   constructor(root: Record<string, unknown>, opts: StoreOptions = {}) {
     this.idKey = opts.idKey ?? "id";
@@ -39,6 +41,17 @@ export class Store {
     for (const [key, value] of Object.entries(root)) {
       if (Array.isArray(value)) this.db[key] = value as Record_[];
     }
+    this.initial = cloneDb(this.db);
+  }
+
+  /**
+   * Restore every collection to its original state (the data the store was
+   * constructed with), discarding all mutations made this session. Fires
+   * `onChange` once so a `--write` target is rewritten too.
+   */
+  reset(): void {
+    this.db = cloneDb(this.initial);
+    this.emit();
   }
 
   /** Names of the array collections (the REST resources). */
@@ -146,5 +159,14 @@ export class Store {
         /* persistence is best-effort; never break a request over it */
       }
     }
+  }
+}
+
+/** Deep-clone a db of JSON records (structuredClone with a JSON fallback). */
+function cloneDb(db: Db): Db {
+  try {
+    return structuredClone(db);
+  } catch {
+    return JSON.parse(JSON.stringify(db)) as Db;
   }
 }

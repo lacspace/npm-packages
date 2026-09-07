@@ -54,14 +54,53 @@ export type { BumpOptions, BumpResult, BumpLevel } from "./bump.js";
 export {
   renderSection,
   prependChangelog,
+  parseVersionHeaders,
+  changelogHasVersion,
   DEFAULT_GROUPS,
   DEFAULT_HIDDEN,
 } from "./changelog.js";
-export type { RenderOptions, CommitGroup } from "./changelog.js";
+export type { RenderOptions, CommitGroup, PrependOptions } from "./changelog.js";
+
+// breaking-change collection
+export {
+  collectBreaking,
+  hasBreaking,
+  hasBreakingFooter,
+  hasBangBreaking,
+} from "./breaking.js";
+export type { BreakingChange } from "./breaking.js";
+
+// contributors aggregation
+export { collectContributors, renderContributors } from "./contributors.js";
+export type {
+  Contributor,
+  ContributorsOptions,
+  RenderContributorsOptions,
+} from "./contributors.js";
+
+// custom commit-type configuration
+export {
+  loadConfig,
+  parseConfig,
+  resolveConfig,
+  configToGroups,
+  configToHidden,
+  configToBumpOptions,
+  CONFIG_FILENAMES,
+} from "./config.js";
+export type { ChangelogConfig, TypeConfig, ResolvedConfig } from "./config.js";
 
 // repository URL templating
 export { parseRepository, urlTemplates } from "./repo.js";
 export type { RepoInfo, RepoHost, UrlTemplates } from "./repo.js";
+
+// link builders (compare links + linkify)
+export {
+  buildCompareLink,
+  linkifyRefs,
+  linkifyIssues,
+  linkifyShas,
+} from "./links.js";
 
 // git integration (injectable)
 export {

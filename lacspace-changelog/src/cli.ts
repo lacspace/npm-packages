@@ -10,10 +10,11 @@ import {
   commitRelease,
   createTag,
 } from "./release.js";
-import { prependChangelog } from "./changelog.js";
+import { prependChangelog, changelogHasVersion } from "./changelog.js";
+import { loadConfig, resolveConfig } from "./config.js";
 import type { BumpOptions } from "./bump.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const NO_COLOR = env.NO_COLOR !== undefined && env.NO_COLOR !== "";
 const RAW = {
@@ -24,7 +25,7 @@ const c = (k: keyof typeof RAW, s: string): string =>
   NO_COLOR ? s : `${RAW[k]}${s}${RAW.reset}`;
 const log = (s = ""): void => void stderr.write(s + "\n");
 
-type Command = "changelog" | "version" | "notes" | "preview";
+type Command = "changelog" | "generate" | "version" | "notes" | "preview";
 
 interface Args {
   command: Command;
@@ -34,6 +35,9 @@ interface Args {
   preid?: string;
   repoUrl?: string;
   output: string;
+  config?: string;
+  contributors: boolean;
+  allowDuplicate: boolean;
   dryRun: boolean;
   strict: boolean;
   always: boolean;
@@ -50,6 +54,8 @@ function parseArgs(list: string[]): Args {
   const a: Args = {
     command: "changelog",
     output: "CHANGELOG.md",
+    contributors: false,
+    allowDuplicate: false,
     dryRun: false,
     strict: false,
     always: false,
@@ -70,6 +76,9 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--release-as") a.releaseAs = nextVal();
     else if (arg === "--preid") a.preid = nextVal();
     else if (arg === "--repo-url") a.repoUrl = nextVal();
+    else if (arg === "--config") a.config = nextVal();
+    else if (arg === "--contributors") a.contributors = true;
+    else if (arg === "--allow-duplicate") a.allowDuplicate = true;
     else if (arg === "--output" || arg === "-o") a.output = nextVal();
     else if (arg === "--dry-run") a.dryRun = true;
     else if (arg === "--strict") a.strict = true;
@@ -86,7 +95,8 @@ function parseArgs(list: string[]): Args {
     else if (!arg.startsWith("-")) positional.push(arg);
   }
   const cmd = positional[0];
-  if (cmd === "version" || cmd === "notes" || cmd === "preview") a.command = cmd;
+  if (cmd === "version" || cmd === "notes" || cmd === "preview" || cmd === "generate")
+    a.command = cmd;
   else if (cmd === "changelog") a.command = "changelog";
   return a;
 }
@@ -99,6 +109,7 @@ ${c("bold", "Usage")}
 
 ${c("bold", "Commands")}
   ${c("cyan", "(default)")}   Render the new version section and prepend it to CHANGELOG.md
+  ${c("cyan", "generate")}    Alias of the default — read git and prepend the new section
   ${c("cyan", "version")}     Print ONLY the computed next version (great for CI)
   ${c("cyan", "notes")}       Print ONLY the new section (a GitHub release body)
   ${c("cyan", "preview")}     Show the plan: range, commits, bump and section — write nothing
@@ -109,6 +120,9 @@ ${c("bold", "Options")}
       --release-as <x>    Force major|minor|patch or an explicit version (e.g. 2.0.0)
       --preid <id>        Prerelease id, e.g. beta → 1.2.0-beta.0
       --repo-url <url>    Override the repo URL used for commit/PR/compare links
+      --config <path>     Load a .changelogrc.json (type→section/bump/hidden). Default: cwd
+      --contributors      Append a "Contributors" section from the commit authors
+      --allow-duplicate   Prepend even if the version is already in the changelog
   -o, --output <file>     Changelog file to write/prepend (default CHANGELOG.md)
       --strict            Drop non-conventional commits instead of bucketing them
       --always            Bump patch even when nothing notable changed
@@ -127,7 +141,10 @@ ${c("bold", "How the bump is chosen")}
 
 ${c("bold", "Examples")}
   npx lacspace-changelog                       ${c("dim", "# prepend the new section to CHANGELOG.md")}
+  npx lacspace-changelog generate --from v1.0.0 --to HEAD
   npx lacspace-changelog --dry-run             ${c("dim", "# preview the markdown, write nothing")}
+  npx lacspace-changelog --contributors        ${c("dim", "# add a Contributors section")}
+  npx lacspace-changelog --config .changelogrc.json ${c("dim", "# custom type→section/bump map")}
   VER=$(npx lacspace-changelog version)        ${c("dim", "# just the next version, for CI")}
   npx lacspace-changelog notes > NOTES.md      ${c("dim", "# a GitHub release body")}
   npx lacspace-changelog preview               ${c("dim", "# the full plan (range + commits + bump)")}
@@ -156,7 +173,12 @@ async function main(): Promise<void> {
   const pkg = findPackageJson(dir);
   const currentVersion = pkg?.version ?? "0.0.0";
 
+  // Custom commit-type config (.changelogrc.json) — from --config or the cwd.
+  const rawConfig = loadConfig(args.config ?? dir);
+  const config = rawConfig ? resolveConfig(rawConfig) : null;
+
   const bumpOpts: BumpOptions = {
+    ...(config?.bumpOptions ?? {}),
     pre1BreakingIsMinor: args.pre1BreakingIsMinor,
     always: args.always,
   };
@@ -192,7 +214,7 @@ async function main(): Promise<void> {
   }
 
   const nextVersion = bump.next;
-  const repoUrl = args.repoUrl ?? analysis!.repositoryUrl ?? pkg?.repository;
+  const repoUrl = args.repoUrl ?? config?.repoUrl ?? analysis!.repositoryUrl ?? pkg?.repository;
 
   // --- version command --------------------------------------------------
   if (args.command === "version") {
@@ -205,6 +227,10 @@ async function main(): Promise<void> {
     ...(from ? { previousTag: from } : {}),
     ...(repoUrl ? { repositoryUrl: repoUrl } : {}),
     ...(args.repoUrl ? { repoUrlOverride: args.repoUrl } : {}),
+    ...(config?.groups ? { groups: config.groups } : {}),
+    ...(config?.hiddenTypes ? { hiddenTypes: config.hiddenTypes } : {}),
+    ...(config?.includeOther !== undefined ? { includeOther: config.includeOther } : {}),
+    ...(args.contributors || config?.contributors ? { contributors: true } : {}),
   });
 
   // --- notes command ----------------------------------------------------
@@ -229,25 +255,37 @@ async function main(): Promise<void> {
     return;
   }
 
-  // --- default: changelog ----------------------------------------------
+  // --- default: changelog (also the `generate` alias) -------------------
+  const skipIfExists = !args.allowDuplicate;
+  const writeOpts = { version: nextVersion, skipIfExists };
+  const existingChangelog = readChangelog(args.output);
+  const isDuplicate =
+    skipIfExists && existingChangelog
+      ? changelogHasVersion(existingChangelog, nextVersion)
+      : false;
+
   if (args.json) {
-    const merged = prependChangelog(section, readChangelog(args.output));
+    const merged = prependChangelog(section, existingChangelog, writeOpts);
     stdout.write(JSON.stringify({
       ok: true,
       version: nextVersion,
       output: args.output,
-      wrote: !args.dryRun,
+      wrote: !args.dryRun && !isDuplicate,
+      duplicate: isDuplicate,
       section,
       changelog: args.dryRun ? merged : undefined,
       ...analysisJson(analysis!),
     }) + "\n");
-    if (!args.dryRun) writeChangelog(args.output, section);
+    if (!args.dryRun) writeChangelog(args.output, section, writeOpts);
   } else if (args.dryRun) {
     printPlan(analysis!, args, nextVersion);
     log(c("dim", "  ── would prepend to " + args.output + " ──"));
     stdout.write(section + "\n");
+  } else if (isDuplicate) {
+    printPlan(analysis!, args, nextVersion);
+    log(`  ${c("yellow", "•")} ${c("dim", `${nextVersion} is already in ${args.output} — skipped (use --allow-duplicate to force)`)}\n`);
   } else {
-    writeChangelog(args.output, section);
+    writeChangelog(args.output, section, writeOpts);
     printPlan(analysis!, args, nextVersion);
     log(`  ${c("green", "✓")} prepended the ${c("bold", nextVersion)} section to ${c("bold", args.output)}\n`);
   }

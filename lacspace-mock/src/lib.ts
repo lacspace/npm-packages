@@ -43,12 +43,42 @@ export type {
   MockConfig,
   HandlerOptions,
   RouteConfig,
+  RouteValidation,
   MockRequest,
   MockResponse,
   Engine,
   RunningServer,
   MountedRoute,
 } from "./server.js";
+
+export { resolveDelay, rollChaos } from "./chaos.js";
+export type { Delay, ChaosConfig, ChaosDecision } from "./chaos.js";
+
+export { validate, isValid } from "./validate.js";
+export type { Schema, ValidationError } from "./validate.js";
+
+export {
+  mockFromOpenApi,
+  exampleFromSchema,
+  derefToSchema,
+  openApiPathToPattern,
+} from "./openapi.js";
+export type { OpenApiDoc, OpenApiOptions, OpenApiImport } from "./openapi.js";
+
+export {
+  createProxy,
+  cassetteKey,
+  joinUrl,
+  globalFetchAdapter,
+} from "./proxy.js";
+export type {
+  Proxy,
+  ProxyConfig,
+  ProxyRequest,
+  RecordedResponse,
+  Cassette,
+  FetchLike,
+} from "./proxy.js";
 
 export { Store } from "./db.js";
 export type { Db, Record_, StoreOptions } from "./db.js";

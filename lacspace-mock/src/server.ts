@@ -16,6 +16,11 @@ import { render, renderValue } from "./template.js";
 import type { TemplateContext } from "./template.js";
 import { createFaker } from "./faker.js";
 import { resolveGraphQL } from "./graphql.js";
+import { resolveDelay, rollChaos } from "./chaos.js";
+import { validate } from "./validate.js";
+import type { Schema } from "./validate.js";
+import { createProxy } from "./proxy.js";
+import type { Proxy, ProxyConfig } from "./proxy.js";
 
 /** A single custom route definition (from `mock.config.json` or code). */
 export interface RouteConfig {
@@ -33,6 +38,18 @@ export interface RouteConfig {
   body?: unknown;
   /** A dynamic response body: a template string or a JSON value with `{{tokens}}`. */
   bodyTemplate?: unknown;
+  /** Validate the incoming request; on failure the route returns 400 with details. */
+  validate?: RouteValidation;
+}
+
+/** Per-part request schemas for validating a custom route's input. */
+export interface RouteValidation {
+  /** Schema for the parsed JSON request body. */
+  body?: Schema;
+  /** Schema for the query params (values are strings). */
+  query?: Schema;
+  /** Schema for the captured path params (values are strings). */
+  params?: Schema;
 }
 
 /** A minimal request description — the pure engine's input. */
@@ -62,8 +79,14 @@ export interface MockConfig {
   cors?: boolean;
   /** Global delay before every response: ms or `[min,max]` jitter (default 0). */
   delay?: number | [number, number];
-  /** Probability (0..1) that any response is replaced with a 500 (chaos). */
+  /** Probability (0..1) that any response is replaced with an error (chaos). */
   errorRate?: number;
+  /** The pool of statuses chaos may inject (default `[500]`). */
+  errorStatuses?: number[];
+  /** Per-collection request-body schemas — CRUD writes are validated → 400. */
+  schemas?: Record<string, Schema>;
+  /** Record-and-replay passthrough proxy for otherwise-unhandled routes. */
+  proxy?: ProxyConfig;
   /** The primary-key field for CRUD (default `"id"`). */
   idKey?: string;
   /** Seed for the fake-data generator, so `{{fake.*}}` output is stable. */
@@ -93,6 +116,10 @@ export interface Engine {
   routes: RouteConfig[];
   /** Every mounted route, for logging/banner. */
   mounted: () => MountedRoute[];
+  /** Restore the db to its original state, discarding this session's mutations. */
+  reset: () => void;
+  /** The record-and-replay proxy, if one was configured. */
+  proxy: Proxy | undefined;
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -103,16 +130,6 @@ const CORS_HEADERS: Record<string, string> = {
 };
 
 const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-function pickDelay(delay: number | [number, number] | undefined, rng: () => number): number {
-  if (delay === undefined) return 0;
-  if (Array.isArray(delay)) {
-    const [min, max] = delay;
-    if (max <= min) return Math.max(0, min);
-    return Math.floor(rng() * (max - min + 1)) + min;
-  }
-  return Math.max(0, delay);
-}
 
 function json(status: number, value: unknown, extra: Record<string, string> = {}): MockResponse {
   return {
@@ -137,8 +154,11 @@ export function createEngine(config: MockConfig = {}): Engine {
   const rng = config.rng ?? Math.random;
   const sleep = config.sleep ?? realSleep;
   const errorRate = config.errorRate ?? 0;
+  const errorStatuses = config.errorStatuses;
   const routes = config.routes ?? [];
   const seed = config.seed ?? "lacspace-mock";
+  const schemas = config.schemas ?? {};
+  const proxy = config.proxy ? createProxy(config.proxy) : undefined;
 
   let store: Store | undefined;
   if (config.db) {
@@ -201,14 +221,15 @@ export function createEngine(config: MockConfig = {}): Engine {
       return { status: 204, headers: { ...corsHeaders() }, body: "" };
     }
 
-    // Chaos: randomly fail.
-    if (errorRate > 0 && rng() < errorRate) {
-      await sleep(pickDelay(config.delay, rng));
-      return json(500, { error: "injected server error (chaos)", chaos: true }, corsHeaders());
+    // Chaos: randomly fail with a configured status (default 500).
+    const chaos = rollChaos(errorRate, errorStatuses, rng);
+    if (chaos.triggered) {
+      await sleep(resolveDelay(config.delay, rng));
+      return json(chaos.status, { error: "injected server error (chaos)", chaos: true, status: chaos.status }, corsHeaders());
     }
 
     // Global delay.
-    await sleep(pickDelay(config.delay, rng));
+    await sleep(resolveDelay(config.delay, rng));
 
     // 1. Custom routes (highest precedence).
     for (const route of routes) {
@@ -216,13 +237,21 @@ export function createEngine(config: MockConfig = {}): Engine {
       const m = matchPath(route.path, path);
       if (!m) continue;
       const faker = createFaker(`${seed}|${method} ${path}${search}`);
+      const parsedBody = parseBody(req.body);
       const ctx: TemplateContext = {
         params: m.params,
         query: flattenQuery(query),
-        body: parseBody(req.body),
+        body: parsedBody,
         faker,
       };
-      await sleep(pickDelay(route.delay, rng));
+      // Request validation (body/query/params) → 400 with details.
+      if (route.validate) {
+        const details = validateRequest(route.validate, parsedBody, flattenQuery(query), m.params);
+        if (details.length) {
+          return json(400, { error: "request validation failed", details }, corsHeaders());
+        }
+      }
+      await sleep(resolveDelay(route.delay, rng));
       return resolveRoute(route, ctx);
     }
 
@@ -240,8 +269,16 @@ export function createEngine(config: MockConfig = {}): Engine {
 
     // 3. DB CRUD.
     if (store) {
-      const crud = await handleCrud(store, method, path, query, req.body, corsHeaders());
+      const crud = await handleCrud(store, method, path, query, req.body, corsHeaders(), schemas);
       if (crud) return crud;
+    }
+
+    // 4. Record-and-replay proxy (forward otherwise-unhandled routes).
+    if (proxy) {
+      const proxied = await proxy.handle({ method, url: rawUrl, headers: req.headers, body: req.body });
+      if (proxied) {
+        return { status: proxied.status, headers: { ...corsHeaders(), ...proxied.headers }, body: proxied.body };
+      }
     }
 
     return json(404, { error: "not found", path }, corsHeaders());
@@ -252,7 +289,23 @@ export function createEngine(config: MockConfig = {}): Engine {
     store,
     routes,
     mounted: () => mountedRoutes(routes, store),
+    reset: () => store?.reset(),
+    proxy,
   };
+}
+
+/** Validate a custom route's request parts, returning all failures. */
+function validateRequest(
+  v: RouteValidation,
+  body: unknown,
+  query: Record<string, string>,
+  params: Record<string, string>,
+): { where: string; path: string; message: string }[] {
+  const out: { where: string; path: string; message: string }[] = [];
+  if (v.body) for (const e of validate(body, v.body)) out.push({ where: "body", ...e });
+  if (v.query) for (const e of validate(query, v.query)) out.push({ where: "query", ...e });
+  if (v.params) for (const e of validate(params, v.params)) out.push({ where: "params", ...e });
+  return out;
 }
 
 function flattenQuery(query: Query): Record<string, string> {
@@ -268,11 +321,20 @@ async function handleCrud(
   query: Query,
   rawBody: string | undefined,
   cors: Record<string, string>,
+  schemas: Record<string, Schema>,
 ): Promise<MockResponse | null> {
   const parts = path.split("/").filter((s) => s.length > 0).map(decodeURIComponentSafe);
   if (parts.length === 0 || parts.length > 2) return null;
 
   const name = parts[0]!;
+
+  // Validate write bodies against a per-collection schema, if configured.
+  const schema = schemas[name];
+  const validateWrite = (parsed: unknown): MockResponse | null => {
+    if (!schema) return null;
+    const details = validate(parsed, schema);
+    return details.length ? json(400, { error: "request validation failed", details }, cors) : null;
+  };
 
   // Singular (non-array) resource: read-only.
   if (!store.has(name)) {
@@ -295,6 +357,8 @@ async function handleCrud(
       if (parsed === undefined || typeof parsed !== "object" || Array.isArray(parsed)) {
         return json(400, { error: "POST body must be a JSON object" }, cors);
       }
+      const invalid = validateWrite(parsed);
+      if (invalid) return invalid;
       const created = store.create(name, parsed as Record_);
       return json(201, created, { ...cors, location: `/${name}/${String(created[store.idKey])}` });
     }
@@ -316,6 +380,11 @@ async function handleCrud(
     const parsed = parseBody(rawBody);
     if (parsed === undefined || typeof parsed !== "object" || Array.isArray(parsed)) {
       return json(400, { error: `${method} body must be a JSON object` }, cors);
+    }
+    // PATCH is a partial update, so only validate full-body writes (PUT).
+    if (method === "PUT") {
+      const invalid = validateWrite(parsed);
+      if (invalid) return invalid;
     }
     const updated =
       method === "PUT"

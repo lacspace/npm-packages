@@ -1,7 +1,7 @@
 {
   "name": "lacspace-svg",
-  "version": "0.1.0",
-  "description": "Zero-dependency SVG toolkit — optimize/minify SVGs, convert to React/JSX or a data-URI, and build an SVG sprite sheet. Keyless, offline, no telemetry. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Zero-dependency SVG toolkit — optimize/minify SVGs, convert to React/Vue/Svelte/Solid components or a data-URI, inject currentColor, fix viewBox, and build an SVG sprite sheet. Keyless, offline, no telemetry. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-svg": "dist/cli.js"
@@ -26,9 +26,11 @@
   },
   "keywords": [
     "svg", "svgo", "svg-optimizer", "svg-minify", "optimize-svg", "svg-to-jsx",
-    "svg-to-react", "svg-component", "data-uri", "svg-sprite", "svg-symbol",
-    "svg-parser", "xml-parser", "cli", "typescript", "zero-dependency",
-    "svg-cleaner", "svg-encode", "react-svg", "background-image"
+    "svg-to-react", "svg-to-vue", "svg-to-svelte", "svg-to-solid", "svg-component",
+    "data-uri", "svg-sprite", "svg-symbol", "svg-parser", "xml-parser", "cli",
+    "typescript", "zero-dependency", "svg-cleaner", "svg-encode", "react-svg",
+    "vue-svg", "svelte-svg", "solid-svg", "currentcolor", "svg-viewbox",
+    "svg-dimensions", "background-image"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

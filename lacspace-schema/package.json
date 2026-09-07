@@ -1,7 +1,7 @@
 {
   "name": "lacspace-schema",
-  "version": "0.1.0",
-  "description": "Infer a JSON Schema (draft-07) from data, generate TypeScript types from JSON or a schema, and build realistic examples from a schema. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Infer a JSON Schema (draft-07) from data, generate TypeScript types & Zod schemas from JSON or a schema, validate data, build realistic examples, and import/export OpenAPI components. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-schema": "dist/cli.js"
@@ -29,7 +29,9 @@
     "typescript-types", "codegen", "type-generation", "draft-07",
     "json-to-schema", "schema-to-typescript", "quicktype", "json-schema-to-ts",
     "example-generator", "fixture", "cli", "typescript", "zero-dependency",
-    "schema-diff", "ndjson", "type-inference"
+    "schema-diff", "ndjson", "type-inference",
+    "json-schema-validator", "validate", "zod", "json-to-zod", "schema-to-zod",
+    "openapi", "swagger", "openapi-schema", "$ref", "json-pointer"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

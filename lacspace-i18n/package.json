@@ -1,7 +1,7 @@
 {
   "name": "lacspace-i18n",
-  "version": "0.1.0",
-  "description": "Find missing, unused and untranslated locale keys, diff locales, and check ICU/interpolation consistency — a keyless i18n linter for JSON, YAML and .properties. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Find missing, unused and untranslated locale keys, diff locales, validate ICU MessageFormat, convert between JSON/YAML/.properties/gettext .po, and auto-sync translations — a keyless i18n linter. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-i18n": "dist/cli.js"
@@ -27,9 +27,10 @@
   "keywords": [
     "i18n", "internationalization", "localization", "l10n", "translation",
     "locale", "translations", "missing-keys", "unused-keys", "icu",
-    "icu-messageformat", "interpolation", "json", "yaml", "properties",
-    "coverage", "i18next", "vue-i18n", "react-intl", "cli", "typescript",
-    "zero-dependency"
+    "icu-messageformat", "messageformat", "plural", "select", "interpolation",
+    "json", "yaml", "properties", "gettext", "po", "convert", "format-conversion",
+    "sync", "auto-sync", "coverage", "i18next", "vue-i18n", "react-intl",
+    "cli", "typescript", "zero-dependency"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

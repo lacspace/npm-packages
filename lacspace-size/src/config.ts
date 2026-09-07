@@ -11,11 +11,15 @@
  * }
  * ```
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { parseSize } from "./humansize.js";
 import { parseBudgetSpec } from "./budget.js";
 import type { Budget } from "./budget.js";
 import type { Metric } from "./analyze.js";
+
+/** Config filenames auto-discovered in the working directory, in priority order. */
+export const CONFIG_FILENAMES = [".sizerc.json", ".sizerc"] as const;
 
 export interface SizeConfig {
   metric?: Metric;
@@ -53,4 +57,17 @@ export function parseConfig(obj: unknown): SizeConfig {
 /** Read and parse a config file from disk. */
 export function loadConfig(path: string): SizeConfig {
   return parseConfig(JSON.parse(readFileSync(path, "utf8")));
+}
+
+/**
+ * Look for a `.sizerc.json` (then `.sizerc`) in `cwd` and return its path, or
+ * `undefined` when none exists. Lets a repo commit its size policy and have it
+ * picked up automatically with no `--config` flag.
+ */
+export function discoverConfig(cwd: string): string | undefined {
+  for (const name of CONFIG_FILENAMES) {
+    const p = join(cwd, name);
+    if (existsSync(p)) return p;
+  }
+  return undefined;
 }

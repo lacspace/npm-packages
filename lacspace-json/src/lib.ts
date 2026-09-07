@@ -58,6 +58,36 @@ export type { DiffEntry, DiffKind } from "./diff.js";
 export { merge, parseArrayStrategy } from "./merge.js";
 export type { ArrayStrategy, MergeOptions } from "./merge.js";
 
+// --- JSON Pointer (RFC 6901) ---
+export {
+  pointer,
+  hasPointer,
+  parsePointer,
+  buildPointer,
+  escapePointerToken,
+  unescapePointerToken,
+} from "./pointer.js";
+
+// --- JSON Patch (RFC 6902) ---
+export { patch, diffPatch } from "./patch.js";
+export type { PatchOp, JsonPatch } from "./patch.js";
+
+// --- flatten / unflatten ---
+export { flatten, unflatten, parseFlatKey } from "./flatten.js";
+export type { FlattenOptions } from "./flatten.js";
+
+// --- canonicalize / sort-keys ---
+export { canonicalize, sortKeys } from "./canonical.js";
+
+// --- JSONPath ($-style) ---
+export {
+  jsonPath,
+  jsonPathPaths,
+  parseJsonPath,
+  isJsonPath,
+  isValidJsonPath,
+} from "./jsonpath.js";
+
 // --- format ---
 export { formatJson, getPath, parsePath } from "./format.js";
 export type { FormatOptions } from "./format.js";

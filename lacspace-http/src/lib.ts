@@ -85,6 +85,22 @@ export { runHttpFile } from "./runner.js";
 export type { RunOptions, RunResult, RequestRunResult } from "./runner.js";
 
 export {
+  normalizeRetry,
+  backoffDelay,
+  retryDecision,
+  isRetryableOutcome,
+  DEFAULT_RETRY_STATUSES,
+  NO_RETRY,
+} from "./retry.js";
+export type { RetryPolicy, RetryOutcome, RetryVerdict } from "./retry.js";
+
+export { toHar, toHarEntry } from "./har.js";
+export type { HarLog, HarEntry, HarEntryInput, HarOptions, HarNameValue } from "./har.js";
+
+export { summarizeTimings, runBenchmark } from "./bench.js";
+export type { BenchStats, BenchOptions, BenchOutcome } from "./bench.js";
+
+export {
   humanSize,
   statusColor,
   prettyJson,

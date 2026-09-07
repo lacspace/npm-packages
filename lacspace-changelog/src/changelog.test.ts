@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { parseCommits } from "./commit.js";
-import { renderSection, prependChangelog, DEFAULT_GROUPS } from "./changelog.js";
+import {
+  renderSection,
+  prependChangelog,
+  parseVersionHeaders,
+  changelogHasVersion,
+  DEFAULT_GROUPS,
+} from "./changelog.js";
 import { parseRepository, urlTemplates } from "./repo.js";
 
 const ghUrls = urlTemplates(parseRepository("git+https://github.com/lacspace/npm-packages.git"));
@@ -140,5 +146,90 @@ describe("prependChangelog", () => {
 describe("DEFAULT_GROUPS", () => {
   it("puts Features first", () => {
     expect(DEFAULT_GROUPS[0]!.title).toBe("Features");
+  });
+});
+
+describe("renderSection — contributors section", () => {
+  const commits = parseCommits([
+    { message: "feat: a", authorName: "Ann", authorEmail: "ann@x.com" },
+    { message: "fix: b", authorName: "Bob", authorEmail: "bob@x.com" },
+  ]);
+
+  it("omits the Contributors section by default", () => {
+    const md = renderSection(commits, { version: "1.0.0" });
+    expect(md).not.toContain("Contributors");
+  });
+
+  it("appends a Contributors section when asked", () => {
+    const md = renderSection(commits, { version: "1.0.0", contributors: true });
+    expect(md).toContain("### Contributors");
+    expect(md).toContain("- Ann");
+    expect(md).toContain("- Bob");
+  });
+
+  it("honours a custom contributors title", () => {
+    const md = renderSection(commits, {
+      version: "1.0.0",
+      contributors: true,
+      contributorsTitle: "Thanks to",
+    });
+    expect(md).toContain("### Thanks to");
+  });
+});
+
+describe("parseVersionHeaders / changelogHasVersion", () => {
+  const md = [
+    "# Changelog",
+    "",
+    "## [1.2.0](https://github.com/o/r/compare/v1.1.0...v1.2.0) (2026-09-07)",
+    "",
+    "### Features",
+    "- x",
+    "",
+    "## 1.1.0 (2026-08-01)",
+    "",
+    "## [1.0.0] - 2026-01-01",
+  ].join("\n");
+
+  it("extracts every version, linked or plain, keep-a-changelog or not", () => {
+    expect(parseVersionHeaders(md)).toEqual(["1.2.0", "1.1.0", "1.0.0"]);
+  });
+
+  it("changelogHasVersion normalises a leading v", () => {
+    expect(changelogHasVersion(md, "1.1.0")).toBe(true);
+    expect(changelogHasVersion(md, "v1.0.0")).toBe(true);
+    expect(changelogHasVersion(md, "9.9.9")).toBe(false);
+  });
+});
+
+describe("prependChangelog — dedupe on merge", () => {
+  const existing =
+    "# Changelog\n\n## 1.1.0 (2026-01-01)\n\n### Features\n\n- old\n";
+
+  it("skips a version that already exists when skipIfExists is set", () => {
+    const section = "## 1.1.0 (2026-09-07)\n\n### Features\n\n- dup\n";
+    const out = prependChangelog(section, existing, {
+      version: "1.1.0",
+      skipIfExists: true,
+    });
+    expect(out).toBe(existing);
+    expect(out).not.toContain("- dup");
+  });
+
+  it("still prepends a genuinely new version", () => {
+    const section = "## 1.2.0 (2026-09-07)\n\n### Features\n\n- new\n";
+    const out = prependChangelog(section, existing, {
+      version: "1.2.0",
+      skipIfExists: true,
+    });
+    expect(out.indexOf("## 1.2.0")).toBeLessThan(out.indexOf("## 1.1.0"));
+    expect(out).toContain("- new");
+  });
+
+  it("prepends duplicates when skipIfExists is off (back-compat)", () => {
+    const section = "## 1.1.0 (2026-09-07)\n\n### Features\n\n- dup\n";
+    const out = prependChangelog(section, existing);
+    expect(out).toContain("- dup");
+    expect(out).toContain("- old");
   });
 });

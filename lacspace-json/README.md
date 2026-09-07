@@ -1,6 +1,6 @@
 # lacspace-json
 
-**The friendly `jq`.** A keyless, zero-dependency CLI + typed library to **query, convert, validate, diff and merge** structured data — JSON, YAML, TOML, CSV and NDJSON. Reads from a file, a glob or **stdin**, prints human-pretty by default, exits non-zero on failure so it drops straight into CI.
+**The friendly `jq`.** A keyless, zero-dependency CLI + typed library to **query, convert, validate, diff, patch and merge** structured data — JSON, YAML, TOML, CSV and NDJSON. Reads from a file, a glob or **stdin**, prints human-pretty by default, exits non-zero on failure so it drops straight into CI.
 
 ```bash
 echo '{"users":[{"name":"Ada","age":36,"active":true},{"name":"Ivy","age":19,"active":false}]}' \
@@ -9,6 +9,15 @@ echo '{"users":[{"name":"Ada","age":36,"active":true},{"name":"Ivy","age":19,"ac
 ```
 
 Everything runs locally. No API key, no account, no network, no telemetry — your data never leaves your machine.
+
+### New in 0.2.0
+
+- **JSONPath** (`$`-style) alongside the jq engine — `$.store.book[*].price`, recursive `$..author`, wildcards, unions, slices and filters `$..book[?(@.price<10)]`.
+- **RFC 6902 JSON Patch** — apply a patch (`json patch doc.json patch.json`) or **generate** one from two docs (`json diff a.json b.json --patch`). API: `patch`, `diffPatch`.
+- **RFC 6901 JSON Pointer** — resolve `/a/b/0` from CLI (`--pointer`) or lib (`pointer`, `hasPointer`, `buildPointer`).
+- **flatten / unflatten** — collapse to a `{ "a.b[0]": v }` map and back, round-trip safe, custom `--delimiter`.
+- **canonicalize / sort-keys** — `json sort` deep-sorts keys; `--canonical` emits stable minimal-whitespace JSON for hashing and reproducible diffs.
+- Still **zero runtime dependencies**, and the core stays **browser-safe** (no Node built-ins) so it runs in the hosted playground too.
 
 ## Why it exists
 
@@ -36,23 +45,31 @@ cat data.json | lacspace-json <command> [flags]
 
 | Command | Purpose |
 | --- | --- |
-| `query` / `get` | Run a jq-style query (default when `-q`/`--get` is given) |
+| `query` / `get` | Run a jq-style **or** JSONPath (`$…`) query (default when `-q`/`--get` is given) |
 | `convert` | JSON ⇄ YAML ⇄ TOML ⇄ CSV ⇄ NDJSON |
 | `validate` | Validate a document against a JSON Schema (draft-07 subset) |
-| `diff` | Structural diff of two documents |
+| `diff` | Structural diff of two documents (`--patch` emits an RFC 6902 JSON Patch) |
+| `patch` | Apply an RFC 6902 JSON Patch: `patch <doc> <patch.json>` |
 | `merge` | Deep-merge N documents |
+| `flatten` | Collapse to a flat `{ "a.b[0]": v }` map |
+| `unflatten` | Rebuild nesting from a flat map |
+| `sort` | Deep-sort object keys (`--canonical` emits canonical JSON) |
 | `format` | Pretty-print / minify (the default when only an input is given) |
 
 | Flag | Description |
 | --- | --- |
 | `--from <fmt>` | Input format override: `json` \| `yaml` \| `toml` \| `csv` \| `ndjson` (else auto-detected) |
-| `--to <fmt>` | Output format (for `convert`, and `merge`/`format`) |
-| `-q, --query <expr>` | Query expression (see the language below) |
+| `--to <fmt>` | Output format (for `convert`, and `merge`/`format`/`sort`) |
+| `-q, --query <expr>` | Query expression — jq-style or JSONPath (see the language below) |
 | `--get <path>` | Shorthand: extract a single value at `.a.b[0]` |
+| `-p, --pointer <ptr>` | Resolve an RFC 6901 JSON Pointer (`/a/b/0`) |
 | `--schema <file>` | JSON Schema file (for `validate`) |
+| `--patch` | `diff`: emit an RFC 6902 JSON Patch instead of a report |
 | `--indent <n>` | Indent width for pretty JSON/YAML (default `2`) |
 | `--sort-keys` | Sort object keys recursively |
+| `--canonical` | Canonical JSON output (sorted keys, minimal whitespace) |
 | `--min` | Minify JSON output |
+| `-d, --delimiter <s>` | Key delimiter for `flatten` / `unflatten` (default `.`) |
 | `-r, --raw` | Print string scalars unquoted (great for shell pipelines) |
 | `--json` | Force machine-readable JSON output (`diff` / `validate`) |
 | `--array <mode>` | Merge array strategy: `concat` \| `replace` \| `by-key` |
@@ -73,7 +90,23 @@ funcs     keys values length type has(k) map(.x) unique reverse flatten
           sort_by(.x) group_by(.x) first last min max sum avg add
 ```
 
-**Unsupported (on purpose):** arithmetic on outputs, string interpolation, object/array construction (`{a: .b}`, `[...]`), `//` alternative, `..` recursive descent, `def`/functions, and `@base64`-style builtins. For those, reach for real `jq`.
+**Unsupported (on purpose):** arithmetic on outputs, string interpolation, object/array construction (`{a: .b}`, `[...]`), `//` alternative, `def`/functions, and `@base64`-style builtins. For those, reach for real `jq`.
+
+### JSONPath (`$…`)
+
+When a query starts with `$`, the JSONPath engine runs instead — handy for recursive descent, which the jq subset skips. Returns the matched values in document order.
+
+```
+root/child   $.store.book        $['store']['book']
+wildcard      $.store.*           $.store.book[*]
+recursive     $..author           $..price          $..[?(@.price<10)]
+index/union   $.book[0]           $.book[-1]        $.book[0,2]
+slice         $.book[0:2]         $.book[::2]
+filter        $.book[?(@.price < 10)]   $.book[?(@.isbn)]
+              $.book[?(@.cat == 'fiction' && @.price < 10)]   $..[?(@.n =~ /^a/)]
+```
+
+**Unsupported:** script expressions `[(...)]`, functions like `length()`, and parent navigation. Use `jsonPathPaths` to get the RFC 6901 pointer of each match.
 
 ## Examples
 
@@ -104,6 +137,25 @@ lacspace-json diff old.yaml new.yaml
 
 # Deep-merge, matching array items by their id
 lacspace-json merge base.json patch.json --array by-key --array-key id
+
+# JSONPath: every price in the tree, recursively
+echo '{"store":{"book":[{"price":8.95},{"price":22.5}],"bike":{"price":19.95}}}' \
+  | lacspace-json -q '$..price'
+
+# Resolve an RFC 6901 JSON Pointer
+echo '{"a":{"b":[10,20,30]}}' | lacspace-json --pointer /a/b/2
+# 30
+
+# Generate an RFC 6902 patch, then apply it
+lacspace-json diff old.json new.json --patch > changes.json
+lacspace-json patch old.json changes.json          # == new.json
+
+# Flatten for grep/env-style diffs, then rebuild
+lacspace-json flatten config.json                   # { "server.ports[0]": 80, ... }
+lacspace-json unflatten flat.json
+
+# Canonical JSON for hashing / reproducible diffs
+lacspace-json sort data.json --canonical | shasum
 ```
 
 Example diff output:
@@ -138,9 +190,16 @@ import { query, convert, validateSchema, diff, merge } from "lacspace-json";
 | `validateSchema` | `(data, schema) => { valid: boolean; errors: { path; message }[] }` |
 | `diff` / `isEqual` | `(a, b) => DiffEntry[]` / `(a, b) => boolean` |
 | `merge` / `parseArrayStrategy` | `(values[], opts?) => value` |
+| `patch` / `diffPatch` | `(doc, ops: JsonPatch) => value` (RFC 6902 apply) · `(a, b) => JsonPatch` (generate) |
+| `pointer` / `hasPointer` | `(doc, "/a/b/0") => value` (throws if missing) · non-throwing check (RFC 6901) |
+| `parsePointer` / `buildPointer` | pointer string ⇄ token array (escapes `~0`/`~1`) |
+| `jsonPath` / `jsonPathPaths` | `(doc, "$…") => value[]` · matched values · their RFC 6901 pointers |
+| `isJsonPath` / `isValidJsonPath` | detect a `$…` expr · validate its syntax |
+| `flatten` / `unflatten` | `(value, opts?) => {path:value}` ⇄ nested; `opts.delimiter` |
+| `canonicalize` / `sortKeys` | canonical JSON string · deep key-sorted copy |
 | `formatJson` / `getPath` / `parsePath` | pretty/minify · single-value getter · path tokenizer |
 
-`Format` is `"json" | "yaml" | "toml" | "csv" | "ndjson"`. Types (`JsonValue`, `DiffEntry`, `ValidationResult`, `ArrayStrategy`, …) are exported too. Fully typed, dual ESM + CJS.
+`Format` is `"json" | "yaml" | "toml" | "csv" | "ndjson"`. Types (`JsonValue`, `DiffEntry`, `ValidationResult`, `ArrayStrategy`, `PatchOp`, `JsonPatch`, `FlattenOptions`, …) are exported too. Fully typed, dual ESM + CJS. The whole library is **browser-safe** — no Node built-ins in the engine.
 
 ## Limitations (honest)
 
@@ -148,7 +207,9 @@ import { query, convert, validateSchema, diff, merge } from "lacspace-json";
 - **TOML** covers keys, tables, arrays-of-tables, dotted keys, inline tables, and the standard scalar types. Date-times are kept as **strings** (no native date typing); multi-line strings (`"""`) aren't parsed.
 - **CSV** assumes a header row and flat rows; nested values are JSON-encoded on write.
 - **JSON Schema** is a draft-07 **subset** (see `validateSchema`'s doc): local `$ref` only, no `if/then/else`, `dependencies`, or draft-2020 keywords.
-- The **query language** is deliberately a subset of jq (see above).
+- The **query language** is deliberately a subset of jq, and **JSONPath** is a pragmatic subset of Goessner (see above).
+- **`diffPatch`** emits element-wise ops for equal-length arrays and otherwise replaces the whole array — always correct, not always minimal.
+- **flatten** keeps empty objects/arrays as leaf values so the round-trip stays lossless.
 
 ## Licence
 

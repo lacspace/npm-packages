@@ -1,6 +1,6 @@
 {
   "name": "lacspace-license",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Keyless licence manager for your codebase — generate a LICENSE from an SPDX id, add/refresh per-file licence headers, build THIRD-PARTY-NOTICES, and gate CI that everything matches. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -28,7 +28,9 @@
     "license", "licence", "spdx", "license-header", "license-generator",
     "third-party-notices", "notices", "license-check", "ci", "compliance",
     "mit", "apache-2.0", "copyright", "header", "source-header",
-    "cli", "typescript", "zero-dependency", "oss", "attribution", "license-manager"
+    "cli", "typescript", "zero-dependency", "oss", "attribution", "license-manager",
+    "license-detection", "detect-license", "license-compatibility", "compatibility",
+    "gpl-compatibility", "copyleft", "spdx-detect", "license-fix"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

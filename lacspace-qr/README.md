@@ -8,6 +8,15 @@ npx lacspace-qr "https://lacspace.com"
 #   https://lacspace.com  ·  v2 · ecc M · mask 2 · 25×25
 ```
 
+### New in 0.2.0
+
+- **Styled SVG modules** — `--shape square|dots|rounded` plus a distinct finder-eye shape via `--eye`.
+- **Centre logo / initials** — `--logo <text|file|data-uri>`, drawn in a cleared quiet band (guarded: needs `--ecc Q|H`).
+- **Gradient foreground** — `--gradient from,to[,angle]` emits a real SVG `<linearGradient>` two-tone fill.
+- **Full-block ANSI render** — `renderToAnsi` / `-f ansi` for a one-module-per-cell terminal QR.
+- **Calendar payload** — `calendarPayload` / the `calendar` preset build an iCalendar `VEVENT`.
+- **`batch` subcommand** — `lacspace-qr batch list.csv --out dir/` (the pure `planBatch` maps rows → `{name,payload}`).
+
 ## Why it exists
 
 Most QR libraries pull in a tree of dependencies or phone home to an image API. `lacspace-qr` does neither: it's a single, auditable, offline tool. It implements the ISO/IEC 18004 encoding pipeline properly — mode selection, character-count headers, Reed–Solomon ECC over GF(256), block interleaving, all seven function patterns, and penalty-scored mask selection — so the codes it emits are genuinely spec-correct and scan on real phones.
@@ -30,7 +39,7 @@ npm i lacspace-qr
 ```
 lacspace-qr "<text or url>" [options]
 lacspace-qr <preset> [preset args] [options]
-lacspace-qr --batch list.csv --out-dir out -f svg
+lacspace-qr batch list.csv --out out/ -f svg
 ```
 
 ### Presets
@@ -45,6 +54,7 @@ lacspace-qr --batch list.csv --out-dir out -f svg
 | `tel` | `lacspace-qr tel --tel +9779800000000` |
 | `sms` | `lacspace-qr sms --tel +15551234 --message "hi"` |
 | `geo` | `lacspace-qr geo 27.7172 85.3240` |
+| `calendar` | `lacspace-qr calendar --vtitle "Launch" --start 2026-10-01T09:00Z [--end --location --body]` |
 
 A bare `lacspace-qr "<string>"` just encodes the string (text or URL).
 
@@ -61,6 +71,22 @@ npx lacspace-qr wifi --ssid Home --password s3cret
 # Branded SVG
 npx lacspace-qr "https://x.com" -f svg -o qr.svg --fg "#4d9fff" --radius 0.4
 
+# Styled: dot modules with rounded finder eyes
+npx lacspace-qr "https://x.com" -f svg -o qr.svg --shape dots --eye rounded
+
+# Two-tone gradient foreground
+npx lacspace-qr "https://x.com" -f svg -o qr.svg --gradient "#4d9fff,#a855f7,45"
+
+# Centre logo / initials (needs high ECC to stay scannable)
+npx lacspace-qr "https://lacspace.com" -f svg -o qr.svg --ecc H --logo LS
+npx lacspace-qr "https://lacspace.com" -f svg -o qr.svg --ecc H --logo ./brand.svg
+
+# Full-block terminal render
+npx lacspace-qr "https://lacspace.com" -f ansi   # or: --ansi
+
+# Calendar event (VEVENT)
+npx lacspace-qr calendar --vtitle "Launch" --start 2026-10-01T09:00Z -f svg -o event.svg
+
 # vCard as a PNG (hand-written encoder → real 8-bit RGBA PNG)
 npx lacspace-qr vcard --name "Ada Lovelace" --tel +9779800000000 -f png -o ada.png
 
@@ -71,7 +97,7 @@ npx lacspace-qr geo 27.7172 85.3240 -f svg -o place.svg
 npx lacspace-qr "MISSION CRITICAL" --ecc H --qr-version 5
 
 # Batch: one file per CSV row, named by the id column
-npx lacspace-qr --batch urls.csv --out-dir out -f png --scale 8
+npx lacspace-qr batch urls.csv --out out/ -f png --scale 8
 ```
 
 `urls.csv` can be `id,url` (or any `id` + `data`/`text`/`url`/`content` headers); a single-column CSV or a `.txt` list numbers rows automatically.
@@ -80,10 +106,12 @@ npx lacspace-qr --batch urls.csv --out-dir out -f png --scale 8
 
 | Flag | Description |
 | --- | --- |
-| `-f, --format <term\|svg\|png>` | Output format (default `term`) |
+| `-f, --format <term\|ansi\|svg\|png>` | Output format (default `term`) |
+| `--ansi` | Full-block terminal render (alias for `-f ansi`) |
 | `-o, --out <file>` | Write to a file instead of stdout (required for PNG) |
-| `--batch <list.csv\|.txt>` | Generate one file per row |
-| `--out-dir <dir>` | Output directory for `--batch` (default `out`) |
+| `batch <list.csv\|.txt>` | Subcommand: generate one file per row (`--out`/`--out-dir` sets the dir) |
+| `--batch <list.csv\|.txt>` | Same, as a flag |
+| `--out-dir <dir>` | Output directory for batch (default `out`) |
 | `--ecc <L\|M\|Q\|H>` | Error-correction level (default `M`) |
 | `--qr-version <1-40>` | Force the QR **symbol** version |
 | `--min-version <1-40>` | Minimum symbol version |
@@ -95,7 +123,12 @@ npx lacspace-qr --batch urls.csv --out-dir out -f png --scale 8
 | `--fg <colour>` | Dark-module colour (svg/png, default `#000000`) |
 | `--bg <colour>` | Background colour (svg/png; `transparent` supported) |
 | `--radius <0-0.5>` | Rounded modules (svg) |
-| `--invert` | Swap dark/light (terminal, for light backgrounds) |
+| `--shape <square\|dots\|rounded>` | Module shape (svg) |
+| `--eye <square\|dots\|rounded>` | Distinct finder-eye shape (svg) |
+| `--gradient <from,to[,angle]>` | Two-tone linear-gradient foreground (svg) |
+| `--logo <text\|file\|data-uri>` | Centre logo/initials (svg; needs `--ecc Q\|H`) |
+| `--logo-size <0.05-0.35>` | Logo box as a fraction of the symbol (svg) |
+| `--invert` | Swap dark/light (terminal/ansi, for light backgrounds) |
 | `--json` | Print metadata as JSON |
 | `-h, --help` | Show help |
 | `-v, --version` | Print the tool version |
@@ -109,9 +142,15 @@ Invalid input (a payload too large for the chosen version, an unknown ECC level,
 ```ts
 import { makeQr, renderToSvg, renderToTerminal, renderToPng, wifiPayload } from "lacspace-qr";
 
-const qr = makeQr("https://lacspace.com", { ecc: "M" });
+const qr = makeQr("https://lacspace.com", { ecc: "H" });
 console.log(renderToTerminal(qr));
-const svg = renderToSvg(qr, { size: 512, fg: "#4d9fff" });
+const svg = renderToSvg(qr, {
+  size: 512,
+  shape: "dots",
+  eye: "rounded",
+  fg: { from: "#4d9fff", to: "#a855f7", angle: 45 }, // gradient foreground
+  logo: "LS",                                        // centre initials (needs ecc Q|H)
+});
 const png = renderToPng(qr, { scale: 10 }); // Uint8Array of PNG bytes
 
 const wifi = makeQr(wifiPayload({ ssid: "Lacspace", password: "s3cret" }));
@@ -122,15 +161,18 @@ const wifi = makeQr(wifiPayload({ ssid: "Lacspace", password: "s3cret" }));
 | `makeQr` | `(text, opts?) => QrCode` | Encode text into a full QR matrix (auto version/mode/mask) |
 | `encodeText` | `(text, opts?) => EncodedData` | Just the interleaved codeword stream + chosen version/mode |
 | `renderToTerminal` | `(qr, opts?) => string` | Unicode half-block rendering |
-| `renderToSvg` | `(qr, opts?) => string` | Crisp SVG document |
+| `renderToAnsi` | `(qr, opts?) => string` | Full-block terminal render (2 chars/module) |
+| `renderToSvg` | `(qr, opts?) => string` | Crisp SVG document (shape / eye / gradient / logo) |
 | `renderToPng` | `(qr, opts?) => Uint8Array` | Hand-written 8-bit RGBA PNG |
 | `renderToImage` | `(qr, opts?) => ImageData` | Raw RGBA raster |
-| `wifiPayload` / `vcardPayload` / `emailPayload` / `telPayload` / `smsPayload` / `geoPayload` / `urlPayload` | payload builders | Correctly-formatted payload strings |
+| `isFinderModule` | `(qr, x, y) => boolean` | Is a module inside a finder pattern (eye styling) |
+| `logoClearing` | `(qr, logo) => LogoClearing` | Pure centre-clearing geometry + ECC guard |
+| `wifiPayload` / `vcardPayload` / `emailPayload` / `telPayload` / `smsPayload` / `geoPayload` / `urlPayload` / `calendarPayload` | payload builders | Correctly-formatted payload strings |
 | `gfMul` / `gfPow` / `rsComputeDivisor` / `rsComputeRemainder` | GF(256) + Reed–Solomon | The low-level ECC math |
-| `parseBatch` | `(contents, "csv"\|"txt") => BatchRow[]` | Parse a batch list |
+| `parseBatch` / `planBatch` | `(contents, "csv"\|"txt") => BatchRow[] / BatchPlan[]` | Parse a batch list (`planBatch` → `{name,payload}`) |
 | `numDataCodewords` / `dataCapacityBits` / `alignmentPatternPositions` | capacity helpers | Version/ECC geometry |
 
-Types: `QrCode`, `QrOptions`, `EccLevel` (`"L"\|"M"\|"Q"\|"H"`), `QrMode`, `EncodedData`, `WifiPayload`, `VcardPayload`, `SvgOptions`, `PngOptions`, `TerminalOptions`, `BatchRow`, `Rgba`.
+Types: `QrCode`, `QrOptions`, `EccLevel` (`"L"\|"M"\|"Q"\|"H"`), `QrMode`, `EncodedData`, `WifiPayload`, `VcardPayload`, `CalendarPayload`, `SvgOptions`, `Gradient`, `ModuleShape`, `LogoOptions`, `LogoClearing`, `PngOptions`, `TerminalOptions`, `AnsiOptions`, `BatchRow`, `BatchPlan`, `Rgba`.
 
 ## Correctness
 
@@ -140,7 +182,7 @@ The encoder is validated against independent published reference vectors: the *"
 
 - **Single-mode encoding.** Each payload is encoded in one auto-selected mode (numeric, alphanumeric, or UTF-8 byte). This is spec-valid and compact for typical inputs; it does not compute the theoretically optimal *mixed*-mode segmentation.
 - **No Kanji mode** and **no ECI**. Non-ASCII text is UTF-8 byte-encoded (which the vast majority of scanners read correctly), rather than using Shift-JIS Kanji mode.
-- **No logo/eye styling** beyond `--fg`/`--bg`/`--radius`. Structured-append (splitting one message across multiple symbols) is not implemented.
+- **Structured-append** (splitting one message across multiple symbols) is not implemented. Logo, eye styling, gradients and module shapes are supported in the SVG renderer (`--shape`/`--eye`/`--gradient`/`--logo`), but not in the PNG rasteriser.
 - **Barcodes:** only QR is implemented. Code-128 was intentionally left out for now rather than adding scope — it can be added later, still zero-dependency.
 - PNG is written as an 8-bit RGBA (colour type 6) image; it is not size-optimised (no palette/indexed output).
 

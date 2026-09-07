@@ -55,8 +55,10 @@ export { gfMul, gfExp, gfLog, gfPow, rsComputeDivisor, rsComputeRemainder, GF_PR
 
 export { renderToTerminal } from "./terminal.js";
 export type { TerminalOptions } from "./terminal.js";
-export { renderToSvg } from "./svg.js";
-export type { SvgOptions } from "./svg.js";
+export { renderToAnsi } from "./ansi.js";
+export type { AnsiOptions } from "./ansi.js";
+export { renderToSvg, isFinderModule, logoClearing } from "./svg.js";
+export type { SvgOptions, Gradient, ModuleShape, LogoOptions, LogoClearing } from "./svg.js";
 export { renderToPng, renderToImage, encodePng, isPng, crc32 } from "./png.js";
 export type { PngOptions, ImageData } from "./png.js";
 
@@ -68,13 +70,21 @@ export {
   smsPayload,
   geoPayload,
   urlPayload,
+  calendarPayload,
   escapeWifi,
   escapeVcard,
+  escapeIcs,
 } from "./payloads.js";
-export type { WifiPayload, VcardPayload, EmailPayload, SmsPayload } from "./payloads.js";
+export type {
+  WifiPayload,
+  VcardPayload,
+  EmailPayload,
+  SmsPayload,
+  CalendarPayload,
+} from "./payloads.js";
 
 export { parseColor, toCss } from "./color.js";
 export type { Rgba } from "./color.js";
 
-export { parseBatch, parseCsvLine, safeFilename } from "./batch.js";
-export type { BatchRow } from "./batch.js";
+export { parseBatch, parseCsvLine, safeFilename, planBatch } from "./batch.js";
+export type { BatchRow, BatchPlan } from "./batch.js";

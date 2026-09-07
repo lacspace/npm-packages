@@ -8,9 +8,13 @@ import { schemaToTs, jsonToTs } from "./schema2ts.js";
 import type { TsOptions } from "./schema2ts.js";
 import { schemaToExample } from "./example.js";
 import { diffSchemas } from "./diff.js";
+import { validate } from "./validate.js";
+import { schemaToZod, jsonToZod } from "./zod.js";
+import type { ZodOptions } from "./zod.js";
+import { fromOpenApi, toOpenApi } from "./openapi.js";
 import { isPlainObject } from "./util.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const useColor = !process.env.NO_COLOR;
 const C = {
@@ -32,6 +36,8 @@ interface Args {
   title?: string;
   indent: number;
   requiredOnly: boolean;
+  full: boolean;
+  wrap: boolean;
   json: boolean;
   help: boolean;
   version: boolean;
@@ -40,7 +46,8 @@ interface Args {
 function parseArgs(list: string[]): Args {
   const a: Args = {
     positional: [], readonly: false, jsdoc: false, enum: false,
-    indent: 2, requiredOnly: false, json: false, help: false, version: false,
+    indent: 2, requiredOnly: false, full: false, wrap: false,
+    json: false, help: false, version: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -58,6 +65,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--title") a.title = nextVal();
     else if (arg === "--indent") a.indent = Math.max(0, Number(nextVal()) || 0);
     else if (arg === "--required-only") a.requiredOnly = true;
+    else if (arg === "--full") a.full = true;
+    else if (arg === "--wrap") a.wrap = true;
     else if (arg === "--json") a.json = true;
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg === "-v" || arg === "--version") a.version = true;
@@ -73,14 +82,17 @@ ${c("bold", "Usage")}
   npx lacspace-schema <command> [input] [options]
 
 ${c("bold", "Commands")}
-  infer   [file|glob]        Infer a draft-07 JSON Schema from JSON/NDJSON data
-  types   [file|glob]        Generate TypeScript types from JSON ${c("dim", "or")} a JSON Schema
-  example [schema-file]      Generate an example instance that satisfies a schema
-  diff    <before> <after>   Compare two JSON Schemas for breaking changes
+  infer    [file|glob]         Infer a draft-07 JSON Schema from JSON/NDJSON data
+  types    [file|glob]         Generate TypeScript types from JSON ${c("dim", "or")} a JSON Schema
+  zod      [file|glob]         Generate Zod schema source from JSON ${c("dim", "or")} a JSON Schema
+  example  [schema-file]       Generate an example instance that satisfies a schema
+  validate <schema> <data>     Validate a JSON data file against a schema (exit 1 on invalid)
+  openapi  [doc]               Extract component schemas from an OpenAPI/Swagger doc
+  diff     <before> <after>    Compare two JSON Schemas for breaking changes
 
 ${c("bold", "Options")}
   --name <RootName>      Name for the root type / schema title (default Root)
-  --from json|schema     Force how 'types' reads its input (default: auto-detect)
+  --from json|schema     Force how 'types'/'zod' read input (default: auto-detect)
   --enum-threshold <n>   Detect enums with <= n distinct values (0 = off, default)
   --no-required          Mark every inferred property optional
   --all-required         Mark every inferred property required
@@ -88,9 +100,11 @@ ${c("bold", "Options")}
   --jsdoc                Add example values as JSDoc comments (types)
   --enum                 Emit real TS enums for string enums (types)
   --required-only        Example: include only required properties
-  --title <str>          Set the schema 'title' (infer)
+  --wrap                 openapi: wrap the input schema into a components block
+  --full                 openapi: emit a full minimal OpenAPI 3 document
+  --title <str>          Set the schema 'title' (infer) / info.title (openapi)
   --indent <n>           Indent width for JSON/TS output (default 2)
-  --json                 Machine-readable JSON (diff)
+  --json                 Machine-readable JSON (diff, validate)
   -h, --help             Show this help
   -v, --version          Print the version
 
@@ -98,7 +112,10 @@ ${c("bold", "Examples")}
   echo '{"id":1,"email":"a@x.com"}' | npx lacspace-schema infer
   npx lacspace-schema infer 'samples/*.json' --enum-threshold 6 --name User
   npx lacspace-schema types user.json --name User --jsdoc
-  npx lacspace-schema types user.schema.json --from schema --enum
+  npx lacspace-schema zod user.json --name User
+  npx lacspace-schema validate user.schema.json user.json
+  npx lacspace-schema openapi api.yaml.json          # extract components → { name: schema }
+  npx lacspace-schema openapi user.schema.json --wrap --name User
   npx lacspace-schema example user.schema.json
   npx lacspace-schema diff v1.schema.json v2.schema.json
 `;
@@ -191,6 +208,15 @@ function parseSamples(text: string): JsonValue[] {
   return out;
 }
 
+/** Parse a single arbitrary JSON document (data or an OpenAPI doc). */
+function parseSchemalessJson(text: string): JsonValue {
+  try {
+    return JSON.parse(text.trim()) as JsonValue;
+  } catch (err) {
+    fail(`invalid JSON: ${(err as Error).message}`);
+  }
+}
+
 function parseSchema(text: string): JSONSchema {
   let v: unknown;
   try {
@@ -272,6 +298,68 @@ function cmdTypes(a: Args): void {
   stdout.write(jsonToTs(parsed, opts));
 }
 
+function cmdZod(a: Args): void {
+  const text = readInputs(a.positional[1]);
+  let mode = a.from;
+  const opts: ZodOptions = {};
+  if (a.name) opts.name = a.name;
+  if (mode === "schema") {
+    stdout.write(schemaToZod(parseSchema(text), opts));
+    return;
+  }
+  const parsed = parseSamples(text);
+  if (!mode && parsed.length === 1 && looksLikeSchema(parsed[0]!)) mode = "schema";
+  if (mode === "schema") {
+    stdout.write(schemaToZod(parsed[0] as JSONSchema, opts));
+    return;
+  }
+  const zopts = opts as ZodOptions & { enumThreshold?: number; required?: "detected" | "all" | "none" };
+  zopts.enumThreshold = a.enumThreshold ?? 0;
+  if (a.required) zopts.required = a.required;
+  stdout.write(jsonToZod(parsed, zopts));
+}
+
+function cmdValidate(a: Args): void {
+  const [, schemaArg, dataArg] = a.positional;
+  if (!schemaArg || !dataArg) fail("validate needs a schema and a data file: validate <schema> <data>");
+  const schema = parseSchema(readInputs(schemaArg));
+  const data = parseSchemalessJson(readInputs(dataArg));
+  const result = validate(schema, data);
+  if (a.json) {
+    jsonPrint(result, a.indent);
+    if (!result.valid) exit(1);
+    return;
+  }
+  log(`\n${c("bold", c("magenta", "◆ lacspace-schema validate"))} ${c("dim", `${basename(schemaArg)} ← ${basename(dataArg)}`)}\n`);
+  if (result.valid) {
+    log(`  ${c("green", "✓ valid")}\n`);
+    return;
+  }
+  for (const e of result.errors) {
+    log(`  ${c("red", "✗")} ${c("cyan", e.path || "(root)")} ${c("dim", `[${e.keyword}]`)} ${e.message}`);
+  }
+  log("");
+  log(`  ${c("red", `${result.errors.length} error(s)`)}\n`);
+  exit(1);
+}
+
+function cmdOpenapi(a: Args): void {
+  const text = readInputs(a.positional[1]);
+  if (a.wrap) {
+    const schema = parseSchema(text);
+    const name = a.name || (typeof schema.title === "string" ? schema.title : "Schema");
+    const doc = toOpenApi({ [name]: schema }, {
+      full: a.full,
+      ...(a.title ? { title: a.title } : {}),
+    });
+    jsonPrint(doc, a.indent);
+    return;
+  }
+  const doc = parseSchemalessJson(text);
+  const { schemas } = fromOpenApi(doc);
+  jsonPrint(schemas, a.indent);
+}
+
 function cmdExample(a: Args): void {
   const schema = parseSchema(readInputs(a.positional[1]));
   const ex = schemaToExample(schema, { includeOptional: !a.requiredOnly });
@@ -312,10 +400,13 @@ function main(): void {
   switch (command) {
     case "infer": return cmdInfer(args);
     case "types": return cmdTypes(args);
+    case "zod": return cmdZod(args);
     case "example": return cmdExample(args);
+    case "validate": return cmdValidate(args);
+    case "openapi": return cmdOpenapi(args);
     case "diff": return cmdDiff(args);
     default:
-      fail(`unknown command: ${command} (try infer | types | example | diff)`);
+      fail(`unknown command: ${command} (try infer | types | zod | example | validate | openapi | diff)`);
   }
 }
 

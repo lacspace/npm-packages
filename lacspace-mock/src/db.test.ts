@@ -77,4 +77,23 @@ describe("Store", () => {
     expect(s.get("items", "5")).toEqual({ _id: 5 });
     expect(s.create("items", {})["_id"]).toBe(6);
   });
+
+  it("reset() restores the original collections and fires onChange", () => {
+    const onChange = vi.fn();
+    const s = new Store({ users: [{ id: 1, name: "Ava" }] }, { onChange });
+    s.create("users", { name: "Ben" });
+    s.remove("users", "1");
+    expect(s.list("users")).toHaveLength(1);
+    onChange.mockClear();
+    s.reset();
+    expect(s.list("users")).toEqual([{ id: 1, name: "Ava" }]);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("reset() clones deeply — the original is not mutated by later edits", () => {
+    const s = new Store({ users: [{ id: 1, tags: ["a"] }] });
+    (s.get("users", "1") as { tags: string[] }).tags.push("b");
+    s.reset();
+    expect(s.get("users", "1")).toEqual({ id: 1, tags: ["a"] });
+  });
 });

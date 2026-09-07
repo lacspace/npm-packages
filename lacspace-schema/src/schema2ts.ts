@@ -10,6 +10,7 @@
 import type { JsonValue, JSONSchema } from "./types.js";
 import { inferSchema } from "./infer.js";
 import type { InferOptions } from "./infer.js";
+import { resolveRef, refName } from "./refs.js";
 import {
   isValidIdentifier,
   pascalCase,
@@ -40,13 +41,9 @@ interface Decl {
 }
 
 function resolveRefTarget(root: JSONSchema, ref: string): { key: string; schema: JSONSchema } | null {
-  const m = /^#\/(definitions|\$defs)\/(.+)$/.exec(ref);
-  if (!m) return null;
-  const bucket = (root[m[1] as "definitions" | "$defs"] ?? {}) as Record<string, JSONSchema>;
-  const key = decodeURIComponent(m[2]!);
-  const schema = bucket[key];
-  if (!schema) return null;
-  return { key, schema };
+  const schema = resolveRef(root, ref);
+  if (!schema || ref === "#") return null;
+  return { key: refName(ref), schema };
 }
 
 class TsGen {

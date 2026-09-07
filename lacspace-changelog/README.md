@@ -11,6 +11,15 @@ npx lacspace-changelog preview
 #   bump    1.2.0 → 1.3.0  (minor bump: 1 feature)
 ```
 
+### New in 0.2.0
+
+- **`generate` command + first-class git range** — `lacspace-changelog generate --from v1.0.0 --to HEAD` reads the log directly.
+- **Contributors section** — `--contributors` aggregates unique authors (and co-authors) into a de-duplicated, sorted list.
+- **Custom commit-type config** — drop a `.changelogrc.json` to remap `type → section title`, decide which types bump (`major`/`minor`/`patch`) and hide the noise; `renderSection` and `recommendBump` both honour it.
+- **Breaking-change highlighting** — a dedicated `⚠ BREAKING CHANGES` section from both `type!:` and `BREAKING CHANGE:` footers, forcing a major bump. New `collectBreaking` helper.
+- **Compare / issue / SHA links** — `buildCompareLink()` plus `linkifyRefs()` to turn `#123` and bare commit SHAs into markdown links.
+- **Duplicate-safe merge** — re-running won't double-prepend a version already in `CHANGELOG.md` (parses the existing `## [x.y.z]` headers); `--allow-duplicate` overrides.
+
 ## Why it exists
 
 - **Free & keyless** — no account, no service, no telemetry. It reads your local git log and writes a local file.
@@ -54,6 +63,7 @@ lacspace-changelog [command] [options]
 | Command | What it does |
 | --- | --- |
 | _(default)_ | Render the new version section and **prepend** it to `CHANGELOG.md`. |
+| `generate` | Alias of the default — read git and prepend the new section. |
 | `version` | Print **only** the computed next version — `VER=$(lacspace-changelog version)`. |
 | `notes` | Print **only** the new section — a ready-to-paste GitHub release body. |
 | `preview` | Print the plan (range, commit counts, bump) and the section, writing nothing. |
@@ -75,7 +85,13 @@ echo "Releasing $VER"
 npx lacspace-changelog notes > RELEASE_NOTES.md
 
 # Notes for an explicit commit range
-npx lacspace-changelog notes --from v1.2.0 --to HEAD
+npx lacspace-changelog generate --from v1.2.0 --to HEAD
+
+# Add a Contributors section
+npx lacspace-changelog --contributors
+
+# Use a custom commit-type config
+npx lacspace-changelog --config .changelogrc.json
 
 # A beta prerelease
 npx lacspace-changelog version --preid beta      # 1.3.0-beta.0
@@ -110,6 +126,9 @@ Example generated section (GitHub repo):
 | `--release-as <x>` | Force `major` / `minor` / `patch`, or an explicit version like `2.0.0`. |
 | `--preid <id>` | Prerelease identifier, e.g. `beta` → `1.3.0-beta.0`. |
 | `--repo-url <url>` | Override the repo URL used for commit / PR / compare links. |
+| `--config <path>` | Load a `.changelogrc.json` (type → section / bump / hidden). Default: the cwd. |
+| `--contributors` | Append a **Contributors** section aggregated from the commit authors. |
+| `--allow-duplicate` | Prepend even when the computed version is already in the changelog. |
 | `-o, --output <file>` | Changelog file to write / prepend (default `CHANGELOG.md`). |
 | `--strict` | Drop non-conventional commits instead of bucketing them under "Other". |
 | `--always` | Bump the patch even when nothing notable changed. |
@@ -123,6 +142,25 @@ Example generated section (GitHub repo):
 | `-v, --version` | Print the tool version. |
 
 Respects `NO_COLOR`. Data goes to **stdout**, diagnostics to **stderr**, so `notes`/`version` pipe cleanly.
+
+### Custom commit-type config (`.changelogrc.json`)
+
+Drop a `.changelogrc.json` at your repo root (or point `--config` at one) to remap types to section titles, decide which types bump the version, and hide noise:
+
+```json
+{
+  "types": {
+    "feat":  { "section": "✨ Features",  "bump": "minor" },
+    "fix":   { "section": "🐛 Bug Fixes", "bump": "patch" },
+    "perf":  { "section": "⚡ Performance", "bump": "patch" },
+    "deps":  { "section": "📦 Dependencies", "bump": "patch" },
+    "wip":   { "hidden": true }
+  },
+  "contributors": true
+}
+```
+
+Both the rendered sections **and** the recommended semver bump honour it (a type with `"bump": "major"` forces a major).
 
 The release actions (`--bump`, `--commit`, `--tag`) are the only things that change your working tree, and they are all off by default. Nothing is ever pushed — run `git push --follow-tags` yourself when you're happy.
 
@@ -149,7 +187,12 @@ renderSection(commits, { version: "2.0.0" });  // grouped markdown
 | `parseCommits` | `(raws: Array<RawCommit \| string>) => ParsedCommit[]` | Parse many. |
 | `recommendBump` | `(commits, current, opts?) => BumpResult` | Decide the next version from the commits. |
 | `renderSection` | `(commits, opts) => string` | Render one changelog section (grouped markdown). |
-| `prependChangelog` | `(section, existing?) => string` | Insert a section into (or create) a changelog body. |
+| `prependChangelog` | `(section, existing?, opts?) => string` | Insert a section into (or create) a changelog body; `opts.skipIfExists` avoids duplicating a version. |
+| `parseVersionHeaders` / `changelogHasVersion` | `(md) => string[]` / `(md, version) => boolean` | Read the `## [x.y.z]` headers already in a changelog. |
+| `collectBreaking` / `hasBreaking` | `(commits) => BreakingChange[]` / `boolean` | Collect breaking changes from both `type!:` and `BREAKING CHANGE:` syntaxes. |
+| `collectContributors` / `renderContributors` | `(commits, opts?) => Contributor[]` / `(people, opts?) => string` | Aggregate & render the unique authors (de-duped, sorted). |
+| `loadConfig` / `resolveConfig` / `configToGroups` / `configToHidden` / `configToBumpOptions` | — | Read a `.changelogrc.json` and turn it into render/bump inputs. |
+| `buildCompareLink` / `linkifyRefs` / `linkifyIssues` / `linkifyShas` | — | Pure link builders: compare links, and `#123` / SHA linkifying. |
 | `parseSemver` / `compareSemver` / `inc` | — | The tiny built-in semver engine (parse / compare / increment). |
 | `parseRepository` / `urlTemplates` | — | Turn a `repository` field into commit / issue / compare URL builders. |
 | `readCommits` / `latestVersionTag` / `realGit` | — | The injectable git layer (pass your own `GitRunner` in tests). |
@@ -162,7 +205,7 @@ Types (`ParsedCommit`, `BumpResult`, `BumpOptions`, `RenderOptions`, `CommitGrou
 
 - **Needs a git repository with history** — the CLI reads `git log`. In a fresh repo with no commits it exits cleanly with a message. (The pure library functions have no such requirement.)
 - **Groups by commit type, not by monorepo package** — it changelogs the whole range you give it. Scope per-package by passing `--from`/`--to`, or by calling the library per directory.
-- **Prepends on every run** — running the default command twice prepends twice. Run it once per release (or use `--dry-run` / `notes` to preview).
+- **Skips known versions by default** — re-running won't double-prepend a version already in the changelog (it parses the existing `## [x.y.z]` headers). Pass `--allow-duplicate` to force it.
 - **Commit URLs assume GitHub / GitLab / Bitbucket layouts** — other hosts fall back to plain hashes unless you pass `--repo-url`.
 - **`--commit`/`--tag` never push**, on purpose.
 

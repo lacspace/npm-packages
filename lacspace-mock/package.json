@@ -1,7 +1,7 @@
 {
   "name": "lacspace-mock",
-  "version": "0.1.0",
-  "description": "Stand up a keyless local mock REST + GraphQL API server from a JSON db or a small config — auto CRUD, filtering, templated routes, latency and error simulation, CORS. Zero dependencies.",
+  "version": "0.2.0",
+  "description": "Stand up a keyless local mock REST + GraphQL API server from a JSON db, an OpenAPI spec, or a small config — stateful CRUD, request validation, latency + chaos injection, record-and-replay proxy, filtering, templated routes, CORS. Zero dependencies.",
   "type": "module",
   "bin": {
     "lacspace-mock": "dist/cli.js"
@@ -28,7 +28,10 @@
     "mock", "mock-server", "mock-api", "rest", "json-server", "fake-api",
     "api-mocking", "graphql", "crud", "local-server", "prototyping", "stub",
     "fixtures", "faker", "latency-simulation", "chaos", "cors", "cli",
-    "typescript", "zero-dependency", "developer-tools", "http"
+    "typescript", "zero-dependency", "developer-tools", "http",
+    "openapi", "swagger", "openapi-mock", "record-replay", "proxy",
+    "request-validation", "json-schema", "stateful", "chaos-engineering",
+    "fault-injection", "contract-testing", "api-simulator"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

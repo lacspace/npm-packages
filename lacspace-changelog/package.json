@@ -1,6 +1,6 @@
 {
   "name": "lacspace-changelog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn Conventional Commits into a grouped CHANGELOG.md, compute the next semver bump and print release notes — keyless and local. Zero dependencies.",
   "type": "module",
   "bin": {
@@ -29,7 +29,8 @@
     "release-notes", "keep-a-changelog", "version-bump", "changelog-generator",
     "git", "cli", "typescript", "commit-parser", "release-please",
     "standard-version", "monorepo", "prerelease", "ci", "automation",
-    "zero-dependency"
+    "zero-dependency", "contributors", "breaking-changes", "compare-links",
+    "changelogrc", "commit-config", "issue-links", "git-log"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

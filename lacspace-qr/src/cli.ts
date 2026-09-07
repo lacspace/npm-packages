@@ -1,11 +1,13 @@
 import { stdout, stderr, argv, exit, env } from "node:process";
-import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
 import { makeQr } from "./matrix.js";
 import type { QrCode, QrOptions } from "./matrix.js";
 import type { EccLevel } from "./tables.js";
 import { renderToTerminal } from "./terminal.js";
+import { renderToAnsi } from "./ansi.js";
 import { renderToSvg } from "./svg.js";
+import type { ModuleShape, Gradient, LogoOptions } from "./svg.js";
 import { renderToPng } from "./png.js";
 import {
   wifiPayload,
@@ -15,10 +17,11 @@ import {
   smsPayload,
   geoPayload,
   urlPayload,
+  calendarPayload,
 } from "./payloads.js";
 import { parseBatch, safeFilename } from "./batch.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const NO_COLOR = Boolean(env["NO_COLOR"]) || !stdout.isTTY;
 const RAW = {
@@ -29,7 +32,7 @@ const C = RAW;
 const c = (k: keyof typeof C, s: string): string => (NO_COLOR ? s : `${C[k]}${s}${C.reset}`);
 const log = (s = ""): void => void stderr.write(s + "\n");
 
-type Format = "term" | "svg" | "png";
+type Format = "term" | "ansi" | "svg" | "png";
 
 interface Args {
   positional: string[];
@@ -46,6 +49,11 @@ interface Args {
   fg?: string;
   bg?: string;
   radius?: number;
+  shape?: string;
+  eye?: string;
+  logo?: string;
+  logoSize?: number;
+  gradient?: string;
   invert: boolean;
   batch?: string;
   mode?: "numeric" | "alphanumeric" | "byte";
@@ -67,6 +75,9 @@ interface Args {
   subject?: string;
   body?: string;
   message?: string;
+  start?: string;
+  end?: string;
+  location?: string;
 }
 
 function parseArgs(list: string[]): Args {
@@ -93,6 +104,12 @@ function parseArgs(list: string[]): Args {
       case "--fg": a.fg = val(); break;
       case "--bg": a.bg = val(); break;
       case "--radius": a.radius = num(val()); break;
+      case "--shape": a.shape = val(); break;
+      case "--eye": a.eye = val(); break;
+      case "--logo": a.logo = val(); break;
+      case "--logo-size": a.logoSize = num(val()); break;
+      case "--gradient": a.gradient = val(); break;
+      case "--ansi": a.format = "ansi"; break;
       case "--invert": a.invert = true; break;
       case "--batch": a.batch = val(); break;
       case "--json": a.json = true; break;
@@ -111,6 +128,9 @@ function parseArgs(list: string[]): Args {
       case "--subject": a.subject = val(); break;
       case "--body": a.body = val(); break;
       case "--message": case "--msg": a.message = val(); break;
+      case "--start": a.start = val(); break;
+      case "--end": a.end = val(); break;
+      case "--location": case "--loc": a.location = val(); break;
       case "-h": case "--help": a.help = true; break;
       case "-v": case "--version": a.version = true; break;
       default:
@@ -127,7 +147,7 @@ ${c("bold", c("magenta", "◆ lacspace-qr"))} ${c("dim", "— keyless, zero-dep 
 ${c("bold", "Usage")}
   npx lacspace-qr "<text or url>" [options]
   npx lacspace-qr <preset> [preset args] [options]
-  npx lacspace-qr --batch list.csv --out-dir out -f svg
+  npx lacspace-qr batch list.csv --out out/ -f svg
 
 ${c("bold", "Presets")}
   url <url>                         Encode a URL (adds https:// if missing)
@@ -138,12 +158,15 @@ ${c("bold", "Presets")}
   tel --tel <number>                Phone dial code
   sms --tel <number> [--message]    Pre-filled SMS
   geo <lat> <lng>                   Map location
+  calendar --vtitle <t> --start <d> [--end --location --body]   Calendar VEVENT
 
 ${c("bold", "Output")}
-  -f, --format <term|svg|png>   Output format (default term)
+  -f, --format <term|ansi|svg|png>  Output format (default term)
+      --ansi                        Full-block terminal render (alias for -f ansi)
   -o, --out <file>              Write to a file instead of stdout
-      --batch <list.csv|.txt>   Generate one file per row
-      --out-dir <dir>           Directory for --batch output (default out)
+      batch <list.csv|.txt>     Generate one file per row (subcommand)
+      --batch <list.csv|.txt>   Same, as a flag
+      --out-dir <dir>           Directory for batch output (default out)
 
 ${c("bold", "QR options")}
       --ecc <L|M|Q|H>           Error-correction level (default M)
@@ -159,20 +182,26 @@ ${c("bold", "Render options")}
       --fg <colour>             Dark-module colour (svg/png, default #000000)
       --bg <colour>             Background colour (svg/png, "transparent" ok)
       --radius <0-0.5>          Rounded modules (svg)
-      --invert                  Swap dark/light (terminal)
+      --shape <square|dots|rounded>   Module shape (svg)
+      --eye <square|dots|rounded>     Distinct finder-eye shape (svg)
+      --gradient <from,to[,angle]>    Two-tone linear-gradient foreground (svg)
+      --logo <text|file|data-uri>     Centre logo/initials (svg, needs --ecc Q or H)
+      --logo-size <0.05-0.35>   Logo box as a fraction of the symbol (svg)
+      --invert                  Swap dark/light (terminal/ansi)
 
 ${c("bold", "Meta")}
       --json                    Print metadata as JSON (with -o for term/svg)
   -h, --help                    Show this help
-  -v, --version                 Print the tool version (0.1.0)
+  -v, --version                 Print the tool version (0.2.0)
 
 ${c("bold", "Examples")}
   npx lacspace-qr "https://lacspace.com"
   npx lacspace-qr wifi --ssid Home --password s3cret
-  npx lacspace-qr "https://x.com" -f svg -o qr.svg --fg "#4d9fff"
-  npx lacspace-qr vcard --name "Ada Lovelace" --tel +9779800000000 -f png -o ada.png
-  npx lacspace-qr geo 27.7172 85.3240 -f svg -o place.svg
-  npx lacspace-qr --batch urls.csv --out-dir out -f png --scale 8
+  npx lacspace-qr "https://x.com" -f svg -o qr.svg --shape dots --eye rounded
+  npx lacspace-qr "https://x.com" -f svg -o qr.svg --gradient "#4d9fff,#a855f7,45"
+  npx lacspace-qr "https://lacspace.com" -f svg -o qr.svg --ecc H --logo LS
+  npx lacspace-qr calendar --vtitle "Launch" --start 2026-10-01T09:00Z -f svg -o e.svg
+  npx lacspace-qr batch urls.csv --out out/ -f png --scale 8
 `;
 
 function fail(msg: string, json = false): never {
@@ -182,16 +211,19 @@ function fail(msg: string, json = false): never {
 }
 
 function validate(a: Args): void {
-  if (!["term", "svg", "png"].includes(a.format)) fail(`Unknown format "${a.format}" (use term, svg or png).`, a.json);
+  if (!["term", "ansi", "svg", "png"].includes(a.format)) fail(`Unknown format "${a.format}" (use term, ansi, svg or png).`, a.json);
   if (!["L", "M", "Q", "H"].includes(a.ecc)) fail(`Unknown ECC level "${a.ecc}" (use L, M, Q or H).`, a.json);
   if (a.mask !== undefined && (a.mask < 0 || a.mask > 7 || !Number.isInteger(a.mask))) fail("--mask must be 0-7.", a.json);
   if (a.qrVersion !== undefined && (a.qrVersion < 1 || a.qrVersion > 40)) fail("--qr-version must be 1-40.", a.json);
+  const shapes = ["square", "dots", "rounded"];
+  if (a.shape !== undefined && !shapes.includes(a.shape)) fail(`--shape must be square, dots or rounded.`, a.json);
+  if (a.eye !== undefined && !shapes.includes(a.eye)) fail(`--eye must be square, dots or rounded.`, a.json);
 }
 
 /** Resolve the payload string from the positional args / preset flags. */
 function resolvePayload(a: Args): string {
   const preset = a.positional[0]?.toLowerCase();
-  const known = ["url", "text", "wifi", "vcard", "email", "tel", "phone", "sms", "geo"];
+  const known = ["url", "text", "wifi", "vcard", "email", "tel", "phone", "sms", "geo", "calendar", "event"];
   if (preset && known.includes(preset)) {
     const rest = a.positional.slice(1);
     switch (preset) {
@@ -234,6 +266,16 @@ function resolvePayload(a: Args): string {
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) fail("geo needs <lat> <lng>.", a.json);
         return geoPayload(lat, lng);
       }
+      case "calendar": case "event":
+        if (!a.title && !a.name) fail("calendar needs --vtitle (or --name) for the summary.", a.json);
+        if (!a.start) fail("calendar needs --start <date>.", a.json);
+        return calendarPayload({
+          title: a.title ?? a.name ?? "",
+          start: a.start!,
+          ...(a.end ? { end: a.end } : {}),
+          ...(a.location ? { location: a.location } : {}),
+          ...(a.body ? { description: a.body } : {}),
+        });
     }
   }
   // Bare text/url.
@@ -251,20 +293,56 @@ function qrOptions(a: Args): QrOptions {
   return opts;
 }
 
-/** Render a QR to a string (term/svg) or bytes (png). */
+/** Parse `--gradient from,to[,angle]` into a Gradient, or fail. */
+function parseGradient(spec: string, json: boolean): Gradient {
+  const parts = spec.split(",").map((s) => s.trim());
+  if (parts.length < 2 || !parts[0] || !parts[1]) fail("--gradient needs from,to[,angle] (e.g. #4d9fff,#a855f7,45).", json);
+  const g: Gradient = { from: parts[0]!, to: parts[1]! };
+  if (parts[2] !== undefined && parts[2] !== "") {
+    const angle = Number(parts[2]);
+    if (!Number.isFinite(angle)) fail("--gradient angle must be a number.", json);
+    g.angle = angle;
+  }
+  return g;
+}
+
+/** Resolve `--logo`: raw markup / data URI passes through; a file path is read. */
+function resolveLogo(a: Args): LogoOptions {
+  const raw = a.logo!.trim();
+  let src = raw;
+  if (!raw.startsWith("<") && !/^data:/i.test(raw)) {
+    try {
+      if (existsSync(raw)) src = readFileSync(raw, "utf8");
+    } catch { /* fall through to treat as initials text */ }
+  }
+  const logo: LogoOptions = { src };
+  if (a.logoSize !== undefined) logo.size = a.logoSize;
+  return logo;
+}
+
+/** Render a QR to a string (term/ansi/svg) or bytes (png). */
 function render(qr: QrCode, a: Args): { text?: string; bytes?: Uint8Array } {
   if (a.format === "term") {
     const opts: { margin?: number; invert?: boolean } = { invert: a.invert };
     if (a.margin !== undefined) opts.margin = a.margin;
     return { text: renderToTerminal(qr, opts) };
   }
+  if (a.format === "ansi") {
+    const opts: { margin?: number; invert?: boolean } = { invert: a.invert };
+    if (a.margin !== undefined) opts.margin = a.margin;
+    return { text: renderToAnsi(qr, opts) };
+  }
   if (a.format === "svg") {
-    const opts: Record<string, unknown> = {};
+    const opts: Record<string, unknown> = { onWarn: (m: string) => log(c("yellow", `warning: ${m}`)) };
     if (a.size !== undefined) opts["size"] = a.size;
     if (a.margin !== undefined) opts["margin"] = a.margin;
-    if (a.fg !== undefined) opts["fg"] = a.fg;
+    if (a.gradient !== undefined) opts["fg"] = parseGradient(a.gradient, a.json);
+    else if (a.fg !== undefined) opts["fg"] = a.fg;
     if (a.bg !== undefined) opts["bg"] = a.bg;
     if (a.radius !== undefined) opts["radius"] = a.radius;
+    if (a.shape !== undefined) opts["shape"] = a.shape as ModuleShape;
+    if (a.eye !== undefined) opts["eye"] = a.eye as ModuleShape;
+    if (a.logo !== undefined) opts["logo"] = resolveLogo(a);
     return { text: renderToSvg(qr, opts) };
   }
   const opts: Record<string, unknown> = {};
@@ -315,6 +393,14 @@ function runBatch(a: Args): void {
 function main(): void {
   const a = parseArgs(argv.slice(2));
   if (a.version) { stdout.write(VERSION + "\n"); return; }
+
+  // `qr batch <file> [--out dir]` subcommand → the --batch path, mapping --out to the dir.
+  if (a.positional[0]?.toLowerCase() === "batch" && !a.batch) {
+    a.batch = a.positional[1];
+    if (a.out && a.outDir === "out") { a.outDir = a.out; a.out = undefined; }
+    if (!a.batch) fail("batch needs a file: qr batch list.csv --out dir/", a.json);
+  }
+
   if (a.help || (a.positional.length === 0 && !a.batch && !a.ssid && !a.name && !a.email && !a.tel)) {
     stdout.write(HELP + "\n");
     return;

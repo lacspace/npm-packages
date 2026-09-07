@@ -16,6 +16,8 @@ export interface FormatOptions {
   pretty?: boolean;
   /** Required for `sql`: the target table name. */
   table?: string;
+  /** For `sql`: also emit a `CREATE TABLE` DDL with inferred column types. */
+  ddl?: boolean;
 }
 
 type Row = Record<string, unknown>;
@@ -74,13 +76,46 @@ export function sqlIdent(name: string): string {
   return `"${String(name).replace(/"/g, '""')}"`;
 }
 
-export function toSql(rows: Row[], table: string): string {
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Infer a portable SQL column type from a column's values. */
+export function inferSqlType(values: unknown[]): string {
+  const present = values.filter((v) => v !== null && v !== undefined);
+  if (present.length === 0) return "TEXT";
+  if (present.every((v) => typeof v === "boolean")) return "BOOLEAN";
+  if (present.every((v) => typeof v === "number")) {
+    return present.every((v) => Number.isInteger(v as number)) ? "INTEGER" : "REAL";
+  }
+  if (present.every((v) => typeof v === "string" && ISO_DATETIME.test(v))) return "TIMESTAMP";
+  if (present.every((v) => typeof v === "string" && ISO_DATE.test(v))) return "DATE";
+  return "TEXT";
+}
+
+/** Build a `CREATE TABLE` DDL with inferred column types. */
+export function toCreateTable(rows: Row[], table: string): string {
   if (!table) throw new Error("SQL output needs a --table name");
   const cols = columnsOf(rows);
-  if (rows.length === 0) return `-- no rows for ${sqlIdent(table)}`;
-  const colList = cols.map(sqlIdent).join(", ");
-  const valueRows = rows.map((r) => `  (${cols.map((c) => sqlValue(r[c])).join(", ")})`);
-  return `INSERT INTO ${sqlIdent(table)} (${colList}) VALUES\n${valueRows.join(",\n")};`;
+  if (cols.length === 0) return `-- no columns for ${sqlIdent(table)}`;
+  const defs = cols.map((c) => {
+    const vals = rows.map((r) => r[c]);
+    const type = inferSqlType(vals);
+    const notNull = rows.length > 0 && vals.every((v) => v !== null && v !== undefined) ? " NOT NULL" : "";
+    return `  ${sqlIdent(c)} ${type}${notNull}`;
+  });
+  return `CREATE TABLE ${sqlIdent(table)} (\n${defs.join(",\n")}\n);`;
+}
+
+export function toSql(rows: Row[], table: string, opts: { ddl?: boolean } = {}): string {
+  if (!table) throw new Error("SQL output needs a --table name");
+  const cols = columnsOf(rows);
+  const insert =
+    rows.length === 0
+      ? `-- no rows for ${sqlIdent(table)}`
+      : `INSERT INTO ${sqlIdent(table)} (${cols.map(sqlIdent).join(", ")}) VALUES\n${rows
+          .map((r) => `  (${cols.map((c) => sqlValue(r[c])).join(", ")})`)
+          .join(",\n")};`;
+  return opts.ddl ? `${toCreateTable(rows, table)}\n\n${insert}` : insert;
 }
 
 // --- top-level dispatch ---------------------------------------------------
@@ -95,7 +130,28 @@ export function formatRows(rows: Row[], opts: FormatOptions): string {
     case "csv":
       return toCsv(rows);
     case "sql":
-      return toSql(rows, opts.table ?? "");
+      return toSql(rows, opts.table ?? "", { ddl: opts.ddl });
+  }
+}
+
+/**
+ * Format a linked dataset (entity name → rows), e.g. from `generateDataset`.
+ * `json` → one object of arrays; `sql` → a `CREATE TABLE`/`INSERT` block per
+ * table (each table named by its entity); `csv`/`ndjson` → one section per
+ * table, separated by a `# <table>` header.
+ */
+export function formatDataset(dataset: Record<string, Row[]>, opts: FormatOptions): string {
+  const names = Object.keys(dataset);
+  switch (opts.format) {
+    case "json":
+      return JSON.stringify(dataset, null, opts.pretty ? 2 : 0);
+    case "sql":
+      return names.map((name) => toSql(dataset[name]!, name, { ddl: opts.ddl })).join("\n\n");
+    case "csv":
+    case "ndjson":
+      return names
+        .map((name) => `# ${name}\n${formatRows(dataset[name]!, { format: opts.format })}`)
+        .join("\n\n");
   }
 }
 
@@ -109,6 +165,6 @@ export function formatValues(values: unknown[], column: string, opts: FormatOpti
     case "csv":
       return toCsv(values.map((v) => ({ [column]: v })));
     case "sql":
-      return toSql(values.map((v) => ({ [column]: v })), opts.table ?? column);
+      return toSql(values.map((v) => ({ [column]: v })), opts.table ?? column, { ddl: opts.ddl });
   }
 }

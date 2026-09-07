@@ -14,6 +14,11 @@ import {
 import type { ReleaseType } from "./semver.js";
 
 export interface BumpOptions {
+  /**
+   * Types that force a MAJOR bump even without a breaking-change marker (from a
+   * custom config). Default: `[]`. Honoured like a breaking change.
+   */
+  majorTypes?: string[];
   /** Types that count as a `feat` (minor). Default: `["feat"]`. */
   minorTypes?: string[];
   /** Types that count as a `fix` (patch). Default: `["fix", "perf"]`. */
@@ -56,13 +61,15 @@ function classify(
   commits: ParsedCommit[],
   minorTypes: string[],
   patchTypes: string[],
+  majorTypes: string[],
 ): BumpResult["stats"] {
   const stats = { breaking: 0, features: 0, fixes: 0, other: 0 };
   for (const c of commits) {
-    if (c.breaking) stats.breaking++;
+    const isMajorType = majorTypes.includes(c.type);
+    if (c.breaking || isMajorType) stats.breaking++;
     if (minorTypes.includes(c.type)) stats.features++;
     else if (patchTypes.includes(c.type)) stats.fixes++;
-    else if (!c.breaking) stats.other++;
+    else if (!c.breaking && !isMajorType) stats.other++;
   }
   return stats;
 }
@@ -77,10 +84,11 @@ export function recommendBump(
 ): BumpResult {
   const minorTypes = opts.minorTypes ?? ["feat"];
   const patchTypes = opts.patchTypes ?? ["fix", "perf"];
+  const majorTypes = opts.majorTypes ?? [];
   const pre1BreakingIsMinor = opts.pre1BreakingIsMinor ?? true;
   const current = mustParseSemver(currentVersion);
   const currentStr = formatSemver(current);
-  const stats = classify(commits, minorTypes, patchTypes);
+  const stats = classify(commits, minorTypes, patchTypes, majorTypes);
   const isZeroMajor = current.major === 0;
 
   // --- explicit override -------------------------------------------------

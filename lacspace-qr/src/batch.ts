@@ -82,3 +82,18 @@ export function parseBatch(contents: string, kind: "csv" | "txt"): BatchRow[] {
 export function safeFilename(id: string): string {
   return id.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "qr";
 }
+
+/** A planned batch entry: the safe output basename plus its QR payload. */
+export interface BatchPlan {
+  name: string;
+  payload: string;
+}
+
+/**
+ * Pure batch planner: turn a `.csv`/`.txt` file's contents into
+ * `{ name, payload }` entries (one QR per row), with filename-safe names. This
+ * is what the `batch` CLI subcommand iterates over to write one file per row.
+ */
+export function planBatch(contents: string, kind: "csv" | "txt"): BatchPlan[] {
+  return parseBatch(contents, kind).map((r) => ({ name: safeFilename(r.id), payload: r.data }));
+}

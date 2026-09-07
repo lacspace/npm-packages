@@ -235,3 +235,25 @@ export function sumMoney(items: Money[], currency?: string): Money {
   }
   return items.reduce((acc, m) => acc.add(m));
 }
+
+/** Alias of {@link sumMoney}: sum a list of same-currency Money. */
+export const sum = sumMoney;
+
+// ── New in 1.1.0 — additive, integer-safe helpers ─────────────────────────────
+export { roundMinor, type RoundingMode } from "./rounding";
+export { currencyExponent, currencySymbol } from "./currency";
+export {
+  add,
+  subtract,
+  multiply,
+  divide,
+  percentage,
+  compare,
+  minMoney,
+  maxMoney,
+  equals,
+  allocate,
+  split,
+} from "./arithmetic";
+export { formatBasic, parseMoney, type BasicFormatOptions } from "./format";
+export { convert } from "./convert";

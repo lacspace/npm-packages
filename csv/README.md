@@ -18,6 +18,8 @@
 - 🔁 `stringify()` quotes only when needed · custom delimiters · `parseAuto()` (comma/tab/semicolon)
 - ⚡ zero dependencies · isomorphic
 
+> **New in 1.2.0** — opt-in **type coercion** (`coerce` / `inferValue`), **column mapping** (`mapColumns`: rename / select+reorder / drop), full-**dialect** parsing (custom quote/escape, comments, BOM strip, TSV helpers), a **chunked/streaming** parser (`CsvStreamParser`, `parseStream`, `parseChunks`) that never buffers the whole input, and **strict vs relaxed** ragged-row handling with a typed `CsvError`. All additive — existing `parse`/`stringify`/`parseAuto` behave byte-for-byte as before.
+
 ## Install
 
 ```bash
@@ -47,6 +49,69 @@ stringify([{ name: "Ada", note: "a,b\nc" }]);
 stringify(rows, { columns: ["name", "email"], delimiter: ";" });
 ```
 
+## Type coercion (new)
+
+Parse returns strings by default. Coerce as a separate step — nothing existing changes.
+
+```ts
+import { parse, coerce } from "@lacspace/csv";
+
+coerce(parse("id,qty,ok\n007,3,true"), { auto: true });
+// [{ id: "007", qty: 3, ok: true }]   ← number + boolean inferred, leading-zero id kept
+
+coerce(rows, { columns: { qty: "number", when: "date" } }); // per-column types
+```
+
+Infers `number`, `boolean`, ISO `Date`, and `null`/empty; per-column types are `"string" | "number" | "boolean" | "date" | "auto"`. `inferValue(str)` / `coerceValue(str, type)` expose the single-value primitives.
+
+## Column mapping (new)
+
+```ts
+import { mapColumns } from "@lacspace/csv";
+
+mapColumns(rows, { select: ["name", "id"], rename: { id: "ID" }, drop: ["secret"] });
+// select + reorder a subset, rename headers, drop columns — pure, on parse or stringify side
+```
+
+## Dialects, TSV & BOM (new)
+
+```ts
+import { parseDialect, parseTSV, stringifyTSV, stripBom, addBom } from "@lacspace/csv";
+
+parseDialect("a|b\n1|2", { delimiter: "|" });          // pipe-separated
+parseDialect("v\n'a\\'b'", { quote: "'", escape: "\\" }); // custom quote + escape
+parseDialect("# note\na,b\n1,2", { comment: "#" });     // comment lines skipped
+parseTSV("a\tb\n1\t2");                                  // TSV convenience (auto BOM strip)
+addBom(stringifyTSV(rows));                              // prepend a BOM for Excel
+```
+
+`parseDialect` strips a leading BOM by default and, like `parse`, returns `string[][]` with `header:false`.
+
+## Streaming / chunked (new)
+
+Feed partial strings and get completed rows out — no full-input buffering.
+
+```ts
+import { CsvStreamParser, parseStream, parseChunks } from "@lacspace/csv";
+
+const p = new CsvStreamParser();
+p.write('id,note\r\n1,"a,');   // []  (row not complete yet)
+p.write(' b"\r\n');            // [{ id: "1", note: "a, b" }]
+p.end();                       // flush the last record
+
+// or async-iterate a fetch/file stream:
+for await (const row of parseStream(response.body)) { /* ... */ }
+
+// parseChunks(chunks) === parse(chunks.join("")) for any chunk boundaries
+```
+
+## Strict vs relaxed (new)
+
+```ts
+parseDialect(csv, { relaxed: true }); // ragged rows padded/truncated to header width
+parseDialect(csv, { strict: true });  // throws CsvError { row, column } on ragged / unterminated
+```
+
 ## API
 
 | Export | Description |
@@ -54,8 +119,15 @@ stringify(rows, { columns: ["name", "email"], delimiter: ";" });
 | `parse(text, opts?)` | CSV → objects (or `string[][]` with `header:false`) |
 | `stringify(rows, opts?)` | objects / arrays → CSV (Excel-friendly CRLF) |
 | `parseAuto(text, opts?)` | auto-detect comma / tab / semicolon |
+| `coerce(rows, opts?)` | typed rows — `auto` infer or per-`columns` types |
+| `inferValue(str)` · `coerceValue(str, type)` | single-value type inference / coercion |
+| `mapColumns(rows, opts)` | rename / select+reorder / drop columns |
+| `parseDialect(text, opts?)` | one-shot parse with quote/escape/comment/BOM/strict/relaxed |
+| `parseTSV` · `stringifyTSV` · `stripBom` · `addBom` · `BOM` · `DELIMITERS` | TSV & BOM helpers |
+| `CsvStreamParser` · `parseChunks(chunks, opts?)` · `parseStream(source, opts?)` | chunked / async-iterator parsing |
+| `CsvError` | typed error (`row`, `column`) thrown in strict mode |
 
-Options: `delimiter`, `header`, `skipEmpty`, `trim` (parse); `columns`, `header`, `delimiter`, `eol`, `escapeFormulas` (stringify).
+Options: `delimiter`, `header`, `skipEmpty`, `trim` (parse); `columns`, `header`, `delimiter`, `eol`, `escapeFormulas` (stringify); `delimiter`, `quote`, `escape`, `comment`, `header`, `skipEmpty`, `trim`, `bom`, `strict`, `relaxed` (dialect/stream); `auto`, `columns`, `nullValues`, `trueValues`, `falseValues` (coerce); `select`, `rename`, `drop` (mapColumns).
 
 ### CSV injection (`escapeFormulas`)
 

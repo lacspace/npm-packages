@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/money",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Money done right — integer minor units (no floating-point cent bugs), currency-safe arithmetic, remainder-preserving allocation/split, and localized formatting via Intl. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,6 +38,13 @@
     "currency-formatting",
     "finance",
     "price",
+    "split",
+    "rounding",
+    "bankers-rounding",
+    "currency-conversion",
+    "exchange-rate",
+    "parse-money",
+    "percentage",
     "typescript",
     "zero-dependency",
     "isomorphic"

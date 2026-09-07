@@ -142,3 +142,40 @@ export function parseAuto<T = Row>(text: string, opts: Omit<ParseOptions, "delim
   const delimiter = counts.sort((a, b) => b[1] - a[1])[0]![0];
   return parse<T>(text, { ...opts, delimiter, header: true });
 }
+
+// ── New in 1.2.0 ────────────────────────────────────────────────────────────
+// Additive, zero-dep helpers layered on the parser above. Everything exported
+// here is new; the exports above are unchanged.
+
+/** Type inference & coercion (numbers/booleans/ISO dates/nulls). */
+export {
+  coerce,
+  coerceValue,
+  inferValue,
+  type CoerceType,
+  type CoerceOptions,
+} from "./coerce";
+
+/** Column mapping: rename / select+reorder / drop. */
+export { mapColumns, type MapOptions } from "./mapping";
+
+/** Dialect presets & BOM helpers. */
+export {
+  BOM,
+  DELIMITERS,
+  addBom,
+  parseTSV,
+  stringifyTSV,
+  stripBom,
+} from "./dialect";
+
+/** Dialects, chunked/streaming parsing, strict/relaxed & typed errors. */
+export {
+  CsvError,
+  CsvStreamParser,
+  parseChunks,
+  parseDialect,
+  parseStream,
+  type DialectOptions,
+  type ParseDialectOptions,
+} from "./stream";

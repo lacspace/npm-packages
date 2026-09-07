@@ -120,6 +120,13 @@ export interface Column {
   key?: string;
   /** Column width in characters. */
   width?: number;
+  /**
+   * Explicit Excel number-format code for the data cells in this column, e.g.
+   * `"0.00"`, `"$#,##0.00"`, `"0.0%"`, `"yyyy-mm-dd"`. Applied to every body
+   * cell in the column (not the header). Omit to use the default formatting
+   * (dates already get a built-in date format).
+   */
+  numFmt?: string;
 }
 
 export interface SheetOptions {
@@ -128,32 +135,57 @@ export interface SheetOptions {
   header?: boolean;
 }
 
-interface Sheet { name: string; rows: CellValue[][]; headerRow: boolean; widths: (number | undefined)[]; }
+interface Sheet {
+  name: string;
+  rows: CellValue[][];
+  headerRow: boolean;
+  widths: (number | undefined)[];
+  /** Per-column explicit number-format code (undefined = default). */
+  formats: (string | undefined)[];
+}
 
 /* ------------------------------ cell rendering ------------------------------ */
 
 function cellXml(ref: string, value: CellValue, style: number): string {
-  const s = style ? ` s="${style}"` : "";
+  // A Date with no explicit column style falls back to the built-in date
+  // format (style index 2); a column `numFmt` overrides it via `style`.
+  let st = style;
+  if (value instanceof Date && st === 0) st = 2;
+  const s = st ? ` s="${st}"` : "";
   if (value === null || value === undefined || value === "") return `<c r="${ref}"${s}/>`;
   if (typeof value === "number") return Number.isFinite(value) ? `<c r="${ref}"${s}><v>${value}</v></c>` : `<c r="${ref}"${s}/>`;
   if (typeof value === "boolean") return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
-  if (value instanceof Date) return `<c r="${ref}" s="2"><v>${toSerial(value)}</v></c>`;
+  if (value instanceof Date) return `<c r="${ref}"${s}><v>${toSerial(value)}</v></c>`;
   return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(String(value))}</t></is></c>`;
 }
 
-function sheetXml(sheet: Sheet): string {
+function sheetXml(sheet: Sheet, colStyles: number[]): string {
   const cols = sheet.widths.some((w) => w !== undefined)
     ? `<cols>${sheet.widths.map((w, i) => (w !== undefined ? `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>` : "")).join("")}</cols>`
     : "";
   const rows = sheet.rows.map((row, r) => {
-    const cells = row.map((v, c) => cellXml(`${columnLetter(c)}${r + 1}`, v, sheet.headerRow && r === 0 ? 1 : 0)).join("");
+    const isHeader = sheet.headerRow && r === 0;
+    const cells = row.map((v, c) => cellXml(`${columnLetter(c)}${r + 1}`, v, isHeader ? 1 : (colStyles[c] ?? 0))).join("");
     return `<row r="${r + 1}">${cells}</row>`;
   }).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${cols}<sheetData>${rows}</sheetData></worksheet>`;
 }
 
-const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+/**
+ * Build xl/styles.xml. The first three cell styles are fixed (normal, bold
+ * header, built-in date); any custom column `numFmt` codes are appended as
+ * extra `<numFmt>`s (ids from 164) and matching `<xf>`s (indices from 3).
+ * With no custom formats this returns the exact original static styles part.
+ */
+function buildStylesXml(formats: string[]): string {
+  const numFmts = formats.length
+    ? `<numFmts count="${formats.length}">${formats.map((code, i) => `<numFmt numFmtId="${164 + i}" formatCode="${xmlEsc(code)}"/>`).join("")}</numFmts>`
+    : "";
+  const customXfs = formats.map((_, i) => `<xf numFmtId="${164 + i}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join("");
+  const cellXfsCount = 3 + formats.length;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${numFmts}<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${cellXfsCount}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>${customXfs}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+}
 
 /* ------------------------------ workbook ------------------------------ */
 
@@ -174,27 +206,48 @@ export class Workbook {
     let data: CellValue[][];
     let headerRow: boolean;
     let widths: (number | undefined)[] = [];
+    let formats: (string | undefined)[] = [];
 
     if (isObjects) {
       const objRows = rows as Record<string, CellValue>[];
       const columns: Column[] = opts.columns ?? [...new Set(objRows.flatMap((r) => Object.keys(r)))].map((k): Column => ({ header: k, key: k }));
       headerRow = opts.header ?? true;
       widths = columns.map((c) => c.width);
+      formats = columns.map((c) => c.numFmt);
       const body = objRows.map((r) => columns.map((c) => r[c.key ?? c.header]));
       data = headerRow ? [columns.map((c) => c.header), ...body] : body;
     } else {
       data = (rows as CellValue[][]).map((r) => [...r]);
       headerRow = opts.header ?? false;
       widths = opts.columns?.map((c) => c.width) ?? [];
+      formats = opts.columns?.map((c) => c.numFmt) ?? [];
     }
-    this.sheets.push({ name: sanitizeSheetName(name, this.sheets.length), rows: data, headerRow, widths });
+    this.sheets.push({ name: sanitizeSheetName(name, this.sheets.length), rows: data, headerRow, widths, formats });
     return this;
   }
 
   /** Serialize the workbook to .xlsx bytes. */
   toBytes(): Uint8Array {
     if (this.sheets.length === 0) this.sheet("Sheet1", []);
-    const sheetFiles = this.sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, content: sheetXml(s) }));
+
+    // Collect unique custom number-format codes across all sheets; each maps to
+    // a cell-style index (starting at 3, after normal/bold-header/date).
+    const formatCodes: string[] = [];
+    const styleByCode = new Map<string, number>();
+    for (const s of this.sheets) {
+      for (const f of s.formats) {
+        if (f !== undefined && !styleByCode.has(f)) {
+          styleByCode.set(f, 3 + formatCodes.length);
+          formatCodes.push(f);
+        }
+      }
+    }
+    const stylesXml = buildStylesXml(formatCodes);
+
+    const sheetFiles = this.sheets.map((s, i) => {
+      const colStyles = s.formats.map((f) => (f !== undefined ? styleByCode.get(f)! : 0));
+      return { name: `xl/worksheets/sheet${i + 1}.xml`, content: sheetXml(s, colStyles) };
+    });
     const sheetsList = this.sheets.map((s, i) => `<sheet name="${xmlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("");
     const stylesRid = this.sheets.length + 1;
 
@@ -215,7 +268,7 @@ export class Workbook {
       { name: "_rels/.rels", content: rootRels },
       { name: "xl/workbook.xml", content: workbook },
       { name: "xl/_rels/workbook.xml.rels", content: workbookRels },
-      { name: "xl/styles.xml", content: STYLES_XML },
+      { name: "xl/styles.xml", content: stylesXml },
       ...sheetFiles,
     ]);
   }
@@ -791,3 +844,20 @@ export async function xlsxToJson(
   if (!sheet) throw new XlsxReadError(`Sheet not found: ${String(opts.sheet)}`);
   return sheetToJson(sheet, opts);
 }
+
+/* ------------------------------ CSV helpers ------------------------------ */
+
+export {
+  parseCsv,
+  csvToAoa,
+  aoaToCsv,
+  csvToXlsx,
+  xlsxToCsv,
+} from "./csv";
+export type {
+  CsvParseOptions,
+  CsvToAoaOptions,
+  AoaToCsvOptions,
+  CsvToXlsxOptions,
+  XlsxToCsvOptions,
+} from "./csv";

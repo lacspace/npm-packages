@@ -13,6 +13,8 @@
 
 > "Export to Excel" for any dashboard — without the weight. A `.xlsx` file is just a ZIP of a few XML parts, so this builds the bytes directly (the same trick as [`@lacspace/pdf`](https://www.npmjs.com/package/@lacspace/pdf)). The incumbents are large and Node-centric; this is tiny and runs on Node, edge and the browser.
 
+> **New in 1.2.0** — built-in **CSV ↔ XLSX** conversion (`csvToXlsx` / `xlsxToCsv`, plus `parseCsv` / `csvToAoa` / `aoaToCsv`) and **per-column number formats** (`numFmt` on a `Column`, e.g. `"$#,##0.00"` or `"yyyy-mm-dd"`). Fully additive — every existing export is unchanged.
+
 - 📊 **Write** — objects → a sheet (headers from keys or explicit columns), or array-of-arrays
 - 📥 **Read** — parse real Excel exports back to JSON / grids, DEFLATE-compressed files included
 - 🔢 Correct types — string, number, boolean and **real Excel dates** — both directions
@@ -62,6 +64,45 @@ const bytes = new Workbook()
   .toBytes();
 ```
 
+## Number formats
+
+Give a column an explicit Excel format code with `numFmt` — currency, percent, a
+custom date pattern, anything Excel understands. It applies to that column's data
+cells (the header stays bold), and the format is written into the workbook's
+styles part so Excel/Numbers/LibreOffice render it correctly.
+
+```ts
+import { jsonToXlsx } from "@lacspace/xlsx";
+
+const bytes = jsonToXlsx(
+  [{ item: "Widget", price: 9.5, sold: new Date("2026-06-01") }],
+  {
+    columns: [
+      { header: "Item", key: "item", width: 24 },
+      { header: "Price", key: "price", numFmt: "$#,##0.00" },
+      { header: "Sold", key: "sold", numFmt: "yyyy-mm-dd" },
+    ],
+  },
+);
+```
+
+## CSV ↔ XLSX
+
+```ts
+import { csvToXlsx, xlsxToCsv, parseCsv, csvToAoa, aoaToCsv } from "@lacspace/xlsx";
+
+// CSV string → real .xlsx bytes (values typed: 12 → number, true → boolean)
+const bytes = csvToXlsx("name,age,active\nAda,36,true\nBob,41,false", { header: true });
+
+// Any .xlsx → CSV text (async; picks a sheet by name or index)
+const csv = await xlsxToCsv(bytes, { sheet: "Sheet1" });
+
+// Low-level, no workbook involved:
+parseCsv('a,"x,y"\n1,2');                    // string[][] — RFC-4180-ish, quotes & newlines
+csvToAoa("qty\n12\ntrue");                   // typed grid: [["qty"], [12], [true]]
+aoaToCsv([["n", "d"], ["Ada", new Date()]]); // grid → CSV text (Dates → ISO)
+```
+
 ## Read a spreadsheet back
 
 Parse a `.xlsx` a user uploaded — including DEFLATE-compressed exports from Excel and Google Sheets — into row objects or a raw grid. `readWorkbook` / `xlsxToJson` are async (they may need to inflate); `sheetToJson` / `sheetToAoa` are sync.
@@ -97,7 +138,7 @@ Cells come back correctly typed: numbers, booleans, real `Date` objects and `nul
 | **Write** | |
 | `jsonToXlsx(rows, opts?)` | array of objects → .xlsx bytes |
 | `aoaToXlsx(rows, opts?)` | array of arrays → .xlsx bytes |
-| `new Workbook().sheet(name, rows, opts?)` | multi-sheet builder |
+| `new Workbook().sheet(name, rows, opts?)` | multi-sheet builder (`Column.numFmt` for number formats) |
 | `.toBytes()` · `.toBase64()` | output |
 | `columnLetter(i)` | `0 → "A"`, `26 → "AA"` |
 | **Read** | |
@@ -105,6 +146,11 @@ Cells come back correctly typed: numbers, booleans, real `Date` objects and `nul
 | `readWorkbook(bytes)` | *async* — full `ParsedWorkbook` (`.sheetNames`, `.sheets`, `.sheet(name?)`) |
 | `sheetToJson(sheet, opts?)` | a `ReadSheet` → row objects (header / keys / column letters) |
 | `sheetToAoa(sheet)` | a `ReadSheet` → `ReadCell[][]` grid |
+| **CSV** | |
+| `csvToXlsx(csv, opts?)` | CSV string → .xlsx bytes (values typed by default) |
+| `xlsxToCsv(bytes, opts?)` | *async* — a sheet → CSV text |
+| `parseCsv(text, opts?)` | CSV string → `string[][]` (quotes, newlines, custom delimiter) |
+| `csvToAoa(text, opts?)` · `aoaToCsv(rows, opts?)` | typed grid ↔ CSV text |
 
 Values map to Excel types automatically (`Date` → a real date cell, and back). Reads accept `Uint8Array`, `ArrayBuffer` or Node `Buffer`.
 

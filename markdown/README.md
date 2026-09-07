@@ -13,11 +13,16 @@
 
 > Everything a blog or docs page needs — headings with anchor ids, nested & task lists, fenced code, blockquotes, GFM tables, images and links — rendering to clean HTML with **source HTML escaped by default**. No dependencies, isomorphic.
 
-- ✍️ Headings (anchor ids), nested & task lists, fenced code, blockquotes, **GFM tables**
+- ✍️ Headings (anchor ids), nested & task lists, fenced code, blockquotes, **GFM tables**, strikethrough
 - 🔒 **Safe by default** — raw HTML in the source is escaped; `javascript:` / `data:` URLs neutralized
-- 🧭 `extractHeadings()` builds a table of contents; `slugify()` for anchor links
-- 🎛️ Options — `headingIds`, `headingOffset`, `openLinksInNewTab`
+- 🧭 `extractHeadings()` / `tableOfContents()` build a (nested) TOC; `slugify()` / `slugifyHeading()` for anchor links
+- 📝 `parseFrontmatter()` splits a `---` YAML-ish block into `{ data, content }`
+- ✂️ `toPlainText()` / `excerpt()` for meta descriptions & previews
+- 🧼 `sanitizeHtml()` to clean untrusted HTML from elsewhere
+- 🎛️ Options — `headingIds`, `headingOffset`, `openLinksInNewTab`, `autolinkBareUrls`
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.1.0** — `parseFrontmatter`, `tableOfContents` + `slugifyHeading`, `toPlainText` + `excerpt`, `sanitizeHtml`, and an opt-in `autolinkBareUrls` option for GFM bare-URL autolinking. All additive — existing output and every existing export are unchanged.
 
 ## Install
 
@@ -58,8 +63,38 @@ const x = 1;
 
 ```ts
 extractHeadings(md);
-// [{ level: 1, text: "Getting started", id: "getting-started" }, …]
+// flat: [{ level: 1, text: "Getting started", id: "getting-started" }, …]
 slugify("Hello, World!"); // "hello-world"
+
+tableOfContents(md);
+// nested: [{ level: 1, text: "Getting started", slug: "getting-started", children: [ … ] }]
+slugifyHeading("Café déjà vu"); // "café-déjà-vu" (unicode-aware, GitHub-style)
+```
+
+### Frontmatter, plain text & excerpts
+
+```ts
+parseFrontmatter("---\ntitle: Hello\ntags: [a, b]\n---\n# Body");
+// { data: { title: "Hello", tags: ["a", "b"] }, content: "# Body" }
+
+toPlainText("# Hi\n\nSome **bold** [text](/x).");   // "Hi\nSome bold text."
+excerpt(longMarkdown, { length: 160 });             // word-boundary preview + "…"
+```
+
+### Cleaning untrusted HTML
+
+`markdownToHtml` is already safe (it escapes source HTML). `sanitizeHtml` is for HTML that came from *somewhere else* (a paste, a CMS field) that you want to display:
+
+```ts
+sanitizeHtml('<p>ok</p><script>alert(1)</script><a href="javascript:x" onclick="y">z</a>');
+// '<p>ok</p><a href="#">z</a>'
+```
+
+### GFM bare-URL autolinking (opt-in)
+
+```ts
+markdownToHtml("see https://lacspace.com");                          // …see https://lacspace.com (plain)
+markdownToHtml("see https://lacspace.com", { autolinkBareUrls: true }); // …<a href="https://lacspace.com">…</a>
 ```
 
 ## Supports
@@ -79,6 +114,25 @@ slugify("Hello, World!"); // "hello-world"
 | `headingIds` | `true` | add slug `id`s to headings |
 | `headingOffset` | `0` | shift levels (`1` → `#` becomes `<h2>`) |
 | `openLinksInNewTab` | `false` | add `target="_blank" rel="noopener noreferrer"` to external links |
+| `autolinkBareUrls` | `false` | GFM-style autolink bare `https://…` / `www.…` URLs (off by default so output is unchanged) |
+
+## API
+
+| Export | Signature | Purpose |
+| --- | --- | --- |
+| `markdownToHtml` | `(md, options?) => string` | render Markdown to HTML |
+| `extractHeadings` | `(md) => { level, text, id }[]` | flat heading outline |
+| `slugify` | `(text) => string` | anchor slug (ASCII) |
+| `slugifyHeading` | `(text) => string` | GitHub-style slug (unicode-aware) |
+| `tableOfContents` | `(src, { minLevel?, maxLevel? }?) => TocNode[]` | **nested** `{ level, text, slug, children }` TOC (unique slugs) |
+| `parseFrontmatter` | `(src) => { data, content }` | split a `---` YAML-ish block from the body |
+| `toPlainText` | `(src) => string` | strip Markdown to readable prose |
+| `excerpt` | `(src, { length?, suffix? }?) => string` | word-boundary plain-text preview |
+| `sanitizeHtml` | `(html, { allowedTags?, allowedAttributes? }?) => string` | clean untrusted HTML |
+
+## Security
+
+`markdownToHtml` is **safe by default**: any raw HTML found in the Markdown source is **escaped**, never passed through, so injected `<script>` / `<img onerror>` cannot execute. `href`/`src` URLs are scheme-checked — only `http`, `https`, `mailto`, `tel`, fragments and relative paths survive; `javascript:` / `data:` / `vbscript:` (including control-char-obfuscated variants) become `#`. There is intentionally **no "allow raw HTML" mode** — if you need to display HTML from an untrusted source, run it through `sanitizeHtml` first. `sanitizeHtml` is a pragmatic, dependency-free regex sanitizer (removes script/style/iframe/etc., `on*` handlers, and dangerous URLs); for hostile input in a browser you may still prefer a full DOM-based sanitizer.
 
 Perfect for a Markdown-powered blog — it's what the `blog` template in [`create-lacspace-app`](https://www.npmjs.com/package/create-lacspace-app) uses.
 

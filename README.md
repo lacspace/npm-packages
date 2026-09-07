@@ -4,13 +4,13 @@
 
 **Small, sharp, open-source TypeScript packages for building on Lacspace — and for building in Nepal.**
 
-[![packages](https://img.shields.io/badge/packages-81-blue)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-87-blue)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-blue)](https://developer.lacspace.com/packages)
 [![licence](https://img.shields.io/badge/licence-Lacspace%20Free-green)](https://developer.lacspace.com/licenses/lacspace-free-1.0)
 
 </div>
 
-One monorepo, **81 published packages**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point.
+One monorepo, **87 published packages**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -20,7 +20,7 @@ One monorepo, **81 published packages**. Most are **zero-dependency**, **isomorp
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 81 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 87 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -223,6 +223,20 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/nepali-date`](./nepali-date) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-date?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat (BS) ↔ Gregorian (AD) date conversion |
 | [`@lacspace/nepali-utils`](./nepali-utils) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-utils?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-utils) | Everyday Nepal helpers (NPR words, phone, PAN/VAT, provinces…) |
 
+### AI Kit
+
+Zero-dependency, provider-agnostic, keyless building blocks for LLM apps — bring your own key.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/ai`](./ai) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fai?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/ai) | One `chat()`/`stream()` API over OpenAI, Anthropic, Gemini & any OpenAI-compatible endpoint |
+| [`@lacspace/prompt`](./prompt) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fprompt?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/prompt) | Typed prompt templates — variable names inferred from the string, so `.render()` is type-checked |
+| [`@lacspace/tokenizer`](./tokenizer) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftokenizer?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/tokenizer) | Token estimator, LLM cost calculator & context-budget manager (no 3 MB wasm) |
+| [`@lacspace/json-repair`](./json-repair) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fjson-repair?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/json-repair) | Extract & repair JSON from messy LLM output (fences, trailing commas, truncation) |
+| [`@lacspace/chunk`](./chunk) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fchunk?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/chunk) | RAG text splitter — recursive/markdown/code/sentence with a token-aware `lengthFn` |
+| [`@lacspace/stream`](./stream) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fstream?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/stream) | SSE + streaming-LLM parser → async iterator, normalized across OpenAI & Anthropic |
+| [`@lacspace/ai-tools`](./ai-tools) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fai-tools?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/ai-tools) | Define function-calling tools once → any provider spec + validated runtime dispatch |
+
 ### CLIs & tools
 
 | Package | Version | What it does |
@@ -263,7 +277,7 @@ More answers — and rich, searchable versions — at **[developer.lacspace.com/
 ### Getting started
 
 **What is the Lacspace developer platform?**
-A free ecosystem for JavaScript and TypeScript developers: a library of 75+ zero-dependency `@lacspace` packages, a set of standalone command-line tools, and `create-lacspace-app` — a CLI that scaffolds a finished Next.js app. Everything is documented at developer.lacspace.com and published openly to npm.
+A free ecosystem for JavaScript and TypeScript developers: a library of 85+ zero-dependency `@lacspace` packages, a set of standalone command-line tools, and `create-lacspace-app` — a CLI that scaffolds a finished Next.js app. Everything is documented at developer.lacspace.com and published openly to npm.
 
 **Are the Lacspace packages and tools really free?**
 Yes. Every open package and tool is published under the permissive **Lacspace Free Licence v1.0** — free to use, ship, modify and use commercially, with no fees, seats or usage metering.
@@ -289,7 +303,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-75+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting and more.
+85+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web, the AI Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting, LLM chat & streaming, prompt engineering, token counting, RAG chunking and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

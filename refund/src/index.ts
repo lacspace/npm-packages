@@ -306,3 +306,33 @@ export function validateReturn(
 
   return { ok: errors.length === 0, errors };
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Additive modules (v1.1.0)                                                  */
+/* -------------------------------------------------------------------------- */
+
+// Partial & line-level refunds, proportional tax/shipping, multi-tender split.
+export {
+  allocateProportional,
+  refundLines,
+  splitRefundAcrossTenders,
+  type OrderLine,
+  type OrderTotals,
+  type RefundLineInput,
+  type PartialRefundOptions,
+  type RefundLineBreakdown,
+  type PartialRefundResult,
+  type Tender,
+  type TenderRefund,
+} from "./partial";
+
+// Refund reason codes and an injectable-clock policy check.
+export {
+  REFUND_REASONS,
+  isRefundReason,
+  checkRefundPolicy,
+  type RefundReason,
+  type RefundPolicy,
+  type PolicyCheckInput,
+  type PolicyDecision,
+} from "./policy";

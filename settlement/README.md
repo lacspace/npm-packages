@@ -20,6 +20,8 @@
 - 🔢 **Signed minor units** — `+` credit, `-` debit; no floats anywhere
 - ⚡ Isomorphic & pure — Node, edge & browsers · 📦 ESM + CJS · zero dependencies · fully typed
 
+> **New in 1.1.0** — a full marketplace-payout layer, all additive and integer-safe: **batch settlement** per payee (`settleBatch`), **commission/fee/tax deduction** with a transparent breakdown (`applyDeductions`), **rolling reserves** with an injectable clock (`holdReserve` / `reserveBalance`), a **payout schedule** that skips weekends & holidays (`nextPayoutDate`), and **settled reconciliation + render-ready statements** (`reconcileSettlement` / `buildStatement`). Every existing export is unchanged.
+
 ## Install
 
 ```bash
@@ -72,6 +74,80 @@ payouts([
 // positive balances only → [ { account: "alice", payable: 700 } ]
 ```
 
+## Marketplace payouts (new in 1.1.0)
+
+### Batch settlement — one payout per payee
+
+```ts
+import { settleBatch } from "@lacspace/settlement";
+
+settleBatch([
+  { payee: "shop_a", kind: "capture", amount: 10_000 },
+  { payee: "shop_a", kind: "commission", amount: 1_500 },
+  { payee: "shop_a", kind: "refund", amount: 2_000 },
+  { payee: "shop_b", kind: "capture", amount: 5_000 },
+]);
+// → { settlements: [
+//      { payee: "shop_a", gross: 10000, deductions: 3500, net: 6500, lines: [...] },
+//      { payee: "shop_b", gross: 5000,  deductions: 0,    net: 5000, lines: [...] },
+//    ], totalNet: 11500 }
+```
+
+`kind` is one of `capture` (+), `refund` / `chargeback` / `fee` / `commission` (−), or `adjustment` (signed). `net` clamps at `0` unless `{ allowNegative: true }` (carry-forward).
+
+### Fee / commission / tax deduction — `gross → deductions → net`
+
+```ts
+import { applyDeductions } from "@lacspace/settlement";
+
+applyDeductions(10_000, [
+  { label: "Commission", kind: "commission", bps: 1500 }, // 15%
+  { label: "Gateway fee", kind: "fee", amount: 30, bps: 290 }, // 30 + 2.9%
+  { label: "VAT", kind: "tax", bps: 1300 }, // 13%
+]);
+// → { gross: 10000, totalDeductions: 3120, net: 6880, deductions: [...] }
+```
+
+Rates are **basis points** (1% = 100 bps) and floor to whole minor units. Pass `{ rateBase: "running" }` to charge each rate on the balance left after prior deductions.
+
+### Rolling reserve — held then released, injectable clock
+
+```ts
+import { holdReserve, reserveBalance } from "@lacspace/settlement";
+
+const clock = () => Date.parse("2026-01-01T00:00:00Z");
+const r = holdReserve(10_000, { bps: 1000, releaseAfterDays: 7 }, clock); // holds 1000
+reserveBalance([r], () => clock() + 6 * 86_400_000); // { held: 1000, available: 0 }
+reserveBalance([r], () => clock() + 7 * 86_400_000); // { held: 0, available: 1000 }
+```
+
+### Payout schedule — skips weekends & holidays
+
+```ts
+import { nextPayoutDate } from "@lacspace/settlement";
+
+nextPayoutDate({ kind: "tplus", days: 2, holidays: ["2026-01-05"] }, "2026-01-01");
+// 2026-01-01 (Thu) + 2 = Sat → skip weekend & the 5th holiday → 2026-01-06
+nextPayoutDate({ kind: "weekly", weekday: 5 }, "2026-01-01"); // next Friday
+```
+
+### Reconcile settled amounts & build a statement
+
+```ts
+import { reconcileSettlement, buildStatement } from "@lacspace/settlement";
+
+reconcileSettlement({ shop_a: 6500 }, { shop_a: 6400 });
+// → { matched: false, discrepancies: [{ account: "shop_a", ..., diff: -100 }] }
+
+const [settlement] = settleBatch([
+  { payee: "shop_a", kind: "capture", amount: 10_000 },
+  { payee: "shop_a", kind: "commission", amount: 1_500 },
+]).settlements;
+
+buildStatement(settlement, { opening: 0, reserve: 500, period: { from: "2026-01-01", to: "2026-01-07" } });
+// → { payee, opening, lines: [...], gross, deductions, reserve, net, closing, generatedAt }
+```
+
 ## API
 
 | Function | Description |
@@ -80,8 +156,17 @@ payouts([
 | `netFor(entries, account)` | `number` — net balance of a single account |
 | `reconcile(expected, actual, opts?)` | `{ account, expected, actual, diff }[]` — `diff = actual - expected`; mismatches only unless `{ all: true }` |
 | `payouts(entries)` | `{ account, payable }[]` — accounts with a positive balance |
+| `settleBatch(txns, opts?)` | `{ settlements, totalNet }` — net transactions into one payout per payee, with a per-kind line breakdown |
+| `applyDeductions(gross, specs, opts?)` | `{ gross, deductions, totalDeductions, net }` — deduct commission/fees/tax (flat + bps), integer-safe |
+| `reserveAmount(base, spec)` | `number` — reserve to withhold (`bps` + `flat`, floored, capped at base) |
+| `holdReserve(base, spec, clock?, ref?)` | `ReserveEntry` — withhold a reserve stamped with a release date from an injected clock |
+| `isReleased(entry, clock?)` | `boolean` — has the reserve reached its release time |
+| `reserveBalance(entries, clock?)` | `{ held, available }` — split reserves by the injected clock |
+| `nextPayoutDate(schedule, from)` | `Date` — next `daily` / `weekly` / `tplus` payout date (UTC midnight), skipping weekends & holidays |
+| `reconcileSettlement(expected, actual, opts?)` | `{ discrepancies, matched }` — reconcile settled amounts per payee |
+| `buildStatement(settlement, opts?)` | `Statement` — render-ready `opening → lines → net → closing` structure (no PDF dep) |
 
-An **entry** is `{ account; amount /* signed minor units: + credit, - debit */; type?; ref? }`. Every function is pure and never mutates its input.
+An **entry** is `{ account; amount /* signed minor units: + credit, - debit */; type?; ref? }`. A **transaction** is `{ payee; kind; amount; ref?; currency? }`. Every function is pure and never mutates its input; all money is integer minor units (no floats).
 
 ## Licensing
 

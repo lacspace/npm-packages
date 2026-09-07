@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/refund",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Returns / RMA workflow and refund-calculation engine — partial refunds with correct tax apportionment, restocking fees, restock lists and a return state machine. Integer minor units, zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -36,6 +36,12 @@
     "reverse-logistics",
     "state-machine",
     "minor-units",
+    "line-level-refund",
+    "proportional-tax",
+    "restocking-fee",
+    "refund-policy",
+    "multi-tender",
+    "split-refund",
     "isomorphic",
     "typescript"
   ],

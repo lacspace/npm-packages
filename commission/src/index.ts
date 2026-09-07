@@ -151,3 +151,53 @@ export function split(amount: number, shares: Share[]): SplitPart[] {
 
   return parts;
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — additive, backward-compatible extensions.
+// Explicit rounding modes, progressive slabs with a breakdown, volume tiers,
+// composite (flat + percent + slab) rules with caps/floors, per-category rates,
+// tax on commission, and a conserving marketplace split.
+// ---------------------------------------------------------------------------
+
+export {
+  roundMinor,
+  DEFAULT_ROUNDING,
+  type RoundingMode,
+} from "./rounding";
+
+export {
+  slabCommission,
+  volumeTier,
+  volumeCommission,
+  type Slab,
+  type SlabLine,
+  type SlabResult,
+  type TierOptions,
+  type VolumeTier,
+} from "./tiers";
+
+export {
+  compositeCommission,
+  categoryCommission,
+  type CompositeRule,
+  type CompositeComponent,
+  type CompositeResult,
+  type CategoryItem,
+  type CategoryLine,
+  type CategoryResult,
+} from "./composite";
+
+export {
+  taxOnCommission,
+  type TaxOptions,
+  type TaxResult,
+} from "./tax";
+
+export {
+  marketplaceSplit,
+  type MarketplaceTax,
+  type MarketplaceConfig,
+  type MarketplaceLineKind,
+  type MarketplaceLine,
+  type MarketplaceResult,
+} from "./marketplace";

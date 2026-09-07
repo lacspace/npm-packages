@@ -13,6 +13,8 @@
 
 > The returns logic every store re-implements badly. A tiny set of **pure functions** over plain data — compute partial refunds with the correct tax portion, decide what goes back on the shelf, and drive a return through an explicit state machine. No React, no store, no floats.
 
+> **New in 1.1.0** — line-level partial refunds that track already-refunded qty so you can never exceed what was captured (`refundLines`), remainder-safe proportional **tax & shipping** apportionment (`allocateProportional`), a reason-code **policy check** with an injectable clock (`checkRefundPolicy`, `REFUND_REASONS`), and a remainder-preserving **multi-tender split** back across the original payment methods (`splitRefundAcrossTenders`). All additive — every existing export is unchanged.
+
 - 🧊 **Immutable** — every op returns a brand-new object; your input is never mutated
 - 💾 **Serializable** — `ReturnRequest` is plain data, safe to `JSON.stringify` and persist
 - 🪙 **Exact money** — integer **minor units** everywhere, with tax apportioned per line
@@ -95,6 +97,56 @@ const { ok, errors } = validateReturn(
 // ok === false — "returns 5 but only 3 were ordered"
 ```
 
+## Line-level partial refunds (new in 1.1.0)
+
+Refund specific quantities of specific lines. The order's tax (and, optionally, shipping) is apportioned **proportionally** to the refunded subtotal — remainder-safe, so it always conserves to the penny — and prior refunds (`refundedQty`) are honoured so a running total can **never exceed what was captured**.
+
+```ts
+import { refundLines } from "@lacspace/refund";
+
+const r = refundLines(
+  {
+    lines: [
+      { lineId: "l1", sku: "TEE", unitPrice: 1000, qty: 3, refundedQty: 1 },
+      { lineId: "l2", sku: "MUG", unitPrice: 500, qty: 2 },
+    ],
+  },
+  [{ lineId: "l1", qty: 2 }],              // refund 2 more of line l1
+  { order: { tax: 401, shipping: 499 }, refundShipping: true, restockingPct: 0.1 },
+);
+// r.subtotal, r.tax, r.shipping, r.restockingFee, r.total  — all integer minor units
+// r.lines[i].refundedQtyAfter — the new cumulative refunded qty for that line
+// Over-refunding (or an unknown line) throws a RefundError (code "OVER_REFUND" / "UNKNOWN_LINE").
+```
+
+`allocateProportional(total, weights)` is exported on its own — split an integer amount across weights with the largest-remainder method; the parts always sum back to `total` exactly.
+
+## Refund policy & reasons (new in 1.1.0)
+
+```ts
+import { checkRefundPolicy, REFUND_REASONS } from "@lacspace/refund";
+
+const { allowed, reason } = checkRefundPolicy(
+  { windowDays: 30, nonRefundableSkus: ["GIFTCARD"], disallowedReasons: ["better_price"] },
+  { purchasedAt: order.placedAt, items: [{ sku: "TEE" }], reason: "defective" },
+  { now: Date.now() },                     // injectable clock — deterministic in tests
+);
+// { allowed: true } — or { allowed: false, reason: "Refund window of 30 day(s) has passed" }
+```
+
+## Multi-tender split (new in 1.1.0)
+
+```ts
+import { splitRefundAcrossTenders } from "@lacspace/refund";
+
+const slices = splitRefundAcrossTenders(1000, [
+  { method: "card", amount: 3000 },
+  { method: "wallet", amount: 1000, refunded: 200 }, // 800 capacity left
+]);
+// [{ method: "card", amount: 789 }, { method: "wallet", amount: 211 }] — sums to 1000 exactly
+// Splitting more than the total remaining capacity throws a RefundError ("OVER_REFUND").
+```
+
 ## API
 
 | Function | Description |
@@ -102,6 +154,11 @@ const { ok, errors } = validateReturn(
 | `createReturn(input)` | new `ReturnRequest`; `status` defaults to `"requested"`, history seeded |
 | `transition(ret, to, opts?)` | validate + move status, append history, immutable |
 | `refundAmount(items, opts?)` | `{ subtotal, tax, restockingFee, shipping, total }` in minor units |
+| `refundLines(order, requests, opts?)` | line-level partial refund; proportional tax/shipping, tracks `refundedQty`, over-refund throws |
+| `allocateProportional(total, weights)` | split an integer across weights, largest-remainder — parts sum to `total` exactly |
+| `splitRefundAcrossTenders(amount, tenders)` | split a refund across payment methods by remaining capacity, remainder-preserving |
+| `checkRefundPolicy(policy, input, opts?)` | `{ allowed, reason? }` against window/non-refundable-SKU/reason rules; injectable clock |
+| `REFUND_REASONS` / `isRefundReason(v)` | the reason-code list and its type guard |
 | `restockItems(items)` | `{ sku, qty }[]` merged by sku, dropping `restock:false` lines |
 | `validateReturn(order, items)` | `{ ok, errors }` — each `lineId` exists & `qty` ≤ ordered |
 | `canTransition(from, to)` | `true` when the status move is allowed |

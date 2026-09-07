@@ -110,3 +110,58 @@ export function payouts(entries: Entry[]): Payout[] {
     .filter((b) => b.balance > 0)
     .map((b) => ({ account: b.account, payable: b.balance }));
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — marketplace payout settlement (additive, integer minor units).
+// ---------------------------------------------------------------------------
+
+/** Fee, commission & tax deduction — `gross → deductions → net`. */
+export {
+  applyDeductions,
+  type DeductionKind,
+  type DeductionSpec,
+  type DeductionLine,
+  type DeductionResult,
+  type DeductionOptions,
+} from "./deductions";
+
+/** Holds / reserves / rolling reserve with an injectable clock. */
+export {
+  reserveAmount,
+  holdReserve,
+  isReleased,
+  reserveBalance,
+  type Clock,
+  type ReserveSpec,
+  type ReserveEntry,
+  type ReserveBalance,
+} from "./reserve";
+
+/** Settlement schedule — next payout date, skipping weekends & holidays. */
+export {
+  nextPayoutDate,
+  type ScheduleKind,
+  type Schedule,
+  type DateInput,
+} from "./schedule";
+
+/** Batch settlement — net many transactions into one payout per payee. */
+export {
+  settleBatch,
+  type TxnKind,
+  type Transaction,
+  type SettlementLine,
+  type PayeeSettlement,
+  type SettlementBatch,
+  type BatchOptions,
+} from "./batch";
+
+/** Reconciliation of settled amounts & render-ready statement structure. */
+export {
+  reconcileSettlement,
+  buildStatement,
+  type SettlementReconciliation,
+  type StatementLine,
+  type Statement,
+  type StatementOptions,
+} from "./statement";

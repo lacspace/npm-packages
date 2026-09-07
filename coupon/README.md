@@ -12,11 +12,15 @@
 
 </div>
 
-> The discount logic every checkout re-implements badly: is this code valid right now, and what does it actually take off the total? A tiny pair of **pure functions** over a plain `Coupon` object — validate the window / threshold / usage limit, then compute `percent`, `fixed` or `free-shipping` discounts. Integer **minor units** throughout, so there's no floating-point drift.
+> The discount logic every checkout re-implements badly: is this code valid right now, and what does it actually take off the total? A tiny set of **pure functions** over a plain `Coupon` object — validate the window / threshold / usage limit / scope, then compute `percent`, `fixed`, `free-shipping`, `bogo` or `tiered` discounts, stack several coupons safely, and generate codes with a CSPRNG. Integer **minor units** throughout, so there's no floating-point drift.
 
-- 🏷️ **Three code kinds** — `percent`, `fixed` (flat amount) and `free-shipping`
-- ⏱️ **Validity window** — `startsAt` / `endsAt` (ISO-8601), plus `minSubtotal` threshold and `usageLimit`
-- 🧢 **Discount caps** — `maxDiscount`, and the discount is never more than the subtotal
+> **New in 1.1.0** — `bogo` (buy-X-get-Y) and `tiered` discount types · per-user / first-order / product & category scope / currency constraints · `applyCoupons` stacking · `generateCode` / `generateCodes` / `normalizeCode`. Fully backward compatible — every 1.0 export is unchanged.
+
+- 🏷️ **Five code kinds** — `percent`, `fixed` (flat amount), `free-shipping`, `bogo` (buy-X-get-Y) and `tiered` (threshold)
+- ⏱️ **Validity window** — `startsAt` / `endsAt` (or `validFrom` / `validUntil`), `minSubtotal`, `usageLimit`, `perUserLimit`, `firstOrderOnly`, product / category scope and a `currency` guard
+- 🧢 **Discount caps** — `maxDiscount`, and the discount is never more than the eligible subtotal
+- 🧱 **Stacking** — combine coupons by `priority` with a `stackable` flag; combined discount never goes negative
+- 🎲 **Code generation** — CSPRNG `generateCode` / bulk `generateCodes` (configurable charset / length / prefix) + `normalizeCode`
 - 🪙 **Exact money** — integer **minor units** (cents / paisa) everywhere, never a float
 - ⚡ Isomorphic — Node, edge runtimes & browsers · 📦 ESM + CJS · fully typed · zero deps
 
@@ -69,22 +73,67 @@ validateCoupon(
 // → { valid: false, reason: "expired" }
 ```
 
-`validateCoupon` checks the window (`not-yet-started` / `expired`), `minSubtotal` (`below-min-subtotal`) and `usageLimit` vs `used` (`usage-limit-reached`) — it does **not** compute a discount. `applyCoupon` runs it first; when a coupon is invalid it returns zero discounts and the untouched `subtotal + shipping`.
+`validateCoupon` checks the window (`not-yet-started` / `expired`), `minSubtotal` (`below-min-subtotal`), `usageLimit` vs `used` (`usage-limit-reached`), `perUserLimit` vs `ctx.userUsed` (`per-user-limit-reached`), `firstOrderOnly` (`not-first-order`), the `currency` guard (`currency-mismatch`) and product/category scope (`out-of-scope`) — it does **not** compute a discount. `applyCoupon` runs it first; when a coupon is invalid it returns zero discounts and the untouched `subtotal + shipping`.
+
+## BOGO, tiered, scope & stacking
+
+```ts
+import { applyCoupon, applyCoupons, generateCode, type Coupon } from "@lacspace/coupon";
+
+// buy-1-get-1: the cheapest unit per pair is free (needs line items)
+applyCoupon(
+  { code: "BOGO", type: "bogo", buyQuantity: 1, getQuantity: 1 },
+  { subtotal: 2800, items: [
+    { productId: "a", unitPrice: 1000, quantity: 2 },
+    { productId: "b", unitPrice: 400, quantity: 2 },
+  ] },
+);
+// → discount 800 (the two 400-unit items are the free ones)
+
+// tiered / threshold: highest matching tier applies ($10 off over $100)
+applyCoupon(
+  { code: "TIER", type: "tiered", tiers: [
+    { minSubtotal: 5000, type: "fixed", value: 300 },
+    { minSubtotal: 10000, type: "fixed", value: 1000 },
+  ] },
+  { subtotal: 12000 },
+); // → discount 1000
+
+// stack several coupons — highest priority first, never negative
+applyCoupons(
+  [{ code: "TEN", type: "percent", value: 10 }, { code: "FIVE", type: "fixed", value: 100 }],
+  { subtotal: 1000 },
+);
+// → { discount: 200, total: 800, applied: [...], skipped: [...] }
+
+// random codes (CSPRNG)
+generateCode({ length: 8, prefix: "SUMMER-" }); // → "SUMMER-K7QMR2X4"
+```
+
+Product/category scope narrows the eligible base: `includeProducts` / `includeCategories` (allow-list) and `excludeProducts` / `excludeCategories` (deny-list) are matched against `ctx.items`; `percent` / `fixed` / `tiered` then discount only the in-scope lines and are clamped to that eligible subtotal.
 
 ## API
 
 | Function | Description |
 | --- | --- |
-| `validateCoupon(coupon, { subtotal, now? })` | `{ valid, reason? }` — checks window, `minSubtotal`, `usageLimit`; no discount computed |
-| `applyCoupon(coupon, { subtotal, shipping?, now? })` | `{ valid, reason?, discount, shippingDiscount, total }` in minor units |
+| `validateCoupon(coupon, ctx)` | `{ valid, reason? }` — window, `minSubtotal`, usage & per-user limits, first-order, scope, currency; no discount computed |
+| `applyCoupon(coupon, ctx)` | `{ valid, reason?, discount, shippingDiscount, total, breakdown? }` in minor units |
+| `applyCoupons(coupons, ctx)` | Stack many coupons: `{ discount, shippingDiscount, total, applied, skipped }` |
+| `normalizeCode(code)` | Trim + upper-case a code (`""` for nullish) |
+| `generateCode(opts?)` | One CSPRNG code — `{ length?, charset?, prefix? }` |
+| `generateCodes(count, opts?)` | `count` unique CSPRNG codes |
+
+`ctx` is `{ subtotal, shipping?, now?, currency?, userUsed?, isFirstOrder?, items? }`.
 
 | `type` | discount |
 | --- | --- |
-| `percent` | `round(subtotal * value / 100)`, capped by `maxDiscount` and the subtotal |
-| `fixed` | `min(value, subtotal)`, capped by `maxDiscount` |
+| `percent` | `round(eligibleSubtotal * value / 100)`, capped by `maxDiscount` and the eligible subtotal |
+| `fixed` | `min(value, eligibleSubtotal)`, capped by `maxDiscount` |
 | `free-shipping` | `shippingDiscount = shipping` |
+| `bogo` | cheapest `getQuantity` units per `buyQuantity + getQuantity` group, `getDiscountPercent` off (default 100); needs `items` |
+| `tiered` | highest matching `tiers` entry (each `{ minSubtotal, type, value }`) |
 
-`total = max(0, subtotal - discount + shipping - shippingDiscount)`. `value` is a whole percent `0..100` for `percent`, or an amount in minor units for `fixed` (ignored for `free-shipping`). Types exported: `Coupon`, `CouponValidation`, `CouponResult`.
+`total = max(0, subtotal - discount + shipping - shippingDiscount)`. `eligibleSubtotal` equals the full `subtotal` when no `items` / scope are given. Types exported: `Coupon`, `CouponType`, `CouponTier`, `OrderItem`, `OrderContext`, `CouponValidation`, `CouponBreakdown`, `CouponResult`, plus `GenerateCodeOptions`, `AppliedCoupon`, `SkippedCoupon`, `StackResult`.
 
 ## Licensing
 

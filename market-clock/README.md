@@ -12,13 +12,17 @@
 
 </div>
 
-> Every trading app needs to answer "are we open?" correctly — accounting for weekends, holidays, pre-open sessions **and** the exchange's timezone. This does it in a few bytes. Ships with **NSE / BSE** presets (IST, no DST — so the offset is exact).
+> Every trading app needs to answer "are we open?" correctly — accounting for weekends, holidays, pre-open sessions **and** the exchange's timezone. This does it in a few bytes. Ships with presets for **NSE · BSE · NYSE · NASDAQ · LSE · TSE · HKEX · SGX** — no-DST exchanges use an exact fixed offset, US/UK use an IANA `timeZone` so open/close stay correct across daylight-saving.
 
 - 🟢 `isOpen()` · `isPreOpen()` · `status()` → `"open" | "pre-open" | "closed"`
-- ⏭️ `nextOpen()` · `nextClose()` · `msToOpen()` · `msToClose()`
-- 📅 Weekend + holiday aware · pre-open session support
-- 🏦 `NSE` / `BSE` presets, or bring your own `ExchangeSpec`
+- 🧩 `currentSegment()` → `"pre-open" | "regular" | "post" | "closed"` · `nextSegmentChange()`
+- ⏭️ `nextOpen()` · `nextClose()` · `timeUntilOpen()` · `timeUntilClose()` · `msToOpen()` · `msToClose()`
+- 📅 Weekend + holiday aware · pre-open + **after-hours** sessions · **half-day / early-close** overrides
+- 📆 `nextSessions(now, n)` · `sessionsBetween(a, b)` — skips weekends, holidays, half-days
+- 🏦 `PRESETS` (8 exchanges), or bring your own `ExchangeSpec`
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.1.0** — built-in presets for 8 exchanges (`PRESETS`), DST-correct `timeZone` support, distinct **session segments** (pre-open · regular · post · closed) with `currentSegment()` / `nextSegmentChange()`, **half-day early closes**, `timeUntilOpen()` / `timeUntilClose()` countdowns, and `nextSessions()` / `sessionsBetween()`. Fully additive — every 1.0.x export is unchanged.
 
 ## Install
 
@@ -59,6 +63,58 @@ if (nse.isOpen()) {
 }
 ```
 
+## Built-in presets
+
+```ts
+import { PRESETS, NYSE, NSE, MarketClock } from "@lacspace/market-clock";
+
+const nyse = new MarketClock(NYSE);   // DST-correct via IANA "America/New_York"
+nyse.isOpen();                        // handles EDT ↔ EST automatically
+
+Object.keys(PRESETS);                 // NSE, BSE, NYSE, NASDAQ, LSE, TSE, HKEX, SGX
+new MarketClock(PRESETS.SGX).status();
+```
+
+No-DST exchanges (NSE/BSE/TSE/HKEX/SGX) use an exact fixed `offsetMinutes`; US/UK presets set an IANA `timeZone` (DST-correct via `Intl`). Bundled holiday lists cover 2025–2026 nationally-fixed observances only — verify and extend. Intraday lunch breaks (TSE, HKEX) are not modelled.
+
+## Session segments
+
+```ts
+const nyse = new MarketClock(NYSE);
+
+nyse.currentSegment();       // "pre-open" | "regular" | "post" | "closed"
+
+const change = nyse.nextSegmentChange();
+change.segment;              // the segment that begins next
+change.at;                   // Date of the boundary
+```
+
+## Half-days / early close
+
+```ts
+// Presets already carry the well-known early closes; add your own:
+const nyse = new MarketClock({
+  ...NYSE,
+  halfDays: { ...NYSE.halfDays, "2026-07-03": { close: "13:00" } },
+});
+
+nyse.isHalfDay(new Date("2026-07-03T15:00:00Z"));  // true
+```
+
+## Countdowns + next N sessions
+
+```ts
+nyse.timeUntilOpen();        // ms until the next regular open  (> 0)
+nyse.timeUntilClose();       // ms until the next regular close (early on a half-day)
+
+nyse.nextSessions(new Date(), 5);   // next 5 trading sessions (skips weekends/holidays/half-days)
+// → [{ date: "2026-01-05", open: Date, close: Date, halfDay: false }, ...]
+
+nyse.sessionsBetween(new Date("2026-01-01Z"), new Date("2026-02-01Z"));  // all sessions in January
+```
+
+Every function also exists as a standalone import — `currentSegment(spec, at)`, `nextSessions(spec, now, n)`, `isTradingDay(spec, date)`, `isHoliday(spec, date)`, etc. — for a functional style.
+
 ## Custom exchange / your own holidays
 
 ```ts
@@ -82,14 +138,32 @@ const custom = createClock({
 
 ## API
 
+`MarketClock` members (all accept an optional instant; DST-correct):
+
 | Member | Returns |
 | --- | --- |
 | `isOpen(at?)` `isPreOpen(at?)` | boolean |
-| `isHoliday(at?)` `isWeekend(at?)` `isTradingDay(at?)` | boolean |
+| `isHoliday(at?)` `isWeekend(at?)` `isTradingDay(at?)` `isHalfDay(at?)` | boolean |
 | `status(at?)` | `"open" \| "pre-open" \| "closed"` |
+| `currentSegment(at?)` | `"pre-open" \| "regular" \| "post" \| "closed"` |
+| `nextSegmentChange(at?)` | `{ segment, at: Date }` |
 | `nextOpen(from?)` `nextClose(from?)` | Date |
-| `msToOpen(at?)` `msToClose(at?)` | number (ms) |
-| `NSE` `BSE` | `ExchangeSpec` presets |
+| `msToOpen(at?)` `msToClose(at?)` `timeUntilOpen(now?)` `timeUntilClose(now?)` | number (ms) |
+| `nextSessions(now?, n?)` `sessionsBetween(a, b)` | `SessionWindow[]` |
+
+Standalone functions mirror the above as `fn(spec, ...)`: `currentSegment` · `nextSegmentChange` · `timeUntilOpen` · `timeUntilClose` · `nextOpenAt` · `nextCloseAt` · `nextSessions` · `sessionsBetween` · `isTradingDay` · `isHoliday` · `isHalfDay`.
+
+| Preset | Timezone |
+| --- | --- |
+| `NSE` `BSE` | IST (+5:30, no DST) |
+| `NYSE` `NASDAQ` | America/New_York (DST) |
+| `LSE` | Europe/London (DST) |
+| `TSE` | JST (+9, no DST) |
+| `HKEX` | HKT (+8, no DST) |
+| `SGX` | SGT (+8, no DST) |
+| `PRESETS` | all eight, keyed by name |
+
+`SessionWindow` = `{ date: string; open: Date; close: Date; halfDay: boolean }`. New optional `ExchangeSpec` fields: `postClose?`, `timeZone?`, `halfDays?`.
 
 ## The Lacspace StockKit
 

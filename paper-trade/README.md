@@ -15,10 +15,14 @@
 > Build a full trading simulator in an afternoon. A virtual wallet, an order book, market / limit / stop orders that **fill against live prices**, positions, holdings and live mark-to-market P&L — all framework-agnostic and dependency-free. Drop it into React, Node, a bot, a game, anything.
 
 - 💼 Virtual cash wallet with realised **and** unrealised P&L
-- 🧾 `MARKET`, `LIMIT` and `SL` (stop) orders that fill as prices move
+- 🧾 `MARKET`, `LIMIT`, `SL`, `SL-LIMIT` and `TRAILING-SL` orders that fill as prices move
+- ⏱️ Time-in-force — `DAY` / `GTC` / `IOC` / `FOK` (with optional partial fills)
 - 📈 Positions, holdings, weighted average price, portfolio summary
+- 💸 Pluggable commission & slippage models · 📉 equity-curve, returns & max-drawdown analytics
 - 🔁 Optional short-selling · 💾 `toJSON()` / `restore()` for persistence
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.2.0** — stop-limit & trailing-stop order types, time-in-force (`DAY`/`GTC`/`IOC`/`FOK`) with optional partial fills, a `processTick(symbol, price)` driver that reports what filled, pluggable commission (`flatCommission`/`percentCommission`/`perShareCommission`) and slippage (`fixedSlippage`/`percentSlippage`) models, and equity-curve analytics (`equityCurve()`, `performance()`, `maxDrawdown`, `equityStats`). Fully additive — every 1.1 API is unchanged.
 
 ## Install
 
@@ -87,14 +91,17 @@ Pair it with [`@lacspace/market`](https://www.npmjs.com/package/@lacspace/market
 
 | Member | Description |
 | --- | --- |
-| `new PaperAccount({ cash, allowShort?, now? })` | create an account |
+| `new PaperAccount({ cash, allowShort?, now?, charges?, slippage?, trackEquity? })` | create an account |
 | `mark(prices)` | feed price(s); triggers pending orders + MTM |
-| `buy(sym, { qty, price?, triggerPrice? })` | buy (market / limit / SL) |
-| `sell(sym, { qty, price?, triggerPrice? })` | sell (market / limit / SL) |
+| `buy(sym, { qty, price?, triggerPrice?, limitPrice?, trail?, tif? })` | buy (market / limit / SL / SL-limit / trailing) |
+| `sell(sym, { qty, price?, triggerPrice?, limitPrice?, trail?, tif? })` | sell (market / limit / SL / SL-limit / trailing) |
 | `place(req)` / `cancel(id)` | low-level order control |
+| `processTick(sym, price)` | feed one tick; returns the orders that filled |
+| `endSession(reason?)` | cancel all resting `DAY` orders |
 | `getPositions()` / `getHoldings()` / `summary()` | portfolio state |
 | `cash` `realizedPnl` `unrealizedPnl` `pnl` | live figures |
 | `orders` `openOrders` `trades` | order & trade history |
+| `equityCurve()` / `recordEquity()` / `performance()` | analytics (needs `trackEquity`) |
 | `toJSON()` / `PaperAccount.restore(snap)` | persistence |
 
 ## The Lacspace StockKit
@@ -129,6 +136,59 @@ acct.stats();
 // → { trades, closedTrades, wins, losses, winRate, grossProfit, grossLoss, profitFactor,
 //     avgWin, avgLoss, largestWin, largestLoss, realizedPnl, totalCharges }
 acct.totalCharges; // total costs paid
+```
+
+## New in 1.2 — advanced orders, costs & analytics
+
+### Stop-limit, trailing-stop & time-in-force
+
+```ts
+// stop-limit: once 95 trades, rest as a LIMIT that won't fill below 94
+acct.sell("RELIANCE", { qty: 10, triggerPrice: 95, limitPrice: 94 });
+
+// trailing-stop: exits 5 below the highest price seen since it was placed
+acct.sell("RELIANCE", { qty: 10, trail: 5 });
+
+// time-in-force: IOC fills what it can now (partial ok) and cancels the rest
+acct.buy("TCS", { qty: 100, price: 3800, tif: "IOC" });
+acct.endSession(); // clears any resting `tif: "DAY"` orders
+
+// drive it tick-by-tick — processTick returns the orders that filled
+const filled = acct.processTick("RELIANCE", 94);
+```
+
+### Commission & slippage models
+
+```ts
+import { PaperAccount, percentCommission, percentSlippage, composeCosts, flatCommission } from "@lacspace/paper-trade";
+
+const acct = new PaperAccount({
+  cash: 100_000,
+  charges: composeCosts(flatCommission(20), percentCommission(0.03, { min: 1 })),
+  slippage: percentSlippage(0.05), // buys fill 0.05% higher, sells 0.05% lower
+});
+```
+
+| Cost helper | Builds |
+| --- | --- |
+| `flatCommission(amount)` | fixed fee per fill |
+| `percentCommission(pct, { min?, max? })` | percent of turnover, clamped |
+| `perShareCommission(perShare, { min?, max? })` | per-unit fee |
+| `composeCosts(...fns)` | sum several models |
+| `fixedSlippage(amount)` / `percentSlippage(pct)` | adverse fill-price move |
+
+### Equity curve, returns & drawdown
+
+```ts
+const acct = new PaperAccount({ cash: 100_000, trackEquity: true });
+// ... run your ticks/trades ...
+
+acct.equityCurve();   // [{ t, equity }, …] — one point per mark()/processTick()
+acct.performance();   // stats() + { totalReturnPct, maxDrawdown, maxDrawdownPct, start, end, … }
+
+// or use the pure functions on any series
+import { totalReturnPct, maxDrawdown, equityStats } from "@lacspace/paper-trade";
+maxDrawdown([100, 120, 90, 110, 80]); // { maxDrawdown: 40, maxDrawdownPct: 33.33, … }
 ```
 
 ## Licensing

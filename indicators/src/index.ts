@@ -611,6 +611,16 @@ function lowerWick(c: Candle): number {
   return Math.min(c.open, c.close) - c.low;
 }
 
+/* ------------------------------------------------------------------ *
+ * Extended indicator suite (added in 1.2.0). Re-exported here so the
+ * public entry point is unchanged. These modules import the core
+ * indicators above, so keep these re-exports at the BOTTOM of the file.
+ * ------------------------------------------------------------------ */
+export * from "./trend";
+export * from "./momentum";
+export * from "./volatility";
+export * from "./volume";
+
 /** Detect common single- and two-candle patterns across a series. */
 export function detectPatterns(candles: Candle[]): PatternHit[] {
   const hits: PatternHit[] = [];

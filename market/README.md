@@ -16,9 +16,12 @@
 
 - 💸 **Charges calculator** — the exact Zerodha-style breakdown traders actually see
 - 📊 P&L, `changePercent`, `pnlPercent`, `cagr`, `xirr`, `averagePrice`
-- 🎯 `positionSize` (risk-based), `roundToTick`, `circuitLimits`
+- 🎯 `positionSize` (risk-based), `roundToTick`, `roundToLot`, `circuitLimits`
+- 🕯️ **New:** OHLCV candle `resampleCandles` / `detectGaps` / `vwap`, corporate-action `adjustClose`, `logReturns` / `beta`
 - 🇮🇳 `formatINR` with lakh/crore grouping
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.2** — OHLCV candle utilities (`resampleCandles`, `detectGaps`, `vwap`, `typicalPrice`), corporate-action price adjustment (`adjustForSplit` / `adjustForBonus` / `adjustForDividend` / `adjustClose`), more performance stats (`logReturns`, `cumulativeReturn`, `beta`) and price maths (`roundToLot`, `spread`). All additive — nothing existing changed.
 
 ## Install
 
@@ -96,8 +99,17 @@ formatINR(1234567.5);           // "₹12,34,567.50"
 | `averagePrice(trades)` | volume-weighted average |
 | `positionSize({...})` | risk-based whole-share sizing |
 | `roundToTick(price, tick?)` | snap to exchange tick |
+| `roundToLot(qty, lotSize?)` | floor quantity to whole lots |
+| `spread(bid, ask)` | `{ absolute, mid, percent }` |
 | `circuitLimits(prevClose, %)` | upper / lower circuit |
 | `formatINR(n, opts?)` | Indian lakh/crore currency string |
+| `resampleCandles(candles, ms)` | aggregate OHLCV to a higher timeframe |
+| `detectGaps(candles, ms)` | find missing bars in a fixed-interval series |
+| `vwap(candles)` / `typicalPrice(c)` | volume-weighted / typical price |
+| `logReturns(series)` | continuously-compounded returns |
+| `cumulativeReturn(returns)` | geometric compounded return |
+| `beta(asset, benchmark)` | beta vs a benchmark return series |
+| `adjustClose(prices, actions)` | back-adjust for splits/bonus/dividends |
 
 ## The Lacspace StockKit
 
@@ -125,6 +137,41 @@ maxDrawdown(equityCurve);   // { maxDrawdown: 0.25, peakIndex, troughIndex }
 
 formatCompactINR(12345678); // "₹1.23 Cr"
 ```
+
+## New in 1.2 — OHLCV candles, corporate actions & more
+
+```ts
+import {
+  resampleCandles, detectGaps, vwap, typicalPrice,
+  logReturns, cumulativeReturn, beta,
+  adjustForSplit, adjustForBonus, adjustForDividend, adjustClose,
+  roundToLot, spread,
+} from "@lacspace/market";
+
+// OHLCV — aggregate 1m bars into 5m, spot missing bars, volume-weighted price
+resampleCandles(oneMinBars, 5 * 60_000);   // 5-minute candles (first-open, max-high, min-low, last-close, sum-vol)
+detectGaps(bars, 60_000);                   // [{ from, to, missing }]
+vwap(bars);                                 // Σ(typical × vol) / Σ(vol)
+
+// Performance — log returns, compounded return, beta vs a benchmark
+logReturns([100, 105, 110]);                // [0.0488…, 0.0465…]
+cumulativeReturn([0.1, 0.1]);               // 0.21
+beta(assetReturns, benchmarkReturns);       // 2 → moves twice the market
+
+// Corporate actions — back-adjust a close series ("adjusted close")
+adjustForSplit([100, 100, 50, 50], 2, 2);   // 2:1 split at index 2 → [50, 50, 50, 50]
+adjustForDividend([110, 110, 100], 10, 2);  // ex-div at index 2 → [99, 99, 100]
+adjustClose(prices, [
+  { type: "split", ratio: 2, atIndex: 120 },
+  { type: "dividend", amount: 8, atIndex: 260 },
+]);
+
+// Price maths
+roundToLot(147, 25);   // 125  (whole F&O lots)
+spread(99, 101);       // { absolute: 2, mid: 100, percent: 2 }
+```
+
+> Scope note: `@lacspace/market` stays **data & money math** — candle *shaping*, not technical indicators (`@lacspace/indicators`) and not a trading engine (`@lacspace/paper-trade`).
 
 ## Licensing
 

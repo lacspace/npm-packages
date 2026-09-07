@@ -14,11 +14,13 @@
 
 > Most JS indicator libs recompute the entire array on every new candle. This one updates **incrementally** — feed a single live LTP tick and the indicator advances in O(1). Built for real-time charts, screeners and algo bots.
 
-- 📈 **RSI, MACD, SMA, EMA, WMA, Bollinger, ATR, VWAP, Stochastic, Supertrend, ADX**
+- 📈 **30+ indicators** — RSI, MACD, SMA, EMA, WMA, DEMA/TEMA, Bollinger, ATR, VWAP, Stochastic, StochRSI, Supertrend, ADX, Parabolic SAR, Ichimoku, CCI, Williams %R, ROC, MFI, Keltner, Donchian, OBV, A/D, CMF
 - ⚡ Incremental `next(tick)` API — perfect for websocket / LTP streams
 - 🧮 Batch helpers too — run over a historical array in one call
 - ✂️ `crossedAbove` / `crossedBelow` for signal logic
 - 🌍 Isomorphic (browser + Node) · 📦 ESM + CJS · 🧩 zero dependencies · fully typed
+
+> **New in 1.2.0** — a big additive indicator wave (all backward-compatible, zero new deps): **DEMA/TEMA**, **Parabolic SAR**, **Ichimoku Cloud**, **StochRSI**, **CCI**, **Williams %R**, **ROC**, **MFI**, **standard deviation**, **Keltner Channels**, **Donchian Channels**, **OBV**, **Accumulation/Distribution** and **Chaikin Money Flow** — each with the same streaming `next()` class + batch helper. Existing outputs are unchanged.
 
 ## Install
 
@@ -82,17 +84,40 @@ for (let i = 1; i < closes.length; i++) {
 
 | Class / fn | Input | Output |
 | --- | --- | --- |
-| `SMA` `EMA` `WMA` | price | number |
+| `SMA` `EMA` `WMA` `DEMA` `TEMA` | price | number |
+| `StdDev` | price | number |
+| `ROC` | price | number (percent) |
 | `RSI` | price | 0–100 |
+| `StochRSI` | price | `{ stochRSI, k, d }` |
 | `MACD` | price | `{ macd, signal, histogram }` |
 | `BollingerBands` | price | `{ middle, upper, lower, bandwidth }` |
 | `ATR` | HLC bar | number |
+| `KeltnerChannels` | HLC bar | `{ middle, upper, lower }` |
+| `DonchianChannels` | H/L bar | `{ upper, lower, middle }` |
 | `VWAP` | H/L/C/volume bar | number |
 | `Stochastic` | HLC bar | `{ k, d }` |
+| `CCI` | HLC bar | number |
+| `WilliamsR` | HLC bar | -100–0 |
 | `Supertrend` | HLC bar | `{ value, direction }` |
+| `ParabolicSAR` | HLC bar | `{ value, direction }` |
 | `ADX` | HLC bar | `{ adx, plusDI, minusDI }` |
+| `Ichimoku` | HLC bar | `{ conversion, base, spanA, spanB }` |
+| `MFI` | H/L/C/volume bar | 0–100 |
+| `OBV` | close/volume bar | number |
+| `AccumulationDistribution` | H/L/C/volume bar | number |
+| `ChaikinMoneyFlow` | H/L/C/volume bar | -1–1 |
 
-Batch equivalents: `sma` `ema` `wma` `rsi` `macd` `bollinger` `atr` `supertrend` `adx`.
+Batch equivalents (same name, lower-cased): `sma` `ema` `wma` `dema` `tema` `stddev` `roc` `rsi` `stochRSI` `macd` `bollinger` `atr` `keltner` `donchian` `cci` `williamsR` `supertrend` `parabolicSAR` `adx` `ichimoku` `mfi` `obv` `adl` `cmf`.
+
+```ts
+import { ichimoku, parabolicSAR, cci, obv, keltner } from "@lacspace/indicators";
+
+parabolicSAR(candles);      // ({ value, direction: 1 | -1 } | null)[]
+ichimoku(candles);          // ({ conversion, base, spanA, spanB } | null)[]
+cci(candles, 20);           // (number | null)[]
+keltner(candles, 20, 2);    // ({ middle, upper, lower } | null)[]
+obv(candles);               // number[]  (cumulative, no warm-up)
+```
 
 ## The Lacspace StockKit
 

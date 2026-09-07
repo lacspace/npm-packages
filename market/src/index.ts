@@ -538,3 +538,28 @@ export function maxDrawdown(equity: number[]): { maxDrawdown: number; peakIndex:
   }
   return { maxDrawdown: maxDd, peakIndex: ddPeak, troughIndex: ddTrough };
 }
+
+/* ------------------------------------------------------------------ *
+ * OHLCV candles · performance · corporate actions · price maths (v1.2)
+ * ------------------------------------------------------------------ */
+
+export {
+  typicalPrice,
+  resampleCandles,
+  detectGaps,
+  vwap,
+  type Candle,
+  type CandleGap,
+} from "./ohlcv";
+
+export { logReturns, cumulativeReturn, beta } from "./performance";
+
+export {
+  adjustForSplit,
+  adjustForBonus,
+  adjustForDividend,
+  adjustClose,
+  type CorporateAction,
+} from "./corporate";
+
+export { roundToLot, spread, type Spread } from "./pricing";

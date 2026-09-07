@@ -13,10 +13,32 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { localParts, utcFromLocal } from "./tz";
+import {
+  currentSegment,
+  nextSegmentChange,
+  timeUntilOpen,
+  timeUntilClose,
+  nextSessions,
+  sessionsBetween,
+  isHalfDay,
+  type Segment,
+  type SegmentChange,
+  type SessionWindow,
+} from "./sessions";
+
 export interface Session {
   /** "HH:MM" 24-hour, in exchange-local time. */
   open: string;
   close: string;
+}
+
+/** An early-close / half-day override for a single date. */
+export interface HalfDay {
+  /** "HH:MM" early close in exchange-local time (e.g. "13:00"). */
+  close: string;
+  /** Optional early/late open; defaults to the regular open. */
+  open?: string;
 }
 
 export interface ExchangeSpec {
@@ -25,6 +47,22 @@ export interface ExchangeSpec {
   offsetMinutes: number;
   regular: Session;
   preOpen?: Session;
+  /**
+   * Post-market / after-hours session (optional). Enables the "post" segment.
+   * @since 1.1.0
+   */
+  postClose?: Session;
+  /**
+   * IANA timezone (e.g. "America/New_York"). When set it is DST-correct via
+   * `Intl` and takes precedence over `offsetMinutes`. Omit for no-DST exchanges.
+   * @since 1.1.0
+   */
+  timeZone?: string;
+  /**
+   * Early-close / half-day overrides, keyed by "YYYY-MM-DD" exchange-local date.
+   * @since 1.1.0
+   */
+  halfDays?: Record<string, HalfDay>;
   /** Weekday numbers that are always closed (0 = Sunday … 6 = Saturday). */
   weekend: number[];
   /** Full-day holidays as "YYYY-MM-DD" in exchange-local dates. */
@@ -65,19 +103,12 @@ export class MarketClock {
 
   /** Exchange-local calendar parts for an instant. */
   private parts(date: Date): LocalParts {
-    const local = new Date(date.getTime() + this.spec.offsetMinutes * 60000);
-    return {
-      y: local.getUTCFullYear(),
-      m: local.getUTCMonth() + 1,
-      d: local.getUTCDate(),
-      day: local.getUTCDay(),
-      minute: local.getUTCHours() * 60 + local.getUTCMinutes(),
-    };
+    return localParts(this.spec, date);
   }
 
   /** UTC epoch millis for an exchange-local calendar day + minute-of-day. */
   private utcFor(y: number, m: number, d: number, minute: number): number {
-    return Date.UTC(y, m - 1, d) + minute * 60000 - this.spec.offsetMinutes * 60000;
+    return utcFromLocal(this.spec, y, m, d, minute);
   }
 
   private isoDate(p: { y: number; m: number; d: number }): string {
@@ -157,6 +188,43 @@ export class MarketClock {
     if (this.isOpen(at)) return 0;
     return this.nextOpen(at).getTime() - at.getTime();
   }
+
+  /* ---- 1.1.0: segments · countdowns · half-days · multi-session ---- */
+
+  /** Is `at` an early-close / half-day trading session? @since 1.1.0 */
+  isHalfDay(at: Date = new Date()): boolean {
+    return isHalfDay(this.spec, at);
+  }
+
+  /** The distinct segment at `at`: pre-open · regular · post · closed. @since 1.1.0 */
+  currentSegment(at: Date = new Date()): Segment {
+    return currentSegment(this.spec, at);
+  }
+
+  /** The next segment boundary strictly after `at`. @since 1.1.0 */
+  nextSegmentChange(at: Date = new Date()): SegmentChange {
+    return nextSegmentChange(this.spec, at);
+  }
+
+  /** Milliseconds until the next regular open (always > 0). @since 1.1.0 */
+  timeUntilOpen(now: Date = new Date()): number {
+    return timeUntilOpen(this.spec, now);
+  }
+
+  /** Milliseconds until the next regular close (early on a half-day). @since 1.1.0 */
+  timeUntilClose(now: Date = new Date()): number {
+    return timeUntilClose(this.spec, now);
+  }
+
+  /** The next `n` trading sessions at/after `now` (skips weekends/holidays). @since 1.1.0 */
+  nextSessions(now: Date = new Date(), n = 1): SessionWindow[] {
+    return nextSessions(this.spec, now, n);
+  }
+
+  /** All trading sessions whose open falls within `[a, b)`. @since 1.1.0 */
+  sessionsBetween(a: Date, b: Date): SessionWindow[] {
+    return sessionsBetween(this.spec, a, b);
+  }
 }
 
 export function createClock(spec: ExchangeSpec): MarketClock {
@@ -193,3 +261,43 @@ export const BSE: ExchangeSpec = {
   ...NSE,
   name: "BSE",
 };
+
+/* --------------------------------------------------------------------------
+ * 1.1.0 — additive public API: presets + session/segment functions & types.
+ * ------------------------------------------------------------------------ */
+
+import { NYSE, NASDAQ, LSE, TSE, HKEX, SGX } from "./presets";
+
+export { NYSE, NASDAQ, LSE, TSE, HKEX, SGX } from "./presets";
+
+export {
+  currentSegment,
+  nextSegmentChange,
+  nextOpenAt,
+  nextCloseAt,
+  timeUntilOpen,
+  timeUntilClose,
+  nextSessions,
+  sessionsBetween,
+  isHalfDay,
+  isHoliday,
+  isTradingDay,
+  type Segment,
+  type SegmentChange,
+  type SessionWindow,
+} from "./sessions";
+
+/** All built-in exchange presets, keyed by name. @since 1.1.0 */
+export const PRESETS = {
+  NSE,
+  BSE,
+  NYSE,
+  NASDAQ,
+  LSE,
+  TSE,
+  HKEX,
+  SGX,
+} as const;
+
+/** Union of built-in preset keys. @since 1.1.0 */
+export type PresetName = keyof typeof PRESETS;

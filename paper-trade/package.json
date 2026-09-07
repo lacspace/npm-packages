@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/paper-trade",
-  "version": "1.1.5",
-  "description": "Headless paper-trading engine — virtual wallet, market/limit/stop orders that fill against live prices, positions, holdings and live P&L. The simulator core behind StockYatra. Zero-dependency.",
+  "version": "1.2.0",
+  "description": "Headless paper-trading engine — virtual wallet, market/limit/stop/stop-limit/trailing orders with time-in-force that fill against live price ticks, positions, realized & unrealized P&L, commission + slippage models and equity-curve analytics. The simulator core behind StockYatra. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -43,7 +43,15 @@
     "stock-simulator",
     "charges",
     "trade-stats",
-    "order-management"
+    "order-management",
+    "stop-limit",
+    "trailing-stop",
+    "time-in-force",
+    "slippage",
+    "commission",
+    "equity-curve",
+    "drawdown",
+    "process-tick"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

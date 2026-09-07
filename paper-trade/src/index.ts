@@ -7,9 +7,22 @@
  * Framework-agnostic, zero dependencies, isomorphic, fully typed.
  */
 
+import { equityStats, type EquityPoint, type PerformanceStats } from "./analytics";
+
+export * from "./costs";
+export * from "./analytics";
+
 export type OrderSide = "BUY" | "SELL";
-export type OrderType = "MARKET" | "LIMIT" | "SL";
+export type OrderType = "MARKET" | "LIMIT" | "SL" | "SL-LIMIT" | "TRAILING-SL";
 export type OrderStatus = "OPEN" | "FILLED" | "CANCELLED" | "REJECTED";
+
+/**
+ * Time-in-force. Omitted / `"GTC"` orders rest until filled or cancelled (the
+ * historical default). `"IOC"` fills what it can immediately (partial allowed)
+ * and cancels the rest; `"FOK"` fills fully now or cancels; `"DAY"` rests but is
+ * cleared by {@link PaperAccount.endSession}.
+ */
+export type TimeInForce = "DAY" | "GTC" | "IOC" | "FOK";
 
 export interface OrderRequest {
   symbol: string;
@@ -17,8 +30,14 @@ export interface OrderRequest {
   qty: number;
   /** Required for LIMIT orders — the worst acceptable fill price. */
   price?: number;
-  /** Required for SL (stop) orders — the price that activates the order. */
+  /** Required for SL (stop) / SL-LIMIT orders — the price that activates the order. */
   triggerPrice?: number;
+  /** Required for SL-LIMIT — the limit price applied once the stop triggers. */
+  limitPrice?: number;
+  /** Required for TRAILING-SL — trail distance (absolute price units) from the extreme. */
+  trail?: number;
+  /** Time-in-force. Default GTC (rest until filled/cancelled) — matches pre-1.2 behaviour. */
+  tif?: TimeInForce;
 }
 
 export interface Order extends OrderRequest {
@@ -26,9 +45,13 @@ export interface Order extends OrderRequest {
   type: OrderType;
   status: OrderStatus;
   filledPrice?: number;
+  /** Quantity actually filled (may be < qty for an IOC partial fill). */
+  filledQty?: number;
   reason?: string;
   createdAt: number;
   updatedAt: number;
+  /** TRAILING-SL only: best price seen so far, from which the trail is measured. */
+  trailRef?: number;
 }
 
 export interface Trade {
@@ -106,6 +129,17 @@ export interface PaperAccountOptions {
   now?: () => number;
   /** Charges per fill (e.g. from `@lacspace/market` `charges()`), deducted from cash. */
   charges?: (info: FillInfo) => number;
+  /**
+   * Slippage per fill — returns price-units the fill moves AGAINST the taker
+   * (buys pay more, sells receive less). Off by default. See the model factories
+   * in `costs` (`fixedSlippage`, `percentSlippage`).
+   */
+  slippage?: (info: FillInfo) => number;
+  /**
+   * When true, every `mark()`/`processTick()` appends a point to the equity
+   * curve (see {@link PaperAccount.equityCurve}). Off by default.
+   */
+  trackEquity?: boolean;
 }
 
 export class PaperAccount {
@@ -122,6 +156,9 @@ export class PaperAccount {
   private _charges = 0;
   private _closedPnls: number[] = [];
   private readonly chargesFn?: (info: FillInfo) => number;
+  private readonly slippageFn?: (info: FillInfo) => number;
+  private trackEquity = false;
+  private _equityCurve: EquityPoint[] = [];
   private seq = 0;
 
   constructor(opts: PaperAccountOptions) {
@@ -130,6 +167,9 @@ export class PaperAccount {
     this.allowShort = opts.allowShort ?? false;
     this.now = opts.now ?? (() => Date.now());
     this.chargesFn = opts.charges;
+    this.slippageFn = opts.slippage;
+    this.trackEquity = opts.trackEquity ?? false;
+    if (this.trackEquity) this._equityCurve.push({ t: this.now(), equity: this._cash });
   }
 
   private id(prefix: string): string {
@@ -249,6 +289,21 @@ export class PaperAccount {
     };
   }
 
+  /** The recorded equity curve (enable with `trackEquity`, or via `recordEquity()`). */
+  equityCurve(): EquityPoint[] {
+    return this._equityCurve.map((p) => ({ t: p.t, equity: round2(p.equity) }));
+  }
+
+  /** Manually append the current equity to the curve (independent of `trackEquity`). */
+  recordEquity(): void {
+    this._equityCurve.push({ t: this.now(), equity: this.equityNow() });
+  }
+
+  /** Trade stats merged with equity-curve stats (return %, max drawdown). */
+  performance(): PerformanceStats {
+    return { ...this.stats(), ...equityStats(this._equityCurve) };
+  }
+
   /* ----------------------------- pricing ------------------------------ */
 
   /**
@@ -257,28 +312,97 @@ export class PaperAccount {
    */
   mark(prices: Record<string, number> | string, maybePrice?: number): void {
     if (typeof prices === "string") {
-      if (maybePrice !== undefined) this.ltp.set(prices, maybePrice);
+      if (maybePrice !== undefined) this.ingest([[prices, maybePrice]]);
     } else {
-      for (const [sym, px] of Object.entries(prices)) this.ltp.set(sym, px);
+      this.ingest(Object.entries(prices));
+    }
+  }
+
+  /**
+   * Feed a single price tick and return the orders that filled (or partially
+   * filled) on it. Equivalent to `mark(symbol, price)` but reports what crossed —
+   * the natural driver for a backtest/replay loop.
+   */
+  processTick(symbol: string, price: number): Order[] {
+    const openBefore = new Set(
+      this._orders.filter((o) => o.status === "OPEN").map((o) => o.id),
+    );
+    this.ingest([[symbol, price]]);
+    return this._orders.filter((o) => openBefore.has(o.id) && o.status !== "OPEN");
+  }
+
+  private ingest(entries: [string, number][]): void {
+    for (const [sym, px] of entries) {
+      this.ltp.set(sym, px);
+      this.updateTrails(sym, px);
     }
     this.processOpenOrders();
+    if (this.trackEquity) this._equityCurve.push({ t: this.now(), equity: this.equityNow() });
+  }
+
+  /** Trailing stops track the best price seen since they were placed. */
+  private updateTrails(symbol: string, px: number): void {
+    for (const o of this._orders) {
+      if (o.status !== "OPEN" || o.type !== "TRAILING-SL" || o.symbol !== symbol) continue;
+      if (o.trailRef === undefined) o.trailRef = px;
+      else o.trailRef = o.side === "SELL" ? Math.max(o.trailRef, px) : Math.min(o.trailRef, px);
+    }
+  }
+
+  /**
+   * End the trading session: cancel all resting `tif: "DAY"` orders. Deterministic
+   * and clock-free — call it when your simulated day rolls over.
+   */
+  endSession(reason = "DAY order expired at session end"): Order[] {
+    const expired: Order[] = [];
+    for (const o of this._orders) {
+      if (o.status === "OPEN" && o.tif === "DAY") {
+        o.status = "CANCELLED";
+        o.reason = reason;
+        o.updatedAt = this.now();
+        expired.push(o);
+      }
+    }
+    return expired;
+  }
+
+  private equityNow(): number {
+    let mv = 0;
+    for (const p of this.positions.values()) {
+      if (p.qty !== 0) mv += (this.ltp.get(p.symbol) ?? p.avgPrice) * p.qty;
+    }
+    return this._cash + mv;
   }
 
   /* ------------------------------ orders ------------------------------ */
 
-  /** Place a market buy. With `price` it becomes a limit buy. */
-  buy(symbol: string, o: { qty: number; price?: number; triggerPrice?: number }): Order {
+  /** Place a market buy. With `price` it becomes a limit buy, etc. */
+  buy(
+    symbol: string,
+    o: { qty: number; price?: number; triggerPrice?: number; limitPrice?: number; trail?: number; tif?: TimeInForce },
+  ): Order {
     return this.place({ symbol, side: "BUY", ...o });
   }
 
-  /** Place a market sell. With `price` it becomes a limit sell. */
-  sell(symbol: string, o: { qty: number; price?: number; triggerPrice?: number }): Order {
+  /** Place a market sell. With `price` it becomes a limit sell, etc. */
+  sell(
+    symbol: string,
+    o: { qty: number; price?: number; triggerPrice?: number; limitPrice?: number; trail?: number; tif?: TimeInForce },
+  ): Order {
     return this.place({ symbol, side: "SELL", ...o });
   }
 
   place(req: OrderRequest): Order {
     const type: OrderType =
-      req.triggerPrice !== undefined ? "SL" : req.price !== undefined ? "LIMIT" : "MARKET";
+      req.trail !== undefined
+        ? "TRAILING-SL"
+        : req.triggerPrice !== undefined
+          ? req.limitPrice !== undefined
+            ? "SL-LIMIT"
+            : "SL"
+          : req.price !== undefined
+            ? "LIMIT"
+            : "MARKET";
     const t = this.now();
     const order: Order = {
       ...req,
@@ -288,6 +412,7 @@ export class PaperAccount {
       createdAt: t,
       updatedAt: t,
     };
+    if (type === "TRAILING-SL") order.trailRef = this.ltp.get(req.symbol);
 
     // Record every order in history up front so rejections are logged uniformly
     // (a bad-qty reject must appear alongside no-price / insufficient-cash ones).
@@ -295,6 +420,9 @@ export class PaperAccount {
 
     if (req.qty <= 0 || !Number.isFinite(req.qty)) {
       return this.reject(order, "qty must be a positive number");
+    }
+    if (type === "TRAILING-SL" && !(req.trail! > 0)) {
+      return this.reject(order, "trail must be a positive number");
     }
 
     if (type === "MARKET") {
@@ -304,8 +432,14 @@ export class PaperAccount {
       }
       this.fill(order, px);
     } else {
-      // LIMIT / SL wait for a qualifying price; try immediately in case it already qualifies.
+      // Resting types wait for a qualifying price; try immediately in case it already qualifies.
       this.tryFill(order);
+      // IOC/FOK never rest: if it didn't fill at the current price, cancel it now.
+      if (order.status === "OPEN" && (req.tif === "IOC" || req.tif === "FOK")) {
+        order.status = "CANCELLED";
+        order.reason = `${req.tif}: not fillable immediately`;
+        order.updatedAt = this.now();
+      }
     }
     return order;
   }
@@ -336,47 +470,100 @@ export class PaperAccount {
     } else if (o.type === "SL") {
       const triggered = o.side === "BUY" ? px >= o.triggerPrice! : px <= o.triggerPrice!;
       if (triggered) this.fill(o, px);
+    } else if (o.type === "SL-LIMIT") {
+      // Once the stop triggers, the order becomes a resting LIMIT at limitPrice.
+      const triggered = o.side === "BUY" ? px >= o.triggerPrice! : px <= o.triggerPrice!;
+      if (triggered) {
+        o.type = "LIMIT";
+        o.price = o.limitPrice;
+        this.tryFill(o);
+      }
+    } else if (o.type === "TRAILING-SL") {
+      if (o.trailRef === undefined) return;
+      const trigger = o.side === "SELL" ? o.trailRef - o.trail! : o.trailRef + o.trail!;
+      const hit = o.side === "SELL" ? px <= trigger : px >= trigger;
+      if (hit) this.fill(o, px);
     }
   }
 
-  private fill(o: Order, price: number): void {
+  /** Apply slippage: fills move against the taker (buys up, sells down). */
+  private slipPrice(o: Order, base: number): number {
+    if (!this.slippageFn) return base;
+    const slip = this.slippageFn({ symbol: o.symbol, side: o.side, qty: o.qty, price: base, value: base * o.qty });
+    if (!Number.isFinite(slip) || slip === 0) return base;
+    const px = o.side === "BUY" ? base + slip : base - slip;
+    return px > 0 ? px : base;
+  }
+
+  private fill(o: Order, basePrice: number): void {
+    const price = this.slipPrice(o, basePrice);
+    const ioc = o.tif === "IOC";
+    let qty = o.qty;
+
     if (o.side === "BUY") {
-      const cost = price * o.qty;
+      const cost = price * qty;
       if (cost > this._cash + 1e-9) {
-        this.reject(o, "insufficient cash");
-        return;
+        if (ioc) {
+          qty = Math.floor((this._cash + 1e-9) / price);
+          if (qty <= 0) return this.cancelUnfilled(o, "IOC: insufficient cash to fill");
+        } else {
+          return void this.reject(o, "insufficient cash");
+        }
       }
-      this._cash -= cost;
-      this.applyBuy(o.symbol, o.qty, price);
     } else {
-      const pos = this.positions.get(o.symbol);
-      const held = pos?.qty ?? 0;
-      if (!this.allowShort && o.qty > held) {
-        this.reject(o, `cannot sell ${o.qty} — only ${held} held`);
-        return;
-      }
-      this._cash += price * o.qty;
-      this.applySell(o.symbol, o.qty, price);
-    }
-    if (this.chargesFn) {
-      const charge = this.chargesFn({ symbol: o.symbol, side: o.side, qty: o.qty, price, value: price * o.qty });
-      if (charge > 0) {
-        this._cash -= charge;
-        this._charges += charge;
+      const held = this.positions.get(o.symbol)?.qty ?? 0;
+      if (!this.allowShort && qty > held) {
+        if (ioc) {
+          qty = Math.max(0, held);
+          if (qty <= 0) return this.cancelUnfilled(o, "IOC: no position to sell");
+        } else {
+          return void this.reject(o, `cannot sell ${o.qty} — only ${held} held`);
+        }
       }
     }
-    o.status = "FILLED";
+
+    this.executeFill(o, price, qty);
+
+    const t = this.now();
+    const partial = qty < o.qty;
+    o.status = partial ? "CANCELLED" : "FILLED";
     o.filledPrice = price;
-    o.updatedAt = this.now();
+    o.filledQty = qty;
+    if (partial) o.reason = `IOC partially filled ${qty}/${o.qty}`;
+    o.updatedAt = t;
     this._trades.push({
       id: this.id("trd"),
       orderId: o.id,
       symbol: o.symbol,
       side: o.side,
-      qty: o.qty,
+      qty,
       price,
-      time: o.updatedAt,
+      time: t,
     });
+  }
+
+  /** Move cash + positions + charges for a fill of `qty` at `price`. */
+  private executeFill(o: Order, price: number, qty: number): void {
+    if (o.side === "BUY") {
+      this._cash -= price * qty;
+      this.applyBuy(o.symbol, qty, price);
+    } else {
+      this._cash += price * qty;
+      this.applySell(o.symbol, qty, price);
+    }
+    if (this.chargesFn) {
+      const charge = this.chargesFn({ symbol: o.symbol, side: o.side, qty, price, value: price * qty });
+      if (charge > 0) {
+        this._cash -= charge;
+        this._charges += charge;
+      }
+    }
+  }
+
+  private cancelUnfilled(o: Order, reason: string): void {
+    o.status = "CANCELLED";
+    o.reason = reason;
+    o.updatedAt = this.now();
   }
 
   private applyBuy(symbol: string, qty: number, price: number): void {
@@ -456,6 +643,8 @@ export class PaperAccount {
       orders: this._orders,
       trades: this._trades,
       seq: this.seq,
+      trackEquity: this.trackEquity,
+      equityCurve: this._equityCurve,
     };
   }
 
@@ -472,6 +661,8 @@ export class PaperAccount {
       orders: Order[];
       trades: Trade[];
       seq: number;
+      trackEquity?: boolean;
+      equityCurve?: EquityPoint[];
     };
     const acct = new PaperAccount({ cash: s.startCash, allowShort: s.allowShort, now });
     acct._cash = s.cash;
@@ -483,6 +674,8 @@ export class PaperAccount {
     acct._orders = s.orders;
     acct._trades = s.trades;
     acct.seq = s.seq;
+    acct.trackEquity = s.trackEquity ?? false;
+    acct._equityCurve = s.equityCurve ?? [];
     return acct;
   }
 }

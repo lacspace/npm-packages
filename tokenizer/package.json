@@ -1,0 +1,64 @@
+{
+  "name": "@lacspace/tokenizer",
+  "version": "1.0.0",
+  "description": "A fast, zero-dependency token estimator, LLM cost calculator and context-budget manager — good-enough approximation of GPT/Claude/Gemini token counts without the 3 MB tiktoken/wasm. Isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "tokenizer",
+    "token-counter",
+    "token-estimate",
+    "llm",
+    "ai",
+    "prompt-engineering",
+    "openai",
+    "claude",
+    "gpt",
+    "cost-calculator",
+    "context-window",
+    "token-budget",
+    "tiktoken-alternative",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/tokenizer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "tokenizer"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

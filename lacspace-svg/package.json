@@ -1,0 +1,47 @@
+{
+  "name": "lacspace-svg",
+  "version": "0.1.0",
+  "description": "Zero-dependency SVG toolkit — optimize/minify SVGs, convert to React/JSX or a data-URI, and build an SVG sprite sheet. Keyless, offline, no telemetry. Zero dependencies.",
+  "type": "module",
+  "bin": {
+    "lacspace-svg": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "svg", "svgo", "svg-optimizer", "svg-minify", "optimize-svg", "svg-to-jsx",
+    "svg-to-react", "svg-component", "data-uri", "svg-sprite", "svg-symbol",
+    "svg-parser", "xml-parser", "cli", "typescript", "zero-dependency",
+    "svg-cleaner", "svg-encode", "react-svg", "background-image"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/svg",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-svg" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": { "access": "public" }
+}

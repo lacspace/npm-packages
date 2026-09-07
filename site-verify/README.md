@@ -16,8 +16,13 @@
 
 - 🏷️ `verificationMeta()` / `verificationMetaHtml()`
 - ▲ `toNextVerification()` for `metadata.verification`
-- 📄 `verificationFile()` for file-upload verification (Google, Bing, Yandex)
+- 📄 `verificationFile()` / `verificationFileFor()` for file-upload verification
+- 🌐 `verificationTxt()` for DNS TXT verification
+- 📦 `verificationBatch()` — one map → meta array + HTML + Next shape
+- 🔎 `parseVerificationMeta()` — HTML head → provider→token map
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.3.0** — verify by **DNS TXT** (`verificationTxt` / `verificationTxtAll`), one-call **batch** emit (`verificationBatch`), **more file variants** (`verificationFileFor`, incl. Baidu), and **parse** existing verification tags back out of an HTML head (`parseVerificationMeta`). All additive — every existing export is unchanged.
 
 ## Install
 
@@ -62,6 +67,64 @@ verificationFile("google", "abc123");
 verificationFile("bing", "TOKEN");   // → /BingSiteAuth.xml
 verificationFile("yandex", "TOKEN"); // → /yandex_TOKEN.html
 ```
+
+## DNS TXT verification (new in 1.3.0)
+
+Verify by DNS instead of a meta tag or file — add the returned TXT record to your domain's DNS.
+
+```ts
+import { verificationTxt, verificationTxtAll } from "@lacspace/site-verify";
+
+verificationTxt("google", "abc123");
+// { host: "@", type: "TXT", name: "google-site-verification", value: "google-site-verification=abc123" }
+
+verificationTxt("facebook", "fb1");
+// { host: "@", type: "TXT", name: "facebook-domain-verification", value: "facebook-domain-verification=fb1" }
+
+verificationTxtAll({ google: "abc", yandex: "y1" }); // → array of TXT records
+```
+
+## Batch — one map, everything (new in 1.3.0)
+
+```ts
+import { verificationBatch } from "@lacspace/site-verify";
+
+verificationBatch({ google: "abc", bing: "xyz", yandex: "y1" });
+// {
+//   meta: [{ name: "google-site-verification", content: "abc" }, …],
+//   html: '<meta name="google-site-verification" content="abc" />\n…',
+//   next: { google: "abc", yandex: "y1", other: { "msvalidate.01": "xyz" } },
+// }
+```
+
+## Parse existing tags (new in 1.3.0)
+
+```ts
+import { parseVerificationMeta } from "@lacspace/site-verify";
+
+parseVerificationMeta('<meta name="google-site-verification" content="abc">');
+// { google: "abc" }   ← round-trips with allVerifications()
+```
+
+## More file variants (new in 1.3.0)
+
+```ts
+import { verificationFileFor } from "@lacspace/site-verify";
+
+verificationFileFor("baidu", "code123");
+// { path: "/baidu_verify_code123.html", content: "code123", contentType: "text/html" }
+// google/bing/yandex delegate to verificationFile(); anything else → a generic HTML file with the meta tag.
+```
+
+## API (1.3.0 additions)
+
+| Export | Signature | Does |
+| --- | --- | --- |
+| `verificationTxt` | `(providerOrName, token, opts?) => DnsTxtRecord` | DNS TXT record for one provider |
+| `verificationTxtAll` | `(record, opts?) => DnsTxtRecord[]` | DNS TXT records for a map |
+| `verificationBatch` | `(record) => { meta, html, next }` | All artefacts from one map |
+| `verificationFileFor` | `(provider, token) => VerificationFile` | Extended file variants (Baidu + generic) |
+| `parseVerificationMeta` | `(html) => VerificationRecord` | Parse verification tags out of a head |
 
 ## Supported providers (meta)
 

@@ -14,10 +14,12 @@
 
 > Define your feed and items once; emit valid **RSS 2.0**, **Atom 1.0** or **JSON Feed 1.1**. Proper escaping, `CDATA` content, correct dates, enclosures for podcasts. Great for blogs, changelogs and news.
 
-- 📡 `rss()` · `atom()` · `jsonFeed()` from the same input
+- 📡 `rss()` · `atom()`/`atomFeed()` · `jsonFeed()` — or all three at once with `feeds()`
 - 🧱 Full-content (`content:encoded`), categories, authors, enclosures
-- 🗓️ Correct `pubDate` (RFC-822) / `updated` (ISO-8601) handling
+- 🗓️ Correct `pubDate` (RFC-822) / `updated` (RFC-3339 / ISO-8601) handling
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.4** — richer channel metadata (`ttl`, `generator`, `managingEditor`, `webMaster`), a one-call `feeds()` builder, an `atomFeed` alias, and exported formatting helpers (`escapeXml`, `cdata`, `rfc822Date`, `rfc3339Date`). All additive — the existing RSS 2.0 / Atom / JSON output is byte-for-byte unchanged.
 
 ## Install
 
@@ -162,6 +164,56 @@ rss(feed, [
   },
 ]);
 ```
+
+## New in 1.4 — richer channel + all-in-one + helpers
+
+**Extra channel metadata** (all optional, additive) on `FeedOptions`:
+
+```ts
+rss(
+  {
+    title: "Blog",
+    link: "https://acme.com",
+    description: "News",
+    ttl: 60,                         // <ttl> cache minutes
+    generator: "Lacspace RSS",       // <generator> (also emitted by atom())
+    managingEditor: "editor@acme.com", // <managingEditor>
+    webMaster: "web@acme.com",       // <webMaster>
+  },
+  items,
+);
+```
+
+**All three formats in one call** — and an `atomFeed` alias for naming parity:
+
+```ts
+import { feeds, atomFeed } from "@lacspace/rss";
+
+const { rss, atom, json } = feeds(feed, items); // { rss: string, atom: string, json: JsonFeed }
+atomFeed(feed, items); // === atom(feed, items)
+```
+
+**Formatting helpers** — the same escaping/date rules the generators use, exported for hand-built feeds:
+
+```ts
+import { escapeXml, cdata, rfc822Date, rfc3339Date } from "@lacspace/rss";
+
+escapeXml(`A & B <x> "q"`);              // "A &amp; B &lt;x&gt; &quot;q&quot;"
+cdata("<p>hi</p>");                       // "<![CDATA[<p>hi</p>]]>"
+rfc822Date("2026-01-01T00:00:00Z");       // "Thu, 01 Jan 2026 00:00:00 GMT" (RSS)
+rfc3339Date(new Date());                   // ISO-8601 (Atom / JSON Feed)
+```
+
+| Export | Signature | Purpose |
+| --- | --- | --- |
+| `feeds` | `(feed, items) => { rss, atom, json }` | Build RSS + Atom + JSON Feed at once |
+| `atomFeed` | `(feed, items) => string` | Alias of `atom()` |
+| `escapeXml` | `(s: string) => string` | XML-escape text/attributes |
+| `cdata` | `(s: string) => string` | Wrap HTML in a CDATA section |
+| `rfc822Date` | `(d: string \| number \| Date) => string` | RFC-822 date (RSS) |
+| `rfc3339Date` | `(d: string \| number \| Date) => string` | RFC-3339 / ISO-8601 date (Atom/JSON) |
+
+`FeedOptions` also gains optional `ttl`, `generator`, `managingEditor`, `webMaster`.
 
 ## Licensing
 

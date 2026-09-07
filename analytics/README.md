@@ -17,6 +17,14 @@
 - 📊 `track` · `queueEvent` · `flush` · `batch`
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 
+> **New in 2.1.0** — a transport-agnostic, spec-style `AnalyticsClient` with the
+> full `track` / `identify` / `page` / `screen` / `group` / `alias` surface, a
+> consistent event envelope, size/interval **batching**, an **offline buffer with
+> backoff retry**, **consent + Do-Not-Track** gating, and pluggable **middleware**
+> plus **UTM** and **session** helpers. Every side-effect (transport, clock,
+> timers) is injectable, so it never touches the network by default. All
+> additive — the `LacspaceAnalytics` class above is unchanged.
+
 ## Install
 
 ```bash
@@ -75,6 +83,61 @@ const analytics = new LacspaceAnalytics({ api });
 ## API
 
 `track(name, data?)` · `queueEvent(name, data?)` (chainable) · `flush()` · `batch(events)` · `pending` · `analytics.api`. Every event is stamped with a `ts` (epoch ms). Custom routes via `endpoints: { track, batch }`.
+
+## Spec-style client (new in 2.1.0)
+
+A framework-agnostic client with the full analytics surface and a consistent
+envelope. Point it at your own `transport` (default: a no-op) — the client never
+hits the network on its own, so it's trivial to test.
+
+```ts
+import { createAnalyticsClient, createMemoryTransport } from "@lacspace/analytics";
+
+const mem = createMemoryTransport();                 // collect in memory (or your own fn)
+const a = createAnalyticsClient({
+  transport: mem.transport,
+  consent: true,          // required to collect; respects Do-Not-Track by default
+  flushAt: 20,            // flush once 20 events are buffered
+  flushInterval: 10_000,  // …or every 10s
+});
+
+a.identify("u_1", { plan: "pro" });
+a.track("product_viewed", { id: "p_1", price: 499 });
+a.page("Pricing", { path: "/pricing" });
+await a.flush(); // one batch → transport
+```
+
+Offline events aren't lost — a failed `transport` re-buffers them (capped at
+`maxQueueSize`) and retries with backoff. Turn consent off and events are dropped
+(or held with `whenBlocked: "hold"`).
+
+**Enrichment**
+
+```ts
+import { parseUtm, createSession } from "@lacspace/analytics";
+
+const campaign = parseUtm(location.href);            // { source, medium, name, term, content }
+const session = createSession({ timeout: 30 * 60_000 });
+const a = createAnalyticsClient({
+  transport,
+  consent: true,
+  context: { campaign, sessionId: session.id() },
+  middleware: [(e) => { if (e.properties?.email) e.properties.email = "[redacted]"; return e; }],
+});
+```
+
+### New API
+
+| Export | What it does |
+| --- | --- |
+| `AnalyticsClient` / `createAnalyticsClient(opts?)` | Spec-style client: `track` · `identify` · `page` · `screen` · `group` · `alias` · `flush` · `setConsent` · `close`; getters `queued` · `enabled` · `userId` · `anonymousId` |
+| `createMemoryTransport()` | Collecting transport (`.events`, `.batches`) for tests/dev |
+| `shouldTrack(ctx)` · `detectDNT()` | Pure consent decision + browser DNT read |
+| `parseUtm(url)` / `parseCampaign(url)` | UTM / campaign params → `Campaign` |
+| `createSession(opts?)` | Session id that renews after an inactivity `timeout` |
+| `applyMiddleware(event, chain)` | Run an event through a `Middleware[]` (return `null` to drop) |
+
+Injectables on `AnalyticsClientOptions`: `transport`, `now`, `setTimer`/`clearTimer`, `genId`, `flushAt`, `flushInterval`, `maxQueueSize`, `maxRetries`, `backoff`, `consent`, `respectDNT`, `dnt`, `defaultConsent`, `whenBlocked`, `context`, `middleware`, `anonymousId`.
 
 ## The Lacspace family
 

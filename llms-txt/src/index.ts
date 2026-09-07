@@ -9,6 +9,8 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { escapeLlmsText } from "./escape";
+
 export interface LlmsLink {
   title: string;
   url: string;
@@ -29,6 +31,12 @@ export interface LlmsDoc {
   /** Free-form Markdown shown before the sections. */
   details?: string;
   sections: LlmsSection[];
+  /**
+   * The special `## Optional` block (per the spec, links an LLM may skip).
+   * Rendered last, after {@link sections}. Round-trips through
+   * {@link parseLlmsTxt}. Omit or leave empty to emit nothing.
+   */
+  optional?: LlmsLink[];
 }
 
 /**
@@ -49,6 +57,12 @@ export type LinkSort =
 export interface LlmsTxtOptions {
   /** Order links within each section. Omit to keep the given order. */
   sort?: LinkSort;
+  /**
+   * Escape the Markdown link characters `\ [ ] ( )` in link titles/notes so a
+   * title like `A [beta]` cannot break the surrounding `[...](...)`. Off by
+   * default — the default output is unchanged. See {@link escapeLlmsText}.
+   */
+  escape?: boolean;
 }
 
 function sortLinks(links: LlmsLink[], sort?: LinkSort): LlmsLink[] {
@@ -71,13 +85,22 @@ function sortLinks(links: LlmsLink[], sort?: LinkSort): LlmsLink[] {
  * });
  */
 export function llmsTxt(doc: LlmsDoc, opts: LlmsTxtOptions = {}): string {
+  const esc = opts.escape ? escapeLlmsText : (s: string) => s;
+  const renderLink = (l: LlmsLink) =>
+    `- [${esc(l.title)}](${l.url})${l.notes ? `: ${esc(l.notes)}` : ""}`;
   const out: string[] = [`# ${doc.title}`];
   if (doc.summary) out.push("", `> ${doc.summary}`);
   if (doc.details) out.push("", doc.details.trim());
   for (const section of doc.sections) {
     out.push("", `## ${section.title}`, "");
     for (const l of sortLinks(section.links, opts.sort)) {
-      out.push(`- [${l.title}](${l.url})${l.notes ? `: ${l.notes}` : ""}`);
+      out.push(renderLink(l));
+    }
+  }
+  if (doc.optional && doc.optional.length) {
+    out.push("", "## Optional", "");
+    for (const l of sortLinks(doc.optional, opts.sort)) {
+      out.push(renderLink(l));
     }
   }
   return out.join("\n") + "\n";
@@ -124,8 +147,16 @@ export function parseLlmsTxt(txt: string): LlmsDoc {
     } else if (line.startsWith("> ")) {
       doc.summary = (doc.summary ? doc.summary + " " : "") + line.slice(2).trim();
     } else if (line.startsWith("## ")) {
-      current = { title: line.slice(3).trim(), links: [] };
-      doc.sections.push(current);
+      const heading = line.slice(3).trim();
+      if (heading === "Optional") {
+        // The special `## Optional` block round-trips into `doc.optional`.
+        const links: LlmsLink[] = [];
+        doc.optional = links;
+        current = { title: heading, links };
+      } else {
+        current = { title: heading, links: [] };
+        doc.sections.push(current);
+      }
     } else if (current && linkRe.test(line)) {
       const m = line.match(linkRe)!;
       current.links.push({ title: m[1]!, url: m[2]!, notes: m[3]?.trim() || undefined });
@@ -323,3 +354,9 @@ export function llmsFullTxtResponse(doc: LlmsFullDoc, init: ResponseInit = {}): 
     headers: { "content-type": "text/plain; charset=utf-8", ...(init.headers ?? {}) },
   });
 }
+
+/* ------------------------------ new in 1.4 ------------------------------ */
+
+export { escapeLlmsText } from "./escape";
+export * from "./pages";
+export * from "./validate";

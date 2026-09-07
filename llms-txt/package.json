@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/llms-txt",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Generate and parse llms.txt and llms-full.txt (the llmstxt.org standard) — a Markdown map of your site for LLMs. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,11 @@
     "chatgpt",
     "perplexity",
     "markdown",
-    "llms"
+    "llms",
+    "llms-full",
+    "validate",
+    "sitemap",
+    "optional-section"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

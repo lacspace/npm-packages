@@ -220,3 +220,19 @@ export function verificationFileResponse(
     headers: { "content-type": `${file.contentType}; charset=utf-8`, ...(init.headers ?? {}) },
   });
 }
+
+/* ------------------------- new in 1.3.0 (additive) ------------------------- */
+
+// DNS TXT verification (verify by DNS instead of a meta tag / file).
+export { verificationTxt, verificationTxtAll } from "./dns";
+export type { DnsTxtRecord, DnsTxtOptions } from "./dns";
+
+// Extended file-based verification (Baidu + generic HTML file fallback).
+export { verificationFileFor } from "./files";
+
+// Batch: one provider→token map → meta array + combined HTML + Next shape.
+export { verificationBatch } from "./batch";
+export type { VerificationBundle } from "./batch";
+
+// Parse existing verification meta tags out of an HTML head.
+export { parseVerificationMeta } from "./parse";

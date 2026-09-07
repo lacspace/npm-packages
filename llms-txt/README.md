@@ -14,10 +14,14 @@
 
 > `llms.txt` is a Markdown file at your site root that gives LLMs a curated map of your most useful pages; `llms-full.txt` inlines the full content so a model can read everything in one request. This builds (and parses) both — the SEO layer for the AI era.
 
-- 📄 `llmsTxt()` — H1 title, blockquote summary, linked sections
+- 📄 `llmsTxt()` — H1 title, blockquote summary, linked sections, `## Optional` block
 - 📚 `llmsFullTxt()` — full content inlined for one-shot ingestion
+- 🗺️ `llmsFromPages()` — build BOTH files from one list of pages (title + url + content)
+- ✅ `validateLlmsTxt()` — check the required H1 + summary shape, report issues
 - 🔁 `parseLlmsTxt()` — read an existing file back into structured data
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
+
+> **New in 1.4.0** — `llmsFromPages()` / `llmsFullTxtFromPages()` generate `llms.txt` **and** `llms-full.txt` from a page list; a first-class `## Optional` block (`doc.optional`, round-trips through `parseLlmsTxt`); `validateLlmsTxt()`; and opt-in Markdown escaping via `escapeLlmsText()` / `{ escape: true }`. All additive — existing output is byte-for-byte unchanged.
 
 ## Install
 
@@ -161,6 +165,57 @@ llmsTxt(doc, { sort: (a, b) => /* custom */ 0 });
 ```
 
 `parseLlmsTxt` round-trips what `llmsTxt` produces (title, summary, details, sections and links).
+
+## New in 1.4 — pages → both files, Optional block, validation
+
+### Build both files from a page list
+
+`llmsFromPages(pages, meta)` returns `{ txt, full }` — the compact `llms.txt` (a link per page with a `url`, grouped by `section`) **and** the expanded `llms-full.txt` (every page's `content` inlined). Also available split: `llmsTxtFromPages` / `llmsFullTxtFromPages`.
+
+```ts
+import { llmsFromPages } from "@lacspace/llms-txt";
+
+const { txt, full } = llmsFromPages(
+  [
+    { title: "Home", url: "https://acme.com/", content: "# Home\n\nWelcome.", section: "Start" },
+    { title: "API", url: "https://acme.com/api", content: "# API\n\n…", notes: "reference", section: "Docs" },
+    { title: "Legacy", url: "https://acme.com/legacy", content: "# Legacy", optional: true },
+  ],
+  { title: "Acme", summary: "Acme docs" },
+);
+// serve `txt` at /llms.txt and `full` at /llms-full.txt
+```
+
+### The `## Optional` block
+
+`LlmsDoc.optional?: LlmsLink[]` renders the special `## Optional` section (links an LLM may skip) last, and round-trips through `parseLlmsTxt`. Pages with `optional: true` are routed there automatically.
+
+### Validate
+
+```ts
+import { validateLlmsTxt } from "@lacspace/llms-txt";
+
+const { valid, issues } = validateLlmsTxt(text);
+// valid === false only on errors (missing H1); warnings flag a missing
+// summary, malformed link lines, duplicate/mis-placed H1.
+```
+
+### Markdown escaping (opt-in)
+
+`escapeLlmsText(s)` escapes `\ [ ] ( )` in link text; pass `{ escape: true }` to `llmsTxt` / the builders to apply it to titles and notes. Off by default — the default output is unchanged.
+
+| Function | Returns |
+| --- | --- |
+| `llmsTxt(doc, opts?)` | `llms.txt` string (now supports `doc.optional`, `opts.escape`) |
+| `llmsFullTxt(doc)` | `llms-full.txt` string |
+| `llmsFromPages(pages, meta)` | `{ txt, full }` from one page list |
+| `llmsTxtFromPages(pages, meta)` | `llms.txt` from pages |
+| `llmsFullTxtFromPages(pages, meta)` | `llms-full.txt` from pages |
+| `llmsTxtFromRoutes(routes, meta)` | `llms.txt` from flat routes |
+| `llmsTxtFromSitemap(entries, meta)` | `llms.txt` from a sitemap (array or XML) |
+| `parseLlmsTxt(text)` | `{ title, summary, details?, sections, optional? }` |
+| `validateLlmsTxt(text)` | `{ valid, issues }` |
+| `escapeLlmsText(s)` | escaped link text |
 
 ## Licensing
 

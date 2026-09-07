@@ -67,3 +67,41 @@ export function createAnalytics(options?: LacspaceAnalyticsOptions): LacspaceAna
 }
 
 export default LacspaceAnalytics;
+
+/* ------------------------------------------------------------------ *
+ * New in 2.1.0 — a transport-agnostic, spec-style analytics client.
+ * These are purely additive; everything above is unchanged.
+ * ------------------------------------------------------------------ */
+
+export {
+  AnalyticsClient,
+  createAnalyticsClient,
+  createMemoryTransport,
+  parseUtm,
+  type EventType,
+  type AnalyticsContext,
+  type AnalyticsEnvelope,
+  type Transport,
+  type TimerHandle,
+  type SetTimer,
+  type ClearTimer,
+  type BlockedPolicy,
+  type AnalyticsClientOptions,
+  type MemoryTransport,
+} from "./client";
+
+export {
+  shouldTrack,
+  detectDNT,
+  type ConsentContext,
+} from "./consent";
+
+export {
+  parseUtm as parseCampaign,
+  createSession,
+  applyMiddleware,
+  type Campaign,
+  type Session,
+  type SessionOptions,
+  type Middleware,
+} from "./enrich";

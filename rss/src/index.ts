@@ -57,6 +57,14 @@ export interface FeedOptions {
   /** Self URL of this feed. */
   feedUrl?: string;
   image?: string;
+  /** RSS `<ttl>` — how many minutes a reader may cache the feed. */
+  ttl?: number;
+  /** RSS `<managingEditor>` — email (optionally `email (Name)`) of the editorial contact. */
+  managingEditor?: string;
+  /** RSS `<webMaster>` — email of the technical contact. */
+  webMaster?: string;
+  /** Feed generator label — RSS `<generator>` and Atom `<generator>`. */
+  generator?: string;
 }
 
 function esc(s: string): string {
@@ -167,6 +175,11 @@ export function rss(feed: FeedOptions, items: FeedItem[]): string {
     head.push(
       `    <image><url>${esc(feed.image)}</url><title>${esc(feed.title)}</title><link>${esc(feed.link)}</link></image>`,
     );
+  if (feed.generator) head.push(`    <generator>${esc(feed.generator)}</generator>`);
+  if (feed.managingEditor)
+    head.push(`    <managingEditor>${esc(feed.managingEditor)}</managingEditor>`);
+  if (feed.webMaster) head.push(`    <webMaster>${esc(feed.webMaster)}</webMaster>`);
+  if (feed.ttl != null) head.push(`    <ttl>${feed.ttl}</ttl>`);
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -213,11 +226,18 @@ export function atom(feed: FeedOptions, items: FeedItem[]): string {
     (feed.feedUrl ? `  <link href="${esc(feed.feedUrl)}" rel="self" />\n` : "") +
     `  <updated>${iso(validDate(latest(feed, items)) ?? new Date(0))}</updated>\n` +
     (feed.author ? `  <author><name>${esc(feed.author)}</name></author>\n` : "") +
+    (feed.generator ? `  <generator>${esc(feed.generator)}</generator>\n` : "") +
     (feed.description ? `  <subtitle>${esc(feed.description)}</subtitle>\n` : "") +
     entries +
     `\n</feed>`
   );
 }
+
+/**
+ * Alias of {@link atom} — builds an Atom 1.0 feed. Provided for naming parity
+ * with {@link rss} / {@link jsonFeed} when you want all three by their format name.
+ */
+export const atomFeed = atom;
 
 export interface JsonFeed {
   version: string;
@@ -260,6 +280,29 @@ export function jsonFeed(feed: FeedOptions, items: FeedItem[]): JsonFeed {
       authors: it.author ? [{ name: it.author }] : undefined,
       tags: it.categories,
     })),
+  };
+}
+
+/** All three formats built from one feed model — see {@link feeds}. */
+export interface AllFeeds {
+  /** RSS 2.0 XML. */
+  rss: string;
+  /** Atom 1.0 XML. */
+  atom: string;
+  /** JSON Feed 1.1 object. */
+  json: JsonFeed;
+}
+
+/**
+ * Build RSS 2.0, Atom 1.0 and JSON Feed 1.1 in one call from the same model.
+ * Each field equals calling {@link rss}/{@link atom}/{@link jsonFeed} directly.
+ * @example const { rss, atom, json } = feeds(feed, items);
+ */
+export function feeds(feed: FeedOptions, items: FeedItem[]): AllFeeds {
+  return {
+    rss: rss(feed, items),
+    atom: atom(feed, items),
+    json: jsonFeed(feed, items),
   };
 }
 
@@ -497,3 +540,12 @@ export function podcastRssResponse(
     headers: { "content-type": "application/rss+xml; charset=utf-8", ...(init.headers ?? {}) },
   });
 }
+
+/* ------------------------------ helpers ------------------------------ */
+
+// Public formatting helpers for building or extending feeds by hand.
+// (`cdata` is aliased on re-export to avoid shadowing this module's private one.)
+import { escapeXml, cdata as cdataSection, rfc822Date, rfc3339Date } from "./format";
+
+export { escapeXml, rfc822Date, rfc3339Date };
+export { cdataSection as cdata };

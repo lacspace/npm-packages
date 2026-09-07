@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/analytics",
-  "version": "2.0.7",
+  "version": "2.1.0",
   "description": "Event tracking for Lacspace platforms — batching and an offline queue.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -36,7 +36,15 @@
     "event-tracking",
     "offline-queue",
     "batching",
-    "product-analytics"
+    "product-analytics",
+    "track",
+    "identify",
+    "consent",
+    "do-not-track",
+    "utm",
+    "session",
+    "middleware",
+    "retry"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

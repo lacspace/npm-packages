@@ -4,13 +4,13 @@
 
 **Small, sharp, open-source TypeScript packages for building on Lacspace — and for building in Nepal.**
 
-[![packages](https://img.shields.io/badge/packages-87-blue)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-91-blue)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-blue)](https://developer.lacspace.com/packages)
 [![licence](https://img.shields.io/badge/licence-Lacspace%20Free-green)](https://developer.lacspace.com/licenses/lacspace-free-1.0)
 
 </div>
 
-One monorepo, **87 published packages**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point.
+One monorepo, **91 published packages**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -20,7 +20,7 @@ One monorepo, **87 published packages**. Most are **zero-dependency**, **isomorp
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 87 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 91 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -237,6 +237,17 @@ Zero-dependency, provider-agnostic, keyless building blocks for LLM apps — bri
 | [`@lacspace/stream`](./stream) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fstream?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/stream) | SSE + streaming-LLM parser → async iterator, normalized across OpenAI & Anthropic |
 | [`@lacspace/ai-tools`](./ai-tools) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fai-tools?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/ai-tools) | Define function-calling tools once → any provider spec + validated runtime dispatch |
 
+### Testing Kit
+
+Zero-dependency, isomorphic, runner-agnostic testing primitives — work in vitest/jest/node:test or standalone.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/expect`](./expect) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fexpect?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/expect) | Fluent assertions — deep-equal, async, asymmetric & `expect.extend` custom matchers |
+| [`@lacspace/spy`](./spy) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fspy?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/spy) | Spies, stubs, `spyOn` & deterministic fake timers |
+| [`@lacspace/fixtures`](./fixtures) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffixtures?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/fixtures) | Typed, seeded test-data factories — sequences, traits, associations |
+| [`@lacspace/snapshot`](./snapshot) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsnapshot?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/snapshot) | Stable serializer + inline & file (`.snap`) snapshot matchers |
+
 ### CLIs & tools
 
 | Package | Version | What it does |
@@ -303,7 +314,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-85+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web, the AI Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting, LLM chat & streaming, prompt engineering, token counting, RAG chunking and more.
+89+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web, the AI Kit, the Testing Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting, LLM chat & streaming, prompt engineering, token counting, RAG chunking and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

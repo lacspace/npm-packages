@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/form",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "End-to-end form handling for the server — turn FormData into typed, validated data with a honeypot + timing spam guard, and get back your data or per-field errors ready to re-render. Shaped for Next.js Server Actions. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,13 @@
     "zero-dependency",
     "isomorphic",
     "type-safe",
-    "validation"
+    "validation",
+    "form-state",
+    "form-reducer",
+    "field-array",
+    "async-validation",
+    "dirty-tracking",
+    "usesyncexternalstore"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

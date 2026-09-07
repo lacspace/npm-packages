@@ -16,9 +16,20 @@
 
 - 🪝 `create` — a store that **is** its own hook `useStore(selector?, equalityFn?)`
 - 🧩 `createStore` — a vanilla, framework-agnostic store (drive it outside React)
-- 💾 `persist` — hydrate from / write to `localStorage` or `sessionStorage`
+- 💾 `persist` — hydrate from / write to `localStorage`, `sessionStorage`, or any injectable storage
 - 🎯 `shallow` — one-level equality so same-shaped selections skip re-renders
 - ⚡ ~1 KB · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · React peer dep only
+
+### New in 1.2.0
+
+All additive and **zero-dependency**. The whole vanilla engine now lives in a **React-free core** (`createStore` and everything below import no `react`), so you can drive and test it in Node/edge with no DOM.
+
+- 🎛️ `subscribeWithSelector(api, selector, listener, opts?)` — transient slice subscription that fires only when the selected value changes (with `equalityFn`, `fireImmediately`).
+- 🧱 `applyMiddleware(creator, ...middlewares)` + `logger()` — composable middleware around `set`; `logger` takes an **injectable** `log` sink (silent in tests).
+- 🧮 `computed(api, compute, opts?)` — memoized derived values (recompute only when state changes) with `get()` and `subscribe()`.
+- 🍰 `combineSlices(...slices)` — compose independent slices (data + actions) into one store.
+- 🗄️ `persist` now accepts an **injectable `PersistStorage`** and `hydrateOnCreate` for synchronous vanilla hydration.
+- 🧯 `store.destroy()` — detach every subscriber.
 
 ## Install
 
@@ -123,20 +134,98 @@ useCounter.getInitialState().count; // 0
 import { createStore } from "@lacspace/store";
 const vanilla = createStore(() => ({ ready: false }));
 vanilla.setState({ ready: true });
+vanilla.destroy();                  // detach all subscribers
+```
+
+### 5. Transient slice subscriptions (no re-render)
+
+Watch just one slice from outside React — the listener runs only when that slice changes.
+
+```ts
+import { createStore, shallow, subscribeWithSelector } from "@lacspace/store";
+
+const store = createStore(() => ({ x: 0, y: 0, name: "a" }));
+
+const unsub = subscribeWithSelector(
+  store,
+  (s) => ({ x: s.x, y: s.y }),
+  (pos, prev) => console.log("moved", prev, "->", pos),
+  { equalityFn: shallow },          // same-shaped position skips the listener
+);
+```
+
+### 6. Middleware + logger
+
+Compose functional middleware around `set`. `logger` takes an injectable `log` sink, so it's silent (and testable) unless you wire it up.
+
+```ts
+import { createStore, applyMiddleware, logger } from "@lacspace/store";
+
+const store = createStore(
+  applyMiddleware(
+    (set) => ({ n: 0, inc: () => set((s) => ({ n: s.n + 1 })) }),
+    logger({ name: "counter", log: (e) => console.debug(e.prevState, "->", e.nextState) }),
+  ),
+);
+```
+
+### 7. Computed (memoized derived) values
+
+```ts
+import { createStore, computed } from "@lacspace/store";
+
+const cart = createStore(() => ({ items: [{ price: 3 }, { price: 4 }] }));
+const total = computed(cart, (s) => s.items.reduce((a, i) => a + i.price, 0));
+
+total.get();                        // 7 — memoized until `items` changes
+total.subscribe((v) => console.log("total is now", v));
+```
+
+### 8. Slices — split a big store into pieces
+
+```ts
+import { createStore, combineSlices } from "@lacspace/store";
+
+const bears = (set) => ({ bears: 0, addBear: () => set((s) => ({ bears: s.bears + 1 })) });
+const fish  = (set, get) => ({ fish: 0, eat: () => get().bears > 0 && set((s) => ({ fish: s.fish + 1 })) });
+
+const useStore = createStore(combineSlices(bears, fish));
+```
+
+### 9. Persist with injectable storage (Node / tests)
+
+```ts
+import { createStore, persist } from "@lacspace/store";
+
+const mem = new Map<string, string>();
+const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => void mem.set(k, v) };
+
+const store = createStore(
+  persist<{ token: string | null }>(() => ({ token: null }), {
+    name: "auth",
+    storage,                        // any object with getItem/setItem
+    hydrateOnCreate: true,          // hydrate synchronously (no React mount)
+  }),
+);
 ```
 
 ## API
 
 | Export | Description |
 | --- | --- |
-| `create(initializer)` | Creates a store and returns a **hook** `useStore(selector?, equalityFn?)` that is **also** the `StoreApi` (`getState`/`setState`/`subscribe`/`getInitialState`). |
-| `createStore(initializer)` | Creates a vanilla, framework-agnostic `StoreApi<T>` with no React binding. |
-| `persist(initializer, options)` | Middleware that hydrates from and writes to Web Storage. Options: `name` (required), `storage` (`"local"` \| `"session"`, default `"local"`), `partialize`, `version`. |
+| `create(initializer)` | Creates a store and returns a **hook** `useStore(selector?, equalityFn?)` that is **also** the `StoreApi` (`getState`/`setState`/`subscribe`/`getInitialState`/`destroy`). |
+| `createStore(initializer)` | Creates a vanilla, **React-free** `StoreApi<T>` with no React binding. |
+| `persist(initializer, options)` | Middleware that hydrates from and writes to storage. Options: `name` (required), `storage` (`"local"` \| `"session"` \| an injectable `PersistStorage`, default `"local"`), `partialize`, `version`, `skipHydration`, `hydrateOnCreate`. |
 | `shallow(a, b)` | One-level shallow equality for objects/arrays; use as an `equalityFn`. |
+| `subscribeWithSelector(api, selector, listener, opts?)` | Transient slice subscription; fires only when the selected value changes. Opts: `equalityFn`, `fireImmediately`. Returns unsubscribe. |
+| `applyMiddleware(creator, ...middlewares)` | Composes a base `StateCreator` with middlewares (first listed runs first). |
+| `logger(options?)` | Middleware that reports every `set` to an injectable `log` sink (defaults to `console.log`). |
+| `computed(api, compute, opts?)` | Memoized derived value with `get()` and `subscribe()`; recomputes only when state changes. Opts: `equalityFn`. |
+| `combineSlices(...slices)` | Merges independent slice creators into one `StateCreator`. |
 
 ### Types
 
-`SetState<T>`, `GetState<T>`, `StoreApi<T>`, `StateCreator<T>`, `UseBoundStore<T>`, `PersistOptions<T>`.
+`SetState<T>`, `GetState<T>`, `StoreApi<T>`, `StateCreator<T>`, `UseBoundStore<T>`, `PersistOptions<T>`, `PersistStorage`, `PersistApi`, `StoreWithPersist<T>`, `SubscribeWithSelectorOptions<U>`, `StoreMiddleware<T>`, `LoggerOptions<T>`, `LoggerEvent<T>`, `Computed<U>`, `ComputedOptions<U>`, `SliceCreator<T, S>`.
 
 - **`setState(partial, replace?)`** — shallow-merges `partial` into state (or a functional updater `(state) => Partial<T>`); pass `replace = true` to swap the whole object. Subscribers fire when the state identity changes.
 - **`useStore(selector?, equalityFn?)`** — default selector returns the whole state; default equality is `Object.is`. A component re-renders only when its selected slice changes per `equalityFn`.

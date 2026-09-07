@@ -4,31 +4,56 @@
  * Combos (`mod+k`), key sequences (`g then d`), scopes, and pretty display
  * formatting (`⌘K`). SSR-safe, respects form fields, zero-dependency, fully typed.
  *
+ * The matching engine lives in {@link ./core} as pure, React-free functions
+ * (`parseHotkey`, `matchHotkey`, `createSequenceMatcher`, `scopesActive`,
+ * `shouldIgnore`, `formatHotkey`); {@link useHotkeys} and {@link useHotkeysScopes}
+ * are the React bindings on top.
+ *
  * @packageDocumentation
  */
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { RefObject } from "react";
 
+import {
+  isMac,
+  isModifierKey,
+  matchesParsed,
+  parseSequence,
+  scopesActive,
+} from "./core";
+import type { ParsedHotkey } from "./core";
+
+/* -------------------------------------------------------------------------- */
+/* Re-exported pure core (React-free)                                         */
+/* -------------------------------------------------------------------------- */
+
+export {
+  isMac,
+  parseHotkey,
+  parseSequence,
+  matchesHotkey,
+  matchHotkey,
+  createSequenceMatcher,
+  scopesActive,
+  shouldIgnore,
+  resolvePlatform,
+  isModifierKey,
+  formatHotkey,
+} from "./core";
+export type {
+  ParsedHotkey,
+  Platform,
+  KeyEventLike,
+  SequenceMatcher,
+  SequenceMatcherOptions,
+  IgnoreTargetLike,
+  ShouldIgnoreOptions,
+} from "./core";
+
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
-
-/** A parsed hotkey combo: the resolved key plus each modifier requirement. */
-export interface ParsedHotkey {
-  /** Normalized key (e.g. `"k"`, `"escape"`, `" "`, `"arrowup"`). */
-  key: string;
-  /** `mod` — Cmd on mac, Ctrl elsewhere. */
-  mod: boolean;
-  /** Control key. */
-  ctrl: boolean;
-  /** Alt / Option key. */
-  alt: boolean;
-  /** Shift key. */
-  shift: boolean;
-  /** Meta / Cmd / Win key. */
-  meta: boolean;
-}
 
 /** The handler invoked when a hotkey (or the final step of a sequence) fires. */
 export type HotkeyHandler = (event: KeyboardEvent, combo: string) => void;
@@ -62,224 +87,15 @@ export interface HotkeyOptions {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Platform detection                                                         */
+/* Form-field guard (DOM)                                                     */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Detects whether the current platform is a Mac (or iOS device).
- *
- * SSR-safe: always returns `false` when there is no `navigator`.
- *
- * @returns `true` on macOS / iOS, `false` otherwise (and on the server).
- *
- * @example
- * ```ts
- * const symbol = isMac() ? "⌘" : "Ctrl";
- * ```
- */
-export function isMac(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const uaData = (navigator as Navigator & {
-    userAgentData?: { platform?: string };
-  }).userAgentData;
-  if (uaData && typeof uaData.platform === "string" && uaData.platform) {
-    return /mac/i.test(uaData.platform);
-  }
-  const platform = navigator.platform || "";
-  if (platform) return /mac|iphone|ipad|ipod/i.test(platform);
-  return /mac|iphone|ipad|ipod/i.test(navigator.userAgent || "");
-}
-
-/* -------------------------------------------------------------------------- */
-/* Parsing                                                                    */
-/* -------------------------------------------------------------------------- */
-
-const MOD_TOKENS: Record<string, keyof Omit<ParsedHotkey, "key">> = {
-  mod: "mod",
-  ctrl: "ctrl",
-  control: "ctrl",
-  alt: "alt",
-  option: "alt",
-  opt: "alt",
-  shift: "shift",
-  meta: "meta",
-  cmd: "meta",
-  command: "meta",
-  win: "meta",
-  super: "meta",
-};
-
-const KEY_ALIASES: Record<string, string> = {
-  esc: "escape",
-  space: " ",
-  spacebar: " ",
-  up: "arrowup",
-  down: "arrowdown",
-  left: "arrowleft",
-  right: "arrowright",
-  return: "enter",
-  del: "delete",
-  ins: "insert",
-  pgup: "pageup",
-  pgdn: "pagedown",
-};
-
-/** Normalize a raw key token into its canonical `event.key` (lowercased) form. */
-function normalizeKey(raw: string): string {
-  const k = raw.toLowerCase();
-  const aliased = KEY_ALIASES[k];
-  if (aliased !== undefined) return aliased;
-  return k;
-}
-
-/**
- * Parses a combo string like `"mod+shift+k"` into modifier flags and a key.
- *
- * Tokens split on `"+"`, case-insensitive. Modifiers: `mod` (Cmd on mac / Ctrl
- * elsewhere), `ctrl`/`control`, `alt`/`option`, `shift`, `meta`/`cmd`/`command`/`win`.
- * The remaining token is the key (`esc`→`escape`, `space`→`" "`, arrows→`arrowup`…,
- * single letters lowercased).
- *
- * @param str - The combo string, e.g. `"mod+k"` or `"ctrl+shift+escape"`.
- * @returns The parsed combo.
- *
- * @example
- * ```ts
- * parseHotkey("mod+shift+k");
- * // { key: "k", mod: true, ctrl: false, alt: false, shift: true, meta: false }
- * ```
- */
-export function parseHotkey(str: string): ParsedHotkey {
-  const parsed: ParsedHotkey = {
-    key: "",
-    mod: false,
-    ctrl: false,
-    alt: false,
-    shift: false,
-    meta: false,
-  };
-  const tokens = str.split("+");
-  for (const token of tokens) {
-    const t = token.trim().toLowerCase();
-    if (t === "") continue;
-    const modKey = MOD_TOKENS[t];
-    if (modKey) {
-      parsed[modKey] = true;
-    } else {
-      parsed.key = normalizeKey(token.trim());
-    }
-  }
-  return parsed;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Matching                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** Match a keyboard event against an already-parsed combo. */
-function matchesParsed(
-  event: KeyboardEvent,
-  parsed: ParsedHotkey,
-  mac: boolean,
-): boolean {
-  const wantMeta = parsed.meta || (mac && parsed.mod);
-  const wantCtrl = parsed.ctrl || (!mac && parsed.mod);
-  if (event.metaKey !== wantMeta) return false;
-  if (event.ctrlKey !== wantCtrl) return false;
-  if (event.altKey !== parsed.alt) return false;
-  if (event.shiftKey !== parsed.shift) return false;
-  return event.key.toLowerCase() === parsed.key;
-}
-
-/**
- * Returns `true` when a keyboard event satisfies a combo string.
- *
- * `mod` resolves to `metaKey` on mac and `ctrlKey` elsewhere. Modifiers must
- * match exactly (so `"ctrl+k"` does not fire when `Ctrl+Shift+K` is pressed).
- *
- * @param event - The keyboard event.
- * @param combo - The combo string, e.g. `"mod+k"`.
- * @returns Whether the event satisfies the combo.
- *
- * @example
- * ```ts
- * window.addEventListener("keydown", (e) => {
- *   if (matchesHotkey(e, "mod+k")) openPalette();
- * });
- * ```
- */
-export function matchesHotkey(event: KeyboardEvent, combo: string): boolean {
-  return matchesParsed(event, parseHotkey(combo), isMac());
-}
-
-/* -------------------------------------------------------------------------- */
-/* Display formatting                                                         */
-/* -------------------------------------------------------------------------- */
-
-function formatKeyLabel(key: string, mac: boolean): string {
-  if (!key) return "";
-  switch (key) {
-    case " ":
-      return "Space";
-    case "escape":
-      return "Esc";
-    case "enter":
-      return mac ? "↵" : "Enter";
-    case "arrowup":
-      return mac ? "↑" : "Up";
-    case "arrowdown":
-      return mac ? "↓" : "Down";
-    case "arrowleft":
-      return mac ? "←" : "Left";
-    case "arrowright":
-      return mac ? "→" : "Right";
-    case "backspace":
-      return mac ? "⌫" : "Backspace";
-    case "delete":
-      return mac ? "⌦" : "Del";
-    case "tab":
-      return mac ? "⇥" : "Tab";
-    default:
-      break;
-  }
-  if (key.length === 1) return key.toUpperCase();
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-/**
- * Formats a combo for display, e.g. mac → `"⌘⇧K"`, non-mac → `"Ctrl+Shift+K"`.
- *
- * Auto-detects the platform when `opts.mac` is omitted.
- *
- * @param combo - The combo string, e.g. `"mod+shift+k"`.
- * @param opts - Optional overrides.
- * @param opts.mac - Force mac (`true`) or non-mac (`false`) rendering.
- * @returns A human-friendly label.
- *
- * @example
- * ```tsx
- * <kbd>{formatHotkey("mod+k")}</kbd>            // "⌘K" on mac, "Ctrl+K" elsewhere
- * formatHotkey("ctrl+shift+k", { mac: false }); // "Ctrl+Shift+K"
- * ```
- */
-export function formatHotkey(combo: string, opts: { mac?: boolean } = {}): string {
-  const mac = opts.mac ?? isMac();
-  const p = parseHotkey(combo);
-  const parts: string[] = [];
-  if (mac) {
-    if (p.meta || p.mod) parts.push("⌘");
-    if (p.ctrl) parts.push("⌃");
-    if (p.alt) parts.push("⌥");
-    if (p.shift) parts.push("⇧");
-    parts.push(formatKeyLabel(p.key, true));
-    return parts.join("");
-  }
-  if (p.ctrl || p.mod) parts.push("Ctrl");
-  if (p.alt) parts.push("Alt");
-  if (p.shift) parts.push("Shift");
-  if (p.meta) parts.push("Win");
-  parts.push(formatKeyLabel(p.key, false));
-  return parts.join("+");
+function isFromFormField(target: EventTarget | null): boolean {
+  if (typeof HTMLElement === "undefined") return false;
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return target.isContentEditable;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -410,25 +226,6 @@ interface SequenceProgress {
   time: number;
 }
 
-function isModifierKey(key: string): boolean {
-  return (
-    key === "Control" ||
-    key === "Shift" ||
-    key === "Alt" ||
-    key === "Meta" ||
-    key === "OS" ||
-    key === "AltGraph"
-  );
-}
-
-function isFromFormField(target: EventTarget | null): boolean {
-  if (typeof HTMLElement === "undefined") return false;
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  return target.isContentEditable;
-}
-
 function resolveTarget(target: HotkeyTarget | undefined): Window | HTMLElement | null {
   if (typeof window === "undefined") return null;
   if (!target) return window;
@@ -442,12 +239,7 @@ function resolveTarget(target: HotkeyTarget | undefined): Window | HTMLElement |
 function toEntries(keys: string | string[]): HotkeyEntry[] {
   const list = Array.isArray(keys) ? keys : [keys];
   return list.map((raw) => {
-    const steps = raw
-      .replace(/\s+then\s+/gi, " ")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(parseHotkey);
+    const steps = parseSequence(raw);
     return { raw, steps, isSequence: steps.length > 1 };
   });
 }
@@ -522,10 +314,7 @@ export function useHotkeys(
       const enableOnFormTags = o.enableOnFormTags ?? false;
       if (!enableOnFormTags && isFromFormField(event.target)) return;
 
-      const rawScopes = o.scopes;
-      const scopeArr =
-        rawScopes == null ? [] : Array.isArray(rawScopes) ? rawScopes : [rawScopes];
-      if (scopeArr.length > 0 && !scopeArr.some((s) => activeScopeSet.has(s))) {
+      if (!scopesActive(o.scopes, activeScopeSet)) {
         return;
       }
 

@@ -21,6 +21,8 @@
 - **SSR-safe** — listeners attach only in effects; every `window`/`navigator` access is guarded.
 - **Respects form fields** — ignores typing in inputs/textareas/`contentEditable` by default.
 
+> **New in 1.1.0** — the matching engine is now a **pure, React-free core** you can use anywhere (Vue, vanilla, tests, the server): `matchHotkey(combo, event, { platform })`, `parseSequence`, `createSequenceMatcher` (a sequence matcher with an **injectable clock**), `scopesActive` (pure scope gating), and `shouldIgnore` (configurable input-ignore predicate). `formatHotkey` also accepts `{ platform: "mac" | "other" }`. Everything is fully backward compatible — no existing export changed.
+
 ## Install
 
 ```bash
@@ -158,11 +160,52 @@ Returns `true` when a `KeyboardEvent` satisfies a combo. `mod` → `metaKey` on 
 
 ### `formatHotkey(combo, opts?): string`
 
-Pretty display: mac → `"⌘⇧K"`, non-mac → `"Ctrl+Shift+K"`. Auto-detects platform unless `opts.mac` is set.
+Pretty display: mac → `"⌘⇧K"`, non-mac → `"Ctrl+Shift+K"`. Auto-detects platform unless overridden. `opts`: `{ platform?: "mac" | "other"; mac?: boolean }` — `platform` (new in 1.1.0) takes precedence over the legacy `mac` boolean, which still works.
 
 ### `isMac(): boolean`
 
 SSR-safe platform check (returns `false` on the server).
+
+### Pure core (React-free) — new in 1.1.0
+
+Every matcher below is a plain function over plain data — no React, no DOM required — so you can reuse the exact same logic in a non-React app, on the server, or in fast unit tests. `Platform` is `"mac" | "other"`; a synthetic event is `{ key, ctrlKey?, metaKey?, altKey?, shiftKey? }` (`KeyEventLike`).
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `matchHotkey` | `(combo: string \| ParsedHotkey, event: KeyEventLike, opts?: { platform?: Platform }) => boolean` | Pure, platform-injectable combo match. `mod` → `metaKey` on `"mac"`, `ctrlKey` on `"other"`. Modifiers must match exactly. |
+| `parseSequence` | `(str: string) => ParsedHotkey[]` | Parse `"g then d"` / `"g d"` / `"mod+k"` into ordered combo steps. |
+| `createSequenceMatcher` | `(combo: string \| ParsedHotkey[], opts?: { timeout?: number; platform?: Platform }) => SequenceMatcher` | A stateful chord matcher with an **injected clock**: `m.handle(event, now)` returns `true` on the event that completes the sequence; `m.reset()` restarts. |
+| `scopesActive` | `(required: string \| readonly string[] \| null \| undefined, active: Iterable<string>) => boolean` | Pure scope gate — unscoped always fires, otherwise fires when **any** required scope is active. |
+| `shouldIgnore` | `(target: IgnoreTargetLike \| null, opts?: ShouldIgnoreOptions) => boolean` | Pure predicate: is focus in an editable field? Skips `input`/`textarea`/`select`/`contentEditable`/editable roles; configurable via `enableOnFormTags`, `ignoreTags`, `ignoreContentEditable`, `ignoreRoles`. |
+| `resolvePlatform` | `(platform?: Platform) => Platform` | `platform` if given, else auto-detect via `isMac()`. |
+| `isModifierKey` | `(key: string) => boolean` | Whether an `event.key` is a lone modifier (`Shift`, `Meta`, …). |
+
+```ts
+import {
+  matchHotkey,
+  createSequenceMatcher,
+  scopesActive,
+  shouldIgnore,
+  formatHotkey,
+} from "@lacspace/hotkeys";
+
+// Platform-injectable matching — no DOM, no navigator:
+matchHotkey("mod+k", { key: "k", metaKey: true }, { platform: "mac" });   // true
+matchHotkey("mod+k", { key: "k", ctrlKey: true }, { platform: "other" }); // true
+
+// A sequence matcher with an injected clock (great for tests):
+const m = createSequenceMatcher("g then d", { platform: "other", timeout: 1000 });
+m.handle({ key: "g" }, 0);   // false — first step
+m.handle({ key: "d" }, 500); // true  — completed within the window
+
+// Pure scope gating + input guard:
+scopesActive("editor", new Set(["editor"]));      // true
+shouldIgnore({ tagName: "INPUT" });               // true
+shouldIgnore({ tagName: "DIV" });                 // false
+
+// Force a platform when formatting (docs / screenshots):
+formatHotkey("mod+shift+k", { platform: "mac" }); // "⌘⇧K"
+```
 
 ### Scopes
 

@@ -263,3 +263,11 @@ export function honeypotProps(name: string): {
 export function timestampValue(): string {
   return String(Date.now());
 }
+
+/* ------------------------------------------------------------------ *
+ * Client-side form STATE engine (new in 1.1.0) — framework-free,
+ * zero-dependency reducer for interactive forms (values/errors/touched/
+ * dirty, sync + async validation, nested paths, field arrays, submit
+ * routing). Pure core + a thin subscribe/dispatch store; no React here.
+ * ------------------------------------------------------------------ */
+export * from "./state";

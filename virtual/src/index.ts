@@ -19,28 +19,34 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  augmentRangeWithSticky,
+  buildMeasurements,
+  computeRange,
+  getTotalSize as coreTotalSize,
+  scrollToIndexOffset,
+} from "./core";
+import type { VirtualItem } from "./core";
 
-/**
- * A single virtualized item with its computed geometry.
- *
- * `start`/`end` are offsets (in pixels) along the scroll axis, relative to the
- * top (or left, when {@link VirtualizerOptions.horizontal | horizontal}) of the
- * inner sizing container — i.e. they do **not** include
- * {@link VirtualizerOptions.scrollMargin | scrollMargin}. Position a row with
- * `transform: translateY(${item.start}px)` (or `translateX` when horizontal).
- */
-export interface VirtualItem {
-  /** Index of this item in the source list. */
-  index: number;
-  /** Offset of the item's leading edge (px), relative to the inner container. */
-  start: number;
-  /** Measured or estimated size of the item (px) along the scroll axis. */
-  size: number;
-  /** Offset of the item's trailing edge (px) — equal to `start + size`. */
-  end: number;
-  /** Stable React key for the item (from `getItemKey`, defaults to `index`). */
-  key: number | string;
-}
+// Re-export the React-free geometry core so non-React / SSR / worker consumers
+// (and tests) can use the exact same math without importing the hook.
+export type {
+  VirtualItem,
+  Range,
+  ScrollAlign,
+  CalculateRangeInput,
+  CalculateRangeResult,
+} from "./core";
+export {
+  calculateRange,
+  buildMeasurements,
+  computeRange,
+  findStartIndex,
+  getTotalSize,
+  scrollToIndexOffset,
+  augmentRangeWithSticky,
+  normalizeStickyIndices,
+} from "./core";
 
 /**
  * Options for {@link useVirtualizer}.
@@ -91,6 +97,16 @@ export interface VirtualizerOptions {
    * @defaultValue 0
    */
   scrollMargin?: number;
+  /**
+   * Indices that must stay rendered even when scrolled out of the visible
+   * window — e.g. sticky section headers or pinned rows. They are always
+   * included in {@link Virtualizer.getVirtualItems | getVirtualItems} (in
+   * ascending order, without duplicating items already in range). Out-of-range
+   * and non-integer values are ignored. Purely additive: the geometry of every
+   * other item is unchanged.
+   * @defaultValue []
+   */
+  stickyIndices?: number[];
 }
 
 /**
@@ -123,91 +139,6 @@ export interface Virtualizer {
 /** Run a layout effect on the client, a plain effect on the server. */
 const useIsomorphicLayoutEffect =
   typeof document !== "undefined" ? useLayoutEffect : useEffect;
-
-/**
- * Build the full geometry table for the list. O(count), memoized by the caller.
- */
-function buildMeasurements(
-  count: number,
-  estimateSize: (index: number) => number,
-  measured: Map<number, number>,
-  paddingStart: number,
-  gap: number,
-  getItemKey?: (index: number) => number | string,
-): VirtualItem[] {
-  const items: VirtualItem[] = new Array(count);
-  let cursor = paddingStart;
-  for (let i = 0; i < count; i++) {
-    const override = measured.get(i);
-    const size = override !== undefined ? override : estimateSize(i);
-    const start = cursor;
-    const end = start + size;
-    items[i] = {
-      index: i,
-      start,
-      size,
-      end,
-      key: getItemKey ? getItemKey(i) : i,
-    };
-    cursor = end + gap;
-  }
-  return items;
-}
-
-/**
- * Binary search for the last item whose `start` is `<= offset` (the first item
- * intersecting the top of the viewport). Returns `0` for an empty list.
- */
-function findStartIndex(items: VirtualItem[], offset: number): number {
-  let low = 0;
-  let high = items.length - 1;
-  let result = 0;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    const item = items[mid];
-    if (item === undefined) break;
-    if (item.start <= offset) {
-      result = mid;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return result;
-}
-
-/**
- * Compute the rendered index range (including overscan) for the given scroll
- * position and viewport size, or `null` when the list is empty.
- */
-function computeRange(
-  items: VirtualItem[],
-  scrollOffset: number,
-  viewport: number,
-  overscan: number,
-  scrollMargin: number,
-): { startIndex: number; endIndex: number } | null {
-  const count = items.length;
-  if (count === 0) return null;
-
-  const effectiveScroll = Math.max(0, scrollOffset - scrollMargin);
-  const viewportEnd = effectiveScroll + viewport;
-
-  let startIndex = findStartIndex(items, effectiveScroll);
-  let endIndex = startIndex;
-  while (endIndex < count - 1) {
-    const next = items[endIndex + 1];
-    if (next !== undefined && next.start < viewportEnd) {
-      endIndex++;
-    } else {
-      break;
-    }
-  }
-
-  startIndex = Math.max(0, startIndex - overscan);
-  endIndex = Math.min(count - 1, endIndex + overscan);
-  return { startIndex, endIndex };
-}
 
 /**
  * Headless list virtualizer for React.
@@ -270,7 +201,12 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
     gap = 0,
     paddingStart = 0,
     scrollMargin = 0,
+    stickyIndices,
   } = options;
+
+  // Stable, order-insensitive key for the sticky list, so the render memo only
+  // recomputes when the actual set of pinned indices changes.
+  const stickyKey = stickyIndices ? stickyIndices.join(",") : "";
 
   // Always read the freshest options/callbacks inside effects and imperative
   // methods, so we can keep effect/memo dependency lists narrow and stable.
@@ -349,19 +285,22 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
   );
 
   const getVirtualItems = useCallback((): VirtualItem[] => {
-    if (!range) return [];
+    // Range window unioned with any sticky/pinned indices (ascending, no dupes).
+    const indices = augmentRangeWithSticky(range, stickyIndices, measurements.length);
     const out: VirtualItem[] = [];
-    for (let i = range.startIndex; i <= range.endIndex; i++) {
+    for (const i of indices) {
       const item = measurements[i];
       if (item !== undefined) out.push(item);
     }
     return out;
-  }, [measurements, range]);
+    // stickyKey stands in for the stickyIndices array identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measurements, range, stickyKey]);
 
-  const getTotalSize = useCallback((): number => {
-    const last = measurements[measurements.length - 1];
-    return last !== undefined ? last.end : 0;
-  }, [measurements]);
+  const getTotalSize = useCallback(
+    (): number => coreTotalSize(measurements),
+    [measurements],
+  );
 
   const measureElement = useCallback((el: HTMLElement | null): void => {
     if (!el) return;
@@ -398,46 +337,18 @@ export function useVirtualizer(options: VirtualizerOptions): Virtualizer {
       index: number,
       opts?: { align?: "start" | "center" | "end" | "auto"; behavior?: ScrollBehavior },
     ): void => {
-      const list = measurements;
-      const cnt = list.length;
-      if (cnt === 0) return;
-      const item = list[Math.max(0, Math.min(index, cnt - 1))];
-      if (item === undefined) return;
-
       const el = optionsRef.current.getScrollElement();
       if (!el) return;
 
       const h = optionsRef.current.horizontal ?? false;
-      const sm = optionsRef.current.scrollMargin ?? 0;
-      const vp = h ? el.clientWidth : el.clientHeight;
-      const current = h ? el.scrollLeft : el.scrollTop;
-      const itemStart = item.start + sm;
-      const itemEnd = item.end + sm;
-      const align = opts?.align ?? "auto";
+      const target = scrollToIndexOffset(measurements, index, {
+        align: opts?.align ?? "auto",
+        containerSize: h ? el.clientWidth : el.clientHeight,
+        scrollMargin: optionsRef.current.scrollMargin ?? 0,
+        currentOffset: h ? el.scrollLeft : el.scrollTop,
+      });
+      if (target === null) return; // empty list, or already visible ("auto")
 
-      let target: number;
-      switch (align) {
-        case "start":
-          target = itemStart;
-          break;
-        case "end":
-          target = itemEnd - vp;
-          break;
-        case "center":
-          target = itemStart - vp / 2 + item.size / 2;
-          break;
-        case "auto":
-        default:
-          if (itemStart < current) {
-            target = itemStart;
-          } else if (itemEnd > current + vp) {
-            target = itemEnd - vp;
-          } else {
-            return; // already fully/partly visible — no scroll needed
-          }
-      }
-
-      target = Math.max(0, target);
       const behavior = opts?.behavior ?? "auto";
       if (h) {
         el.scrollTo({ left: target, behavior });

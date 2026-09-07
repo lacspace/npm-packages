@@ -13,6 +13,8 @@
 
 > Take a `FormData`, validate it against a schema, block bots with a honeypot + timing check, and get back **either your typed data or per-field errors ready to re-render**. Framework-agnostic, zero dependencies.
 
+> **New in 1.1.0 — a client-side form STATE engine.** Alongside the server handler, `@lacspace/form` now ships a tiny **framework-free reducer** for interactive forms: `values` / `errors` / `touched` / `dirty`, sync **and** async validation (validate-on-change/blur/submit), nested dot/bracket paths, field-array ops (push/remove/insert/move/swap) that keep errors & touched aligned by index, and a `handleSubmit` that routes to `onValid` / `onInvalid`. The whole engine is a **pure reducer** — no React, no DOM — with a thin `createFormStore` (subscribe/dispatch) on top. Fully backward compatible; every existing export is unchanged.
+
 - 📥 `formDataToObject(fd)` — `FormData` → plain object (repeated keys → arrays, files passed through)
 - ✅ `createForm({ schema })` → `{ handle, action }` — `action` drops straight into React's `useActionState`
 - 🍯 Spam guard — a `honeypot` field + `minSubmitMs` timing check, internal fields stripped before validation
@@ -93,6 +95,74 @@ export default function Contact() {
 - **`honeypotProps(name)`** + **`timestampValue()`** — client helpers, no React dependency.
 
 Pairs with [`@lacspace/validate`](https://www.npmjs.com/package/@lacspace/validate), [`@lacspace/rate-limit`](https://www.npmjs.com/package/@lacspace/rate-limit) and [`@lacspace/mailer`](https://www.npmjs.com/package/@lacspace/mailer).
+
+## Client-side form state (new in 1.1.0)
+
+The server handler above owns validation on submit. For **interactive** forms — live errors, dirty tracking, dynamic field arrays — use the state engine. It's a **pure reducer** plus a thin store, so it drives a React `useSyncExternalStore` (or anything) without this package importing React.
+
+```ts
+import { createFormStore } from "@lacspace/form";
+
+const store = createFormStore({
+  initialValues: { name: "", email: "", tags: [] as string[] },
+  // Injected validator — sync OR async. Return a flat, dot-path error map.
+  validate: (v) => {
+    const e: Record<string, string> = {};
+    if (!v.name) e.name = "Required";
+    if (!v.email.includes("@")) e.email = "Invalid email";
+    return e;
+  },
+  validateOn: ["change", "submit"],   // default: ["submit"]
+});
+
+store.setValue("name", "Ada");        // → dirty + revalidated
+store.setTouched("email");            // → blur; revalidated if validateOn has "blur"
+store.push("tags", "web");            // field-array op (also remove/insert/move/swap)
+
+store.isDirty();                       // true
+store.getFieldState("email");          // { value, error, touched, dirty }
+
+await store.handleSubmit(
+  (values) => save(values),            // onValid — validation passed
+  (errors) => console.log(errors),     // onInvalid — optional
+);
+```
+
+### Using the pure core directly
+
+Everything is exported, so you can drive the reducer yourself (great for tests — no DOM needed):
+
+```ts
+import { initFormState, formReducer, dirtyFields, runSubmit } from "@lacspace/form";
+
+let s = initFormState({ items: ["a", "b", "c"] });
+s = formReducer(s, { type: "ARRAY_REMOVE", path: "items", index: 0 }); // errors/touched realign
+s = formReducer(s, { type: "SET_VALUE", path: "items.0", value: "z" });
+
+dirtyFields(s.values, s.initialValues); // { "items.0": true, ... }
+
+// Pure, async-injectable submit routing:
+const res = await runSubmit(s, {
+  validate: async (v) => (v.items.length ? {} : { items: "empty" }),
+  onValid: (v) => save(v),
+  onInvalid: (errors) => report(errors),
+});
+res.ok; // boolean
+```
+
+### API — state engine
+
+| Export | What it does |
+| --- | --- |
+| `createFormStore(config)` | Framework-free store: `getState`, `subscribe`, `setValue`/`setFieldValue`, `setValues`, `patchValues`, `setError(s)`, `setTouched`, `reset`, `resetField`, array `push`/`remove`/`insert`/`move`/`swap`, `validate`, `handleSubmit`, `isValid`/`isDirty`/`dirtyFields`/`getFieldState`. |
+| `formReducer(state, action)` | The **pure** state reducer (values/errors/touched/submit + `ARRAY_*` ops). |
+| `initFormState(initialValues)` | Build the initial `FormState`. |
+| `runValidator(values, validate?)` | Run an injected sync/async validator → `Promise<FormErrors>`. |
+| `runSubmit(state, { validate, onValid, onInvalid })` | Pure/async submit orchestration: touch-all, validate, route. |
+| `getPath` / `setPath` / `parsePath` | Nested dot/bracket get / immutable set / path parse. |
+| `dirtyFields` / `isDirty` / `isValid` / `getFieldState` / `leafPaths` / `deepEqual` | Derivations & diff helpers. |
+
+`config`: `{ initialValues, validate?, validateOn? }` where `validateOn` is `"change" \| "blur" \| "submit"` (or an array; default `["submit"]`).
 
 ## Licensing
 

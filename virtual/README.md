@@ -12,13 +12,22 @@
 
 </div>
 
-> `useVirtualizer` mounts only the rows in view, so a list of any size stays smooth. Fixed or dynamically-measured sizes, overscan, gaps, horizontal lists and scroll-to-index — in ~2 KB. You own the markup; the hook owns the math.
+> `useVirtualizer` mounts only the rows in view, so a list of any size stays smooth. Fixed or dynamically-measured sizes, overscan, gaps, horizontal lists, sticky rows and scroll-to-index — in ~2 KB. You own the markup; the hook owns the math.
 
 - 📜 Render 100k+ rows — only the visible window (plus overscan) is mounted
 - 📏 Fixed **or** dynamically-measured item sizes (`measureElement` + `data-index`)
 - ↔️ Vertical or horizontal · gaps · padding · `scrollMargin` for window scrolling
+- 📌 Sticky / pinned indices — keep section headers rendered while scrolled away
 - 🎯 `scrollToIndex` / `scrollToOffset` with alignment and smooth behaviour
+- 🧮 A **React-free math core** (`calculateRange`, `scrollToIndexOffset`, …) — testable and usable without a DOM
 - ⚡ ~2 KB · headless (no components/CSS) · 🌍 SSR-safe · 📦 ESM + CJS · fully typed
+
+> **New in 1.1.0** — `stickyIndices` to keep pinned rows (headers) mounted while
+> out of view, and the whole geometry is now exported as a **pure, React-free
+> core** — `calculateRange`, `buildMeasurements`, `computeRange`,
+> `scrollToIndexOffset`, `augmentRangeWithSticky` — so you can run the exact
+> virtualization math in a worker, on the server, or in a plain unit test with no
+> DOM. Fully backward compatible; every existing export is unchanged.
 
 ## Install
 
@@ -105,6 +114,50 @@ When the whole page scrolls and the list starts partway down, point
 `getScrollElement` at the scrolling element and set `scrollMargin` to the list's
 distance from the top of the scrollable content.
 
+### Sticky / pinned rows
+
+Pass `stickyIndices` to keep certain rows mounted even when they scroll out of
+view — perfect for section headers. They are always included in
+`getVirtualItems()` (in ascending order, never duplicated), so you can render
+them with `position: sticky` while every other row stays windowed.
+
+```tsx
+const virtualizer = useVirtualizer({
+  count: rows.length,
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 40,
+  stickyIndices: headerIndices, // e.g. [0, 12, 30]
+});
+```
+
+### React-free math core
+
+All the geometry is exported as pure functions with **no React and no DOM**, so
+you can compute layouts in a worker or on the server, or unit-test them directly:
+
+```ts
+import { calculateRange, scrollToIndexOffset } from "@lacspace/virtual";
+
+const { virtualItems, totalSize, range } = calculateRange({
+  count: 100_000,
+  estimateSize: (i) => (i % 2 ? 32 : 48), // variable sizes
+  scrollOffset: 12_000, // scrollTop (or scrollLeft when horizontal)
+  containerSize: 600, // clientHeight (or clientWidth when horizontal)
+  overscan: 5,
+  stickyIndices: [0],
+  measured: new Map([[3, 80]]), // measured-size overrides
+});
+
+// Where to scroll to reveal an item (start | center | end | auto):
+const offset = scrollToIndexOffset(calculateRange(/* … */).items, 5000, {
+  align: "center",
+  containerSize: 600,
+});
+```
+
+The `useVirtualizer` hook is a thin state/effects wrapper around this core, so it
+and the exported functions always agree.
+
 ## API
 
 ### `useVirtualizer(options): Virtualizer`
@@ -122,6 +175,7 @@ distance from the top of the scrollable content.
 | `getItemKey`       | `(index: number) => number \| string`  | index   | Stable key per item.                                               |
 | `paddingStart`     | `number`                               | `0`     | Leading padding before the first item (counts toward total size).  |
 | `scrollMargin`     | `number`                               | `0`     | Offset from scroll-content start to the list start.                |
+| `stickyIndices`    | `number[]`                             | `[]`    | Indices always kept in `getVirtualItems()` even when out of view.  |
 
 #### `Virtualizer`
 
@@ -146,6 +200,24 @@ interface VirtualItem {
   key: number | string;
 }
 ```
+
+### Pure core (React-free)
+
+These are exported alongside the hook and use no React and no DOM — ideal for
+tests, workers or SSR.
+
+| Function                                              | Description                                                                                 |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `calculateRange(input): CalculateRangeResult`         | Whole pipeline: `{ items, totalSize, range, virtualItems, stickyItems }` from scroll + size.|
+| `buildMeasurements(count, estimateSize, measured, paddingStart, gap, getItemKey?)` | The cumulative offset/size table (`VirtualItem[]`).             |
+| `computeRange(items, scrollOffset, viewport, overscan, scrollMargin)` | The visible index range (incl. overscan), or `null`.                          |
+| `findStartIndex(items, offset)`                       | Binary search for the first item at a scroll offset.                                        |
+| `getTotalSize(items)`                                 | Total list size (px).                                                                        |
+| `scrollToIndexOffset(items, index, { align, containerSize, scrollMargin?, currentOffset? })` | Target scroll offset to reveal an item, or `null`.                   |
+| `augmentRangeWithSticky(range, stickyIndices, count)` | Range indices unioned with sticky indices (ascending, de-duped).                            |
+| `normalizeStickyIndices(stickyIndices, count)`        | Sort/de-dupe/clamp a sticky-index list.                                                      |
+
+`calculateRange` accepts `{ count, estimateSize, scrollOffset, containerSize, overscan?, paddingStart?, gap?, scrollMargin?, measured?, stickyIndices?, getItemKey? }`. The math is axis-agnostic, so horizontal lists pass `scrollLeft`/`clientWidth`.
 
 ## Why it's tiny
 

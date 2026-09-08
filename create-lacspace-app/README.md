@@ -20,6 +20,11 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.9 — guided & discoverable.** Made for newcomers:
+> - **Guided start** — the interactive prompt now offers a **recipe** first ("what are you building?"), so you can ship a whole product without knowing the flags.
+> - **`list`** — `npx create-lacspace-app list` shows every template, add-on and recipe. **`explain <name>`** describes what any add-on or recipe gives you (packages, next steps, docs link).
+> - **`--dry-run`** prints the exact files a command would create without writing anything. `--brand "#hex"` is an alias for `--theme`.
+
 > **New in v2.8 — recipes.** Scaffold a whole *kind of product* in one command with `--recipe <key>` (a curated template + full-stack mode + add-on stack):
 > - **`ai-saas`** → SaaS + accounts + payments + AI chat + analytics
 > - **`store`** → e-commerce + eSewa/Khalti checkout + email + analytics

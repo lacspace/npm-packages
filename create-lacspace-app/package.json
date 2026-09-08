@@ -1,6 +1,6 @@
 {
   "name": "create-lacspace-app",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Scaffold a beautiful, production-ready Next.js app from a Lacspace template — portfolio, business, e-commerce, SaaS, blog, docs, dashboard, restaurant or marketplace — pre-wired with SEO, security headers, sitemap and robots. Use it as a CLI (like create-next-app, but you start gorgeous) or import it as a library to generate projects programmatically.",
   "type": "module",
   "bin": {

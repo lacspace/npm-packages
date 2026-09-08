@@ -7744,12 +7744,12 @@ function backendFiles(ctx: Ctx): Record<string, string> {
 
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; recipe?: string; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; recipe?: string; dryRun: boolean; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
 
 const splitList = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 function parseArgs(list: string[]): Args {
-  const a: Args = { features: [], yes: false, install: true, git: true, pm: "npm", help: false };
+  const a: Args = { features: [], yes: false, install: true, git: true, pm: "npm", help: false, dryRun: false };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
     const next = (): string => list[++i] ?? "";
@@ -7757,8 +7757,9 @@ function parseArgs(list: string[]): Args {
     else if (arg === "-y" || arg === "--yes") a.yes = true;
     else if (arg === "--no-install") a.install = false;
     else if (arg === "--no-git") a.git = false;
+    else if (arg === "--dry-run" || arg === "--dry") a.dryRun = true;
     else if (arg === "--pm") a.pm = next();
-    else if (arg === "--theme" || arg === "--accent") a.theme = next();
+    else if (arg === "--theme" || arg === "--accent" || arg === "--brand") a.theme = next();
     else if (arg === "--with" || arg === "--features") a.features.push(...splitList(next()));
     else if (arg === "--fullstack" || arg === "--full-stack" || arg === "--dynamic") a.mode = "dynamic";
     else if (arg === "--static") a.mode = "static";
@@ -7770,6 +7771,7 @@ function parseArgs(list: string[]): Args {
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
     else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
     else if (arg.startsWith("--accent=")) a.theme = arg.slice(9);
+    else if (arg.startsWith("--brand=")) a.theme = arg.slice(8);
     else if (arg.startsWith("--with=")) a.features.push(...splitList(arg.slice(7)));
     else if (arg.startsWith("--features=")) a.features.push(...splitList(arg.slice(11)));
     else if (!arg.startsWith("-") && !a.name) a.name = arg;
@@ -7846,6 +7848,8 @@ ${c("bold", "Usage")}
   npm create lacspace-app@latest <name> [options]
   npx create-lacspace-app <name> --template <key>
   npx create-lacspace-app add <section...>   ${c("dim", "# grow an existing app")}
+  npx create-lacspace-app list                ${c("dim", "# templates, add-ons & recipes")}
+  npx create-lacspace-app explain <name>      ${c("dim", "# what an add-on/recipe gives you")}
 
 ${c("bold", "Templates")}
 ${TEMPLATES.map((t) => `  ${t.key.padEnd(10)} ${t.description}`).join("\n")}
@@ -7857,8 +7861,9 @@ ${c("bold", "Options")}
                          ${c("dim", "(alias --dynamic; default is --static, a single Next.js app)")}
   --with <a,b>           Feature add-ons, comma-separated (alias --features)
   --recipe <key>         Start from a curated stack (${RECIPES.map((r) => r.key).join(" | ")})
-  --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (e.g. --theme lacspace)
+  --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (alias --brand)
   --pm <npm|pnpm|yarn|bun>  Package manager (default npm)
+  --dry-run              Print the files that would be created; write nothing
   --no-install           Skip installing dependencies
   --no-git               Skip git init
   -y, --yes              Accept defaults (needs <name>)
@@ -8199,9 +8204,49 @@ function runAdd(rawNames: string[]): void {
   if (!addedFeatures.length && !sectionNames.length) { exit(1); return; }
 }
 
+/** `list` — show every template, add-on and recipe (a discovery aid for newcomers). */
+function runList(): void {
+  stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app"))} ${c("dim", "— what you can build")}\n`);
+  stdout.write(`\n${c("bold", "Templates")} ${c("dim", "(-t / --template)")}\n`);
+  for (const t of TEMPLATES) stdout.write(`  ${c("cyan", t.key.padEnd(12))} ${c("dim", t.description)}\n`);
+  stdout.write(`\n${c("bold", "Add-ons")} ${c("dim", "(--with) — free & keyless")}\n`);
+  for (const f of FEATURES) stdout.write(`  ${c("cyan", f.key.padEnd(12))} ${c("dim", f.description)}${f.requiresBackend ? c("green", "  [full-stack]") : ""}\n`);
+  stdout.write(`\n${c("bold", "Recipes")} ${c("dim", "(--recipe) — a whole product in one command")}\n`);
+  for (const r of RECIPES) stdout.write(`  ${c("cyan", r.key.padEnd(14))} ${c("dim", r.description)}\n`);
+  stdout.write(`\n  ${c("dim", "Learn one:")} ${c("cyan", "npx create-lacspace-app explain <name>")}\n\n`);
+}
+
+/** `explain <name>` — describe one template, add-on or recipe (what it is + gives you). */
+function runExplain(rawNames: string[]): void {
+  const name = rawNames.find((n) => !n.startsWith("-"))?.toLowerCase();
+  if (!name) { stdout.write(`Usage: ${c("cyan", "npx create-lacspace-app explain <template|add-on|recipe>")}\n\n`); runList(); return; }
+  const feat = FEATURES.find((f) => f.key === name);
+  const recipe = RECIPES.find((r) => r.key === name);
+  const tmpl = TEMPLATES.find((t) => t.key === name);
+  stdout.write("\n");
+  if (feat) {
+    stdout.write(`${c("bold", c("magenta", "add-on: " + feat.key))} ${feat.requiresBackend ? c("green", "[full-stack]") : c("dim", "[frontend]")}\n\n${feat.description}\n`);
+    const deps = { ...feat.deps, ...(feat.backend?.({ name: "app", template: TEMPLATES[0]!, features: [], mode: "dynamic" })?.deps ?? {}) };
+    if (Object.keys(deps).length) stdout.write(`\n${c("bold", "Packages")}: ${Object.keys(deps).map((d) => c("cyan", d)).join(", ")}\n`);
+    stdout.write(`\n${c("bold", "Next steps")}:\n`);
+    for (const s of feat.nextSteps) stdout.write(`  ${c("dim", "•")} ${s}\n`);
+    if (feat.learn) stdout.write(`\nLearn more → ${c("cyan", feat.learn)}\n`);
+    stdout.write(`\nAdd it: ${c("cyan", "npx create-lacspace-app my-app --with " + feat.key)}\n\n`);
+  } else if (recipe) {
+    stdout.write(`${c("bold", c("magenta", "recipe: " + recipe.key))}\n\n${recipe.description}\n\n${c("bold", "Template")}: ${c("cyan", recipe.template)}${recipe.mode ? c("dim", " · " + recipe.mode) : ""}\n${c("bold", "Add-ons")}: ${recipe.features.map((f) => c("cyan", f)).join(", ")}\n\nUse it: ${c("cyan", "npx create-lacspace-app my-app --recipe " + recipe.key)}\n\n`);
+  } else if (tmpl) {
+    stdout.write(`${c("bold", c("magenta", "template: " + tmpl.key))}\n\n${tmpl.description}\n\nUse it: ${c("cyan", "npx create-lacspace-app my-app --template " + tmpl.key)}\n\n`);
+  } else {
+    stdout.write(c("yellow", `Unknown "${name}".\n`));
+    runList();
+  }
+}
+
 async function main(): Promise<void> {
   const raw = argv.slice(2);
   if (raw[0] === "add") { runAdd(raw.slice(1)); return; }
+  if (raw[0] === "list" || raw[0] === "ls") { runList(); return; }
+  if (raw[0] === "explain" || raw[0] === "info") { runExplain(raw.slice(1)); return; }
   const args = parseArgs(raw);
   if (args.help) { stdout.write(HELP + "\n"); return; }
 
@@ -8216,12 +8261,29 @@ async function main(): Promise<void> {
   let templateKey = args.template ?? recipe?.template;
   let mode: "static" | "dynamic" = args.mode ?? recipe?.mode ?? "static";
   const featureKeys: string[] = [...(recipe?.features ?? []), ...args.features];
+  let usedRecipe = Boolean(recipe);
 
   // Interactive prompts only when not --yes and attached to a TTY.
   if (!args.yes && stdin.isTTY) {
     const rl = createInterface({ input: stdin, output: stdout });
     try {
       if (!name) name = (await rl.question(`${c("green", "?")} Project name ${c("dim", "(my-app)")}: `)).trim() || "my-app";
+      // ✨ Guided: offer a whole-product recipe first (skips the rest of the picks).
+      if (!usedRecipe && !templateKey && featureKeys.length === 0) {
+        stdout.write(`\n  Start from a recipe? ${c("dim", "(a template + add-ons, ready to go)")}\n`);
+        RECIPES.forEach((r, i) => stdout.write(`   ${c("cyan", String(i + 1))}. ${c("bold", r.label)} ${c("dim", "— " + r.description)}\n`));
+        stdout.write(`   ${c("cyan", "0")}. ${c("dim", "No recipe — I'll choose a template myself")}\n`);
+        const ans = (await rl.question(`\n${c("green", "?")} Recipe ${c("dim", "(0)")}: `)).trim() || "0";
+        const idx = /^\d+$/.test(ans) ? parseInt(ans, 10) - 1 : RECIPES.findIndex((r) => r.key === ans);
+        const chosen = ans === "0" ? undefined : RECIPES[idx];
+        if (chosen) {
+          usedRecipe = true;
+          templateKey = chosen.template;
+          mode = chosen.mode ?? mode;
+          for (const k of chosen.features) if (!featureKeys.includes(k)) featureKeys.push(k);
+          stdout.write(`  ${c("green", "✔")} Recipe ${c("cyan", chosen.key)}\n`);
+        }
+      }
       if (!templateKey) {
         stdout.write(`\n  Choose a template:\n`);
         TEMPLATES.forEach((t, i) => stdout.write(`   ${c("cyan", String(i + 1))}. ${c("bold", t.label)} ${c("dim", "— " + t.description)}\n`));
@@ -8231,7 +8293,7 @@ async function main(): Promise<void> {
       }
       // ✨ Static vs dynamic — the project shape. Only ask when not already set
       //    by a flag (--fullstack / --static / --mode) or a recipe.
-      if (args.mode === undefined && !recipe) {
+      if (args.mode === undefined && !usedRecipe) {
         stdout.write(`\n  What kind of app?\n`);
         stdout.write(`   ${c("cyan", "1")}. ${c("bold", "Static / frontend only")} ${c("dim", "— a single Next.js app (SEO site, marketing, blog, docs). Fast, deploy anywhere.")}\n`);
         stdout.write(`   ${c("cyan", "2")}. ${c("bold", "Dynamic / full-stack")} ${c("dim", "— frontend + a Node·Express·MongoDB·Redis API with working auth & CRUD, wired together.")}\n`);
@@ -8281,6 +8343,16 @@ async function main(): Promise<void> {
     stdout.write(`  ${c("dim", "↑ a selected add-on needs a backend — building full-stack")}\n`);
   }
   const files = buildFiles({ name: projectName, template, features, mode });
+
+  // ✨ --dry-run: show what WOULD be created, write nothing.
+  if (args.dryRun) {
+    const keys = Object.keys(files).sort();
+    stdout.write(`\n  ${c("bold", "Dry run")} ${c("dim", `— ${keys.length} files (${mode}${features.length ? ", +" + features.map((f) => f.key).join(",") : ""}), nothing written`)}\n`);
+    for (const rel of keys) stdout.write(`    ${c("dim", "+ " + rel)}\n`);
+    stdout.write(`\n  ${c("dim", "Remove --dry-run to create the project.")}\n\n`);
+    return;
+  }
+
   for (const [rel, content] of Object.entries(files)) {
     const full = join(dir, rel);
     mkdirSync(dirname(full), { recursive: true });

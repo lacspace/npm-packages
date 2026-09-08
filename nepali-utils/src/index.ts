@@ -447,3 +447,10 @@ export function findDistrict(name: string): District | undefined {
   const q = name.trim().toLowerCase();
   return DISTRICTS.find((d) => d.name.toLowerCase() === q || d.nameNp === name.trim());
 }
+
+/* ------------------------------------------------------------------------- *
+ * New in 1.2.0 — Roman (transliterated) amount-in-words, integer-paisa NPR
+ * format/parse, digit-conversion aliases, extra shape validators, and
+ * province lookup helpers. See `./extras`.
+ * ------------------------------------------------------------------------- */
+export * from "./extras";

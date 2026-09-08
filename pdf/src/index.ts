@@ -12,6 +12,14 @@
  * - Output as Uint8Array, base64 or a data URI
  */
 
+import { baseFontName, glyphWidth } from "./fonts";
+import type { FontFamily, FontSpec } from "./fonts";
+import { jpegImage, rgbImage } from "./image";
+import type { EmbeddedImage, ImageColorSpace } from "./image";
+
+export { jpegImage, rgbImage };
+export type { FontFamily, FontSpec, EmbeddedImage, ImageColorSpace };
+
 /* ------------------------------------------------------------------ *
  * Font metrics (Helvetica / Helvetica-Bold, 1000-unit em) + WinAnsi
  * ------------------------------------------------------------------ */
@@ -71,14 +79,23 @@ function pdfEscape(s: string): string {
 
 export type RGB = [number, number, number];
 export type Align = "left" | "center" | "right";
-export type PageSize = "A4" | "Letter";
+export type PageSize = "A3" | "A4" | "A5" | "Letter" | "Legal";
+export type Orientation = "portrait" | "landscape";
 
-const SIZES: Record<PageSize, [number, number]> = { A4: [595.28, 841.89], Letter: [612, 792] };
+const SIZES: Record<PageSize, [number, number]> = {
+  A3: [841.89, 1190.55],
+  A4: [595.28, 841.89],
+  A5: [419.53, 595.28],
+  Letter: [612, 792],
+  Legal: [612, 1008],
+};
 
 export interface Margins { top: number; right: number; bottom: number; left: number; }
 
 export interface DocOptions {
   size?: PageSize;
+  /** Page orientation (default `"portrait"`). Landscape swaps width/height. */
+  orientation?: Orientation;
   margins?: number | Partial<Margins>;
   /** Base body font size (default 11). */
   fontSize?: number;
@@ -97,10 +114,39 @@ export interface DocOptions {
 export interface TextOptions {
   size?: number;
   bold?: boolean;
+  /** Italic / oblique style (default false). */
+  italic?: boolean;
+  /** Font family (default `"helvetica"`). Adds Times & Courier from the standard 14. */
+  family?: FontFamily;
   color?: RGB;
   align?: Align;
   /** Extra space (pts) after the line. */
   gap?: number;
+}
+
+export interface ImageOptions {
+  /** Rendered width in points. Height is derived from the aspect ratio if omitted. */
+  width?: number;
+  /** Rendered height in points. Width is derived from the aspect ratio if omitted. */
+  height?: number;
+  /** Horizontal placement within the content width when `x` is not given (default `"left"`). */
+  align?: Align;
+  /** Absolute x (points from the left edge). Overrides `align`. */
+  x?: number;
+  /** Extra space (pts) after the image. */
+  gap?: number;
+}
+
+export interface FooterOptions {
+  /** Template string, e.g. `"Page {page} of {pages}"` (default `"{page} / {pages}"`). */
+  text?: string;
+  /** Custom renderer; overrides `text`. Return the footer string for a page. */
+  render?: (page: number, pages: number) => string;
+  align?: Align;
+  size?: number;
+  color?: RGB;
+  bold?: boolean;
+  family?: FontFamily;
 }
 
 export interface TableColumn {
@@ -117,7 +163,13 @@ export interface TableOptions {
   headerColor?: RGB;
   /** Zebra-stripe background for alternate rows. */
   zebra?: boolean;
+  /** Draw a full grid (outer border + cell borders) around every cell. */
+  border?: boolean;
+  /** Grid line colour (default light grey). Only used when `border` is set. */
+  borderColor?: RGB;
 }
+
+interface OutlineEntry { title: string; level: number; page: number; y: number; }
 
 /* ------------------------------------------------------------------ *
  * The document builder
@@ -143,9 +195,15 @@ export class PdfDocument {
   private readonly ink: RGB;
   private readonly muted: RGB;
   private readonly meta: { title?: string; author?: string; subject?: string; keywords?: string[] };
+  /** Extra (non-Helvetica-regular/-bold) fonts, keyed by BaseFont → resource name. */
+  private readonly fontReg = new Map<string, string>();
+  private readonly images: EmbeddedImage[] = [];
+  private readonly outline: OutlineEntry[] = [];
+  private footerCfg?: FooterOptions;
 
   constructor(opts: DocOptions = {}) {
-    const [w, h] = SIZES[opts.size ?? "A4"];
+    let [w, h] = SIZES[opts.size ?? "A4"];
+    if (opts.orientation === "landscape") [w, h] = [h, w];
     this.pageW = w;
     this.pageH = h;
     const mg = opts.margins;
@@ -187,20 +245,57 @@ export class PdfDocument {
     return this.m.left + (this.contentW - w) / 2;
   }
 
-  private drawAt(x: number, baseline: number, text: string, size: number, bold: boolean, color: RGB): void {
-    this.op(`BT /F${bold ? 2 : 1} ${size} Tf ${rgb(color)} rg 1 0 0 1 ${n2(x)} ${n2(baseline)} Tm (${pdfEscape(text)}) Tj ET\n`);
+  /** Horizontal offset for a pre-measured line width and alignment. */
+  private xForW(w: number, align: Align): number {
+    if (align === "left") return this.m.left;
+    if (align === "right") return this.pageW - this.m.right - w;
+    return this.m.left + (this.contentW - w) / 2;
+  }
+
+  /**
+   * Resolve a font selection to its PDF resource name + BaseFont, registering
+   * any non-default font on first use. Helvetica regular/bold keep the built-in
+   * F1/F2 resources so existing output is byte-identical.
+   */
+  private resolveFont(spec: FontSpec): { res: string; family: FontFamily; bold: boolean; italic: boolean } {
+    const family = spec.family ?? "helvetica";
+    const bold = spec.bold ?? false;
+    const italic = spec.italic ?? false;
+    if (family === "helvetica" && !italic) {
+      return { res: bold ? "F2" : "F1", family, bold, italic };
+    }
+    const base = baseFontName(family, bold, italic);
+    let res = this.fontReg.get(base);
+    if (!res) {
+      res = `F${3 + this.fontReg.size}`;
+      this.fontReg.set(base, res);
+    }
+    return { res, family, bold, italic };
+  }
+
+  /** Width (points) of a string in a resolved font. Helvetica reuses the fast path. */
+  private widthOf(str: string, size: number, f: { family: FontFamily; bold: boolean; italic: boolean }): number {
+    if (f.family === "helvetica") return textWidth(str, size, f.bold); // oblique shares widths
+    let w = 0;
+    for (const b of toBytes(str)) w += glyphWidth(b, f.family, f.bold, f.italic);
+    return (w * size) / 1000;
+  }
+
+  private drawAt(x: number, baseline: number, text: string, size: number, bold: boolean, color: RGB, res?: string): void {
+    const font = res ?? (bold ? "F2" : "F1");
+    this.op(`BT /${font} ${size} Tf ${rgb(color)} rg 1 0 0 1 ${n2(x)} ${n2(baseline)} Tm (${pdfEscape(text)}) Tj ET\n`);
   }
 
   /** Draw a single line of text (no wrapping). */
   text(str: string, o: TextOptions = {}): this {
     const size = o.size ?? this.base;
-    const bold = o.bold ?? false;
+    const f = this.resolveFont(o);
     const color = o.color ?? this.ink;
     const align = o.align ?? "left";
     const lh = size * 1.35;
     this.ensure(lh);
-    const x = this.xFor(str, size, bold, align);
-    this.drawAt(x, this.y - size, str, size, bold, color);
+    const x = this.xForW(this.widthOf(str, size, f), align);
+    this.drawAt(x, this.y - size, str, size, f.bold, color, f.res);
     this.y -= lh + (o.gap ?? 0);
     return this;
   }
@@ -214,14 +309,15 @@ export class PdfDocument {
   /** A wrapped paragraph. */
   paragraph(str: string, o: TextOptions = {}): this {
     const size = o.size ?? this.base;
-    const bold = o.bold ?? false;
+    const f = this.resolveFont(o);
     const color = o.color ?? this.ink;
     const align = o.align ?? "left";
-    for (const line of wrapText(str, size, bold, this.contentW)) {
+    const measure = f.family === "helvetica" ? undefined : (s: string) => this.widthOf(s, size, f);
+    for (const line of wrapText(str, size, f.bold, this.contentW, measure)) {
       const lh = size * 1.4;
       this.ensure(lh);
-      const x = this.xFor(line, size, bold, align);
-      this.drawAt(x, this.y - size, line, size, bold, color);
+      const x = this.xForW(this.widthOf(line, size, f), align);
+      this.drawAt(x, this.y - size, line, size, f.bold, color, f.res);
       this.y -= lh;
     }
     this.y -= o.gap ?? size * 0.5;
@@ -231,14 +327,16 @@ export class PdfDocument {
   /** A bullet list item (wrapped, hanging indent). */
   bullet(str: string, o: TextOptions = {}): this {
     const size = o.size ?? this.base;
+    const f = this.resolveFont({ family: o.family, italic: o.italic });
     const color = o.color ?? this.ink;
     const indent = size * 1.4;
-    const lines = wrapText(str, size, false, this.contentW - indent);
+    const measure = f.family === "helvetica" ? undefined : (s: string) => this.widthOf(s, size, f);
+    const lines = wrapText(str, size, false, this.contentW - indent, measure);
     lines.forEach((line, i) => {
       const lh = size * 1.4;
       this.ensure(lh);
       if (i === 0) this.drawAt(this.m.left, this.y - size, "•", size, false, this.accent);
-      this.drawAt(this.m.left + indent, this.y - size, line, size, false, color);
+      this.drawAt(this.m.left + indent, this.y - size, line, size, false, color, f.res);
       this.y -= lh;
     });
     this.y -= o.gap ?? 2;
@@ -279,6 +377,11 @@ export class PdfDocument {
     const cols = t.columns.map((c) => ({ ...c, w: c.width <= 1 ? c.width * this.contentW : c.width }));
     const pad = 5;
     const headerColor = t.headerColor ?? this.accent;
+    const borderColor = t.borderColor ?? [0.8, 0.83, 0.87];
+    // Column boundary x-positions (for optional grid borders).
+    const xs: number[] = [this.m.left];
+    for (const c of cols) xs.push(xs[xs.length - 1]! + c.w);
+    const xRight = xs[xs.length - 1]!;
 
     const drawHeader = (): void => {
       const lh = size * 1.5;
@@ -317,19 +420,110 @@ export class PdfDocument {
         });
         x += c.w;
       });
+      if (t.border) {
+        const top = rowTop, bot = rowTop - rowH;
+        let seg = `${rgb(borderColor)} RG 0.6 w `;
+        seg += `${n2(this.m.left)} ${n2(top)} m ${n2(xRight)} ${n2(top)} l S `;
+        seg += `${n2(this.m.left)} ${n2(bot)} m ${n2(xRight)} ${n2(bot)} l S `;
+        for (const xb of xs) seg += `${n2(xb)} ${n2(top)} m ${n2(xb)} ${n2(bot)} l S `;
+        this.op(seg + "\n");
+      }
       this.y -= rowH;
       r++;
     }
     return this;
   }
 
+  /**
+   * Draw an embedded image (see {@link jpegImage} / {@link rgbImage}) at the
+   * current cursor. Sizing: give `width` and/or `height` in points; a single
+   * dimension keeps the aspect ratio; neither uses the pixel size (capped to the
+   * content width).
+   */
+  image(img: EmbeddedImage, opts: ImageOptions = {}): this {
+    this.images.push(img);
+    const name = `Im${this.images.length}`;
+    const ratio = img.height / img.width;
+    let w: number;
+    let h: number;
+    if (opts.width == null && opts.height == null) {
+      w = Math.min(img.width, this.contentW);
+      h = w * ratio;
+    } else if (opts.width == null) {
+      h = opts.height!;
+      w = h / ratio;
+    } else if (opts.height == null) {
+      w = opts.width;
+      h = w * ratio;
+    } else {
+      w = opts.width;
+      h = opts.height;
+    }
+    this.ensure(h);
+    const x = opts.x ?? this.xForW(w, opts.align ?? "left");
+    const yBottom = this.y - h;
+    this.op(`q ${n2(w)} 0 0 ${n2(h)} ${n2(x)} ${n2(yBottom)} cm /${name} Do Q\n`);
+    this.y -= h + (opts.gap ?? 0);
+    return this;
+  }
+
+  /**
+   * Add a repeating footer (drawn in the bottom margin of every page at output
+   * time). Use `{page}` / `{pages}` placeholders, or a custom `render`.
+   */
+  footer(o: FooterOptions = {}): this {
+    this.footerCfg = o;
+    return this;
+  }
+
+  /** Shorthand for a centred `"{page} / {pages}"` footer. */
+  pageNumbers(o: FooterOptions = {}): this {
+    this.footerCfg = { text: "{page} / {pages}", align: "center", ...o };
+    return this;
+  }
+
+  /**
+   * Record a PDF outline (bookmark) pointing at the current position. `level`
+   * (0-based) nests entries; the tree is emitted at output time.
+   */
+  outlineItem(title: string, o: { level?: number } = {}): this {
+    this.outline.push({ title, level: o.level ?? 0, page: this.pages.length, y: this.y });
+    return this;
+  }
+
+  private footerOp(page: number, total: number): string {
+    const cfg = this.footerCfg!;
+    const size = cfg.size ?? 9;
+    const f = this.resolveFont({ family: cfg.family, bold: cfg.bold });
+    const color = cfg.color ?? this.muted;
+    const raw = cfg.render ? cfg.render(page, total) : (cfg.text ?? "{page} / {pages}");
+    const txt = raw.replace(/\{page\}/g, String(page)).replace(/\{pages\}/g, String(total));
+    const w = this.widthOf(txt, size, f);
+    const align = cfg.align ?? "center";
+    const x = align === "left" ? this.m.left
+      : align === "right" ? this.pageW - this.m.right - w
+      : this.m.left + (this.contentW - w) / 2;
+    const baseline = this.m.bottom / 2;
+    return `BT /${f.res} ${size} Tf ${rgb(color)} rg 1 0 0 1 ${n2(x)} ${n2(baseline)} Tm (${pdfEscape(txt)}) Tj ET\n`;
+  }
+
   /** Finished PDF as raw bytes. */
   toBytes(): Uint8Array {
-    const pageStreams = [...this.pages, this.cur];
+    let pageStreams = [...this.pages, this.cur];
     // Drop a trailing empty page (e.g. from a final addPage()); always keep at
     // least one page so an empty document still renders.
     if (pageStreams.length > 1 && pageStreams[pageStreams.length - 1] === "") pageStreams.pop();
-    return assemble(pageStreams, this.pageW, this.pageH, this.meta);
+    if (this.footerCfg) {
+      const total = pageStreams.length;
+      pageStreams = pageStreams.map((s, i) => s + this.footerOp(i + 1, total));
+    }
+    const extraFonts = [...this.fontReg].map(([base, res]) => ({ base, res }));
+    return assemble(pageStreams, this.pageW, this.pageH, this.meta, {
+      extraFonts,
+      images: this.images,
+      outline: this.outline,
+      mLeft: this.m.left,
+    });
   }
 
   /** Finished PDF as a base64 string. */
@@ -347,7 +541,14 @@ export class PdfDocument {
  * Text wrapping
  * ------------------------------------------------------------------ */
 
-function wrapText(text: string, size: number, bold: boolean, maxWidth: number): string[] {
+function wrapText(
+  text: string,
+  size: number,
+  bold: boolean,
+  maxWidth: number,
+  measure?: (s: string) => number,
+): string[] {
+  const width = measure ?? ((s: string) => textWidth(s, size, bold));
   const out: string[] = [];
   for (const rawLine of String(text).split("\n")) {
     const words = rawLine.split(/(\s+)/).filter((w) => w.length && !/^\s+$/.test(w));
@@ -355,12 +556,12 @@ function wrapText(text: string, size: number, bold: boolean, maxWidth: number): 
     let cur = "";
     for (const word of words) {
       const trial = cur ? `${cur} ${word}` : word;
-      if (textWidth(trial, size, bold) <= maxWidth || !cur) {
+      if (width(trial) <= maxWidth || !cur) {
         // break a single over-long word by characters
-        if (!cur && textWidth(word, size, bold) > maxWidth) {
+        if (!cur && width(word) > maxWidth) {
           let chunk = "";
           for (const ch of word) {
-            if (textWidth(chunk + ch, size, bold) > maxWidth && chunk) { out.push(chunk); chunk = ch; }
+            if (width(chunk + ch) > maxWidth && chunk) { out.push(chunk); chunk = ch; }
             else chunk += ch;
           }
           cur = chunk;
@@ -381,15 +582,89 @@ function wrapText(text: string, size: number, bold: boolean, maxWidth: number): 
  * Low-level PDF assembly (byte-accurate xref; latin1 throughout)
  * ------------------------------------------------------------------ */
 
+interface AssembleExtras {
+  /** Extra (non-Helvetica-regular/-bold) fonts, in resource-name order. */
+  extraFonts: { base: string; res: string }[];
+  /** Embedded images, in `Im1..ImN` order. */
+  images: EmbeddedImage[];
+  /** Outline (bookmark) entries in document order. */
+  outline: OutlineEntry[];
+  /** Left margin — used as the horizontal target of outline destinations. */
+  mLeft: number;
+}
+
+/** One outline object, once object numbers + tree links are resolved. */
+interface OutlineNode {
+  title: string;
+  num: number;
+  pageObj: number;
+  y: number;
+  parent: number; // index into the node array, or -1 for a root
+  prev: number;
+  next: number;
+  first: number;
+  last: number;
+  count: number; // descendant count (all open → positive)
+}
+
+/**
+ * Resolve the flat `outline` list into a linked bookmark tree (Parent/First/
+ * Last/Prev/Next/Count) keyed by level, ready to emit as PDF objects.
+ */
+function buildOutlineTree(entries: OutlineEntry[], itemBase: number, pageBase: number): {
+  nodes: OutlineNode[];
+  roots: number[];
+} {
+  const nodes: OutlineNode[] = entries.map((e, i) => ({
+    title: e.title,
+    num: itemBase + i,
+    pageObj: pageBase + e.page,
+    y: e.y,
+    parent: -1, prev: -1, next: -1, first: -1, last: -1, count: 0,
+  }));
+  const roots: number[] = [];
+  const stack: number[] = []; // open ancestors, by level
+  for (let i = 0; i < entries.length; i++) {
+    const lvl = entries[i]!.level;
+    while (stack.length && entries[stack[stack.length - 1]!]!.level >= lvl) stack.pop();
+    if (stack.length) {
+      const p = stack[stack.length - 1]!;
+      nodes[i]!.parent = p;
+      if (nodes[p]!.first === -1) nodes[p]!.first = i;
+      else { nodes[i]!.prev = nodes[p]!.last; nodes[nodes[p]!.last]!.next = i; }
+      nodes[p]!.last = i;
+    } else {
+      if (roots.length) { nodes[i]!.prev = roots[roots.length - 1]!; nodes[roots[roots.length - 1]!]!.next = i; }
+      roots.push(i);
+    }
+    stack.push(i);
+  }
+  // Descendant counts (reverse pass so children accumulate into parents).
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (nodes[i]!.parent !== -1) nodes[nodes[i]!.parent!]!.count += nodes[i]!.count + 1;
+  }
+  return { nodes, roots };
+}
+
 function assemble(
   pageStreams: string[],
   pageW: number,
   pageH: number,
   meta: { title?: string; author?: string; subject?: string; keywords?: string[] },
+  extras: AssembleExtras,
 ): Uint8Array {
+  const { extraFonts, images, outline, mLeft } = extras;
   const offsets: number[] = [];
   let pdf = "";
   const push = (s: string): void => { pdf += s; };
+  const pushBytes = (data: Uint8Array): void => {
+    let s = "";
+    // Chunk to avoid blowing the argument limit of String.fromCharCode.
+    for (let i = 0; i < data.length; i += 8192) {
+      s += String.fromCharCode(...data.subarray(i, i + 8192));
+    }
+    pdf += s;
+  };
   const obj = (nn: number, body: string): void => { offsets[nn] = pdf.length; push(body); };
   const str = (s: string): string => `(${pdfEscape(s)})`;
 
@@ -400,7 +675,18 @@ function assemble(
   const pageBase = contentBase + N;
   const infoNum = pageBase + N;
 
-  obj(1, `1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Lang (en) >>\nendobj\n`);
+  // New objects live AFTER the Info dict so that, when there are no extra fonts,
+  // images or outline entries, the byte output is identical to earlier versions.
+  const EF = extraFonts.length;
+  const II = images.length;
+  const OL = outline.length;
+  const fontObjBase = infoNum + 1;      // extra font objects
+  const imgObjBase = fontObjBase + EF;  // image XObject objects
+  const outlineDictNum = OL ? imgObjBase + II : 0;
+  const outlineItemBase = outlineDictNum + 1;
+
+  const catalogExtra = OL ? ` /Outlines ${outlineDictNum} 0 R` : "";
+  obj(1, `1 0 obj\n<< /Type /Catalog /Pages 2 0 R${catalogExtra} /Lang (en) >>\nendobj\n`);
   const kids = Array.from({ length: N }, (_, i) => `${pageBase + i} 0 R`).join(" ");
   obj(2, `2 0 obj\n<< /Type /Pages /Count ${N} /Kids [ ${kids} ] >>\nendobj\n`);
   obj(3, `3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n`);
@@ -412,11 +698,20 @@ function assemble(
     push(`${nn} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
   });
 
+  // Shared /Resources fragment (all extra fonts + images are visible to every
+  // page). With no extras this is byte-identical to the original page dict.
+  let fontEntries = "/F1 3 0 R /F2 4 0 R";
+  extraFonts.forEach((f, i) => { fontEntries += ` /${f.res} ${fontObjBase + i} 0 R`; });
+  const xobj = II
+    ? " /XObject << " + images.map((_, i) => `/Im${i + 1} ${imgObjBase + i} 0 R`).join(" ") + " >>"
+    : "";
+  const resources = `/Resources << /Font << ${fontEntries} >>${xobj} >>`;
+
   for (let i = 0; i < N; i++) {
     const nn = pageBase + i;
     obj(nn,
       `${nn} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] ` +
-      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentBase + i} 0 R >>\nendobj\n`);
+      `${resources} /Contents ${contentBase + i} 0 R >>\nendobj\n`);
   }
 
   const kw = (meta.keywords ?? []).join(", ");
@@ -428,8 +723,48 @@ function assemble(
     `/Subject ${str(meta.subject ?? "")} /Keywords ${str(kw)} /Creator (Lacspace PDF) /Producer (@lacspace/pdf) ` +
     `/CreationDate (${date}) /ModDate (${date}) >>\nendobj\n`);
 
+  // Extra font objects (standard-14, no embedded file).
+  extraFonts.forEach((f, i) => {
+    const nn = fontObjBase + i;
+    obj(nn, `${nn} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /${f.base} /Encoding /WinAnsiEncoding >>\nendobj\n`);
+  });
+
+  // Image XObjects — JPEG via DCTDecode (bytes copied verbatim), raw pixels uncompressed.
+  images.forEach((img, i) => {
+    const nn = imgObjBase + i;
+    const filter = img.kind === "jpeg" ? " /Filter /DCTDecode" : "";
+    offsets[nn] = pdf.length;
+    push(
+      `${nn} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} ` +
+      `/ColorSpace /${img.colorSpace} /BitsPerComponent ${img.bits}${filter} /Length ${img.data.length} >>\nstream\n`,
+    );
+    pushBytes(img.data);
+    push(`\nendstream\nendobj\n`);
+  });
+
+  // Outline (bookmark) tree.
+  let lastObj = Math.max(infoNum, imgObjBase + II - 1);
+  if (OL) {
+    const { nodes, roots } = buildOutlineTree(outline, outlineItemBase, pageBase);
+    const totalRootCount = roots.reduce((s, r) => s + nodes[r]!.count + 1, 0);
+    obj(outlineDictNum,
+      `${outlineDictNum} 0 obj\n<< /Type /Outlines /Count ${totalRootCount}` +
+      (roots.length ? ` /First ${nodes[roots[0]!]!.num} 0 R /Last ${nodes[roots[roots.length - 1]!]!.num} 0 R` : "") +
+      ` >>\nendobj\n`);
+    for (const nd of nodes) {
+      const parentRef = nd.parent === -1 ? outlineDictNum : nodes[nd.parent]!.num;
+      let body = `${nd.num} 0 obj\n<< /Title ${str(nd.title)} /Parent ${parentRef} 0 R`;
+      if (nd.prev !== -1) body += ` /Prev ${nodes[nd.prev]!.num} 0 R`;
+      if (nd.next !== -1) body += ` /Next ${nodes[nd.next]!.num} 0 R`;
+      if (nd.first !== -1) body += ` /First ${nodes[nd.first]!.num} 0 R /Last ${nodes[nd.last]!.num} 0 R /Count ${nd.count}`;
+      body += ` /Dest [${nd.pageObj} 0 R /XYZ ${n2(mLeft)} ${n2(nd.y)} 0] >>\nendobj\n`;
+      obj(nd.num, body);
+    }
+    lastObj = outlineItemBase + nodes.length - 1;
+  }
+
   const xrefPos = pdf.length;
-  const count = infoNum;
+  const count = lastObj;
   let xref = `xref\n0 ${count + 1}\n0000000000 65535 f \n`;
   for (let nn = 1; nn <= count; nn++) xref += String(offsets[nn] ?? 0).padStart(10, "0") + " 00000 n \n";
   push(xref);

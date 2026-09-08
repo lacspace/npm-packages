@@ -387,7 +387,58 @@ export class NepaliDate {
   toString(): string {
     return this.format("YYYY-MM-DD");
   }
+
+  /* ------------------------------ boundaries ------------------------------ */
+
+  /** First day of this date's BS month or year (default "month"). */
+  startOf(unit: "month" | "year" = "month"): NepaliDate {
+    if (unit === "year") return NepaliDate.fromBS(this.bs.year, 1, 1);
+    return NepaliDate.fromBS(this.bs.year, this.bs.month, 1);
+  }
+
+  /** Last day of this date's BS month or year (default "month"), day clamped. */
+  endOf(unit: "month" | "year" = "month"): NepaliDate {
+    if (unit === "year") {
+      return NepaliDate.fromBS(this.bs.year, 12, NepaliDate.daysInMonth(this.bs.year, 12));
+    }
+    return NepaliDate.fromBS(
+      this.bs.year,
+      this.bs.month,
+      NepaliDate.daysInMonth(this.bs.year, this.bs.month),
+    );
+  }
+
+  /** 1-based week-of-month for this date (weeks start on Sunday). */
+  weekOfMonth(): number {
+    const firstWeekday = NepaliDate.fromBS(this.bs.year, this.bs.month, 1).getDay();
+    return Math.floor((firstWeekday + this.bs.day - 1) / 7) + 1;
+  }
+
+  /** English ordinal of the day of month, e.g. "15th". */
+  ordinal(): string {
+    const n = this.bs.day;
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+  }
 }
 
 export { BS_MIN_YEAR, BS_MAX_YEAR } from "./data";
+export {
+  daysInBsMonth,
+  bsYearLength,
+  bsMonthName,
+  bsWeekdayName,
+  bsWeekday,
+  bsWeekOfMonth,
+  bsFiscalYear,
+  bsFiscalYearLabel,
+  diffDays,
+  startOfBsMonth,
+  endOfBsMonth,
+  parseBs,
+  tryParseBs,
+  ordinal,
+  formatBs,
+} from "./extras";
 export default NepaliDate;

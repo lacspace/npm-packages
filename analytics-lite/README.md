@@ -13,6 +13,8 @@
 
 > Page views and custom events, sent to a URL **you** control. No cookies, no `localStorage` identifiers, no cross-site tracking, no fingerprinting — so in most places you don't need a consent banner. Respects Do-Not-Track, auto-tracks SPA navigation, and uses `sendBeacon` so events survive page unload.
 
+> **New in 1.1.0** — a tiny, fully-injectable toolkit alongside `createAnalytics` (everything below is additive; nothing changed): a batching `LiteClient` (`track`/`page`, flush at size/interval/unload), an injectable `createBeaconTransport` (sendBeacon-first, `fetch` fallback) + `createMemoryTransport`, a pure `shouldTrack()` consent/DNT gate, `parseUtm()` for campaign attribution, and a CSPRNG `randomId()`. All side-effects are injected, so tests never touch the network or a real browser.
+
 - 🍪 Cookieless & fingerprint-free — the `sid` is per-page-load and never persisted
 - 📡 `sendBeacon` first (falls back to `fetch`) — events survive page unload
 - 🧭 `autoTrack()` — page views on SPA route changes, returns a cleanup function
@@ -75,6 +77,48 @@ Each event is a small JSON object:
 | `.enabled` | `true` when actually sending (browser, not DNT) |
 
 Set `debug: true` to log events to the console instead of sending them.
+
+## Batching client (new in 1.1.0)
+
+When you want to coalesce events and control exactly where/how they go — with everything injectable so tests stay hermetic — use the lite client:
+
+```ts
+import {
+  createLiteClient,
+  createBeaconTransport,
+  parseUtm,
+} from "@lacspace/analytics-lite";
+
+const analytics = createLiteClient({
+  transport: createBeaconTransport("/api/collect"), // sendBeacon-first, fetch fallback
+  siteId: "acme",
+  campaign: parseUtm(location.search),              // { source, medium, name, ... }
+  flushAt: 10,                                       // flush once 10 events queue
+  flushInterval: 15_000,                             // ...or every 15s
+  consent: true,                                     // gate on your own consent flag
+});
+
+analytics.page("/pricing");
+analytics.track("signup", { plan: "pro" });
+// also flushes automatically at size, on the interval, and on page unload
+analytics.flush();
+```
+
+Blocked by consent or Do-Not-Track? Events are dropped at ingest — nothing is buffered or sent. In tests, inject a fake transport/timer/unload target (or `createMemoryTransport()`); nothing hits the network or the browser.
+
+### API (1.1.0)
+
+| | |
+| --- | --- |
+| `createLiteClient(opts?)` / `new LiteClient(opts?)` | batching client: `.track(name, props?)`, `.page(name?, props?)`, `.flush()`, `.close()`, `.setConsent(v)`, `.enabled`, `.queued`, `.anonymousId` |
+| `createBeaconTransport(endpoint, { sendBeacon?, fetchImpl?, headers? })` | a `Transport` using `sendBeacon` when available, else `fetch` (both injectable) |
+| `createMemoryTransport()` | a `Transport` that records `events` / `batches` in memory (tests & dev) |
+| `shouldTrack({ consent?, dnt?, respectDNT?, defaultConsent? })` | pure consent + DNT predicate |
+| `detectDNT()` | read the browser DNT signal (`true`/`false`/`undefined`) |
+| `parseUtm(url)` | parse `utm_*` params into a `Campaign` (or `undefined`) |
+| `randomId()` | CSPRNG hex id (Web Crypto) with a safe fallback |
+
+Lite-client options include injectable `transport`, `now`, `setTimer`/`clearTimer`, `unloadTarget`, plus `flushAt`, `flushInterval`, `maxQueueSize`, `consent`, `respectDNT`, `dnt`, `defaultConsent`, `siteId`, `campaign`, `anonymousId`, `genId`.
 
 ## Licensing
 

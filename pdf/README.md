@@ -15,9 +15,24 @@
 > Every other PDF option is heavy: `pdfkit` drags in a pile of deps, `puppeteer` spins up Chromium. This builds the raw PDF bytes directly — **no dependencies, no browser** — and runs anywhere: Node, edge functions and the browser. Real Helvetica metrics mean text actually wraps and aligns correctly.
 
 - 🧾 **Batteries included** — `invoice()` and `receipt()` generate professional docs from plain data
-- 📄 Flowing document builder — headings, paragraphs, tables, key/value rows, dividers, **auto page-breaks**
+- 📄 Flowing document builder — headings, paragraphs, **tables**, key/value rows, dividers, **auto page-breaks**
+- 🖼️ **Images** — embed JPEGs (`jpegImage`) or raw pixels (`rgbImage`); 📑 **bookmarks** & document metadata
+- 🔤 **Fonts** — Helvetica, **Times & Courier** (standard-14, no font files) · **page numbers / footers**
+- 📐 **Page sizes** — A3/A4/A5/Letter/Legal + **landscape** orientation
 - 🎯 Accurate layout — real font metrics → correct wrapping, right-aligned money columns
 - 📦 Output as `Uint8Array`, base64 or a `data:` URI · ⚡ isomorphic · zero dependencies
+
+### New in 1.1.0
+
+All additive and **fully backward compatible** — existing `invoice()` / `receipt()` / builder output is byte-for-byte unchanged (pinned by a lock test).
+
+- **Images** — `image(img, opts)` on the builder plus `jpegImage(bytes)` (embedded via `DCTDecode`, no decoding) and `rgbImage({ data, width, height, colorSpace? })` for raw RGB/Gray/CMYK pixels.
+- **Page sizes & orientation** — `new PdfDocument({ size: "A3" | "A4" | "A5" | "Letter" | "Legal", orientation: "portrait" | "landscape" })`.
+- **Times & Courier fonts** — `text("…", { family: "times" | "courier", bold, italic })`, with correct AFM metrics; Helvetica stays the default.
+- **Page numbers & footers** — `pageNumbers()` or `footer({ text: "Page {page} of {pages}" })` / `footer({ render: (page, pages) => … })`.
+- **Bookmarks** — `outlineItem(title, { level })` builds a nested PDF outline (bookmark) tree wired into the catalog.
+- **Tables** — `table({ columns, rows, zebra, border, borderColor, headerColor })` now also draws an optional full **grid border**.
+- **Metadata** — `title` / `author` / `subject` / `keywords` on `DocOptions` reach the PDF Info dict.
 
 ## Install
 
@@ -93,19 +108,45 @@ const bytes = doc.toBytes();       // Uint8Array
 const uri   = doc.toDataUri();     // data:application/pdf;base64,…  (great for <a href> / <iframe>)
 ```
 
+## Images, fonts, page numbers & bookmarks
+
+```ts
+import { PdfDocument, jpegImage } from "@lacspace/pdf";
+import { readFileSync } from "node:fs";
+
+const doc = new PdfDocument({ size: "A4", orientation: "landscape" });
+
+// Embed a JPEG straight from disk (no decoding, no deps):
+doc.image(jpegImage(readFileSync("logo.jpg")), { width: 160, align: "center" });
+
+doc.heading("Annual Report").outlineItem("Annual Report")   // adds a PDF bookmark
+   .text("Set in a serif face", { family: "times" })
+   .text("…or a monospaced one", { family: "courier" })
+   .pageNumbers();                                            // "1 / N" footer on every page
+
+const bytes = doc.toBytes();
+```
+
+Raw (pre-decoded) pixels — RGB, grayscale or CMYK — go through `rgbImage({ data, width, height, colorSpace? })`. PNG isn't decoded here (that needs zlib); decode it with the platform (`sharp`, `canvas`, `createImageBitmap`) and pass the pixels to `rgbImage`.
+
 ## API
 
 | Export | Description |
 | --- | --- |
 | `invoice(data)` | professional invoice → `Uint8Array` |
 | `receipt(data)` | compact A4 receipt → `Uint8Array` |
-| `new PdfDocument(opts)` | document builder |
+| `new PdfDocument(opts)` | document builder (`size`, `orientation`, `margins`, `fontSize`, `accent`, `title`, `author`, `subject`, `keywords`, …) |
 | `.text` `.heading` `.paragraph` `.bullet` `.keyValue` `.table` `.divider` `.spacer` `.addPage` | content methods (chainable) |
+| `.image(img, opts?)` | embed an image at the cursor (auto aspect ratio) |
+| `.pageNumbers(opts?)` `.footer(opts?)` | repeating page footer (`{page}` / `{pages}` or a `render` fn) |
+| `.outlineItem(title, { level? })` | add a PDF bookmark pointing at the cursor |
 | `.toBytes()` `.toBase64()` `.toDataUri()` | output |
+| `jpegImage(bytes)` | parse + embed a JPEG (`DCTDecode`) |
+| `rgbImage({ data, width, height, colorSpace? })` | embed raw RGB / Gray / CMYK pixels |
 | `formatMoney(n, currency?)` | `1234.5, "$"` → `"$1,234.50"` |
 | `textWidth(str, size, bold?)` | measure text (points) |
 
-Pages: `A4` (default) or `Letter`. Fonts: Helvetica / Helvetica-Bold (WinAnsi). Currency accepts a symbol (`"$"`, `"£"`, `"Rs"`) or a 3-letter code (`"USD"`).
+Pages: `A3` · `A4` (default) · `A5` · `Letter` · `Legal`, portrait or `landscape`. Fonts: Helvetica (default), Times & Courier — standard-14, WinAnsi, no embedded files. Currency accepts a symbol (`"$"`, `"£"`, `"Rs"`) or a 3-letter code (`"USD"`).
 
 ## Licensing
 

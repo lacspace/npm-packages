@@ -21,6 +21,15 @@
 
 **Supported range:** BS **1970–2086** (AD **1913–2030**). Anchor: BS 1970-01-01 = AD 1913-04-13.
 
+> **New in 1.2.0** — plain-function helpers alongside the class: a richer token
+> formatter with an ordinal token and a Nepali-digit toggle (`formatBs`),
+> `diffDays`/`startOfBsMonth`/`endOfBsMonth` BS arithmetic, a validating
+> `parseBs`/`tryParseBs`, calendar helpers (`daysInBsMonth`, `bsYearLength`,
+> `bsMonthName`, `bsWeekdayName`, `bsWeekday`, `bsWeekOfMonth`), fiscal-year
+> functions (`bsFiscalYear`, `bsFiscalYearLabel`), plus `startOf`/`endOf`/
+> `weekOfMonth`/`ordinal` methods on `NepaliDate`. All additive — nothing
+> existing changed, and every BS↔AD conversion output is identical.
+
 ## Install
 
 ```bash
@@ -118,6 +127,65 @@ d.fiscalYearLabel();                    // "2080/81" (Shrawan→Ashadh)
 for (const day of NepaliDate.eachDay(start, end)) { /* … */ }
 NepaliDate.daysInMonth(2081, 3);       // 32
 ```
+
+## Plain-function toolkit (new in 1.2.0)
+
+Prefer functions over the class? These operate on plain `{ year, month, day }` BS
+objects and reuse the same conversion tables — so results are identical.
+
+```ts
+import {
+  formatBs, parseBs, tryParseBs, diffDays,
+  startOfBsMonth, endOfBsMonth, daysInBsMonth, bsYearLength,
+  bsMonthName, bsWeekdayName, bsWeekday, bsWeekOfMonth,
+  bsFiscalYear, bsFiscalYearLabel, ordinal,
+} from "@lacspace/nepali-date";
+
+// Rich formatting — extra `Do` (ordinal) token + Nepali-digit toggle
+formatBs({ year: 2081, month: 1, day: 15 }, "Do MMMM YYYY, dddd");
+// "15th Baisakh 2081, Saturday"
+formatBs({ year: 2081, month: 1, day: 15 }, "YYYY MMMM D, dddd", { nepali: true });
+// "२०८१ बैशाख १५, शनिबार"
+
+// Parsing (validates against the month-length tables; Arabic or Devanagari)
+parseBs("2081-03-15");      // { year: 2081, month: 3, day: 15 }
+parseBs("२०८१/०३/१५");      // { year: 2081, month: 3, day: 15 }
+tryParseBs("2081-01-40");   // null  (no BS month has 40 days)
+
+// Arithmetic & boundaries
+diffDays({ year: 2081, month: 1, day: 15 }, { year: 2081, month: 1, day: 1 }); // 14
+startOfBsMonth({ year: 2081, month: 3, day: 15 }); // { year: 2081, month: 3, day: 1 }
+endOfBsMonth({ year: 2081, month: 3, day: 15 });   // { year: 2081, month: 3, day: 31 }
+
+// Calendar helpers
+daysInBsMonth(2081, 2);     // 32
+bsYearLength(2081);         // 365 (BS has NO simple leap rule — read the tables)
+bsMonthName(1);             // "Baisakh"   ·  bsMonthName(1, { nepali: true }) → "बैशाख"
+bsWeekdayName(6, { nepali: true }); // "शनिबार"
+bsWeekday({ year: 2081, month: 1, day: 15 });      // 6 (Saturday)
+bsWeekOfMonth({ year: 2081, month: 1, day: 15 });  // 3
+
+// Fiscal year (Shrawan → Ashadh)
+bsFiscalYear({ year: 2081, month: 1, day: 1 });    // { start: 2080, end: 2081 }
+bsFiscalYearLabel({ year: 2081, month: 4, day: 1 }); // "2081/82"
+
+ordinal(21); // "21st"
+```
+
+New `NepaliDate` methods: `startOf("month"|"year")`, `endOf("month"|"year")`,
+`weekOfMonth()`, `ordinal()`.
+
+| API | Purpose |
+| --- | --- |
+| `formatBs(bs, pattern?, { nepali? })` | Token formatter; adds `Do` ordinal + Devanagari-digit toggle |
+| `parseBs(str)` / `tryParseBs(str)` | Parse & table-validate a BS string (throws / returns `null`) |
+| `diffDays(a, b)` | Whole days between two BS dates (`a − b`) |
+| `startOfBsMonth(bs)` / `endOfBsMonth(bs)` | First / last day of the BS month |
+| `daysInBsMonth(y, m)` / `bsYearLength(y)` | Month / year length from the tables |
+| `bsMonthName(m, o?)` / `bsWeekdayName(w, o?)` | Localised names (English + Nepali) |
+| `bsWeekday(bs)` / `bsWeekOfMonth(bs)` | Weekday (0–6) / 1-based week-of-month |
+| `bsFiscalYear(bs)` / `bsFiscalYearLabel(bs)` | Nepali fiscal year (Shrawan–Ashadh) |
+| `ordinal(n)` | English ordinal, e.g. `15 → "15th"` |
 
 ## Licensing
 

@@ -211,3 +211,36 @@ export function createAnalytics(config: AnalyticsConfig): Analytics {
     },
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * New in 1.1.0 — an injectable, batching, consent-aware lite client.
+ * Purely additive; everything above (createAnalytics) is unchanged.
+ * Every side-effect is injected, so tests never touch the network.
+ * ------------------------------------------------------------------ */
+
+export {
+  LiteClient,
+  createLiteClient,
+  type LiteEvent,
+  type LiteEventType,
+  type LiteClientOptions,
+  type UnloadTarget,
+  type TimerHandle,
+  type SetTimer,
+  type ClearTimer,
+} from "./client";
+
+export {
+  createBeaconTransport,
+  createMemoryTransport,
+  type Transport,
+  type SendBeacon,
+  type BeaconTransportOptions,
+  type MemoryTransport,
+} from "./transport";
+
+export { shouldTrack, detectDNT, type ConsentContext } from "./consent";
+
+export { parseUtm, type Campaign } from "./utm";
+
+export { randomId } from "./id";

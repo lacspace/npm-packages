@@ -14,6 +14,13 @@
 
 > The little things every Nepali app re-implements — done once, done right.
 
+> **New in 1.2.0** — transliterated (Roman) Nepali amount-in-words
+> (`numberToWordsNepaliRoman` / `amountInWordsNepaliRoman`), **integer-paisa**
+> NPR format/parse (`formatNPRFromPaisa` / `parseNPRToPaisa`, no float drift),
+> `toNepaliDigits` / `toEnglishDigits` aliases, extra shape validators
+> (`isValidVehiclePlate`, `isValidCitizenshipNumber`), and province lookups
+> (`findProvince`, `provinceOfDistrict`). All additive & backward compatible.
+
 - 💰 NPR formatting with **lakh/crore** grouping
 - 🔢 Devanagari ↔ Arabic numerals
 - 🧾 Amount-in-words for invoices
@@ -84,6 +91,14 @@ PROVINCES[2];
 | `amountInWords(n)` | "Rupees … Only" wrapper |
 | `isValidNepaliMobile` / `isValidPAN` | validators |
 | `PROVINCES` | the 7 federal provinces |
+| `numberToWordsNepaliRoman(n)` | Roman-transliterated Nepali words |
+| `amountInWordsNepaliRoman(n)` | "Rupaiyan … Matra" wrapper (Roman) |
+| `parseNPRToPaisa(str)` | NPR string → integer paisa (no float drift) |
+| `formatNPRFromPaisa(paisa, opts?)` | integer paisa → NPR string |
+| `toNepaliDigits` / `toEnglishDigits` | numeral aliases (Devanagari ↔ Arabic) |
+| `isValidVehiclePlate` / `isValidCitizenshipNumber` | shape validators |
+| `findProvince(numOrName)` | province lookup |
+| `provinceOfDistrict(name)` | district → province |
 
 ## The Lacspace family
 
@@ -122,6 +137,39 @@ findDistrict("काठमाडौं")?.province;                    // 3
 
 // Invoices in Nepali
 amountInWordsNepali(1500.5);  // "रुपैयाँ एक हजार पाँच सय पचास पैसा मात्र"
+```
+
+## New in 1.2 — Roman words, integer-paisa NPR, more validators & lookups
+
+```ts
+import {
+  numberToWordsNepaliRoman, amountInWordsNepaliRoman,
+  parseNPRToPaisa, formatNPRFromPaisa,
+  toNepaliDigits, toEnglishDigits,
+  isValidVehiclePlate, isValidCitizenshipNumber,
+  findProvince, provinceOfDistrict,
+} from "@lacspace/nepali-utils";
+
+// Nepali reading, in Latin letters (for receipts, SMS, ASCII-only contexts)
+numberToWordsNepaliRoman(1234567); // "Bahra Lakh Chauntis Hajar Panch Saya Satsatthi"
+amountInWordsNepaliRoman(1500.5);  // "Rupaiyan Ek Hajar Panch Saya Pachas Paisa Matra"
+
+// Money as integer paisa — exact, no floating-point drift
+parseNPRToPaisa("Rs. 12,34,567.50");     // 123456750
+formatNPRFromPaisa(123456750);           // "Rs. 12,34,567.50"
+formatNPRFromPaisa(123456750, { devanagari: true }); // "Rs. १२,३४,५६७.५०"
+
+// Digit aliases
+toNepaliDigits("2081");   // "२०८१"
+toEnglishDigits("२०८१");  // "2081"
+
+// Shape validators (format only, not registry lookups)
+isValidVehiclePlate("Ba 2 Kha 1234");      // true
+isValidCitizenshipNumber("12-01-73-01234"); // true
+
+// Geography lookups
+findProvince("bagmati")?.number;         // 3
+provinceOfDistrict("Kathmandu")?.name;   // "Bagmati"
 ```
 
 ## Licensing

@@ -50,7 +50,36 @@ export const TEMPLATES: TemplateDef[] = [
 
 /* ------------------------------ shared files ------------------------------ */
 
-export interface Ctx { name: string; template: TemplateDef; }
+/**
+ * A composable, optional feature add-on (see {@link FEATURES}).
+ *
+ * A feature is a small, self-contained bundle you can layer onto **any**
+ * template: extra files (namespaced under its own routes), npm dependencies,
+ * `package.json` scripts, `.env.example` entries and onboarding next-steps.
+ * Features are order-independent and never collide with the base scaffold.
+ */
+export interface FeatureDef {
+  /** Stable key (used by `--with <key>` and `add <key>`). */
+  key: string;
+  /** Short human label. */
+  label: string;
+  /** One-line description (shown in the interactive picker & `--help`). */
+  description: string;
+  /** npm dependencies this feature adds, merged into `package.json`. */
+  deps: Record<string, string>;
+  /** The files this feature drops in, given the resolved {@link Ctx}. */
+  files: (ctx: Ctx) => Record<string, string>;
+  /** Optional `.env.example` entries — `NAME: "explanatory comment"`. */
+  env?: Record<string, string>;
+  /** Optional `package.json` scripts, merged in. */
+  scripts?: Record<string, string>;
+  /** Onboarding steps appended to the terminal output and `LEARN.md`. */
+  nextSteps: string[];
+  /** Optional "learn more" URL for `LEARN.md`. */
+  learn?: string;
+}
+
+export interface Ctx { name: string; template: TemplateDef; features: FeatureDef[]; }
 
 /** Options accepted by the programmatic API (see `./lib`). */
 export interface GenerateOptions {
@@ -60,12 +89,20 @@ export interface GenerateOptions {
   template?: string;
   /** Accent theme: a preset name, a `#hex`, or a `from,to` pair. Falls back to the template's default accent. */
   theme?: string;
+  /**
+   * Optional composable feature add-ons (see {@link FEATURES}) — e.g.
+   * `["ai-chat", "rag"]`. Unknown keys are ignored; duplicates are de-duped.
+   * Purely additive: an empty (or omitted) list generates today's scaffold
+   * byte-for-byte.
+   */
+  features?: string[];
 }
 
 /**
  * Resolve raw {@link GenerateOptions} into a concrete {@link Ctx} — normalising
- * the project name, picking the template (falling back to the first) and
- * applying a custom accent when a valid `theme` is given. Pure; no I/O.
+ * the project name, picking the template (falling back to the first), applying
+ * a custom accent when a valid `theme` is given, and normalising the requested
+ * feature add-ons (de-duped, unknown keys dropped). Pure; no I/O.
  */
 export function resolveContext(options: GenerateOptions = {}): Ctx {
   const base = TEMPLATES.find((t) => t.key === options.template) ?? TEMPLATES[0]!;
@@ -74,7 +111,30 @@ export function resolveContext(options: GenerateOptions = {}): Ctx {
   const raw = options.name ?? "my-app";
   const seg = raw.split(/[\\/]/).filter(Boolean).pop() ?? "my-app";
   const name = seg.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") || "my-app";
-  return { name, template };
+  const features = normalizeFeatures(options.features);
+  return { name, template, features };
+}
+
+/**
+ * Turn a raw list of requested feature keys into de-duped {@link FeatureDef}s,
+ * dropping (and warning about) any unknown keys. Order-preserving; pure apart
+ * from an optional `console.warn` for unknowns.
+ */
+export function normalizeFeatures(requested?: string[]): FeatureDef[] {
+  if (!requested || requested.length === 0) return [];
+  const seen = new Set<string>();
+  const out: FeatureDef[] = [];
+  const unknown: string[] = [];
+  for (const raw of requested) {
+    const key = String(raw).toLowerCase().trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const def = FEATURES.find((f) => f.key === key);
+    if (def) out.push(def);
+    else unknown.push(key);
+  }
+  if (unknown.length) console.warn(`create-lacspace-app: ignoring unknown feature(s): ${unknown.join(", ")}`);
+  return out;
 }
 
 const pkgJson = (ctx: Ctx): string => JSON.stringify({
@@ -2086,8 +2146,574 @@ export function buildFiles(ctx: Ctx): Record<string, string> {
     files["content/docs/writing-content.md"] = sampleDocWriting();
   }
 
+  // ✨ Composable feature add-ons (ai-chat, rag, …). Strictly additive: with no
+  // features selected this is a no-op and the scaffold is byte-for-byte today's.
+  applyFeatures(files, ctx);
+
   return files;
 }
+
+/* --------------------------- feature add-on engine --------------------------- */
+
+/**
+ * Merge every selected {@link FeatureDef} into an already-built file map:
+ * its files, its `package.json` deps + scripts, its `.env.example` entries and
+ * a generated `LEARN.md` onboarding checklist. Order-independent and mutation-
+ * safe — a no-op when `ctx.features` is empty (base scaffold stays identical).
+ */
+export function applyFeatures(files: Record<string, string>, ctx: Ctx): void {
+  const features = ctx.features;
+  if (!features.length) return;
+
+  // 1. Feature files — namespaced under each feature's own routes, so they can
+  //    never collide with the base scaffold or with each other.
+  for (const feat of features) {
+    for (const [rel, content] of Object.entries(feat.files(ctx))) {
+      files[rel] = content;
+    }
+  }
+
+  // 2. Merge deps + scripts into package.json (parse → merge → re-stringify with
+  //    the exact same 2-space + trailing-newline formatting as pkgJson()).
+  const addDeps: Record<string, string> = {};
+  const addScripts: Record<string, string> = {};
+  for (const feat of features) {
+    Object.assign(addDeps, feat.deps);
+    if (feat.scripts) Object.assign(addScripts, feat.scripts);
+  }
+  if (files["package.json"]) {
+    const pkg = JSON.parse(files["package.json"]) as {
+      dependencies?: Record<string, string>;
+      scripts?: Record<string, string>;
+    };
+    pkg.dependencies = { ...(pkg.dependencies ?? {}), ...addDeps };
+    if (Object.keys(addScripts).length) pkg.scripts = { ...(pkg.scripts ?? {}), ...addScripts };
+    files["package.json"] = JSON.stringify(pkg, null, 2) + "\n";
+  }
+
+  // 3. Append env entries (with comment lines) to .env.example (create if absent).
+  //    Env NAMEs are de-duped across features and against the base file, so two
+  //    features that share a variable (e.g. LACSPACE_AI_*) only document it once.
+  const existingEnv = new Set(
+    (files[".env.example"] ?? "").split("\n").map((l) => l.match(/^\s*#?\s*([A-Z0-9_]+)=/)?.[1]).filter(Boolean) as string[],
+  );
+  const envLines: string[] = [];
+  for (const feat of features) {
+    if (!feat.env || Object.keys(feat.env).length === 0) continue;
+    const fresh = Object.entries(feat.env).filter(([name]) => !existingEnv.has(name));
+    if (fresh.length === 0) continue;
+    envLines.push("", `# --- ${feat.label} (${feat.key}) ---`);
+    for (const [name, comment] of fresh) {
+      if (comment) envLines.push(`# ${comment}`);
+      envLines.push(`${name}=`);
+      existingEnv.add(name);
+    }
+  }
+  if (envLines.length) {
+    const base = files[".env.example"] ?? "";
+    files[".env.example"] = (base.endsWith("\n") || base === "" ? base : base + "\n") + envLines.join("\n") + "\n";
+  }
+
+  // 4. Onboarding checklist — LEARN.md gathers every feature's next-steps.
+  files["LEARN.md"] = learnMd(ctx, features);
+}
+
+/** Generate the LEARN.md onboarding checklist for the selected features. */
+function learnMd(ctx: Ctx, features: FeatureDef[]): string {
+  const blocks = features.map((f) => {
+    const steps = f.nextSteps.map((s) => `- [ ] ${s}`).join("\n");
+    const learn = f.learn ? `\n\nLearn more → ${f.learn}` : "";
+    return `## ${f.label} \`(${f.key})\`\n\n${f.description}\n\n${steps}${learn}`;
+  }).join("\n\n");
+  return `# 🧭 Learn ${ctx.name}
+
+You scaffolded **${ctx.template.label}** with ${features.length} feature add-on${features.length === 1 ? "" : "s"}:
+${features.map((f) => `\`${f.key}\``).join(" · ")}.
+
+Work through the checklist below — each item is a real next step.
+
+${blocks}
+
+---
+
+Every add-on is built from zero-dependency \`@lacspace/*\` packages. Browse them all → https://lacspace.com/packages
+`;
+}
+
+/**
+ * The composable feature registry — flagship, optional add-ons that layer onto
+ * any template. Mirrors {@link SECTIONS}: read it with {@link listFeatures} /
+ * {@link getFeature}, request it with `--with <key>` or `add <key>`.
+ */
+export const FEATURES: FeatureDef[] = [
+  {
+    key: "ai-chat",
+    label: "AI chat",
+    description: "A streaming AI chat route + UI — free & local by default (Ollama), keyless.",
+    deps: {
+      "@lacspace/ai": "^1.1.0",
+      "@lacspace/prompt": "^1.1.0",
+      "@lacspace/stream": "^1.1.0",
+      "@lacspace/providers": "^1.0.0",
+      "@lacspace/memory": "^1.0.0",
+      "@lacspace/moderation": "^1.0.0",
+    },
+    env: {
+      LACSPACE_AI_PROVIDER: "Which provider preset to use (default: ollama — free & local, no key).",
+      LACSPACE_AI_BASE_URL: "Override the provider base URL (default Ollama: http://localhost:11434).",
+      LACSPACE_AI_MODEL: "Chat model id (default: llama3.2).",
+      LACSPACE_AI_API_KEY: "Only needed for a hosted provider — leave blank for local Ollama.",
+    },
+    files: (ctx) => ({
+      "app/api/chat/route.ts": aiChatRoute(ctx),
+      "app/chat/page.tsx": aiChatPage(ctx),
+    }),
+    nextSteps: [
+      "🆓 Free local AI — install Ollama (https://ollama.com), then run `ollama pull llama3.2`.",
+      "Run `npm run dev` and open http://localhost:3000/chat.",
+      "Prefer a hosted model? Set LACSPACE_AI_* in .env (e.g. LACSPACE_AI_PROVIDER=groq + LACSPACE_AI_API_KEY=…).",
+    ],
+    learn: "https://developer.lacspace.com/packages/ai",
+  },
+  {
+    key: "rag",
+    label: "RAG — chat with your docs",
+    description: "Index your markdown/text and answer grounded questions with cited sources. Keyless & local (Ollama).",
+    deps: {
+      "@lacspace/rag": "^1.0.0",
+      "@lacspace/embeddings": "^1.0.0",
+      "@lacspace/vector": "^1.0.0",
+      "@lacspace/chunk": "^1.1.0",
+      "@lacspace/rerank": "^1.0.0",
+      "@lacspace/providers": "^1.0.0",
+      "@lacspace/ai": "^1.1.0",
+    },
+    scripts: { "rag:index": "node scripts/index-content.mjs" },
+    env: {
+      LACSPACE_AI_PROVIDER: "Which provider preset to use (default: ollama — free & local, no key).",
+      LACSPACE_AI_BASE_URL: "Override the provider base URL (default Ollama: http://localhost:11434).",
+      LACSPACE_AI_MODEL: "Chat model id used to answer (default: llama3.2).",
+      LACSPACE_AI_API_KEY: "Only needed for a hosted provider — leave blank for local Ollama.",
+      LACSPACE_EMBED_MODEL: "Embedding model id (default: nomic-embed-text).",
+    },
+    files: (ctx) => ({
+      "content/welcome.md": ragSampleDoc(ctx),
+      "scripts/index-content.mjs": ragIndexScript(ctx),
+      "app/api/ask/route.ts": ragAskRoute(ctx),
+      "app/ask/page.tsx": ragAskPage(ctx),
+    }),
+    nextSteps: [
+      "🆓 Free & local — install Ollama (https://ollama.com), then `ollama pull nomic-embed-text` and `ollama pull llama3.2`.",
+      "Add markdown/text files to content/, then run `npm run rag:index` to build .rag-index.json.",
+      "Run `npm run dev` and open http://localhost:3000/ask.",
+    ],
+    learn: "https://developer.lacspace.com/packages/rag",
+  },
+];
+
+/* ------------------------- feature: ai-chat (files) ------------------------- */
+
+// app/api/chat/route.ts — a keyless, streaming chat endpoint.
+const aiChatRoute = (_ctx: Ctx): string => `import { resolveConfig } from "@lacspace/providers";
+import { stream } from "@lacspace/ai";
+import type { Message } from "@lacspace/ai";
+import { detectPromptInjection } from "@lacspace/moderation";
+import { toReadableStream } from "@lacspace/stream";
+
+// This route runs on Node (it talks to your local Ollama / a hosted LLM).
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(req: Request) {
+  // 1. Read the conversation the <ChatUI/> sent us.
+  const { messages } = (await req.json()) as { messages: Message[] };
+
+  // 2. Guard the newest user turn against prompt-injection / jailbreak attempts.
+  //    Learn more → https://developer.lacspace.com/packages/moderation
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const userText = typeof lastUser?.content === "string" ? lastUser.content : "";
+  const check = detectPromptInjection(userText);
+  if (check.flagged) {
+    return new Response(JSON.stringify({ error: "That message was blocked by the safety guard." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // 3. Resolve provider config from env — KEYLESS by default (local Ollama).
+  //    Learn more → https://developer.lacspace.com/packages/providers
+  const cfg = resolveConfig(process.env.LACSPACE_AI_PROVIDER ?? "ollama", {
+    baseUrl: process.env.LACSPACE_AI_BASE_URL,        // default: http://localhost:11434
+    model: process.env.LACSPACE_AI_MODEL,             // default: llama3.2
+    apiKey: process.env.LACSPACE_AI_API_KEY,          // only for hosted providers
+  });
+
+  // Ollama speaks its own dialect but also exposes an OpenAI-compatible surface
+  // at /v1 — so we always call it (and any hosted provider) as "openai-compatible".
+  const baseUrl = cfg.apiStyle === "ollama" ? cfg.baseUrl.replace(/\\/+$/, "") + "/v1" : cfg.baseUrl;
+  const model = cfg.model ?? "llama3.2";
+
+  // 4. Stream the reply. @lacspace/ai yields unified {type:"text", delta} chunks;
+  //    we encode each token and hand the stream to the browser via @lacspace/stream.
+  //    Learn more → https://developer.lacspace.com/packages/ai
+  const encoder = new TextEncoder();
+  async function* tokens() {
+    for await (const chunk of stream({
+      provider: "openai-compatible",
+      baseUrl,
+      apiKey: cfg.apiKey,
+      model,
+      headers: cfg.headers,
+      messages,
+    })) {
+      if (chunk.type === "text") yield encoder.encode(chunk.delta);
+    }
+  }
+
+  // Learn more → https://developer.lacspace.com/packages/stream
+  return new Response(toReadableStream(tokens()), {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" },
+  });
+}
+`;
+
+// app/chat/page.tsx — a clean streaming chat UI (uses the scaffold's design tokens).
+const aiChatPage = (ctx: Ctx): string => `"use client";
+
+import { useState, useRef, useEffect } from "react";
+
+interface Msg { role: "user" | "assistant"; content: string; }
+
+export default function ChatPage() {
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput("");
+    setBusy(true);
+
+    const next: Msg[] = [...messages, { role: "user", content: text }];
+    setMessages([...next, { role: "assistant", content: "" }]);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next }),
+      });
+      if (!res.ok || !res.body) throw new Error("The chat endpoint returned an error.");
+
+      // Read the streamed reply token-by-token and append it live.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setMessages([...next, { role: "assistant", content: acc }]);
+      }
+    } catch {
+      setMessages([...next, { role: "assistant", content: "⚠️ Couldn't reach the model. Is Ollama running? (ollama.com)" }]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-2xl flex-col px-6 py-10">
+      <header className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-widest gradient-text">AI · ${ctx.template.siteName}</p>
+        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Chat</h1>
+        <p className="mt-2 text-muted">Free &amp; local by default — powered by Ollama and the Lacspace AI Kit. No key required.</p>
+      </header>
+
+      <div ref={scroller} className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-hairline bg-surface p-4">
+        {messages.length === 0 && (
+          <p className="py-16 text-center text-muted">Ask me anything to get started.</p>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+            <div className={
+              "max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed " +
+              (m.role === "user" ? "gradient-bg on-accent" : "border border-hairline bg-app")
+            }>
+              {m.content || (busy ? "…" : "")}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={send} className="mt-4 flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message…"
+          className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none focus:border-hairline"
+        />
+        <button
+          type="submit"
+          disabled={busy || !input.trim()}
+          className="rounded-xl gradient-bg on-accent px-5 py-3 text-sm font-semibold shimmer disabled:opacity-50"
+        >
+          {busy ? "…" : "Send"}
+        </button>
+      </form>
+    </section>
+  );
+}
+`;
+
+/* --------------------------- feature: rag (files) --------------------------- */
+
+// content/welcome.md — a sample doc so /ask works immediately after indexing.
+const ragSampleDoc = (ctx: Ctx): string => `# Welcome to ${ctx.template.siteName}
+
+This markdown file lives in \`content/\`. Run \`npm run rag:index\` to chunk and embed
+everything under \`content/\` into a local vector index (\`.rag-index.json\`), then open
+\`/ask\` to ask grounded questions about it.
+
+## How this works
+
+- **Chunking** — \`@lacspace/chunk\` splits each document into overlapping passages.
+- **Embeddings** — \`@lacspace/embeddings\` turns each passage into a vector using a
+  local Ollama model (\`nomic-embed-text\`) — no API key needed.
+- **Retrieval** — \`@lacspace/vector\` + \`@lacspace/rag\` find the passages closest to
+  your question, and \`@lacspace/rerank\` re-orders them for relevance.
+- **Answering** — \`@lacspace/ai\` writes a grounded answer and cites its sources.
+
+## Tips
+
+Add your own \`.md\` or \`.txt\` files here, re-run \`npm run rag:index\`, and ask away.
+Everything runs on your machine — free, keyless and private.
+`;
+
+// scripts/index-content.mjs — build the local vector index from content/.
+const ragIndexScript = (_ctx: Ctx): string => `// Build a local vector index from everything under content/.
+// Run: npm run rag:index   (needs Ollama: \`ollama pull nomic-embed-text\`)
+import { readdir, readFile, writeFile, stat } from "node:fs/promises";
+import { join, extname, relative } from "node:path";
+import { splitText } from "@lacspace/chunk";
+import { embed } from "@lacspace/embeddings";
+import { createVectorStore } from "@lacspace/vector";
+
+const ROOT = process.cwd();
+const CONTENT_DIR = join(ROOT, "content");
+const OUT = join(ROOT, ".rag-index.json");
+
+// Which files to index (add more extensions if you like).
+const EXTS = new Set([".md", ".markdown", ".txt", ".mdx"]);
+
+// Recursively collect readable files under content/.
+async function walk(dir) {
+  const out = [];
+  let entries = [];
+  try { entries = await readdir(dir, { withFileTypes: true }); }
+  catch { return out; }
+  for (const e of entries) {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await walk(full)));
+    else if (EXTS.has(extname(e.name).toLowerCase())) out.push(full);
+  }
+  return out;
+}
+
+async function main() {
+  const files = await walk(CONTENT_DIR);
+  if (files.length === 0) {
+    console.error("No content found. Add .md/.txt files under content/ and re-run.");
+    process.exit(1);
+  }
+
+  // 1. Chunk every document into overlapping passages via @lacspace/chunk.
+  const records = [];
+  for (const file of files) {
+    const raw = await readFile(file, "utf8");
+    const source = relative(CONTENT_DIR, file);
+    const chunks = splitText(raw, { chunkSize: 900, chunkOverlap: 150 });
+    chunks.forEach((chunk, i) => {
+      records.push({ id: \`\${source}#\${i}\`, text: chunk.text, source });
+    });
+  }
+
+  // 2. Embed all passages with a local Ollama model (keyless) via @lacspace/embeddings.
+  const model = process.env.LACSPACE_EMBED_MODEL ?? "nomic-embed-text";
+  const baseUrl = process.env.LACSPACE_AI_BASE_URL ?? "http://localhost:11434";
+  console.log(\`Embedding \${records.length} chunks with \${model}…\`);
+  const vectors = await embed(records.map((r) => r.text), { provider: "ollama", model, baseUrl });
+
+  // 3. Store them in an in-memory vector store, then serialise to .rag-index.json.
+  const store = createVectorStore({ metric: "cosine" });
+  store.upsert(records.map((r, i) => ({ id: r.id, vector: vectors[i], text: r.text, metadata: { source: r.source } })));
+
+  await writeFile(OUT, JSON.stringify(store.toJSON()));
+  console.log(\`✓ Wrote \${OUT} (\${records.length} chunks from \${files.length} files).\`);
+}
+
+main().catch((err) => { console.error(err); process.exit(1); });
+`;
+
+// app/api/ask/route.ts — retrieve grounded context, then answer + cite sources.
+const ragAskRoute = (_ctx: Ctx): string => `import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fromJSON } from "@lacspace/vector";
+import { createEmbedder } from "@lacspace/embeddings";
+import { createRag } from "@lacspace/rag";
+import { rerank } from "@lacspace/rerank";
+import { resolveConfig } from "@lacspace/providers";
+import { chat } from "@lacspace/ai";
+import type { Message } from "@lacspace/ai";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(req: Request) {
+  const { question } = (await req.json()) as { question: string };
+  if (!question || !question.trim()) {
+    return Response.json({ error: "Ask a question." }, { status: 400 });
+  }
+
+  // 1. Load the local index built by \`npm run rag:index\`.
+  let store;
+  try {
+    const raw = await readFile(join(process.cwd(), ".rag-index.json"), "utf8");
+    store = fromJSON(JSON.parse(raw));
+  } catch {
+    return Response.json({ error: "No index found. Run \`npm run rag:index\` first." }, { status: 503 });
+  }
+
+  // 2. Config — keyless local Ollama by default.
+  //    Learn more → https://developer.lacspace.com/packages/providers
+  const cfg = resolveConfig(process.env.LACSPACE_AI_PROVIDER ?? "ollama", {
+    baseUrl: process.env.LACSPACE_AI_BASE_URL,
+    model: process.env.LACSPACE_AI_MODEL,
+    apiKey: process.env.LACSPACE_AI_API_KEY,
+  });
+  const embedModel = process.env.LACSPACE_EMBED_MODEL ?? "nomic-embed-text";
+  const embedBaseUrl = cfg.apiStyle === "ollama" ? cfg.baseUrl : (process.env.LACSPACE_AI_BASE_URL ?? "http://localhost:11434");
+
+  // 3. Retrieve the closest passages via @lacspace/rag + @lacspace/embeddings.
+  //    Learn more → https://developer.lacspace.com/packages/rag
+  const embedder = createEmbedder({ provider: "ollama", model: embedModel, baseUrl: embedBaseUrl });
+  const rag = createRag({ embed: embedder, store });
+  const hits = await rag.retrieve(question, { k: 8 });
+
+  // 4. Re-rank for relevance and keep the best few. @lacspace/rerank blends the
+  //    vector score with a lexical match — no second model call needed.
+  //    Learn more → https://developer.lacspace.com/packages/rerank
+  const ranked = await rerank(question, hits.map((h) => ({ id: h.id, text: h.text, score: h.score })), { k: 4 });
+
+  // 5. Build a grounded prompt and answer with @lacspace/ai.
+  //    Learn more → https://developer.lacspace.com/packages/ai
+  const context = ranked.map((d, i) => \`[\${i + 1}] \${d.text}\`).join("\\n\\n");
+  const messages: Message[] = [
+    { role: "system", content: "You answer strictly from the provided context. If the answer isn't there, say you don't know. Cite sources as [n]." },
+    { role: "user", content: \`Context:\\n\${context}\\n\\nQuestion: \${question}\` },
+  ];
+
+  const baseUrl = cfg.apiStyle === "ollama" ? cfg.baseUrl.replace(/\\/+$/, "") + "/v1" : cfg.baseUrl;
+  const res = await chat({
+    provider: "openai-compatible",
+    baseUrl,
+    apiKey: cfg.apiKey,
+    model: cfg.model ?? "llama3.2",
+    headers: cfg.headers,
+    messages,
+  });
+
+  const sources = ranked.map((d, i) => ({ n: i + 1, id: d.id }));
+  return Response.json({ answer: res.text, sources });
+}
+`;
+
+// app/ask/page.tsx — an "ask your content" UI.
+const ragAskPage = (ctx: Ctx): string => `"use client";
+
+import { useState } from "react";
+
+interface Source { n: number; id: string; }
+
+export default function AskPage() {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [sources, setSources] = useState<Source[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function ask(e: React.FormEvent) {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q || busy) return;
+    setBusy(true); setError(""); setAnswer(""); setSources([]);
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setAnswer(data.answer);
+      setSources(data.sources ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-2xl px-6 py-16">
+      <p className="text-sm font-semibold uppercase tracking-widest gradient-text">RAG · ${ctx.template.siteName}</p>
+      <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Ask your content</h1>
+      <p className="mt-2 text-muted">Grounded answers from your own docs — indexed and answered locally. Run <code className="rounded bg-panel px-1.5 py-0.5 text-sm">npm run rag:index</code> first.</p>
+
+      <form onSubmit={ask} className="mt-8 flex gap-2">
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="What is this project about?"
+          className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none focus:border-hairline"
+        />
+        <button
+          type="submit"
+          disabled={busy || !question.trim()}
+          className="rounded-xl gradient-bg on-accent px-5 py-3 text-sm font-semibold shimmer disabled:opacity-50"
+        >
+          {busy ? "…" : "Ask"}
+        </button>
+      </form>
+
+      {error && <p className="mt-6 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3 text-sm text-red-400">{error}</p>}
+
+      {answer && (
+        <div className="mt-8 card p-6">
+          <p className="whitespace-pre-wrap leading-relaxed">{answer}</p>
+          {sources.length > 0 && (
+            <div className="mt-5 border-t border-hairline pt-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted">Sources</p>
+              <ul className="mt-2 space-y-1 text-sm text-muted">
+                {sources.map((s) => (
+                  <li key={s.n}>[{s.n}] <code className="text-fg">{s.id}</code></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+`;
 
 /* --------------------- site pages, chrome & react kit --------------------- */
 
@@ -4769,10 +5395,12 @@ const faqSection = (ctx: Ctx): string => {
 
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; theme?: string; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+interface Args { name?: string; template?: string; theme?: string; features: string[]; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+
+const splitList = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 function parseArgs(list: string[]): Args {
-  const a: Args = { yes: false, install: true, git: true, pm: "npm", help: false };
+  const a: Args = { features: [], yes: false, install: true, git: true, pm: "npm", help: false };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
     const next = (): string => list[++i] ?? "";
@@ -4782,10 +5410,13 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--no-git") a.git = false;
     else if (arg === "--pm") a.pm = next();
     else if (arg === "--theme" || arg === "--accent") a.theme = next();
+    else if (arg === "--with" || arg === "--features") a.features.push(...splitList(next()));
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
     else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
     else if (arg.startsWith("--accent=")) a.theme = arg.slice(9);
+    else if (arg.startsWith("--with=")) a.features.push(...splitList(arg.slice(7)));
+    else if (arg.startsWith("--features=")) a.features.push(...splitList(arg.slice(11)));
     else if (!arg.startsWith("-") && !a.name) a.name = arg;
   }
   return a;
@@ -4866,6 +5497,7 @@ ${TEMPLATES.map((t) => `  ${t.key.padEnd(10)} ${t.description}`).join("\n")}
 
 ${c("bold", "Options")}
   -t, --template <key>   Template (${TEMPLATES.map((t) => t.key).join(" | ")})
+  --with <a,b>           Feature add-ons, comma-separated (alias --features)
   --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (e.g. --theme lacspace)
   --pm <npm|pnpm|yarn|bun>  Package manager (default npm)
   --no-install           Skip installing dependencies
@@ -4873,13 +5505,18 @@ ${c("bold", "Options")}
   -y, --yes              Accept defaults (needs <name>)
   -h, --help             Show this help
 
+${c("bold", "Feature add-ons")} ${c("dim", "(--with) — free & keyless, local by default")}
+${FEATURES.map((f) => `  ${f.key.padEnd(10)} ${f.description}`).join("\n")}
+  ${c("dim", "e.g. npx create-lacspace-app my-app --template saas --with ai-chat,rag")}
+
 ${c("bold", "Themes")} ${c("dim", "(--theme)")}
   ${Object.keys(THEMES).join(" · ")}
   ${c("dim", 'or a custom colour: --theme "#ff6a00"  ·  --theme "#0bb9d9,#7c3aed"')}
 
-${c("bold", "Add sections to an existing app")}
-  npx create-lacspace-app add pricing faq testimonials
-  ${c("dim", "Drops prebuilt, themed sections into components/sections/ (and the UI kit if missing).")}
+${c("bold", "Grow an existing app")}
+  npx create-lacspace-app add pricing faq testimonials   ${c("dim", "# prebuilt sections")}
+  npx create-lacspace-app add ai-chat                    ${c("dim", "# a feature add-on")}
+  ${c("dim", "Drops themed sections / feature files into your project (and the UI kit if missing).")}
 `;
 
 /* ------------------------- `add` — grow an existing app ------------------------- */
@@ -5122,44 +5759,81 @@ function ensureUiKit(root: string): string[] {
 
 const pascal = (s: string): string => s.split(/[-_]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
 
-/** `add` subcommand — drop prebuilt sections into an existing project. */
+/** `add` subcommand — drop prebuilt sections OR a feature add-on into a project. */
 function runAdd(rawNames: string[]): void {
-  stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app add"))} ${c("dim", "— drop prebuilt sections into your app")}\n\n`);
+  stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app add"))} ${c("dim", "— drop prebuilt sections or a feature into your app")}\n\n`);
   const root = cwd();
   if (!existsSync(join(root, "package.json"))) {
     stdout.write(c("red", "✗ No package.json here. Run this inside your Next.js project.\n\n")); exit(1); return;
   }
   const wanted = rawNames.filter((n) => !n.startsWith("-")).map((n) => n.toLowerCase());
   if (wanted.length === 0 || rawNames.includes("--help") || rawNames.includes("-h")) {
-    stdout.write(`Usage: ${c("cyan", "npx create-lacspace-app add <section...>")}\n\n${c("bold", "Available sections")}\n`);
+    stdout.write(`Usage: ${c("cyan", "npx create-lacspace-app add <section|feature...>")}\n\n${c("bold", "Available sections")}\n`);
     stdout.write("  " + Object.keys(SECTIONS).map((k) => c("cyan", k)).join("  ") + "\n");
-    stdout.write(`\nExample: ${c("cyan", "npx create-lacspace-app add pricing faq testimonials")}\n\n`);
+    stdout.write(`\n${c("bold", "Available features")}\n`);
+    stdout.write("  " + FEATURES.map((f) => c("cyan", f.key)).join("  ") + "\n");
+    stdout.write(`\nExample: ${c("cyan", "npx create-lacspace-app add pricing faq")}  ${c("dim", "or")}  ${c("cyan", "add ai-chat")}\n\n`);
     return;
   }
-  const unknown = wanted.filter((n) => !(n in SECTIONS));
+
+  // Split requested names into features vs sections vs unknown.
+  const featKeys = wanted.filter((n) => FEATURES.some((f) => f.key === n));
+  const sectionNames = wanted.filter((n) => n in SECTIONS);
+  const unknown = wanted.filter((n) => !featKeys.includes(n) && !(n in SECTIONS));
   if (unknown.length) stdout.write(c("yellow", `! Unknown: ${unknown.join(", ")} ${c("dim", "(run with no args to list)")}\n`));
-  const toAdd = wanted.filter((n) => n in SECTIONS);
-  if (toAdd.length === 0) { exit(1); return; }
 
-  const kitAdded = ensureUiKit(root);
-  if (kitAdded.length) stdout.write(`  ${c("green", "✔")} Added the UI kit ${c("dim", "(" + kitAdded.length + " components)")}\n`);
+  // 1. Feature add-ons — drop their files (skip existing), then print what to wire.
+  const addedFeatures = featKeys.map((k) => FEATURES.find((f) => f.key === k)!);
+  if (addedFeatures.length) {
+    const ctx = resolveContext({ name: basename(root), features: featKeys });
+    for (const feat of addedFeatures) {
+      stdout.write(`\n${c("bold", `+ ${feat.label}`)} ${c("dim", `(${feat.key})`)}\n`);
+      for (const [rel, content] of Object.entries(feat.files(ctx))) {
+        const full = join(root, rel);
+        if (existsSync(full)) { stdout.write(c("yellow", `  ~ ${rel} exists — skipped\n`)); continue; }
+        mkdirSync(dirname(full), { recursive: true });
+        writeFileSync(full, content);
+        stdout.write(`  ${c("green", "✔")} ${c("dim", "+ " + rel)}\n`);
+      }
+      stdout.write(`\n  ${c("bold", "Add these dependencies")}:\n    ${c("cyan", "npm i " + Object.entries(feat.deps).map(([n, v]) => `${n}@${v}`).join(" "))}\n`);
+      if (feat.scripts && Object.keys(feat.scripts).length) {
+        stdout.write(`\n  ${c("bold", "Add to package.json scripts")}:\n`);
+        for (const [n, v] of Object.entries(feat.scripts)) stdout.write(`    ${c("cyan", `"${n}": "${v}"`)}\n`);
+      }
+      if (feat.env && Object.keys(feat.env).length) {
+        stdout.write(`\n  ${c("bold", "Add to .env")}:\n`);
+        for (const [n, comment] of Object.entries(feat.env)) stdout.write(`    ${c("cyan", n + "=")}  ${c("dim", "# " + comment)}\n`);
+      }
+      stdout.write(`\n  ${c("bold", "Next steps")}:\n`);
+      for (const s of feat.nextSteps) stdout.write(`    ${c("dim", "•")} ${s}\n`);
+    }
+    stdout.write("\n");
+  }
 
-  const created: string[] = [];
-  for (const name of toAdd) {
-    const rel = `components/sections/${name}.tsx`;
-    const full = join(root, rel);
-    if (existsSync(full)) { stdout.write(c("yellow", `  ~ ${rel} exists — skipped\n`)); continue; }
-    mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, SECTIONS[name]!);
-    created.push(name);
-    stdout.write(`  ${c("green", "✔")} ${c("dim", "+ " + rel)}\n`);
+  // 2. Prebuilt sections — unchanged behaviour.
+  if (sectionNames.length) {
+    const kitAdded = ensureUiKit(root);
+    if (kitAdded.length) stdout.write(`  ${c("green", "✔")} Added the UI kit ${c("dim", "(" + kitAdded.length + " components)")}\n`);
+
+    const created: string[] = [];
+    for (const name of sectionNames) {
+      const rel = `components/sections/${name}.tsx`;
+      const full = join(root, rel);
+      if (existsSync(full)) { stdout.write(c("yellow", `  ~ ${rel} exists — skipped\n`)); continue; }
+      mkdirSync(dirname(full), { recursive: true });
+      writeFileSync(full, SECTIONS[name]!);
+      created.push(name);
+      stdout.write(`  ${c("green", "✔")} ${c("dim", "+ " + rel)}\n`);
+    }
+    if (created.length) {
+      stdout.write(`\n${c("bold", "Use them")} — import into any page:\n`);
+      for (const n of created) stdout.write(`  ${c("cyan", `import { ${pascal(n)}Section } from "@/components/sections/${n}";`)}\n`);
+      stdout.write(`\n  Then drop ${c("cyan", "<" + pascal(created[0]!) + "Section />")} into your JSX.\n`);
+      stdout.write(`\n  ${c("dim", "Sections use the @lacspace UI kit + design tokens — best inside a create-lacspace-app project.")}\n\n`);
+    }
   }
-  if (created.length) {
-    stdout.write(`\n${c("bold", "Use them")} — import into any page:\n`);
-    for (const n of created) stdout.write(`  ${c("cyan", `import { ${pascal(n)}Section } from "@/components/sections/${n}";`)}\n`);
-    stdout.write(`\n  Then drop ${c("cyan", "<" + pascal(created[0]!) + "Section />")} into your JSX.\n`);
-    stdout.write(`\n  ${c("dim", "Sections use the @lacspace UI kit + design tokens — best inside a create-lacspace-app project.")}\n\n`);
-  }
+
+  if (!addedFeatures.length && !sectionNames.length) { exit(1); return; }
 }
 
 async function main(): Promise<void> {
@@ -5172,8 +5846,10 @@ async function main(): Promise<void> {
 
   let name = args.name;
   let templateKey = args.template;
+  const featureKeys: string[] = [...args.features];
 
-  if (!args.yes) {
+  // Interactive prompts only when not --yes and attached to a TTY.
+  if (!args.yes && stdin.isTTY) {
     const rl = createInterface({ input: stdin, output: stdout });
     try {
       if (!name) name = (await rl.question(`${c("green", "?")} Project name ${c("dim", "(my-app)")}: `)).trim() || "my-app";
@@ -5183,6 +5859,19 @@ async function main(): Promise<void> {
         const ans = (await rl.question(`\n${c("green", "?")} Template ${c("dim", "(1)")}: `)).trim() || "1";
         const idx = /^\d+$/.test(ans) ? parseInt(ans, 10) - 1 : TEMPLATES.findIndex((t) => t.key === ans);
         templateKey = TEMPLATES[idx]?.key ?? "personal";
+      }
+      // ✨ Feature add-ons — a numbered picker (readline only, no raw mode).
+      if (featureKeys.length === 0) {
+        stdout.write(`\n  Add feature add-ons? ${c("dim", "(free & keyless — local AI by default)")}\n`);
+        FEATURES.forEach((f, i) => stdout.write(`   ${c("cyan", String(i + 1))}. ${c("bold", f.label)} ${c("dim", "— " + f.description)}\n`));
+        const ans = (await rl.question(`\n${c("green", "?")} Add features? ${c("dim", "(comma-separated numbers, or Enter for none)")}: `)).trim();
+        if (ans) {
+          for (const tok of splitList(ans)) {
+            const idx = /^\d+$/.test(tok) ? parseInt(tok, 10) - 1 : FEATURES.findIndex((f) => f.key === tok);
+            const feat = FEATURES[idx];
+            if (feat && !featureKeys.includes(feat.key)) featureKeys.push(feat.key);
+          }
+        }
       }
     } finally {
       rl.close();
@@ -5207,13 +5896,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  const files = buildFiles({ name: projectName, template });
+  const features = normalizeFeatures(featureKeys);
+  const files = buildFiles({ name: projectName, template, features });
   for (const [rel, content] of Object.entries(files)) {
     const full = join(dir, rel);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, content);
   }
   stdout.write(`\n  ${c("green", "✔")} Created ${c("bold", name)} ${c("dim", `(${template.label})`)}\n`);
+  if (features.length) stdout.write(`  ${c("green", "✔")} Feature add-ons: ${features.map((f) => c("cyan", f.key)).join(", ")}\n`);
   for (const rel of Object.keys(files)) stdout.write(`    ${c("dim", "+ " + rel)}\n`);
 
   if (args.git) {
@@ -5234,6 +5925,18 @@ async function main(): Promise<void> {
   if (!args.install) stdout.write(`  ${c("cyan", `${args.pm} install`)}\n`);
   stdout.write(`  ${c("cyan", run)}\n`);
   stdout.write(`\n  Edit ${c("cyan", "lib/site.ts")} (your SEO config) and ${c("cyan", "app/page.tsx")}.\n`);
+
+  // ✨ Feature add-on next-steps — makes the free/local AI story prominent.
+  if (features.length) {
+    const hasAi = features.some((f) => f.key === "ai-chat" || f.key === "rag");
+    stdout.write(`\n${c("bold", "Your feature add-ons")} ${c("dim", "— details in LEARN.md")}\n`);
+    if (hasAi) stdout.write(`  ${c("green", "🆓 Free & local AI")} ${c("dim", "— install Ollama (https://ollama.com); no API key required.")}\n`);
+    for (const f of features) {
+      stdout.write(`\n  ${c("bold", f.label)} ${c("dim", `(${f.key})`)}\n`);
+      for (const s of f.nextSteps) stdout.write(`    ${c("dim", "•")} ${s}\n`);
+    }
+  }
+
   stdout.write(`\n  ${c("green", "Happy building!")} ${c("dim", "https://lacspace.com/packages")}\n\n`);
 }
 

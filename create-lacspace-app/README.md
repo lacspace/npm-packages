@@ -18,6 +18,12 @@ npx create-lacspace-app my-app --template saas
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.3 — composable feature add-ons + flagship AI.** Layer optional, self-contained add-ons onto *any* template with `--with <a,b>` (or pick them in the interactive prompt, or `add` them later). Two ship today — both **free, keyless and local by default** (Ollama, no API key):
+> - **`ai-chat`** — a streaming AI chat route (`/api/chat`) + a clean chat UI (`/chat`), guarded against prompt injection, built on the Lacspace AI Kit.
+> - **`rag`** — "chat with your docs": index your markdown/text (`npm run rag:index`), then ask grounded, source-cited questions at `/ask`.
+>
+> Everything stays **strictly additive** — a scaffold with no features is byte-for-byte the same as before, and the CLI remains **zero runtime dependencies**.
+
 > **New in v2.1 — a design-quality pass.** Every template was rebuilt around a real design system: cohesive tokens (`--accent`, surfaces, hairlines, shadows), reusable utilities (`.glass`, `.card`, `.gradient-text`, `.grid-bg`/`.dot-bg`, `.shimmer`), a sticky glass header that shrinks on scroll, a richer multi-column footer with a newsletter island, a soft gradient-mesh backdrop, and confident, specific copy per template — all `prefers-reduced-motion`-aware. The signature sites ship as **LSFolio · LSStudio · LSStore · LSCloud · LSBlogs · LSDocs · LSAdmin · LSResto · LSBazaar**.
 
 ---
@@ -81,6 +87,44 @@ import { PricingSection } from "@/components/sections/pricing";
 
 **Available sections:** `hero` · `features` · `pricing` · `faq` · `testimonials` · `team` · `stats` · `timeline` · `gallery` · `logos` · `cta` · `bento` · `steps` · `feature-split` · `banner`. Run `add` with no arguments to list them.
 
+`add` also accepts a **feature add-on** key (below) — it drops the feature's files into your project (skipping any that already exist) and prints the exact deps, env vars and next-steps to wire up:
+
+```bash
+npx create-lacspace-app add ai-chat      # drops app/api/chat/route.ts + app/chat/page.tsx
+```
+
+## 🤖 Feature add-ons — `--with`
+
+Feature add-ons are optional, self-contained bundles you can layer onto **any** template: they contribute their own files (namespaced under their own routes), dependencies, `package.json` scripts, `.env.example` entries and an onboarding checklist (`LEARN.md`). They **compose** (order-independent, no collisions) and are **strictly additive** — leave them off and you get today's scaffold, unchanged.
+
+```bash
+# scaffold with one or both, free & keyless (local Ollama by default)
+npx create-lacspace-app my-app --template saas --with ai-chat
+npx create-lacspace-app my-app --template saas --with ai-chat,rag   # (alias: --features)
+```
+
+In the interactive flow, after you pick a template you're offered the same list as a numbered picker — enter comma-separated numbers, or press Enter for none. (Non-TTY or `--yes` → uses your flags/defaults, no prompt.)
+
+| Feature | What it adds | Packages (keyless) |
+| --- | --- | --- |
+| **`ai-chat`** | A streaming chat route `app/api/chat/route.ts` + a chat UI `app/chat/page.tsx`. Reads provider config from env, runs input through a prompt-injection guard, and streams the reply. | `@lacspace/ai` `@lacspace/prompt` `@lacspace/stream` `@lacspace/providers` `@lacspace/memory` `@lacspace/moderation` |
+| **`rag`** | "Chat with your docs": `content/welcome.md`, an indexer `scripts/index-content.mjs` (+ `rag:index` script), a retrieval+rerank answer route `app/api/ask/route.ts`, and an ask UI `app/ask/page.tsx`. | `@lacspace/rag` `@lacspace/embeddings` `@lacspace/vector` `@lacspace/chunk` `@lacspace/rerank` `@lacspace/providers` `@lacspace/ai` |
+
+### 🆓 Free & local by default — no API key
+
+Both AI add-ons default to **[Ollama](https://ollama.com)**, so they run **entirely on your machine — free, offline and keyless**. One-time setup:
+
+```bash
+# ai-chat
+ollama pull llama3.2 && npm run dev        # then open /chat
+
+# rag (adds an embedding model)
+ollama pull nomic-embed-text && ollama pull llama3.2
+npm run rag:index && npm run dev           # then open /ask
+```
+
+Prefer a hosted model? Set `LACSPACE_AI_*` in `.env` (e.g. `LACSPACE_AI_PROVIDER=groq` + `LACSPACE_AI_API_KEY=…`) — the same code path works against any OpenAI-compatible provider. The generated `LEARN.md` walks you through every step.
+
 ## Templates
 
 | Key | Ships as | What you get |
@@ -102,6 +146,7 @@ Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, moder
 | Flag | Meaning |
 | --- | --- |
 | `-t, --template <key>` | `personal` · `business` · `ecommerce` · `saas` · `blog` · `docs` · `dashboard` · `restaurant` · `marketplace` |
+| `--with <a,b>` | feature add-ons, comma-separated — `ai-chat` · `rag` (alias `--features`) |
 | `--theme <name\|hex>` | accent gradient — a preset, a `"#hex"`, or `"from,to"` (see below) |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager (default `npm`) |
 | `--no-install` | skip installing dependencies |
@@ -130,10 +175,15 @@ import {
   scaffold,          // Node: writes a project to disk
   listTemplates,     // the 9 templates + their metadata
   listSections,      // the 15 prebuilt sections
+  listFeatures,      // the composable feature add-ons (ai-chat, rag)
 } from "create-lacspace-app";
 
 // 1. Pure — get the whole project as { "path": "contents" }. Runs anywhere.
 const files = generateProject({ name: "acme", template: "saas", theme: "#ff6a00" });
+
+// Layer feature add-ons on — strictly additive, order-independent.
+const ai = generateProject({ name: "acme", template: "saas", features: ["ai-chat", "rag"] });
+ai["app/api/chat/route.ts"];  // → the streaming chat route source
 files["app/page.tsx"];        // → the generated home page source
 Object.keys(files).length;    // → ~70 files
 
@@ -151,9 +201,10 @@ console.log(`Scaffolded ${written.length} files → ${dir}`);
 | `listTemplates()` / `templates` | The built-in templates with metadata (`key`, `label`, `description`, `accent`, defaults). |
 | `getTemplate(key)` | One template's metadata, or `undefined`. |
 | `listSections()` / `getSection(name)` | The prebuilt section names, and one section's source. |
+| `listFeatures()` / `getFeature(key)` | The composable feature add-ons (`FeatureDef[]`), and one feature's definition. |
 | `templateKeys` | Every valid `template` key. |
 
-`options`: `{ name?, template?, theme? }` — the same choices as the CLI flags above.
+`options`: `{ name?, template?, theme?, features? }` — the same choices as the CLI flags above (`features` mirrors `--with`; unknown keys are ignored, duplicates de-duped).
 
 ## ❓ FAQ
 

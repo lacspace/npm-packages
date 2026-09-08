@@ -26,11 +26,13 @@ import {
   resolveContext,
   TEMPLATES,
   SECTIONS,
+  FEATURES,
   type GenerateOptions,
   type TemplateDef,
+  type FeatureDef,
 } from "./index.js";
 
-export type { GenerateOptions, TemplateDef };
+export type { GenerateOptions, TemplateDef, FeatureDef };
 
 /** A project file map: relative path → file contents. */
 export type ProjectFiles = Record<string, string>;
@@ -63,6 +65,21 @@ export function listSections(): string[] {
  */
 export function getSection(name: string): string | undefined {
   return SECTIONS[name];
+}
+
+/**
+ * The composable feature add-ons available (see {@link FeatureDef}) — the ones
+ * you can pass as `options.features` or request with the CLI's `--with <key>`.
+ * Returns copies, so mutating the result never affects the registry.
+ */
+export function listFeatures(): FeatureDef[] {
+  return FEATURES.map((f) => ({ ...f }));
+}
+
+/** Look up one feature add-on's definition by key, or `undefined`. */
+export function getFeature(key: string): FeatureDef | undefined {
+  const f = FEATURES.find((x) => x.key === key);
+  return f ? { ...f } : undefined;
 }
 
 /**

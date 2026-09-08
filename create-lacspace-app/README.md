@@ -20,6 +20,13 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.8 — recipes.** Scaffold a whole *kind of product* in one command with `--recipe <key>` (a curated template + full-stack mode + add-on stack):
+> - **`ai-saas`** → SaaS + accounts + payments + AI chat + analytics
+> - **`store`** → e-commerce + eSewa/Khalti checkout + email + analytics
+> - **`blog`** → blog + content + search · **`docs-ai`** → docs + RAG + search · **`internal-tool`** → dashboard + auth + analytics + email
+>
+> `npx create-lacspace-app my-app --recipe ai-saas`. Explicit `--template`/`--with`/`--fullstack` still merge on top. Also on the lib API: `listRecipes()` / `getRecipe()`.
+
 > **New in v2.7 — payments & email add-ons.**
 > - **`payments`** — a checkout wired to **eSewa & Khalti**: orders, integer-safe money (`@lacspace/money`), and the signed eSewa flow that **works end-to-end in test mode with NO credentials**. Khalti activates when you add `KHALTI_SECRET`.
 > - **`email`** — transactional email: a ready mail service (`@lacspace/mailer`) with beautiful templates (`@lacspace/email-templates`) + address validation. **Logs emails to the console until you add SMTP** — so it runs out-of-the-box, then delivers for real with one env change.

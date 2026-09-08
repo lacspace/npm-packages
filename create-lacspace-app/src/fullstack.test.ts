@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateProject } from "./lib.js";
+import { generateProject, listRecipes, getRecipe } from "./lib.js";
 import { resolveContext, TEMPLATES } from "./index.js";
 
 const ALL = TEMPLATES.map((t) => t.key);
@@ -193,5 +193,35 @@ describe("backend-aware add-ons (require the full-stack backend)", () => {
     expect(f[".env.example"]).toContain("SMTP_HOST");
     // Dev works with no SMTP — the console fallback is wired.
     expect(f["backend/src/mail/mailer.ts"]).toContain("createJsonTransport");
+  });
+});
+
+describe("recipes", () => {
+  it("listRecipes / getRecipe expose the built-in recipes", () => {
+    const keys = listRecipes().map((r) => r.key).sort();
+    expect(keys).toEqual(["ai-saas", "blog", "docs-ai", "internal-tool", "store"]);
+    expect(getRecipe("ai-saas")?.template).toBe("saas");
+    expect(getRecipe("nope")).toBeUndefined();
+  });
+
+  it("--recipe ai-saas builds a full-stack app with the whole stack", () => {
+    const f = generateProject({ name: "acme", recipe: "ai-saas" });
+    const k = Object.keys(f);
+    expect(k.some((x) => x.startsWith("backend/"))).toBe(true); // full-stack
+    expect(k).toContain("frontend/app/api/chat/route.ts"); // ai-chat
+    expect(k).toContain("backend/src/routes/account.ts"); // auth-pages
+    expect(k).toContain("backend/src/routes/checkout.ts"); // payments
+    expect(k).toContain("backend/src/routes/events.ts"); // analytics
+  });
+
+  it("a static recipe (blog) stays static; explicit options merge on top of a recipe", () => {
+    const b = generateProject({ name: "acme", recipe: "blog" });
+    expect(Object.keys(b).some((x) => x.startsWith("backend/"))).toBe(false);
+    expect("app/updates/page.tsx" in b).toBe(true);
+    expect("app/api/search/route.ts" in b).toBe(true);
+    // Explicit feature adds to the recipe's set.
+    const merged = generateProject({ name: "acme", recipe: "blog", features: ["ai-chat"] });
+    expect("app/api/chat/route.ts" in merged).toBe(true);
+    expect("app/updates/page.tsx" in merged).toBe(true);
   });
 });

@@ -27,14 +27,16 @@ import {
   TEMPLATES,
   SECTIONS,
   FEATURES,
+  RECIPES,
   type GenerateOptions,
   type TemplateDef,
   type FeatureDef,
   type FeatureBackend,
   type FeatureRoute,
+  type RecipeDef,
 } from "./index.js";
 
-export type { GenerateOptions, TemplateDef, FeatureDef, FeatureBackend, FeatureRoute };
+export type { GenerateOptions, TemplateDef, FeatureDef, FeatureBackend, FeatureRoute, RecipeDef };
 
 /** A project file map: relative path → file contents. */
 export type ProjectFiles = Record<string, string>;
@@ -82,6 +84,20 @@ export function listFeatures(): FeatureDef[] {
 export function getFeature(key: string): FeatureDef | undefined {
   const f = FEATURES.find((x) => x.key === key);
   return f ? { ...f } : undefined;
+}
+
+/**
+ * The built-in one-shot recipes (see {@link RecipeDef}) — curated template + mode +
+ * add-on bundles you can pass as `options.recipe` or request with `--recipe <key>`.
+ */
+export function listRecipes(): RecipeDef[] {
+  return RECIPES.map((r) => ({ ...r, features: [...r.features] }));
+}
+
+/** Look up one recipe's definition by key, or `undefined`. */
+export function getRecipe(key: string): RecipeDef | undefined {
+  const r = RECIPES.find((x) => x.key === key);
+  return r ? { ...r, features: [...r.features] } : undefined;
 }
 
 /**

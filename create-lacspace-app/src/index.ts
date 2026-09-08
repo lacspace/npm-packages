@@ -146,6 +146,13 @@ export interface GenerateOptions {
    * changes.
    */
   mode?: "static" | "dynamic";
+  /**
+   * A one-shot **recipe** (see {@link RECIPES}) — a curated bundle of template +
+   * mode + feature add-ons for a whole kind of product, e.g. `"ai-saas"` or
+   * `"store"`. Explicit `template`/`features`/`mode` still win and are merged on
+   * top. Omit for no recipe.
+   */
+  recipe?: string;
 }
 
 /**
@@ -155,16 +162,20 @@ export interface GenerateOptions {
  * feature add-ons (de-duped, unknown keys dropped). Pure; no I/O.
  */
 export function resolveContext(options: GenerateOptions = {}): Ctx {
-  const base = TEMPLATES.find((t) => t.key === options.template) ?? TEMPLATES[0]!;
+  // An optional recipe supplies defaults (template + mode + features); explicit
+  // options still win and are merged on top.
+  const recipe = options.recipe ? RECIPES.find((r) => r.key === String(options.recipe).toLowerCase()) : undefined;
+  const base = TEMPLATES.find((t) => t.key === (options.template ?? recipe?.template)) ?? TEMPLATES[0]!;
   const accent = resolveAccent(options.theme);
   const template: TemplateDef = accent ? { ...base, accent } : base;
   const raw = options.name ?? "my-app";
   const seg = raw.split(/[\\/]/).filter(Boolean).pop() ?? "my-app";
   const name = seg.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") || "my-app";
-  const features = normalizeFeatures(options.features);
-  // A backend add-on (auth, payments, …) needs the full-stack backend, so requesting
-  // one auto-upgrades a static project to dynamic.
-  let mode: Ctx["mode"] = options.mode === "dynamic" ? "dynamic" : "static";
+  const features = normalizeFeatures([...(recipe?.features ?? []), ...(options.features ?? [])]);
+  // Mode precedence: explicit option > recipe > static. A backend add-on (auth,
+  // payments, …) then auto-upgrades a static project to dynamic.
+  let mode: Ctx["mode"] =
+    options.mode === "dynamic" ? "dynamic" : options.mode === "static" ? "static" : recipe?.mode ?? "static";
   if (mode === "static" && features.some((f) => f.requiresBackend)) mode = "dynamic";
   return { name, template, features, mode };
 }
@@ -5615,6 +5626,33 @@ const faqSection = (ctx: Ctx): string => {
       </section>`;
 };
 
+/* ------------------------------ recipes ------------------------------ */
+
+/**
+ * A one-command **recipe**: a curated template + mode + add-on stack for a whole
+ * kind of product. `npx create-lacspace-app my-app --recipe ai-saas`.
+ */
+export interface RecipeDef {
+  key: string;
+  label: string;
+  description: string;
+  /** The template this recipe starts from. */
+  template: string;
+  /** Force full-stack when the stack needs a backend (add-ons can also force it). */
+  mode?: "static" | "dynamic";
+  /** The add-ons this recipe layers on. */
+  features: string[];
+}
+
+/** The built-in recipes — read with {@link listRecipes} / {@link getRecipe}. */
+export const RECIPES: RecipeDef[] = [
+  { key: "ai-saas", label: "AI SaaS", description: "SaaS landing + accounts + payments + a streaming AI chat + analytics.", template: "saas", mode: "dynamic", features: ["auth-pages", "payments", "ai-chat", "analytics"] },
+  { key: "store", label: "Online store", description: "E-commerce storefront + eSewa/Khalti checkout + transactional email + analytics.", template: "ecommerce", mode: "dynamic", features: ["payments", "email", "analytics"] },
+  { key: "blog", label: "Blog", description: "A blog with a Markdown content section, RSS/llms.txt and instant search.", template: "blog", features: ["content", "search"] },
+  { key: "internal-tool", label: "Internal tool", description: "An admin dashboard with accounts (2FA), analytics and email — full-stack.", template: "dashboard", mode: "dynamic", features: ["auth-pages", "analytics", "email"] },
+  { key: "docs-ai", label: "AI docs", description: "A documentation site with chat-with-your-docs RAG and instant search.", template: "docs", features: ["rag", "search"] },
+];
+
 /* ------------------------- feature: content (files) ------------------------- */
 
 // lib/content.ts — reads content/updates/*.md at request time (server-only).
@@ -7706,7 +7744,7 @@ function backendFiles(ctx: Ctx): Record<string, string> {
 
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; recipe?: string; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
 
 const splitList = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -7726,6 +7764,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--static") a.mode = "static";
     else if (arg === "--mode") { const m = next().toLowerCase(); a.mode = m === "dynamic" ? "dynamic" : "static"; }
     else if (arg.startsWith("--mode=")) { const m = arg.slice(7).toLowerCase(); a.mode = m === "dynamic" ? "dynamic" : "static"; }
+    else if (arg === "--recipe") a.recipe = next();
+    else if (arg.startsWith("--recipe=")) a.recipe = arg.slice(9);
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
     else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
@@ -7816,6 +7856,7 @@ ${c("bold", "Options")}
                          MongoDB/Redis backend (JWT auth + CRUD) + shared types
                          ${c("dim", "(alias --dynamic; default is --static, a single Next.js app)")}
   --with <a,b>           Feature add-ons, comma-separated (alias --features)
+  --recipe <key>         Start from a curated stack (${RECIPES.map((r) => r.key).join(" | ")})
   --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (e.g. --theme lacspace)
   --pm <npm|pnpm|yarn|bun>  Package manager (default npm)
   --no-install           Skip installing dependencies
@@ -7824,8 +7865,12 @@ ${c("bold", "Options")}
   -h, --help             Show this help
 
 ${c("bold", "Feature add-ons")} ${c("dim", "(--with) — free & keyless, local by default")}
-${FEATURES.map((f) => `  ${f.key.padEnd(10)} ${f.description}`).join("\n")}
+${FEATURES.map((f) => `  ${f.key.padEnd(11)} ${f.description}`).join("\n")}
   ${c("dim", "e.g. npx create-lacspace-app my-app --template saas --with ai-chat,rag")}
+
+${c("bold", "Recipes")} ${c("dim", "(--recipe) — a whole product in one command")}
+${RECIPES.map((r) => `  ${r.key.padEnd(14)} ${r.description}`).join("\n")}
+  ${c("dim", "e.g. npx create-lacspace-app my-app --recipe ai-saas")}
 
 ${c("bold", "Themes")} ${c("dim", "(--theme)")}
   ${Object.keys(THEMES).join(" · ")}
@@ -8162,10 +8207,15 @@ async function main(): Promise<void> {
 
   stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app"))} ${c("dim", "— a gorgeous Next.js starter, batteries wired")}\n\n`);
 
+  // A recipe pre-fills template + mode + add-ons (explicit flags still win).
+  const recipe = args.recipe ? RECIPES.find((r) => r.key === args.recipe!.toLowerCase()) : undefined;
+  if (args.recipe && !recipe) stdout.write(c("yellow", `  ! Unknown recipe "${args.recipe}" — ignoring. Try: ${RECIPES.map((r) => r.key).join(", ")}\n`));
+  if (recipe) stdout.write(`  ${c("green", "✔")} Recipe ${c("cyan", recipe.key)} ${c("dim", "— " + recipe.description)}\n`);
+
   let name = args.name;
-  let templateKey = args.template;
-  let mode: "static" | "dynamic" = args.mode ?? "static";
-  const featureKeys: string[] = [...args.features];
+  let templateKey = args.template ?? recipe?.template;
+  let mode: "static" | "dynamic" = args.mode ?? recipe?.mode ?? "static";
+  const featureKeys: string[] = [...(recipe?.features ?? []), ...args.features];
 
   // Interactive prompts only when not --yes and attached to a TTY.
   if (!args.yes && stdin.isTTY) {
@@ -8180,8 +8230,8 @@ async function main(): Promise<void> {
         templateKey = TEMPLATES[idx]?.key ?? "personal";
       }
       // ✨ Static vs dynamic — the project shape. Only ask when not already set
-      //    by a flag (--fullstack / --static / --mode).
-      if (args.mode === undefined) {
+      //    by a flag (--fullstack / --static / --mode) or a recipe.
+      if (args.mode === undefined && !recipe) {
         stdout.write(`\n  What kind of app?\n`);
         stdout.write(`   ${c("cyan", "1")}. ${c("bold", "Static / frontend only")} ${c("dim", "— a single Next.js app (SEO site, marketing, blog, docs). Fast, deploy anywhere.")}\n`);
         stdout.write(`   ${c("cyan", "2")}. ${c("bold", "Dynamic / full-stack")} ${c("dim", "— frontend + a Node·Express·MongoDB·Redis API with working auth & CRUD, wired together.")}\n`);
@@ -8225,6 +8275,11 @@ async function main(): Promise<void> {
   }
 
   const features = normalizeFeatures(featureKeys);
+  // A backend add-on auto-upgrades a static project to full-stack (matches the lib).
+  if (mode === "static" && features.some((f) => f.requiresBackend)) {
+    mode = "dynamic";
+    stdout.write(`  ${c("dim", "↑ a selected add-on needs a backend — building full-stack")}\n`);
+  }
   const files = buildFiles({ name: projectName, template, features, mode });
   for (const [rel, content] of Object.entries(files)) {
     const full = join(dir, rel);

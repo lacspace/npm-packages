@@ -15,8 +15,13 @@
 
 > ⚠️ **This is an estimate, not exact billing.** It is designed for budgeting, cost previews, guardrails and chunking — where a fast, good-enough number beats a 3 MB dependency. For exact accounting, read the token counts in the provider's API **`usage`** response.
 
+> **🆕 New in 1.1.0** — context-window usage helpers (`contextUsage` / `remainingContext` / `willReplyFit`), batch estimation (`countBatch` / `estimateBatchCost`), one-call prompt pricing (`estimatePromptCost`) and cross-model cost comparison (`compareModelCost` / `cheapestModel`), plus fresh model presets (GPT-4.1, o3/o4-mini, Claude 3.7 / Sonnet 4 / Opus 4, Gemini 2.5). All additive — nothing existing changed.
+
 - 🔢 `countTokens` / `countMessageTokens` — heuristic estimator with OpenAI-style message overhead
-- 💵 `estimateCost` — USD from a built-in pricing table (`MODELS`) with alias handling
+- 💵 `estimateCost` / `estimatePromptCost` — USD from a built-in pricing table (`MODELS`) with alias handling
+- ⚖️ `compareModelCost` / `cheapestModel` — price the same workload across models, cheapest first
+- 📊 `contextUsage` / `remainingContext` / `willReplyFit` — how much of the context window is used / left
+- 📚 `countBatch` / `estimateBatchCost` — tokens & cost for a whole list of prompts at once
 - ✂️ `fitToBudget` — truncate text (`end` / `start` / `middle`) to fit a token budget
 - 🧵 `budgetMessages` — drop the oldest turns, keep the system prompt + newest, until a chat fits
 - 📦 `splitByTokens` — quick token-budgeted chunking with overlap
@@ -63,6 +68,33 @@ estimateCost({ model: "claude-3-5-sonnet", inputTokens, outputTokens: 800 }).usd
 
 Aliases and dated ids resolve automatically — `modelInfo("gpt-4o-2024-08-06")`, `modelInfo("sonnet")`, `modelInfo("gemini-1.5-flash-latest")` all work, and unknown ids fall back sensibly (never throw).
 
+### Price a prompt in one call, or compare models
+
+```ts
+import { estimatePromptCost, compareModelCost, cheapestModel } from "@lacspace/tokenizer";
+
+estimatePromptCost(prompt, "gpt-4o", { outputTokens: 500 }).usd; // count + price in one step
+
+// Same workload, priced across every model in the table, cheapest first:
+compareModelCost({ inputTokens: 100_000, outputTokens: 20_000 });
+// [ { model: "gemini-1.5-flash", usd: …, estimate }, … ]
+
+cheapestModel({ inputTokens: 100_000, outputTokens: 20_000 }, ["gpt-4o", "sonnet", "gemini-2.5-flash"]);
+// → the lowest-cost option among the given models
+```
+
+## Batch estimation
+
+```ts
+import { countBatch, estimateBatchCost } from "@lacspace/tokenizer";
+
+countBatch(documents, "gpt-4o");
+// { tokens: number[], total, max, count }
+
+estimateBatchCost(documents, "gpt-4o", { outputTokensEach: 0 });
+// { usd, totalInputTokens, totalOutputTokens, count, items: CostEstimate[] }
+```
+
 ## Fit text to a budget
 
 ```ts
@@ -97,6 +129,18 @@ willFit(trimmed, "gpt-4o");            // true
 willFit(hugeString, "gpt-3.5-turbo");  // false
 ```
 
+### How much of the window is left?
+
+```ts
+import { contextUsage, remainingContext, willReplyFit } from "@lacspace/tokenizer";
+
+contextUsage(history, "gpt-4o");
+// { used, window: 128000, remaining, fraction: 0..1, fits }
+
+remainingContext(history, "gpt-4o");     // tokens still free (clamped to 0)
+willReplyFit(history, 1000, "gpt-4o");   // room for the prompt AND a ~1000-token reply?
+```
+
 ## Chunk long text
 
 ```ts
@@ -115,6 +159,14 @@ const chunks = splitByTokens(bigDocument, 500, 50); // ~500 tokens each, 50 over
 | `countTokens` | `(text, model?) => number` | heuristic estimate; `0` for empty |
 | `countMessageTokens` | `(messages, model?) => number` | adds OpenAI-style per-message overhead |
 | `estimateCost` | `({ model, inputTokens, outputTokens? }) => { usd, breakdown }` | USD from `MODELS` |
+| `estimatePromptCost` | `(text, model, { outputTokens? }) => CostEstimate` | count `text` then price it |
+| `compareModelCost` | `({ inputTokens, outputTokens? }, models?) => ModelCostComparison[]` | price across models, cheapest first |
+| `cheapestModel` | `({ inputTokens, outputTokens? }, models?) => ModelCostComparison \| undefined` | lowest-cost option |
+| `contextUsage` | `(text \| messages, model?) => { used, window, remaining, fraction, fits }` | context-window usage |
+| `remainingContext` | `(text \| messages, model?) => number` | tokens free (clamped to 0) |
+| `willReplyFit` | `(text \| messages, replyTokens, model?) => boolean` | room for prompt + reply |
+| `countBatch` | `(texts, model?) => { tokens, total, max, count }` | per-item + total token counts |
+| `estimateBatchCost` | `(texts, model, { outputTokensEach? }) => { usd, totalInputTokens, totalOutputTokens, count, items }` | batch cost |
 | `fitToBudget` | `(text, maxTokens, { strategy?, model? }) => { text, tokens, truncated }` | truncate to fit |
 | `budgetMessages` | `(messages, maxTokens, { model?, keepSystem?, reserve? }) => messages` | drop oldest turns |
 | `willFit` | `(text \| messages, model?) => boolean` | vs the model's context window |
@@ -124,7 +176,7 @@ const chunks = splitByTokens(bigDocument, 500, 50); // ~500 tokens each, 50 over
 | `MODELS` | `Record<ModelId, ModelInfo>` | pricing (USD/1M) + context windows |
 | `MODEL_ALIASES` | `Record<string, ModelId>` | shorthands & dated variants |
 
-Models in the table: `gpt-4o`, `gpt-4o-mini`, `o1`, `o1-mini`, `gpt-4-turbo`, `gpt-3.5-turbo`, `claude-3-5-sonnet`, `claude-3-5-haiku`, `claude-3-opus`, `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.0-flash`.
+Models in the table: `gpt-4o`, `gpt-4o-mini`, `o1`, `o1-mini`, `gpt-4-turbo`, `gpt-3.5-turbo`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o3`, `o3-mini`, `o4-mini`, `claude-3-5-sonnet`, `claude-3-5-haiku`, `claude-3-opus`, `claude-3-7-sonnet`, `claude-sonnet-4`, `claude-opus-4`, `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-2.5-pro`, `gemini-2.5-flash` (plus many aliases & dated ids). Prices are list prices at the time of writing and **drift** — confirm against the provider before real billing.
 
 ## How it works
 

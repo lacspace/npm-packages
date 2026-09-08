@@ -13,6 +13,8 @@
 
 > A tiny, **provider-agnostic** chat client built on `fetch`. Talk to OpenAI, Anthropic (Claude), Google Gemini and any OpenAI-compatible endpoint (Groq, Together, OpenRouter, Ollama, LocalAI…) through **one unified API** — non-streaming, streaming, and tool-calling — with responses normalized to a single shape. Bring your own key. No SDK, no lock-in, isomorphic, fully typed.
 
+> **🆕 New in 1.1.0** — all additive, keyless and provider-agnostic: **typed message builders** (`system`/`user`/`assistant`/`toolResult`/`image`), **retry/backoff + timeout** combinators (`withRetry`, `withTimeout`), **usage/cost accounting** (`estimateCost`, `sumUsage`, `UsageTracker`), **structured-output parsing** (`extractJson`, `parseJson`), a **text-only stream** helper (`textStream`), and an **injectable `fetchImpl`** on `chat`/`stream`/`createClient` for proxies, instrumentation and tests. Nothing existing changed — every prior call still works byte-for-byte.
+
 - 🔌 **Four providers, one call** — `chat({ provider, model, apiKey, messages })`. Switch vendors by changing a string.
 - 🌊 **Streaming** — `stream()` yields unified `ChatChunk`s; `accumulate()` folds them back to `{ text, toolCalls }`.
 - 🛠️ **Tool calling** — describe tools once with JSON Schema; translated to each provider's format and normalized on the way back.
@@ -150,6 +152,70 @@ if (res.finishReason === "tool_calls") {
 }
 ```
 
+## Message builders <sup>1.1.0</sup>
+
+Compose conversations with typed helpers instead of raw object literals — they return the exact `Message`/`Part` shapes `chat()` already accepts:
+
+```ts
+import { chat, system, user, assistant, toolResult, image } from "@lacspace/ai";
+
+await chat({
+  provider, model, apiKey,
+  messages: [
+    system("You are terse."),
+    user("Describe this."),
+    user([image("https://example.com/cat.png")]),   // multimodal part
+  ],
+});
+```
+
+## Retry, backoff & timeout <sup>1.1.0</sup>
+
+Generic combinators you wrap around `chat`/`stream` — small primitives, no hidden policy. `withRetry` retries only transient `AiError`s (network / `429` / `5xx`) by default; the `sleep` clock is injectable so it's testable:
+
+```ts
+import { chat, withRetry, withTimeout } from "@lacspace/ai";
+
+const res = await withRetry(
+  () => withTimeout((signal) => chat({ ...opts, signal }), 10_000),
+  { retries: 3, minDelayMs: 250 },
+);
+```
+
+## Usage & cost accounting <sup>1.1.0</sup>
+
+`usage` is passed through per call; sum it and price it with figures *you* supply (nothing is bundled):
+
+```ts
+import { UsageTracker } from "@lacspace/ai";
+
+const tracker = new UsageTracker();
+const res = await chat(opts);
+tracker.add(res.usage);
+console.log(tracker.total);                                   // { inputTokens, outputTokens }
+console.log(tracker.cost({ inputPer1M: 0.15, outputPer1M: 0.6 })); // estimated USD
+```
+
+## Structured output <sup>1.1.0</sup>
+
+Pull JSON out of a model reply even when it's fenced or wrapped in prose — never throws, returns `undefined` on miss:
+
+```ts
+import { parseJson } from "@lacspace/ai";
+
+const res = await chat(opts);
+const data = parseJson<{ city: string; temp: number }>(res.text);
+```
+
+## Custom fetch <sup>1.1.0</sup>
+
+Pass `fetchImpl` to route through a proxy, add instrumentation, or stub the network in tests — on `chat`, `stream`, or bound once via `createClient`:
+
+```ts
+await chat({ ...opts, fetchImpl: myInstrumentedFetch });
+const ai = createClient({ provider: "openai", apiKey, defaultModel: "gpt-4o-mini", fetchImpl: myFetch });
+```
+
 ## API
 
 | Export | Signature | What it does |
@@ -159,8 +225,18 @@ if (res.finishReason === "tool_calls") {
 | `accumulate` | `(chunks) => Promise<{ text, toolCalls, finishReason?, usage? }>` | Fold a chunk stream into the final result. |
 | `createClient` | `(config: ClientConfig) => AiClient` | Bind provider/key/model; call with just `messages`. |
 | `AiError` | `class extends Error` | Thrown on non-2xx / network errors. Has `.status`, `.provider`, `.raw`. |
+| `system` / `user` / `assistant` / `toolResult` <sup>1.1.0</sup> | `(content, …) => Message` | Typed message builders. |
+| `image` / `imageBytes` <sup>1.1.0</sup> | `(url)` / `(data, mimeType) => Part` | Multimodal image content parts. |
+| `withRetry` <sup>1.1.0</sup> | `(fn, opts?: RetryOptions) => Promise<T>` | Exponential backoff; injectable `sleep`, custom `retryOn`. |
+| `withTimeout` <sup>1.1.0</sup> | `(fn(signal), ms, opts?) => Promise<T>` | Race a fn against a deadline; aborts via `AbortSignal`. |
+| `isRetryableError` <sup>1.1.0</sup> | `(err) => boolean` | True for transient `AiError`s (`0`/`429`/`5xx`). |
+| `estimateCost` <sup>1.1.0</sup> | `(usage, pricing: Pricing) => number` | USD estimate from per-1M pricing you supply. |
+| `sumUsage` <sup>1.1.0</sup> | `(...usages) => Usage` | Add token usages (skips `undefined`). |
+| `UsageTracker` <sup>1.1.0</sup> | `class` | Running `add`/`total`/`cost`/`reset` accumulator. |
+| `extractJson` / `parseJson<T>` <sup>1.1.0</sup> | `(text) => unknown / T \| undefined` | First balanced JSON out of a reply; never throws. |
+| `textStream` <sup>1.1.0</sup> | `(chunks) => AsyncGenerator<string>` | Filter a chunk stream to just text deltas. |
 
-**`ChatOptions`** — `{ provider, model, apiKey?, messages, tools?, temperature?, maxTokens?, topP?, stop?, baseUrl?, headers?, signal? }`
+**`ChatOptions`** — `{ provider, model, apiKey?, messages, tools?, temperature?, maxTokens?, topP?, stop?, baseUrl?, headers?, signal?, fetchImpl? }`
 where `provider ∈ "openai" | "anthropic" | "google" | "openai-compatible"`.
 
 **`Message`** — `{ role: "system" | "user" | "assistant" | "tool", content: string | Part[], toolCalls?, toolCallId?, name? }`.
@@ -194,7 +270,9 @@ Non-2xx responses throw an `AiError` carrying the HTTP status and the provider's
 
 ## Honest limitations
 
-- **It's a thin client, not an agent framework.** No built-in agent loop, retries, rate-limit backoff, prompt templating, memory, RAG or provider fallback. Compose those yourself — the primitives are small on purpose.
+- **It's a thin client, not an agent framework.** As of 1.1.0 it ships composable `withRetry`/`withTimeout` and usage/cost helpers, but there's still no built-in agent loop, prompt templating, memory, RAG or automatic provider fallback. Compose those yourself — the primitives are small on purpose.
+- **`extractJson`/`parseJson` don't validate.** They pull out and `JSON.parse` the first balanced value; they don't check it against a schema. Pair with your own validator (e.g. `@lacspace/schema`) if you need guarantees. Deeply pathological mixed-bracket prose can still mis-slice.
+- **`withTimeout` uses real timers** and only truly cancels the wrapped work if you forward its `AbortSignal` into `chat`/`fetch`.
 - **You bring the key and the network.** Every call is a real request to the provider. Keep keys server-side in the browser/edge.
 - **Provider parity isn't total.** Params/features unique to one vendor (JSON mode, seeds, caching headers, thinking budgets, multi-part image nuances) aren't all abstracted — reach for `headers` and read `res.raw` when you need the exact upstream payload.
 - **`maxTokens` defaults to 1024 for Anthropic** (its API requires it); other providers use their own defaults unless you set it.

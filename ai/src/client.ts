@@ -43,6 +43,7 @@ export function createClient(config: ClientConfig): AiClient {
       apiKey: opts.apiKey ?? config.apiKey,
       baseUrl: opts.baseUrl ?? config.baseUrl,
       headers: { ...(config.headers ?? {}), ...(opts.headers ?? {}) },
+      fetchImpl: opts.fetchImpl ?? config.fetchImpl,
     };
   };
 

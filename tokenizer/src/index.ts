@@ -50,3 +50,27 @@ export {
   type FitToBudgetResult,
   type BudgetMessagesOptions,
 } from "./budget.js";
+
+export {
+  contextUsage,
+  remainingContext,
+  willReplyFit,
+  type ContextUsage,
+} from "./context.js";
+
+export {
+  countBatch,
+  estimateBatchCost,
+  type BatchCount,
+  type BatchCostEstimate,
+  type BatchCostEstimateOptions,
+} from "./batch.js";
+
+export {
+  estimatePromptCost,
+  compareModelCost,
+  cheapestModel,
+  type EstimatePromptCostOptions,
+  type CostTokens,
+  type ModelCostComparison,
+} from "./estimate.js";

@@ -1,4 +1,4 @@
-import type { ChatOptions, ChatResponse } from "./types.js";
+import type { ChatOptions, ChatResponse, FetchLike } from "./types.js";
 import { AiError, extractErrorMessage } from "./errors.js";
 import { getAdapter } from "./providers/index.js";
 
@@ -26,9 +26,10 @@ export async function chat(opts: ChatOptions): Promise<ChatResponse> {
   const adapter = getAdapter(opts.provider);
   const { url, headers, body } = adapter.buildRequest(opts, false);
 
+  const doFetch: FetchLike = opts.fetchImpl ?? fetch;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await doFetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

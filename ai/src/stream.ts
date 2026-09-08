@@ -1,6 +1,7 @@
 import type {
   ChatChunk,
   ChatOptions,
+  FetchLike,
   FinishReason,
   ToolCall,
   Usage,
@@ -29,9 +30,10 @@ export async function* stream(
   const adapter = getAdapter(opts.provider);
   const { url, headers, body } = adapter.buildRequest(opts, true);
 
+  const doFetch: FetchLike = opts.fetchImpl ?? fetch;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await doFetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

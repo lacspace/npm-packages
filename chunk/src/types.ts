@@ -75,6 +75,58 @@ export interface SplitCodeOptions {
   lengthFn?: LengthFn;
 }
 
+/** Options for {@link mergeSmallChunks}. */
+export interface MergeSmallChunksOptions {
+  /**
+   * Chunks measuring below this are merged into a neighbour. Default `0`
+   * (no merging — the input is returned re-indexed).
+   */
+  minChunkSize?: number;
+  /**
+   * Upper bound on a merged chunk's length; a merge that would exceed it is not
+   * performed. Default `Infinity` (no ceiling).
+   */
+  maxChunkSize?: number;
+  /** Length measurement. Default = string length. */
+  lengthFn?: LengthFn;
+  /** String inserted between merged chunk texts. Default `"\n\n"`. */
+  joiner?: string;
+}
+
+/**
+ * A document to feed {@link splitDocuments}: either a raw string or an object
+ * with optional `id` and arbitrary `metadata` carried onto every chunk.
+ */
+export type DocumentInput =
+  | string
+  | {
+      /** Identifier stamped onto each chunk as `docId`. Defaults to the array index. */
+      id?: string;
+      /** The document text to split. */
+      text: string;
+      /** Arbitrary metadata copied verbatim onto each of this document's chunks. */
+      metadata?: Record<string, unknown>;
+    };
+
+/** A {@link Chunk} enriched with the document it came from. */
+export interface DocumentChunk extends Chunk {
+  /** Identifier of the source document (its `id`, or its array index as a string). */
+  docId: string;
+  /** Zero-based position of this chunk within its own document. */
+  docIndex: number;
+  /** Metadata copied from the source document, if any. */
+  metadata?: Record<string, unknown>;
+}
+
+/** Options for {@link splitDocuments}. Extends {@link SplitTextOptions}. */
+export interface SplitDocumentsOptions extends SplitTextOptions {
+  /**
+   * Splitter applied to each document. Default {@link splitText}. Pass any
+   * chunker with the `(text, opts?) => Chunk[]` shape (e.g. `splitMarkdown`).
+   */
+  splitter?: (text: string, opts?: SplitTextOptions) => Chunk[];
+}
+
 /** Options for {@link splitBySentences} / {@link splitByParagraphs}. */
 export interface SplitUnitOptions {
   /**

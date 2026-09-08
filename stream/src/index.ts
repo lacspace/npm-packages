@@ -23,6 +23,23 @@
 
 export { parseSSE, readableFromString, toAsyncIterable } from "./sse";
 export { streamChat, accumulate } from "./chat";
+
+// New in 1.1.0 — NDJSON / JSON-lines parsing.
+export { parseNDJSON, parseJSONLines } from "./ndjson";
+export type { NDJSONOptions } from "./ndjson";
+
+// New in 1.1.0 — composable async-iterable transforms.
+export {
+  mapStream,
+  filterStream,
+  takeStream,
+  bufferStream,
+  tee,
+} from "./transform";
+
+// New in 1.1.0 — ReadableStream + AbortSignal adapters.
+export { toReadableStream, withAbort, StreamAbortError } from "./adapters";
+
 export type {
   SSEEvent,
   SSESource,

@@ -33,8 +33,33 @@ export { stream, accumulate } from "./stream.js";
 export { createClient, type AiClient } from "./client.js";
 export { AiError } from "./errors.js";
 
+// New in 1.1.0 — additive, keyless, provider-agnostic building blocks.
+export {
+  system,
+  user,
+  assistant,
+  toolResult,
+  image,
+  imageBytes,
+} from "./messages.js";
+export {
+  withRetry,
+  withTimeout,
+  isRetryableError,
+  type RetryOptions,
+} from "./retry.js";
+export {
+  estimateCost,
+  sumUsage,
+  UsageTracker,
+  type Pricing,
+} from "./cost.js";
+export { extractJson, parseJson } from "./json.js";
+export { textStream } from "./text.js";
+
 export type {
   Provider,
+  FetchLike,
   Role,
   Part,
   Message,

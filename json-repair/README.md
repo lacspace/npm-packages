@@ -14,10 +14,16 @@
 > Models promise you JSON and hand you JSON wrapped in prose, fenced in ` ```json `, with trailing commas, single quotes, unquoted keys, `True`/`None`, or cut off mid-object. This turns all of that back into valid, parsed data — in a package small enough to drop into any function, edge runtime or bundle. No dependencies, isomorphic, fully typed.
 
 - 🧲 `extractJson` — pull the JSON out of prose and ` ```json ` fences (string-aware, so braces inside strings don't fool it)
+- 🧲 `extractAllJson` / `parseAllJson` — pull **every** JSON value out of the text, not just the first (batches of tool calls, one object per fence/line)
 - 🩹 `repairJson` — trailing commas, single quotes, unquoted keys, `True/False/None`, `NaN/Infinity`, `//` & `/* */` comments, missing commas, **and truncated output**
+- 🔎 `diagnoseJson` / `repairJsonWithDiagnostics` — repair **and** get a typed list of *what was wrong* (for logging, warnings, trust checks)
 - ✅ `parseJson` / `safeParseJson` — extract → repair → parse, with a `fallback` or a never-throwing result
 - 🌊 `parsePartial` — best-effort parse of **half-streamed** JSON, so a streaming UI can render fields as they arrive
 - 🌍 Zero dependencies · isomorphic (Node ≥18, browser, edge, serverless) · fully typed · provider-agnostic & keyless
+
+> **New in 1.1.0** — additive, fully backward-compatible. Two new capabilities:
+> **`extractAllJson` / `parseAllJson`** to recover *every* JSON value embedded in a response (not just the first), and
+> **`diagnoseJson` / `repairJsonWithDiagnostics`** to repair while reporting the exact malformations found. Every existing API is unchanged.
 
 ## Install
 
@@ -75,6 +81,47 @@ parsePartial('{"title":"Weekly digest","body":');
 
 Feed it each accumulated buffer as tokens stream in — open strings, arrays and objects are closed on the fly, so you always get a usable object.
 
+## Many values at once: `extractAllJson` / `parseAllJson`
+
+When a model emits several JSON values — a batch of tool calls, one object per fenced block, a list of records — grab them all in order:
+
+```ts
+import { extractAllJson, parseAllJson } from "@lacspace/json-repair";
+
+const reply = `First:
+\`\`\`json
+{ id: 1, }
+\`\`\`
+Then: [2, 3, 4,] and finally {"id":5}`;
+
+extractAllJson(reply);
+// → ['{ id: 1, }', '[2, 3, 4,]', '{"id":5}']   (raw substrings, not yet repaired)
+
+parseAllJson(reply);
+// → [{ id: 1 }, [2, 3, 4], { id: 5 }]           (each one extracted, repaired, parsed)
+```
+
+Each value is repaired independently; a truncated final value is still returned (as a tail) so `parsePartial`/`repairJson` can finish it. Unparseable pieces are skipped unless you pass a `fallback`, which is used in their place so the array length matches.
+
+## What was wrong? `diagnoseJson` / `repairJsonWithDiagnostics`
+
+Repair while learning *why* the input needed repairing — useful for logging, surfacing a warning, or judging whether a model response is trustworthy:
+
+```ts
+import { repairJsonWithDiagnostics, diagnoseJson } from "@lacspace/json-repair";
+
+const r = repairJsonWithDiagnostics("Here you go:\n```json\n{ name: 'Ada', active: True, }\n```");
+r.output;                    // → '{"name":"Ada","active":true}'
+r.valid;                     // → false (input was not already valid)
+r.changed;                   // → true
+r.issues.map(i => i.kind);
+// → ["wrapped-in-text", "single-quotes", "unquoted-keys", "python-literals", "trailing-comma"]
+
+diagnoseJson('{"a":1,"b":2}'); // → []  (valid JSON → no issues)
+```
+
+Issue `kind`s: `wrapped-in-text`, `trailing-comma`, `single-quotes`, `unquoted-keys`, `comments`, `python-literals`, `non-finite`, `unterminated-string`, `unclosed-structure`. Each issue also carries a human-readable `message`.
+
 ## Just the pieces
 
 ```ts
@@ -95,7 +142,11 @@ repairJson('{"a":1,"b":2}');        // already valid → returned byte-for-byte
 | Function | Signature | Does |
 | --- | --- | --- |
 | `extractJson` | `(text: string) => string \| undefined` | Strip ` ```json `/bare ``` fences and prose; return the first balanced `{…}`/`[…]` (or the tail if truncated). `undefined` if none found. |
+| `extractAllJson` | `(text: string) => string[]` | Like `extractJson` but returns **every** balanced JSON value in the text, in order (empty array if none). |
+| `parseAllJson<T>` | `(text: string, opts?: ParseJsonOptions<T>) => T[]` | Extract all + repair + parse each value. Skips unparseable pieces (or uses `opts.fallback` in their place). |
 | `repairJson` | `(str: string) => string` | Fix common breakage and return valid JSON text. Valid JSON is returned unchanged. |
+| `diagnoseJson` | `(input: string) => JsonIssue[]` | List the malformations found in a JSON-ish string (`[]` for valid JSON). Each `JsonIssue` is `{ kind, message }`. |
+| `repairJsonWithDiagnostics` | `(input: string) => RepairDiagnostics` | Repair **and** report: `{ output, input, valid, changed, issues }`. `output` equals `repairJson(input)`. |
 | `parseJson<T>` | `(text: string, opts?: ParseJsonOptions<T>) => T` | Extract + repair + parse. Throws `JsonRepairError` on failure, or returns `opts.fallback` if given. |
 | `safeParseJson<T>` | `(text: string, opts?) => { ok: true; value: T } \| { ok: false; error: Error }` | Never-throwing `parseJson`. |
 | `parsePartial<T>` | `(text: string) => T \| undefined` | Best-effort parse of incomplete/streaming JSON. |

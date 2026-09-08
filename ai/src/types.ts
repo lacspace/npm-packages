@@ -5,6 +5,16 @@
 /** Which upstream API to talk to. */
 export type Provider = "openai" | "anthropic" | "google" | "openai-compatible";
 
+/**
+ * A `fetch`-compatible function. Inject via `ChatOptions.fetchImpl` (or
+ * `ClientConfig.fetchImpl`) to route requests through a proxy, add
+ * instrumentation, or stub the network in tests. Defaults to the global `fetch`.
+ */
+export type FetchLike = (
+  url: string,
+  init: RequestInit,
+) => Promise<Response>;
+
 /** Role of a message in a conversation. */
 export type Role = "system" | "user" | "assistant" | "tool";
 
@@ -81,6 +91,8 @@ export interface ChatOptions {
   headers?: Record<string, string>;
   /** Abort signal forwarded to `fetch`. */
   signal?: AbortSignal;
+  /** Custom `fetch` implementation (proxy/instrumentation/tests). Defaults to global `fetch`. */
+  fetchImpl?: FetchLike;
 }
 
 /** The normalized, provider-independent result of a non-streaming call. */
@@ -115,6 +127,8 @@ export interface ClientConfig {
   baseUrl?: string;
   defaultModel?: string;
   headers?: Record<string, string>;
+  /** Custom `fetch` implementation applied to every call (overridable per call). */
+  fetchImpl?: FetchLike;
 }
 
 /**

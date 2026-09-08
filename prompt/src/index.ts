@@ -37,3 +37,35 @@ export {
 } from "./fewshot.js";
 
 export { section, list, numbered, xml, json, codeBlock, join } from "./format.js";
+
+export {
+  guard,
+  escapeBraces,
+  defangTag,
+  type GuardOptions,
+} from "./guard.js";
+
+export {
+  jsonInstruction,
+  enumInstruction,
+  type JsonInstructionOptions,
+  type EnumInstructionOptions,
+} from "./instruct.js";
+
+export {
+  estimateTokens,
+  fitText,
+  trimMessages,
+  DEFAULT_CHARS_PER_TOKEN,
+  type EstimateOptions,
+  type FitTextOptions,
+  type TrimMessagesOptions,
+  type TrimStrategy,
+} from "./budget.js";
+
+export {
+  createRegistry,
+  type PromptRegistry,
+  type RegisteredPrompt,
+  type RegisterOptions,
+} from "./registry.js";

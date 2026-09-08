@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/json-repair",
-  "version": "1.0.0",
-  "description": "Extract and repair JSON from messy LLM output — strip ```json fences and prose, fix trailing commas, single quotes, unquoted keys and Python literals, and close truncated objects. Zero-dependency, isomorphic, typed.",
+  "version": "1.1.0",
+  "description": "Extract and repair JSON from messy LLM output — strip ```json fences and prose, extract every embedded value, repair with diagnostics, fix trailing commas, single quotes, unquoted keys and Python literals, and close truncated objects. Zero-dependency, isomorphic, typed.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -39,6 +39,11 @@
     "partial-json",
     "fix-json",
     "trailing-comma",
+    "extract-all-json",
+    "json-diagnostics",
+    "repair-diagnostics",
+    "parse-multiple-json",
+    "json-lint",
     "typescript",
     "zero-dependency",
     "isomorphic"

@@ -13,6 +13,8 @@
 
 > The one primitive every retrieval pipeline needs: split documents into overlapping chunks that respect **natural boundaries** — paragraphs, sentences, Markdown structure and code. Bring your own token counter to make it token-aware, with **no hard dependency** on a tokenizer.
 
+> **New in 1.1.0** — batch a whole corpus with [`splitDocuments`](#chunk-a-whole-corpus) (per-chunk `docId` + metadata), clean up tiny fragments with [`mergeSmallChunks`](#merge-tiny-chunks), and get token-ish budgets out of the box with the built-in [`approxTokenLength`](#built-in-approximate-token-counter) / `wordLength` length functions — all still zero-dependency. Fully backward compatible.
+
 - ✂️ **Recursive character splitter** — splits on the highest-level separator that keeps pieces under budget, then merges with overlap
 - 🧠 **Token-aware, optionally** — pass a `lengthFn` (e.g. a tiktoken-style counter) and budgets become token budgets, no dependency added
 - 📝 **Markdown-aware** — split on heading structure, keep the **breadcrumb** on each chunk, and never split a fenced code block
@@ -112,6 +114,55 @@ splitCode(source, { language: "ts", chunkSize: 1500 });
 
 `splitCode` is **heuristic** (a lightweight brace/indentation scanner, not a parser) — great for keeping functions together, but it does not guarantee syntactically complete chunks.
 
+## Chunk a whole corpus
+
+`splitDocuments` runs any splitter over a list of documents and tags every chunk with which document it came from — exactly what you upsert into a vector store:
+
+```ts
+import { splitDocuments } from "@lacspace/chunk";
+
+const chunks = splitDocuments(
+  [
+    { id: "faq", text: faqMarkdown, metadata: { source: "faq" } },
+    { id: "guide", text: guideText },
+    "a bare string works too", // id defaults to its array index
+  ],
+  { chunkSize: 800, chunkOverlap: 80 },
+);
+
+// Each chunk is a Chunk plus { docId, docIndex, metadata? }
+for (const c of chunks) {
+  await store.upsert({ id: `${c.docId}#${c.docIndex}`, text: c.text, ...c.metadata });
+}
+```
+
+Swap in a different splitter with `splitter` (e.g. `splitMarkdown`); `index` is the global position, `docIndex` is the position within the document, and `start`/`end` stay relative to each document's own text.
+
+## Merge tiny chunks
+
+Fold undersized fragments (a stray heading, a dangling trailing sentence) into a neighbour — a common RAG cleanup step. It only ever **combines**, never splits, so it's safe on any splitter's output:
+
+```ts
+import { splitText, mergeSmallChunks } from "@lacspace/chunk";
+
+const raw = splitText(doc, { chunkSize: 500, chunkOverlap: 50 });
+const clean = mergeSmallChunks(raw, { minChunkSize: 100, maxChunkSize: 500 });
+// chunks below 100 are merged into an adjacent chunk (never exceeding 500)
+```
+
+## Built-in approximate token counter
+
+Want token-ish budgets without pulling in a tokenizer? Pass the built-in `approxTokenLength` (or `wordLength` for word budgets) as `lengthFn`:
+
+```ts
+import { splitText, approxTokenLength, wordLength } from "@lacspace/chunk";
+
+splitText(doc, { chunkSize: 512, lengthFn: approxTokenLength }); // ~512 approx tokens
+splitText(doc, { chunkSize: 200, lengthFn: wordLength });        // ~200 words
+```
+
+`approxTokenLength` is a heuristic (word-pieces + punctuation + CJK, blended with a chars-per-token estimate) — close enough for budgeting, but **not** a substitute for your real tokenizer's `encode(t).length` when you need exact counts.
+
 ## API
 
 | Function | Signature | Returns |
@@ -122,8 +173,14 @@ splitCode(source, { language: "ts", chunkSize: 1500 });
 | `splitCode` | `(code, { language, ... }) => Chunk[]` | Top-level, best-effort |
 | `splitBySentences` | `(text, opts?) => Chunk[]` | One sentence per chunk, or packed |
 | `splitByParagraphs` | `(text, opts?) => Chunk[]` | One paragraph per chunk, or packed |
+| `splitDocuments` | `(docs, opts?) => DocumentChunk[]` | Batch-chunk a corpus, tag by `docId` |
+| `mergeSmallChunks` | `(chunks, opts?) => Chunk[]` | Fold undersized chunks into neighbours |
+| `approxTokenLength` | `(text) => number` | Dependency-free approximate token counter (a `LengthFn`) |
+| `wordLength` | `(text) => number` | Word counter (a `LengthFn`) |
 
 **`Chunk`** = `{ text: string; index: number; start: number; end: number }`
+
+**`DocumentChunk`** = `Chunk & { docId: string; docIndex: number; metadata?: Record<string, unknown> }`
 
 **`SplitTextOptions`** — `chunkSize` (default `1000`), `chunkOverlap` (default `100`), `separators` (default `["\n\n", "\n", ". ", " ", ""]`), `lengthFn` (default = string length).
 
@@ -132,6 +189,10 @@ splitCode(source, { language: "ts", chunkSize: 1500 });
 **`SplitCodeOptions`** — `language` (required), plus `chunkSize`/`chunkOverlap` (default `0`)/`lengthFn`.
 
 **`SplitUnitOptions`** (sentences/paragraphs) — optional `chunkSize` to pack units together, `chunkOverlap`, `lengthFn`.
+
+**`SplitDocumentsOptions`** — extends `SplitTextOptions` and adds `splitter` (default `splitText`) applied to each document.
+
+**`MergeSmallChunksOptions`** — `minChunkSize` (default `0`), `maxChunkSize` (default `Infinity`), `lengthFn` (default = string length), `joiner` (default `"\n\n"`).
 
 Also exported: `DEFAULT_SEPARATORS`, `DEFAULT_CHUNK_SIZE`, `DEFAULT_OVERLAP`.
 
@@ -152,6 +213,8 @@ Because chunks are tracked as ranges into the original string, separators betwee
 - **Sentence detection is punctuation-based** (`.`/`!`/`?`) — abbreviations like "Dr." or "e.g." can cause an early break.
 - `lengthFn` is assumed **non-decreasing** with string length (true for character counts and typical token counters); a pathological counter could weaken the hard-split fallback.
 - Offsets are UTF-16 code-unit indices (JavaScript string indices), matching `String.prototype.slice`.
+- **`approxTokenLength` is an estimate**, tuned for English/Latin + CJK; it is not calibrated to any specific tokenizer and can drift for code, unusual scripts or heavy markup. Use a real tokenizer's `encode(t).length` when you need exact token budgets.
+- **`mergeSmallChunks` concatenates chunk text** (it does not re-slice the source), so a merged chunk's `text` may include joiners/breadcrumbs from its parts; its `start`/`end` span the union of the merged pieces.
 
 ## Licensing
 

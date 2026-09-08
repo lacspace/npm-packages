@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/chunk",
-  "version": "1.0.0",
-  "description": "A tiny, zero-dependency text splitter for RAG and long-context prompts — recursive character, Markdown, code, sentence and paragraph chunking with overlap and a pluggable token-aware lengthFn. Isomorphic and fully typed.",
+  "version": "1.1.0",
+  "description": "A tiny, zero-dependency text splitter for RAG and long-context prompts — recursive character, Markdown, code, sentence and paragraph chunking with overlap, batch document chunking, small-chunk merging and a pluggable token-aware lengthFn (with a built-in approximate token counter). Isomorphic and fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -40,6 +40,12 @@
     "llm",
     "prompt-engineering",
     "tokenizer",
+    "token-counter",
+    "merge-chunks",
+    "split-documents",
+    "document-chunking",
+    "vector-database",
+    "semantic-search",
     "typescript",
     "zero-dependency",
     "isomorphic"

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/prompt",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A tiny, typed prompt-engineering toolkit — build, compose and render LLM prompts and chat messages with real type safety. Variable names are inferred from the template string, so .render() is type-checked. Zero-dependency, isomorphic, provider-agnostic.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,17 @@
     "isomorphic",
     "provider-agnostic",
     "type-safe",
-    "anthropic"
+    "anthropic",
+    "prompt-registry",
+    "prompt-versioning",
+    "prompt-injection",
+    "injection-guard",
+    "token-budget",
+    "token-estimate",
+    "context-window",
+    "json-output",
+    "output-format",
+    "structured-output"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

@@ -16,7 +16,12 @@
 - 🔌 **`parseSSE`** — a correct SSE parser: multi-line `data:`, `event:`, `id:`, comments, chunk-boundary buffering, `[DONE]` sentinel
 - 🤝 **`streamChat`** — one unified stream of `text` / `tool_call` / `done` deltas, normalized across **OpenAI** and **Anthropic**
 - 🧵 **`accumulate`** — collapse the stream back into final text + complete tool-call JSON
+- 📄 **`parseNDJSON`** — the same byte-buffering discipline for newline-delimited JSON / JSON-lines feeds
+- 🧰 **transforms** — `mapStream` / `filterStream` / `takeStream` / `bufferStream` / `tee` compose over any async iterable
+- 🔁 **adapters** — `toReadableStream` (iterable → `ReadableStream`) and `withAbort` (`AbortSignal` cancellation)
 - 🌍 Zero dependencies · isomorphic (browser + Node ≥18 + edge/serverless) · fully typed
+
+> **New in 1.1.0** — strictly additive. NDJSON/JSON-lines parsing (`parseNDJSON` / `parseJSONLines`), composable async-iterable transforms (`mapStream`, `filterStream`, `takeStream`, `bufferStream`, `tee`), and `ReadableStream` + `AbortSignal` adapters (`toReadableStream`, `withAbort`). Every existing export is unchanged.
 
 ## Install
 
@@ -108,6 +113,57 @@ parseSSE("data: a\n\ndata: b\n\n");                  // a raw string
 parseSSE(asyncIterableOfUint8ArrayOrString);         // any byte/string source
 ```
 
+## Parse NDJSON / JSON-lines
+
+Streaming APIs (bulk exports, log tails, some LLM/tool endpoints) emit one JSON value per line. `parseNDJSON` buffers across chunk boundaries and UTF-8 code points exactly like `parseSSE`:
+
+```ts
+import { parseNDJSON } from "@lacspace/stream";
+
+for await (const row of parseNDJSON<{ id: number }>(response.body!)) {
+  console.log(row.id);
+}
+
+// Tolerate the occasional bad line instead of throwing:
+parseNDJSON(response.body!, { onError: "skip" });
+```
+
+## Transform the stream
+
+`mapStream`, `filterStream`, `takeStream`, `bufferStream` and `tee` are the streaming equivalents of the array methods — lazy, order-preserving, and composable with any async iterable (including `streamChat` / `parseSSE` / `parseNDJSON`):
+
+```ts
+import { streamChat, mapStream, bufferStream, tee } from "@lacspace/stream";
+
+// Only the text, upper-cased:
+const text = mapStream(
+  filterStream(streamChat(res, { provider: "openai" }), (c) => c.type === "text"),
+  (c) => (c as any).delta.toUpperCase(),
+);
+
+// Batch NDJSON rows for bulk insert:
+for await (const rows of bufferStream(parseNDJSON(res.body!), 100)) insertMany(rows);
+
+// Split one stream to two consumers (e.g. render + log):
+const [render, log] = tee(streamChat(res, { provider: "anthropic" }));
+```
+
+## ReadableStream & abort adapters
+
+```ts
+import { toReadableStream, withAbort } from "@lacspace/stream";
+
+// iterable → ReadableStream (the inverse of toAsyncIterable):
+const body = toReadableStream(mapStream(parseSSE(src), (e) => e.data + "\n"));
+
+// Cancel a stream with an AbortSignal:
+const ctrl = new AbortController();
+setTimeout(() => ctrl.abort(), 10_000);
+for await (const c of withAbort(streamChat(res, { provider: "openai" }), ctrl.signal)) {
+  // throws StreamAbortError when the signal fires; source cleanup runs
+}
+```
+
 ## API
 
 | Export | Signature | Description |
@@ -117,6 +173,14 @@ parseSSE(asyncIterableOfUint8ArrayOrString);         // any byte/string source
 | `accumulate` | `(chunks) => Promise<{ text, toolCalls, finishReason? }>` | Consume a `streamChat` iterable and assemble the final result. |
 | `readableFromString` | `(str, chunkSize?) => ReadableStream<Uint8Array>` | Build a stream from a string — handy for tests and boundary fuzzing. |
 | `toAsyncIterable` | `(stream) => AsyncIterable<T>` | Coerce a `ReadableStream` / iterable / string into an async iterable (browser-safe reader fallback). |
+| `parseNDJSON` | `(source, opts?) => AsyncIterable<T>` | *(1.1.0)* Parse newline-delimited JSON (`{ onError?: "throw" \| "skip" }`). Same byte/UTF-8 buffering as `parseSSE`. `parseJSONLines` is an alias. |
+| `mapStream` | `(source, fn) => AsyncIterable<U>` | *(1.1.0)* Map each item (`fn` may be async); passes the index. |
+| `filterStream` | `(source, pred) => AsyncIterable<T>` | *(1.1.0)* Keep items where `pred` (may be async) is truthy. |
+| `takeStream` | `(source, n) => AsyncIterable<T>` | *(1.1.0)* Yield at most the first `n` items, then close the source. |
+| `bufferStream` | `(source, size) => AsyncIterable<T[]>` | *(1.1.0)* Group items into arrays of up to `size` (last batch may be shorter). |
+| `tee` | `(source, n=2) => AsyncIterable<T>[]` | *(1.1.0)* Split one iterable into `n` independent branches (consume concurrently). |
+| `toReadableStream` | `(source) => ReadableStream<T>` | *(1.1.0)* Wrap an async iterable in a `ReadableStream` — inverse of `toAsyncIterable`; runs `return()` on cancel. |
+| `withAbort` | `(source, signal, opts?) => AsyncIterable<T>` | *(1.1.0)* Make an iterable abortable; throws `StreamAbortError` (or `signal.reason` with `{ throwReason: true }`) and cleans up the source. |
 
 **Types**
 
@@ -144,6 +208,8 @@ interface AccumulatedChat { text: string; toolCalls: ToolCall[]; finishReason?: 
 - **Two providers normalized** — OpenAI and Anthropic. Other vendors that emit OpenAI-compatible SSE (many do) work with `provider: "openai"`; anything else you can parse yourself with `parseSSE` and map the JSON.
 - `accumulate` concatenates argument deltas verbatim — a stream that was truncated mid-tool-call yields an incomplete (unparseable) JSON string, by design; check `finishReason` before trusting it.
 - Non-content events (usage/ping/`message_start`) are intentionally dropped from the unified stream; use `parseSSE` directly if you need them.
+- `parseNDJSON` splits strictly on `\n` — it does not support JSON values that themselves contain a raw newline (NDJSON forbids that anyway). `onError` decides only between throw and skip; there is no per-line error callback.
+- `tee` buffers items a slow branch has not yet consumed, so branches should be drained concurrently; a branch left unread grows memory. `withAbort` stops at the next item boundary or when the pending `next()` settles — it cannot interrupt synchronous work already running inside the source.
 
 ## Licensing
 

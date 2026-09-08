@@ -4,6 +4,7 @@
  */
 import { SchemaNode, type JSONSchema } from "./jsonSchema";
 import { validateAgainstSchema, ToolArgumentError } from "./validate";
+import { validateStrict } from "./strict";
 import { buildSpec, type Provider, type ToolSpec } from "./spec";
 
 /**
@@ -41,6 +42,15 @@ export interface ToolConfig<S extends ParametersInput, R, C> {
   parameters: S;
   /** Your implementation. Receives validated, typed args (and optional ctx). */
   handler: (args: InferArgs<S>, ctx?: C) => R | Promise<R>;
+  /**
+   * When `true` (and no custom `.parse()` validator is provided), validate with
+   * the richer {@link validateStrict} — which additionally enforces
+   * `minLength`/`maxLength`/`pattern`/`format`, `minimum`/`maximum`/
+   * `exclusiveMinimum`/`exclusiveMaximum`/`multipleOf`, `minItems`/`maxItems`/
+   * `uniqueItems`, `const`, `anyOf`/`oneOf`, and rejects unknown properties when
+   * `additionalProperties: false`. Defaults to `false` (the minimal validator).
+   */
+  strict?: boolean;
 }
 
 /** A defined tool: produce provider specs, validate args, run the handler. */
@@ -125,7 +135,7 @@ function normalizeRaw(rawArgs: unknown): unknown {
 export function defineTool<S extends ParametersInput, R, C = unknown>(
   config: ToolConfig<S, R, C>,
 ): Tool<InferArgs<S>, Awaited<R>, C> {
-  const { name, description, parameters, handler } = config;
+  const { name, description, parameters, handler, strict } = config;
   if (!name || typeof name !== "string") {
     throw new Error("defineTool: `name` is required.");
   }
@@ -134,6 +144,7 @@ export function defineTool<S extends ParametersInput, R, C = unknown>(
   const validate = (rawArgs: unknown): InferArgs<S> => {
     const args = normalizeRaw(rawArgs);
     if (parse) return parse(args) as InferArgs<S>;
+    if (strict) return validateStrict(args, schema) as InferArgs<S>;
     return validateAgainstSchema(args, schema) as InferArgs<S>;
   };
 

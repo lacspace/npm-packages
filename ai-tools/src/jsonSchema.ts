@@ -51,6 +51,54 @@ export class SchemaNode<T = unknown> {
     return new SchemaNode<T>({ ...this.schema, description }, this.isOptional);
   }
 
+  /** Merge extra JSON-Schema keywords, keeping the phantom type and optionality. */
+  private with(extra: JSONSchema): SchemaNode<T> {
+    return new SchemaNode<T>({ ...this.schema, ...extra }, this.isOptional);
+  }
+
+  /**
+   * A lower bound: `minLength` for a string, `minItems` for an array, else
+   * `minimum` for a number/integer. (Enforced by `validateStrict` / `strict: true`.)
+   */
+  min(n: number): SchemaNode<T> {
+    if (this.schema.type === "string") return this.with({ minLength: n });
+    if (this.schema.type === "array") return this.with({ minItems: n });
+    return this.with({ minimum: n });
+  }
+
+  /**
+   * An upper bound: `maxLength` for a string, `maxItems` for an array, else
+   * `maximum` for a number/integer. (Enforced by `validateStrict` / `strict: true`.)
+   */
+  max(n: number): SchemaNode<T> {
+    if (this.schema.type === "string") return this.with({ maxLength: n });
+    if (this.schema.type === "array") return this.with({ maxItems: n });
+    return this.with({ maximum: n });
+  }
+
+  /** Attach a `pattern` (a string source, or a `RegExp` whose source is used). */
+  pattern(pattern: string | RegExp): SchemaNode<T> {
+    return this.with({ pattern: typeof pattern === "string" ? pattern : pattern.source });
+  }
+
+  /** Attach a `format` hint (e.g. `"email"`, `"uri"`, `"uuid"`, `"date-time"`). */
+  format(format: string): SchemaNode<T> {
+    return this.with({ format });
+  }
+
+  /** Attach a `default` value shown to the model. */
+  default(value: T): SchemaNode<T> {
+    return this.with({ default: value as unknown as JSONSchema["default"] });
+  }
+
+  /** Widen this node to also accept `null` (adds `"null"` to `type`). */
+  nullable(): SchemaNode<T | null> {
+    const t = this.schema.type;
+    const types = Array.isArray(t) ? t.slice() : t ? [t] : [];
+    if (!types.includes("null")) types.push("null");
+    return new SchemaNode<T | null>({ ...this.schema, type: types }, this.isOptional);
+  }
+
   /** Duck-typed hook read by `defineTool`. */
   toJsonSchema(): JSONSchema {
     return this.schema;
@@ -111,6 +159,54 @@ export const jsonSchema = {
   ): SchemaNode<NodeType<N>[]> {
     return new SchemaNode<NodeType<N>[]>(
       withDescription({ type: "array", items: inner.schema }, description),
+    );
+  },
+  /** The `null` type. */
+  null(description?: string): SchemaNode<null> {
+    return new SchemaNode<null>(withDescription({ type: "null" }, description));
+  },
+  /** Any value — an empty schema `{}` (no constraints). */
+  any(description?: string): SchemaNode<any> {
+    return new SchemaNode<any>(withDescription({}, description));
+  },
+  /** A single constant value (`{ const: value }`), typed as the literal. */
+  literal<const V extends string | number | boolean | null>(
+    value: V,
+    description?: string,
+  ): SchemaNode<V> {
+    const base: JSONSchema = { const: value };
+    const t = value === null ? "null" : typeof value;
+    if (t === "string" || t === "number" || t === "boolean" || t === "null") base.type = t;
+    return new SchemaNode<V>(withDescription(base, description));
+  },
+  /** An object used as a string-keyed map whose values match `value`. */
+  record<N extends SchemaNode<any>>(
+    value: N,
+    description?: string,
+  ): SchemaNode<Record<string, NodeType<N>>> {
+    return new SchemaNode<Record<string, NodeType<N>>>(
+      withDescription(
+        { type: "object", additionalProperties: value.schema },
+        description,
+      ),
+    );
+  },
+  /** Matches at least one of the given schemas (`anyOf`). */
+  anyOf<N extends SchemaNode<any>>(
+    nodes: readonly N[],
+    description?: string,
+  ): SchemaNode<NodeType<N>> {
+    return new SchemaNode<NodeType<N>>(
+      withDescription({ anyOf: nodes.map((n) => n.schema) }, description),
+    );
+  },
+  /** Matches exactly one of the given schemas (`oneOf`). */
+  oneOf<N extends SchemaNode<any>>(
+    nodes: readonly N[],
+    description?: string,
+  ): SchemaNode<NodeType<N>> {
+    return new SchemaNode<NodeType<N>>(
+      withDescription({ oneOf: nodes.map((n) => n.schema) }, description),
     );
   },
   /** An object with typed properties. Optional nodes are dropped from `required`. */

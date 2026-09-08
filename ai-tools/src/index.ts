@@ -50,3 +50,7 @@ export type {
 } from "./spec";
 
 export { validateAgainstSchema, ToolArgumentError } from "./validate";
+export { validateStrict } from "./strict";
+
+export { parseToolCalls, hasToolCalls } from "./parse";
+export { toToolMessages } from "./messages";

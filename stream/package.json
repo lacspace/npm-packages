@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/stream",
-  "version": "1.0.0",
-  "description": "A zero-dependency, isomorphic parser for Server-Sent Events and streaming LLM responses — turn a fetch body into a clean async iterator of text and tool-call deltas, normalized across OpenAI and Anthropic. No SDK, keyless.",
+  "version": "1.1.0",
+  "description": "A zero-dependency, isomorphic parser for Server-Sent Events, NDJSON and streaming LLM responses — turn a fetch body into a clean async iterator of text and tool-call deltas, normalized across OpenAI and Anthropic, with map/filter/tee transforms, ReadableStream adapters and AbortSignal support. No SDK, keyless.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -42,7 +42,14 @@
     "prompt-engineering",
     "typescript",
     "zero-dependency",
-    "isomorphic"
+    "isomorphic",
+    "ndjson",
+    "jsonlines",
+    "readablestream",
+    "abortsignal",
+    "stream-transform",
+    "backpressure",
+    "tee"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

@@ -20,6 +20,8 @@
 - 🧠 **Typed handlers** — argument types are inferred from the schema
 - 🌍 Zero dependencies · isomorphic (Node ≥18, browser, edge, serverless) · fully typed
 
+> **New in 1.1.0** — close the loop without touching your provider SDK's shapes: **`parseToolCalls(response)`** pulls the tool calls out of an OpenAI / Anthropic / Google response, **`toToolMessages(provider, results)`** formats the results back into provider messages, an opt-in **`strict: true`** (and `validateStrict`) enforces the richer JSON-Schema keywords (`minLength`/`pattern`/`format`, `minimum`/`maximum`/`multipleOf`, `minItems`/`uniqueItems`, `const`, `anyOf`/`oneOf`, unknown-prop rejection), and the `jsonSchema` builder gains `.min()` `.max()` `.pattern()` `.format()` `.nullable()` `.default()` plus `literal` / `record` / `anyOf` / `oneOf` / `null` / `any`. All additive — existing code is unchanged.
+
 ## Install
 
 ```bash
@@ -93,6 +95,49 @@ const results = await kit.dispatchAll(toolCallsFromModel);
 
 `dispatch` accepts OpenAI (`{ id, function: { name, arguments } }`), Anthropic (`{ type: "tool_use", name, input }`) and plain (`{ name, arguments }`) shapes. An unknown tool, invalid arguments, or a throwing handler come back as `{ name, error, isError: true }` — never an exception — so one bad call can't crash your loop.
 
+## Close the loop: parse the response, dispatch, format results back
+
+Two pure helpers handle the round-trip so you never hand-write a provider's tool-call or tool-result shape. `parseToolCalls` reads the raw response (OpenAI Chat Completions **and** the Responses API, Anthropic Messages, Google Gemini — or an array/bare message), and `toToolMessages` turns the results back into messages to append.
+
+```ts
+import { parseToolCalls, hasToolCalls, toToolMessages } from "@lacspace/ai-tools";
+
+const response = await openai.chat.completions.create({ model, messages, tools: kit.specs("openai") });
+
+if (hasToolCalls(response)) {
+  const calls = parseToolCalls(response);      // → normalized ToolCall[]
+  const results = await kit.dispatchAll(calls); // run them (in parallel)
+  messages.push(response.choices[0].message);
+  messages.push(...toToolMessages("openai", results)); // one { role:"tool", tool_call_id, content } per result
+  // …loop back to the model
+}
+```
+
+`toToolMessages` always returns an **array** of messages to append: OpenAI → one `{ role:"tool", tool_call_id, content }` per result; Anthropic → a single `{ role:"user", content:[{ type:"tool_result", tool_use_id, content, is_error? }] }`; Google → a single `{ role:"user", parts:[{ functionResponse:{ name, response } }] }`. Errored results carry their message (and `is_error:true` for Anthropic).
+
+## Strict validation (opt-in)
+
+The default validator is deliberately minimal. Pass `strict: true` (or call `validateStrict`) to also enforce the richer keywords — still dependency-free, still coercing numeric/boolean strings:
+
+```ts
+const register = defineTool({
+  strict: true,
+  name: "register",
+  description: "Register a user.",
+  parameters: jsonSchema.object({
+    email: jsonSchema.string().format("email"),
+    age: jsonSchema.integer().min(18).max(120),
+    tags: jsonSchema.array(jsonSchema.string()).max(5),
+  }),
+  handler: ({ email, age }) => createUser(email, age),
+});
+
+await register.run({ email: "bad", age: 20 });   // ❌ throws: email must be a valid email
+await register.run({ email: "a@b.com", age: 15 }); // ❌ throws: age must be >= 18
+```
+
+`strict` enforces `minLength`/`maxLength`/`pattern`/`format` (`email`/`url`/`uri`/`uuid`/`date`/`date-time`), `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`/`multipleOf`, `minItems`/`maxItems`/`uniqueItems`, `const`, `enum`, `anyOf`/`oneOf`, and rejects unknown properties when `additionalProperties: false`. It's off by default, so existing tools behave exactly as before.
+
 ## Bring your own validator (duck-typed)
 
 No import of this package into your validator, and no import of the validator here. If `parameters` exposes `.parse()`, it's used to validate; if it exposes `.toJsonSchema()` (or a `.jsonSchema` field), it feeds the provider spec.
@@ -136,8 +181,17 @@ jsonSchema.object({
 | `jsonSchema.enum([...] as const)` | `{ type, enum: [...] }` (typed literal union) |
 | `jsonSchema.array(inner)` | `{ type: "array", items }` |
 | `jsonSchema.object({...})` | `{ type: "object", properties, required, additionalProperties: false }` |
+| `jsonSchema.literal(value)` | `{ const: value, type }` (typed literal) |
+| `jsonSchema.record(inner)` | `{ type: "object", additionalProperties: inner }` (string-keyed map) |
+| `jsonSchema.anyOf([...])` / `oneOf([...])` | `{ anyOf }` / `{ oneOf }` |
+| `jsonSchema.null()` / `jsonSchema.any()` | `{ type: "null" }` / `{}` |
 | `.optional()` | drops the field from `required`, widens the type with `undefined` |
 | `.describe(text)` | adds a `description` (your prompt to the model) |
+| `.min(n)` / `.max(n)` | `minLength`/`maxLength` (string), `minItems`/`maxItems` (array), else `minimum`/`maximum` |
+| `.pattern(str \| RegExp)` / `.format(name)` | adds `pattern` / `format` |
+| `.nullable()` / `.default(v)` | adds `"null"` to `type` / a `default` value |
+
+> The constraint keywords (`.min`/`.max`/`.pattern`/`.format`/…) are always emitted into the schema (so the model sees them); they are **enforced at runtime only under `strict: true`** or `validateStrict`.
 
 ## API
 
@@ -153,7 +207,12 @@ jsonSchema.object({
 | `Toolbox.dispatchAll(calls)` | `ToolCall[]` → `Promise<DispatchResult[]>` | in parallel |
 | `Toolbox.get(name)` / `Toolbox.names` | | lookup helpers |
 | `jsonSchema.*` | | the builder above |
-| `validateAgainstSchema(value, schema)` | | the built-in JSON-Schema checker/coercer |
+| `parseToolCalls(response)` | `unknown` → `ToolCall[]` | extract tool calls from any OpenAI/Anthropic/Google response (or message/array) |
+| `hasToolCalls(response)` | `unknown` → `boolean` | quick "did the model call a tool?" |
+| `toToolMessages(provider, results)` | `(Provider, DispatchResult \| DispatchResult[])` → `unknown[]` | format results back into provider messages to append |
+| `defineTool({ …, strict: true })` | optional flag | validate with the richer `validateStrict` instead of the minimal checker |
+| `validateStrict(value, schema)` | `(unknown, JSONSchema)` → `unknown` | dependency-free validator honouring `minLength`/`pattern`/`format`/`minimum`/`multipleOf`/`minItems`/`uniqueItems`/`const`/`anyOf`/`oneOf`/… |
+| `validateAgainstSchema(value, schema)` | | the built-in (minimal) JSON-Schema checker/coercer |
 | `ToolArgumentError` | `Error` with `.issues: string[]` | thrown on invalid arguments |
 
 ## How it works
@@ -166,6 +225,8 @@ jsonSchema.object({
 - When you pass a **`.parse()`-only** schema (no `.toJsonSchema()`), the generated spec's `parameters` is a minimal `{ type: "object" }` — the model gets fewer hints. Provide a JSON Schema (or a schema with `.toJsonSchema()`) for a rich spec.
 - Type inference is exact for `jsonSchema.object(...)` and validator schemas with a typed `.parse()`; a **plain** JSON Schema carries no static type, so the handler argument falls back to `any` (annotate it yourself).
 - This package **makes no network calls** and holds no API keys — you call the provider SDK; it only builds the specs and dispatches the calls.
+- **`strict` validation** covers the common keywords listed above but is still not a full JSON-Schema (Draft-2020-12) implementation — no `$ref`/`$defs`, `if`/`then`/`else`, `dependentRequired`, `patternProperties`, tuple `prefixItems`, or `not`. `format` is checked leniently (`email`/`url`/`uri`/`uuid`/`date`/`date-time`; unknown formats pass). For exhaustive validation, still pass a real validator's `.parse()`.
+- **`parseToolCalls`** detects each provider's shape structurally (it isn't told which provider); it recognizes the documented OpenAI/Anthropic/Google shapes but a bespoke or future response envelope may need you to map it yourself. **`toToolMessages`** produces the standard message shapes — adjust if your SDK version expects a variant.
 
 ## Licensing
 

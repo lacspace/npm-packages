@@ -1,0 +1,67 @@
+{
+  "name": "@lacspace/rag",
+  "version": "1.0.0",
+  "description": "The zero-dependency glue for a Retrieval-Augmented Generation pipeline — index documents and retrieve + assemble prompt context by composing an injected embedder, vector store and splitter. Keyless, isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rag",
+    "retrieval-augmented-generation",
+    "retrieval",
+    "embeddings",
+    "vector-search",
+    "vector-database",
+    "semantic-search",
+    "context-assembly",
+    "prompt-engineering",
+    "prompt-context",
+    "chunking",
+    "index",
+    "ai",
+    "llm",
+    "gen-ai",
+    "keyless",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/rag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "rag"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

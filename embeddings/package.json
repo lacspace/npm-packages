@@ -1,0 +1,68 @@
+{
+  "name": "@lacspace/embeddings",
+  "version": "1.0.0",
+  "description": "A tiny, provider-agnostic, keyless embeddings client plus pure vector math (cosine, dot, euclidean, normalize, mean-pool, top-k) — the entry point of a RAG stack. Works with OpenAI-compatible, Ollama, Google and Cohere endpoints via an injectable fetch. Zero-dependency, isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "embeddings",
+    "embedding",
+    "vector",
+    "cosine-similarity",
+    "vector-math",
+    "rag",
+    "retrieval",
+    "semantic-search",
+    "openai",
+    "ollama",
+    "cohere",
+    "google-gemini",
+    "vector-database",
+    "nearest-neighbor",
+    "ai",
+    "llm",
+    "keyless",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/embeddings",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "embeddings"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

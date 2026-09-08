@@ -1,0 +1,70 @@
+{
+  "name": "@lacspace/eval",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency, keyless toolkit for evaluating LLM outputs — deterministic scorers (contains, regex, JSON-schema, Levenshtein, cosine, keyword coverage, JSONPath) plus an optional LLM-as-judge whose model is fully injected, batch runners and pass-rate reports. Isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "eval",
+    "evaluation",
+    "llm-eval",
+    "llm-as-judge",
+    "ai",
+    "llm",
+    "scorer",
+    "assertions",
+    "testing",
+    "rubric",
+    "grading",
+    "keyword-coverage",
+    "levenshtein",
+    "cosine-similarity",
+    "json-schema",
+    "jsonpath",
+    "pass-rate",
+    "regression-testing",
+    "prompt-engineering",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/eval",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "eval"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

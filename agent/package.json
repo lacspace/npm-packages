@@ -1,0 +1,68 @@
+{
+  "name": "@lacspace/agent",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency, keyless tool-calling / ReAct agent loop — bring any chat model and any tools as injectable, duck-typed interfaces and it drives the call → tool-dispatch → repeat loop with a full observable trace, maxSteps guard and error recovery. Provider-agnostic and isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "agent",
+    "ai-agent",
+    "tool-calling",
+    "function-calling",
+    "react-agent",
+    "agent-loop",
+    "tool-use",
+    "llm",
+    "ai",
+    "llm-agent",
+    "provider-agnostic",
+    "keyless",
+    "orchestration",
+    "reasoning",
+    "chatbot",
+    "tools",
+    "prompt-engineering",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/agent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "agent"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "@lacspace/memory",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency, keyless conversation memory for LLM chat apps — track message history, keep it inside a token/message budget with a sliding window, and optionally summarize old turns via an injectable summarizer. Isomorphic, fully typed, with pure trim/window helpers and JSON persistence.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "memory",
+    "conversation-memory",
+    "chat-history",
+    "message-history",
+    "context-window",
+    "token-budget",
+    "sliding-window",
+    "summarization",
+    "prompt-engineering",
+    "chatbot",
+    "agent",
+    "context-management",
+    "keyless",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/memory",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "memory"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

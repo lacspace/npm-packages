@@ -1,0 +1,72 @@
+{
+  "name": "@lacspace/providers",
+  "version": "1.0.0",
+  "description": "A keyless registry of connection presets for LLM & embedding endpoints — public base URLs, endpoint paths, model ids and auth style for Ollama, Groq, OpenRouter, Together, Cloudflare, Google AI Studio, Cohere, Mistral, DeepSeek, OpenAI, Anthropic and any OpenAI-compatible host. Point @lacspace/ai or @lacspace/embeddings at a free or local model in one line. Zero-dependency, isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "providers",
+    "provider-registry",
+    "presets",
+    "endpoints",
+    "base-url",
+    "openai-compatible",
+    "ollama",
+    "groq",
+    "openrouter",
+    "together",
+    "cloudflare-workers-ai",
+    "google-ai-studio",
+    "cohere",
+    "mistral",
+    "deepseek",
+    "free-llm",
+    "embeddings",
+    "keyless",
+    "config",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/providers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "providers"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

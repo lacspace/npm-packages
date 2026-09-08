@@ -243,3 +243,37 @@ describe("feature: uploads + root files in dynamic mode", () => {
     expect(f[".github/workflows/ci.yml"]).toContain("frontend/.next/static");
   });
 });
+
+describe("Web Engagement Kit add-ons", () => {
+  it("notify is frontend-only (no backend upgrade) and adds a Toaster", () => {
+    const f = generateProject({ name: "acme", template: "business", features: ["notify"] });
+    // No backend forced — this stays a plain single-app scaffold.
+    expect("backend/package.json" in f).toBe(false);
+    expect("components/toaster.tsx" in f).toBe(true);
+    expect("app/notify-demo/page.tsx" in f).toBe(true);
+    expect(JSON.parse(f["package.json"]!).dependencies["@lacspace/notify"]).toBeTruthy();
+    expect(f["components/toaster.tsx"]).toContain("@lacspace/notify/react");
+  });
+
+  it("captcha upgrades to full-stack and mounts a public verify route", () => {
+    const f = generateProject({ name: "acme", template: "saas", features: ["captcha"] });
+    expect("backend/src/routes/captcha.ts" in f).toBe(true);
+    expect("frontend/components/captcha.tsx" in f).toBe(true);
+    expect("frontend/app/captcha-demo/page.tsx" in f).toBe(true);
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/captcha", captchaRoutes)');
+    expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/captcha"]).toBeTruthy();
+    expect(f[".env.example"]).toContain("CAPTCHA_SECRET");
+  });
+
+  it("push adds a service worker, a subscription model, send routes and VAPID env", () => {
+    const f = generateProject({ name: "acme", template: "saas", features: ["push"] });
+    expect("frontend/public/sw.js" in f).toBe(true);
+    expect("frontend/app/push-demo/page.tsx" in f).toBe(true);
+    expect("backend/src/models/push-subscription.ts" in f).toBe(true);
+    expect("backend/src/routes/push.ts" in f).toBe(true);
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/push", pushRoutes)');
+    expect(f["frontend/public/sw.js"]).toContain('addEventListener("push"');
+    expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/web-push"]).toBeTruthy();
+    expect(f[".env.example"]).toContain("VAPID_PUBLIC");
+  });
+});

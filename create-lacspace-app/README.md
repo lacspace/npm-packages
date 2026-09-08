@@ -20,6 +20,11 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.11 — the Web Engagement Kit (14 add-ons).** Three keyless, no-vendor add-ons on brand-new `@lacspace` packages:
+> - **`push`** — real **browser push notifications** (`@lacspace/web-push`): keyless VAPID, no Firebase/FCM. Generates a service worker, a subscribe button, and a backend that stores subscriptions and sends. Full-stack.
+> - **`captcha`** — a **privacy-friendly proof-of-work CAPTCHA** (`@lacspace/captcha`): no Google/Cloudflare, no keys, no tracking. A drop-in widget + a backend verify route. Full-stack.
+> - **`notify`** — **in-app toast notifications** (`@lacspace/notify`): a `<Toaster/>` plus success/error/promise toasts, accessible and zero-config. Frontend, any template.
+>
 > **New in v2.10 — three more add-ons (11 total).**
 > - **`uploads`** — authenticated file uploads stored in MongoDB, served via **signed, expiring URLs** (`@lacspace/signed-url`) — no S3 required.
 > - **`i18n`** — multi-language UI: a tiny dependency-free `t()` translator + a language switcher, with English + Nepali locales and an `i18n:check` lint script.

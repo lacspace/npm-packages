@@ -1,8 +1,11 @@
 {
   "name": "@lacspace/web-push",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Send Web Push notifications to browsers with ZERO dependencies and NO vendor — pure Web Crypto (VAPID + RFC 8291 aes128gcm payload encryption). No Firebase, no FCM account, no keys to buy. Isomorphic: runs on Node, Deno, Bun and edge runtimes (Vercel Edge, Cloudflare Workers).",
   "type": "module",
+  "bin": {
+    "web-push": "dist/cli.js"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -2618,6 +2618,66 @@ export const FEATURES: FeatureDef[] = [
     ],
     learn: "https://developer.lacspace.com/packages/signed-url",
   },
+  {
+    key: "notify",
+    label: "Toast notifications",
+    description: "Beautiful in-app toast notifications (@lacspace/notify) — a <Toaster/> plus success/error/promise toasts, accessible and zero-config. Frontend, any template.",
+    deps: { "@lacspace/notify": "^1.0.0" },
+    files: () => ({ "components/toaster.tsx": notifyToaster(), "app/notify-demo/page.tsx": notifyDemoPage() }),
+    nextSteps: [
+      "Render <Toaster/> once in app/layout.tsx: import { Toaster } from '@/components/toaster'.",
+      "Then call toast.success('Saved!') (or .error/.info/.promise) from any client component.",
+      "See it live at http://localhost:3000/notify-demo.",
+    ],
+    learn: "https://developer.lacspace.com/packages/notify",
+  },
+  {
+    key: "captcha",
+    label: "Keyless CAPTCHA",
+    description: "Privacy-friendly proof-of-work CAPTCHA (@lacspace/captcha) — no Google/Cloudflare, no keys, no tracking. A drop-in widget + a backend verify route. Full-stack.",
+    requiresBackend: true,
+    deps: { "@lacspace/captcha": "^1.0.0" },
+    files: () => ({ "components/captcha.tsx": captchaComponent(), "app/captcha-demo/page.tsx": captchaDemoPage() }),
+    backend: () => ({
+      deps: { "@lacspace/captcha": "^1.0.0" },
+      files: { "src/routes/captcha.ts": captchaRoutesBackend() },
+      routes: [{ path: "/captcha", handler: "captchaRoutes", auth: false, importLine: 'import captchaRoutes from "./captcha.js";' }],
+      env: { CAPTCHA_SECRET: "Secret for signing CAPTCHA challenges (blank = reuse JWT_SECRET)." },
+    }),
+    nextSteps: [
+      "Open http://localhost:3000/captcha-demo — solve the CAPTCHA, then Submit to verify it server-side.",
+      "Drop <Captcha onVerified={setToken} /> into any form, then POST the token to /captcha/verify.",
+      "No accounts or keys — tune difficulty via createChallenge({ maxNumber }) in src/routes/captcha.ts.",
+    ],
+    learn: "https://developer.lacspace.com/packages/captcha",
+  },
+  {
+    key: "push",
+    label: "Web push notifications",
+    description: "Real browser push notifications (@lacspace/web-push) — keyless VAPID, no Firebase/FCM. Generates a service worker, a subscribe button, and a backend that stores subscriptions and sends. Full-stack.",
+    requiresBackend: true,
+    deps: { "@lacspace/web-push": "^1.0.0" },
+    files: () => ({ "public/sw.js": pushServiceWorkerFile(), "app/push-demo/page.tsx": pushDemoPage() }),
+    backend: () => ({
+      deps: { "@lacspace/web-push": "^1.0.0" },
+      files: {
+        "src/models/push-subscription.ts": pushSubscriptionModel(),
+        "src/routes/push.ts": pushRoutesBackend(),
+      },
+      routes: [{ path: "/push", handler: "pushRoutes", auth: false, importLine: 'import pushRoutes from "./push.js";' }],
+      env: {
+        VAPID_PUBLIC: "VAPID public key — generate with: npx @lacspace/web-push (or generateVapidKeys()).",
+        VAPID_PRIVATE: "VAPID private key (keep secret).",
+        VAPID_SUBJECT: "Contact for the push service, e.g. mailto:you@yoursite.com.",
+      },
+    }),
+    nextSteps: [
+      "Generate VAPID keys: npx @lacspace/web-push — put them in .env (VAPID_PUBLIC / VAPID_PRIVATE).",
+      "Open http://localhost:3000/push-demo → 'Enable notifications', then 'Send test'.",
+      "Push works on https (or localhost); the generated public/sw.js receives the notifications.",
+    ],
+    learn: "https://developer.lacspace.com/packages/web-push",
+  },
 ];
 
 /* ------------------------- feature: ai-chat (files) ------------------------- */
@@ -7087,6 +7147,274 @@ export default function UploadsPage() {
     </main>
   );
 }
+`;
+
+/* --------------------------- feature: notify (toasts) --------------------------- */
+
+// components/toaster.tsx — one import site for the toast API + <Toaster/>.
+const notifyToaster = (): string => `"use client";
+// how this works: re-export the Lacspace toast API + <Toaster/> from one place.
+// Render <Toaster/> once in app/layout.tsx, then call toast.* from anywhere.
+export { Toaster, useToast, toast } from "@lacspace/notify/react";
+`;
+
+const notifyDemoPage = (): string => `"use client";
+import { toast } from "@/components/toaster";
+
+export default function NotifyDemo() {
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold">Toasts</h1>
+      <p className="mt-1 text-muted">In-app notifications from @lacspace/notify.</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={() => toast.success("Saved!")}>Success</button>
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={() => toast.error("Something broke")}>Error</button>
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={() => toast.info("Heads up", { action: { label: "Undo", onClick: () => toast.success("Undone") } })}>With action</button>
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={() => void toast.promise(new Promise((r) => setTimeout(r, 1200)), { loading: "Working…", success: "Done!", error: "Failed" })}>Promise</button>
+      </div>
+    </main>
+  );
+}
+`;
+
+/* --------------------------- feature: captcha (keyless) --------------------------- */
+
+const captchaComponent = (): string => `"use client";
+import { useEffect, useRef } from "react";
+import { renderCaptcha } from "@lacspace/captcha/client";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+// how this works: the widget fetches a challenge from your backend, solves a small
+// proof-of-work in the browser, and drops the solution into a hidden input named
+// "lacspace-captcha". Read it via onVerified, or submit it with a surrounding form.
+export function Captcha({ onVerified }: { onVerified?: (token: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const widget = renderCaptcha(ref.current, {
+      challenge: API + "/captcha",
+      onVerified: (token) => onVerified?.(token),
+    });
+    return () => widget.destroy();
+  }, [onVerified]);
+  return <div ref={ref} />;
+}
+`;
+
+const captchaDemoPage = (): string => `"use client";
+import { useState } from "react";
+import { Captcha } from "@/components/captcha";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function CaptchaDemo() {
+  const [token, setToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) { setStatus("Please solve the CAPTCHA first."); return; }
+    const res = await fetch(API + "/captcha/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ solution: token }),
+    });
+    setStatus(res.ok ? "Verified on the server ✓ — safe to proceed." : "Verification failed.");
+  }
+
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold">Keyless CAPTCHA</h1>
+      <p className="mt-1 text-muted">Proof-of-work — no Google / Cloudflare, no keys.</p>
+      <form onSubmit={submit} className="mt-6 space-y-4">
+        <Captcha onVerified={setToken} />
+        <button type="submit" className="rounded-xl border border-hairline px-4 py-2">Submit</button>
+      </form>
+      {status && <p className="mt-3 text-sm text-muted">{status}</p>}
+    </main>
+  );
+}
+`;
+
+const captchaRoutesBackend = (): string => `import express from "express";
+import { createChallenge, verifySolution } from "@lacspace/captcha";
+import { asyncHandler, HttpError } from "../http.js";
+import { env } from "../env.js";
+
+// how this works: a keyless proof-of-work CAPTCHA. GET /captcha issues a signed
+// challenge; the browser solves it; POST /captcha/verify checks the solution with
+// only your secret — stateless, nothing stored between the two calls.
+const router = express.Router();
+const SECRET = process.env.CAPTCHA_SECRET ?? env.JWT_SECRET;
+
+router.get("/", asyncHandler(async (_req, res) => {
+  res.json(await createChallenge({ secret: SECRET }));
+}));
+
+router.post("/verify", asyncHandler(async (req, res) => {
+  const solution = typeof req.body?.solution === "string" ? req.body.solution : "";
+  const result = await verifySolution(solution, { secret: SECRET });
+  if (!result.success) throw new HttpError(400, "CAPTCHA failed: " + result.error);
+  res.json({ success: true });
+}));
+
+export default router;
+`;
+
+/* --------------------------- feature: push (web push) --------------------------- */
+
+// public/sw.js — a push-focused service worker (served at /sw.js by Next).
+const pushServiceWorkerFile = (): string => `// Service worker — web push notifications. Generated by create-lacspace-app.
+// Served at /sw.js. Wakes on incoming pushes and opens the app on click.
+
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (err) { data = { body: event.data ? event.data.text() : "" }; }
+  const title = data.title || "Notification";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body,
+      icon: data.icon,
+      data: { url: data.url || "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of all) { if (client.url === target && "focus" in client) return client.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })(),
+  );
+});
+`;
+
+const pushDemoPage = (): string => `"use client";
+import { useState } from "react";
+import { subscribeToPush } from "@lacspace/web-push/client";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function PushDemo() {
+  const [status, setStatus] = useState("");
+
+  async function enable() {
+    try {
+      const { publicKey } = await fetch(API + "/push/vapid").then((r) => r.json());
+      if (!publicKey) { setStatus("Set VAPID_PUBLIC / VAPID_PRIVATE in the backend .env first (npx @lacspace/web-push)."); return; }
+      await subscribeToPush({ vapidPublicKey: publicKey, serviceWorkerUrl: "/sw.js", saveUrl: API + "/push/subscribe" });
+      setStatus("Subscribed! Click 'Send test' to receive a push.");
+    } catch (err) { setStatus("Failed: " + String(err)); }
+  }
+
+  async function sendTest() {
+    const r = await fetch(API + "/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "It works", body: "Your first web push 🎉" }),
+    }).then((r) => r.json());
+    setStatus("Sent to " + r.sent + " device(s).");
+  }
+
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold">Web push</h1>
+      <p className="mt-1 text-muted">Real browser notifications — keyless VAPID, no Firebase.</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={enable}>Enable notifications</button>
+        <button className="rounded-xl border border-hairline px-4 py-2" onClick={sendTest}>Send test</button>
+      </div>
+      {status && <p className="mt-3 text-sm text-muted">{status}</p>}
+    </main>
+  );
+}
+`;
+
+const pushSubscriptionModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+// how this works: one document per browser subscription. endpoint is unique so a
+// re-subscribe upserts instead of duplicating. Store the two keys the Web Push
+// protocol needs (p256dh + auth).
+export interface PushSubDoc {
+  _id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: Date;
+}
+
+const schema = new mongoose.Schema<PushSubDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    endpoint: { type: String, required: true, unique: true },
+    p256dh: { type: String, required: true },
+    auth: { type: String, required: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+);
+
+export const PushSubscriptionModel =
+  (mongoose.models.PushSubscription as mongoose.Model<PushSubDoc>) ??
+  mongoose.model<PushSubDoc>("PushSubscription", schema);
+`;
+
+const pushRoutesBackend = (): string => `import express from "express";
+import { sendNotifications, type PushSubscription } from "@lacspace/web-push";
+import { asyncHandler, HttpError } from "../http.js";
+import { PushSubscriptionModel } from "../models/push-subscription.js";
+
+// how this works: /push/vapid gives the browser the public key; /push/subscribe
+// stores a subscription; /push/send blasts a payload to every stored subscription
+// and prunes any the push service reports as gone (404/410).
+const router = express.Router();
+
+function vapid() {
+  const publicKey = process.env.VAPID_PUBLIC;
+  const privateKey = process.env.VAPID_PRIVATE;
+  if (!publicKey || !privateKey) {
+    throw new HttpError(500, "Missing VAPID keys. Generate them (npx @lacspace/web-push) and set VAPID_PUBLIC / VAPID_PRIVATE in .env.");
+  }
+  return { subject: process.env.VAPID_SUBJECT ?? "mailto:admin@example.com", publicKey, privateKey };
+}
+
+router.get("/vapid", asyncHandler(async (_req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC ?? "" });
+}));
+
+router.post("/subscribe", asyncHandler(async (req, res) => {
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  const p256dh = req.body?.keys?.p256dh;
+  const auth = req.body?.keys?.auth;
+  if (!endpoint || typeof p256dh !== "string" || typeof auth !== "string") {
+    throw new HttpError(400, "Invalid subscription");
+  }
+  await PushSubscriptionModel.updateOne({ endpoint }, { $set: { endpoint, p256dh, auth } }, { upsert: true });
+  res.status(201).json({ ok: true });
+}));
+
+router.post("/send", asyncHandler(async (req, res) => {
+  const title = typeof req.body?.title === "string" ? req.body.title : "Hello from your app";
+  const body = typeof req.body?.body === "string" ? req.body.body : "This is a web push notification.";
+  const docs = await PushSubscriptionModel.find();
+  const subs: PushSubscription[] = docs.map((d) => ({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }));
+  const payload = JSON.stringify({ title, body, url: "/" });
+  const results = await sendNotifications(subs, payload, { vapid: vapid() });
+  const expired = results.filter((r) => r.result?.expired);
+  await Promise.all(expired.map((r) => PushSubscriptionModel.deleteOne({ endpoint: r.subscription.endpoint })));
+  res.json({ sent: results.filter((r) => r.result && !r.result.expired).length, removed: expired.length });
+}));
+
+export default router;
 `;
 
 /* ============================ dynamic / full-stack ============================ */

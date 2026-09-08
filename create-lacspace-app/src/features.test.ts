@@ -6,7 +6,7 @@ describe("feature registry", () => {
   it("listFeatures() returns copies of every feature (ai-chat + rag)", () => {
     const feats = listFeatures();
     const keys = feats.map((f) => f.key).sort();
-    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "content", "rag", "search"]);
+    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "content", "email", "payments", "rag", "search"]);
     // Copies — mutating the result must not touch the registry.
     feats[0]!.label = "MUTATED";
     expect(FEATURES.find((f) => f.key === feats[0]!.key)!.label).not.toBe("MUTATED");

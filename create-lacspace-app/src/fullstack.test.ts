@@ -168,4 +168,30 @@ describe("backend-aware add-ons (require the full-stack backend)", () => {
     expect(idx).toContain('app.use("/auth"');
     expect(idx).toContain('app.use("/notes", noteRoutes)');
   });
+
+  it("payments adds an order model, checkout routes, gateway deps, and gateway env", () => {
+    const f = generateProject({ name: "acme", template: "ecommerce", features: ["payments"] });
+    expect("backend/src/models/order.ts" in f).toBe(true);
+    expect("backend/src/routes/checkout.ts" in f).toBe(true);
+    expect("frontend/app/checkout/page.tsx" in f).toBe(true);
+    expect("frontend/app/checkout/success/page.tsx" in f).toBe(true);
+    const bp = JSON.parse(f["backend/package.json"]!);
+    expect(bp.dependencies["@lacspace/esewa"]).toBeTruthy();
+    expect(bp.dependencies["@lacspace/khalti"]).toBeTruthy();
+    // Gateway env documented in the ROOT .env.example.
+    expect(f[".env.example"]).toContain("KHALTI_SECRET");
+    expect(f[".env.example"]).toContain("ESEWA_SECRET");
+  });
+
+  it("email adds a mail service, a route, mailer deps, and SMTP env", () => {
+    const f = generateProject({ name: "acme", template: "saas", features: ["email"] });
+    expect("backend/src/mail/mailer.ts" in f).toBe(true);
+    expect("backend/src/routes/email.ts" in f).toBe(true);
+    expect("frontend/app/email-test/page.tsx" in f).toBe(true);
+    const bp = JSON.parse(f["backend/package.json"]!);
+    expect(bp.dependencies["@lacspace/mailer"]).toBeTruthy();
+    expect(f[".env.example"]).toContain("SMTP_HOST");
+    // Dev works with no SMTP — the console fallback is wired.
+    expect(f["backend/src/mail/mailer.ts"]).toContain("createJsonTransport");
+  });
 });

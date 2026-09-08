@@ -2466,6 +2466,71 @@ export const FEATURES: FeatureDef[] = [
     ],
     learn: "https://developer.lacspace.com/packages/analytics-lite",
   },
+  {
+    key: "payments",
+    label: "Payments (Nepal)",
+    description: "A checkout wired to eSewa & Khalti — orders, the signed eSewa flow (works in TEST with NO credentials), Khalti when keyed, integer-safe money. Full-stack.",
+    requiresBackend: true,
+    deps: {},
+    files: () => ({
+      "app/checkout/page.tsx": checkoutPage(),
+      "app/checkout/success/page.tsx": checkoutSuccessPage(),
+      "app/checkout/failed/page.tsx": checkoutFailedPage(),
+    }),
+    backend: () => ({
+      deps: { "@lacspace/esewa": "^1.2.0", "@lacspace/khalti": "^1.1.0", "@lacspace/money": "^1.1.0" },
+      files: {
+        "src/models/order.ts": ordersModel(),
+        "src/routes/checkout.ts": checkoutRoutes(),
+      },
+      routes: [{ path: "/checkout", handler: "checkoutRoutes", auth: true, importLine: 'import checkoutRoutes from "./checkout.js";' }],
+      env: {
+        ESEWA_MERCHANT_CODE: "eSewa merchant/product code (blank = eSewa TEST sandbox).",
+        ESEWA_SECRET: "eSewa secret key (blank = TEST sandbox — payments work end-to-end in test).",
+        KHALTI_SECRET: "Khalti secret key (required to enable Khalti; blank shows a 'configure Khalti' message).",
+      },
+    }),
+    nextSteps: [
+      "Sign in, then open http://localhost:3000/checkout and pay with eSewa — it works in TEST mode with no credentials.",
+      "Enable Khalti by setting KHALTI_SECRET in .env (get a test key from https://khalti.com).",
+      "Go live: set ESEWA_MERCHANT_CODE + ESEWA_SECRET (and a live KHALTI_SECRET).",
+    ],
+    learn: "https://developer.lacspace.com/packages/esewa",
+  },
+  {
+    key: "email",
+    label: "Email",
+    description: "Transactional email — a ready mail service (@lacspace/mailer) with beautiful templates + address validation. Logs to the console until you add SMTP. Full-stack.",
+    requiresBackend: true,
+    deps: {},
+    files: () => ({ "app/email-test/page.tsx": emailTestPage() }),
+    backend: (ctx) => ({
+      deps: {
+        "@lacspace/mailer": "^1.2.0",
+        "@lacspace/email-templates": "^1.1.0",
+        "@lacspace/email-validate": "^1.1.0",
+      },
+      files: {
+        "src/mail/mailer.ts": mailerLib(ctx),
+        "src/routes/email.ts": emailRoutes(),
+      },
+      routes: [{ path: "/email", handler: "emailRoutes", auth: true, importLine: 'import emailRoutes from "./email.js";' }],
+      env: {
+        SMTP_HOST: "SMTP host (blank in dev — emails are logged to the API console instead of sent).",
+        SMTP_PORT: "SMTP port (default 587).",
+        SMTP_SECURE: "true for implicit TLS on port 465; otherwise false.",
+        SMTP_USER: "SMTP username.",
+        SMTP_PASS: "SMTP password.",
+        SMTP_FROM: 'Default From address, e.g. "Acme <no-reply@acme.com>".',
+      },
+    }),
+    nextSteps: [
+      "Sign in, then open http://localhost:3000/email-test and send yourself a sample email.",
+      "With no SMTP_* set, the email is printed to the API console (dev). Set SMTP_* in .env to send for real.",
+      "Reuse the helpers in backend/src/mail/mailer.ts: sendWelcome / sendVerify / sendReset.",
+    ],
+    learn: "https://developer.lacspace.com/packages/mailer",
+  },
 ];
 
 /* ------------------------- feature: ai-chat (files) ------------------------- */
@@ -6226,6 +6291,384 @@ export default function AnalyticsPage() {
           <div key={d.day} className="flex-1 rounded-t" style={{ height: (d.count / max) * 100 + "%", backgroundColor: "var(--accent, #6366f1)" }} title={d.day + ": " + d.count} />
         ))}
       </div>
+    </main>
+  );
+}
+`;
+
+/* ------------------------- feature: payments (files) ------------------------- */
+
+// backend/src/models/order.ts — a simple order (amounts stored in paisa, integer).
+const ordersModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+export interface OrderDoc {
+  _id: string;
+  userId: string;
+  label: string;
+  amountPaisa: number;
+  currency: string;
+  status: "pending" | "paid" | "failed";
+  gateway: string;
+  ref: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const schema = new mongoose.Schema<OrderDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    userId: { type: String, required: true, index: true },
+    label: { type: String, required: true },
+    amountPaisa: { type: Number, required: true },
+    currency: { type: String, default: "NPR" },
+    status: { type: String, enum: ["pending", "paid", "failed"], default: "pending" },
+    gateway: { type: String, default: "" },
+    ref: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
+export const Order =
+  (mongoose.models.Order as mongoose.Model<OrderDoc>) ?? mongoose.model<OrderDoc>("Order", schema);
+`;
+
+// backend/src/routes/checkout.ts — mounted at /checkout behind requireAuth.
+const checkoutRoutes = (): string => `import express from "express";
+import {
+  buildForm, verifyResponse, paisaToRupees, generateTransactionUuid,
+  ESEWA_TEST_SECRET, ESEWA_TEST_PRODUCT_CODE,
+} from "@lacspace/esewa";
+import { initiate, lookup } from "@lacspace/khalti";
+import { Money, formatBasic } from "@lacspace/money";
+import { v } from "@lacspace/validate";
+import { asyncHandler, HttpError } from "../http.js";
+import { env } from "../env.js";
+import { Order } from "../models/order.js";
+
+// how this works: create an order, then start a gateway payment. eSewa works in TEST
+// mode with the package's baked-in sandbox keys (no credentials!). Khalti needs a real
+// secret. After the customer returns, the frontend calls /verify — never trust the
+// redirect alone, always confirm server-side.
+const router = express.Router();
+const web = () => env.CORS_ORIGIN.split(",")[0]!.trim();
+
+const CreateInput = v.object({ label: v.string().min(1).max(120), amount: v.number().positive() });
+
+// POST /checkout — create a pending order (amount in RUPEES from the UI → stored as paisa).
+router.post("/", asyncHandler(async (req, res) => {
+  const { label, amount } = CreateInput.parse(req.body);
+  const amountPaisa = Money.of(amount, "NPR").toMinor();
+  const order = await Order.create({ userId: req.user!.sub, label, amountPaisa });
+  res.status(201).json({ id: String(order._id), label, amountPaisa, display: formatBasic(Money.fromMinor(amountPaisa, "NPR")) });
+}));
+
+// POST /checkout/:id/esewa — build the signed eSewa form to auto-POST from the browser.
+router.post("/:id/esewa", asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, userId: req.user!.sub });
+  if (!order) throw new HttpError(404, "Order not found");
+  const secret = process.env.ESEWA_SECRET ?? ESEWA_TEST_SECRET;
+  const productCode = process.env.ESEWA_MERCHANT_CODE ?? ESEWA_TEST_PRODUCT_CODE;
+  const esewaEnv: "test" | "prod" = process.env.ESEWA_SECRET ? "prod" : "test";
+  const uuid = generateTransactionUuid();
+  order.ref = uuid;
+  order.gateway = "esewa";
+  await order.save();
+  const form = await buildForm(
+    {
+      amount: paisaToRupees(order.amountPaisa),
+      transactionUuid: uuid,
+      productCode,
+      successUrl: web() + "/checkout/success?orderId=" + String(order._id),
+      failureUrl: web() + "/checkout/failed?orderId=" + String(order._id),
+    },
+    { secret, env: esewaEnv },
+  );
+  res.json(form);
+}));
+
+// POST /checkout/:id/esewa/verify — verify the base64 \`data\` eSewa returned; mark paid.
+router.post("/:id/esewa/verify", asyncHandler(async (req, res) => {
+  const { data } = v.object({ data: v.string().min(1) }).parse(req.body);
+  const order = await Order.findOne({ _id: req.params.id, userId: req.user!.sub });
+  if (!order) throw new HttpError(404, "Order not found");
+  const secret = process.env.ESEWA_SECRET ?? ESEWA_TEST_SECRET;
+  const result = await verifyResponse(data, secret);
+  const status = String((result.data as { status?: string }).status ?? "");
+  if (!result.valid || status !== "COMPLETE") throw new HttpError(400, "Payment could not be verified");
+  order.status = "paid";
+  await order.save();
+  res.json({ id: String(order._id), status: "paid" });
+}));
+
+// POST /checkout/:id/khalti — start a Khalti payment (needs KHALTI_SECRET, else 501).
+router.post("/:id/khalti", asyncHandler(async (req, res) => {
+  const secretKey = process.env.KHALTI_SECRET;
+  if (!secretKey) throw new HttpError(501, "Set KHALTI_SECRET in .env to enable Khalti (see .env.example).");
+  const order = await Order.findOne({ _id: req.params.id, userId: req.user!.sub });
+  if (!order) throw new HttpError(404, "Order not found");
+  order.gateway = "khalti";
+  await order.save();
+  const r = await initiate(
+    {
+      return_url: web() + "/checkout/success?orderId=" + String(order._id),
+      website_url: web(),
+      amount: order.amountPaisa,
+      purchase_order_id: String(order._id),
+      purchase_order_name: order.label,
+    },
+    { secretKey, env: "test" },
+  );
+  order.ref = r.pidx;
+  await order.save();
+  res.json({ paymentUrl: r.payment_url, pidx: r.pidx });
+}));
+
+// POST /checkout/:id/khalti/verify — authoritative lookup by pidx; mark paid.
+router.post("/:id/khalti/verify", asyncHandler(async (req, res) => {
+  const secretKey = process.env.KHALTI_SECRET;
+  if (!secretKey) throw new HttpError(501, "Khalti is not configured");
+  const { pidx } = v.object({ pidx: v.string().min(1) }).parse(req.body);
+  const order = await Order.findOne({ _id: req.params.id, userId: req.user!.sub });
+  if (!order) throw new HttpError(404, "Order not found");
+  const r = await lookup(pidx, { secretKey, env: "test" });
+  if (r.status !== "Completed") throw new HttpError(400, "Payment status: " + String(r.status));
+  order.status = "paid";
+  await order.save();
+  res.json({ id: String(order._id), status: "paid" });
+}));
+
+export default router;
+`;
+
+// frontend app/checkout/page.tsx — create an order, then pay with eSewa or Khalti.
+const checkoutPage = (): string => `"use client";
+import { useState } from "react";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const msgOf = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
+
+async function call<T>(path: string, body: unknown): Promise<T> {
+  const token = getToken();
+  const res = await fetch(API + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+    body: JSON.stringify(body),
+  });
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? "Request failed");
+  return data as T;
+}
+
+export default function CheckoutPage() {
+  const [label, setLabel] = useState("Pro plan");
+  const [amount, setAmount] = useState(1000);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function createOrder(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const o = await call<{ id: string; display: string }>("/checkout", { label, amount });
+      setOrderId(o.id);
+      setMsg("Order " + o.display + " created — choose how to pay.");
+    } catch (err) { setMsg(msgOf(err)); }
+  }
+  async function payEsewa() {
+    if (!orderId) return;
+    try {
+      const form = await call<{ action: string; fields: Record<string, string> }>("/checkout/" + orderId + "/esewa", {});
+      const f = document.createElement("form");
+      f.method = "POST";
+      f.action = form.action;
+      for (const [k, val] of Object.entries(form.fields)) {
+        const i = document.createElement("input");
+        i.type = "hidden"; i.name = k; i.value = val;
+        f.appendChild(i);
+      }
+      document.body.appendChild(f);
+      f.submit();
+    } catch (err) { setMsg(msgOf(err)); }
+  }
+  async function payKhalti() {
+    if (!orderId) return;
+    try {
+      const r = await call<{ paymentUrl: string }>("/checkout/" + orderId + "/khalti", {});
+      window.location.href = r.paymentUrl;
+    } catch (err) { setMsg(msgOf(err)); }
+  }
+
+  return (
+    <main className="mx-auto max-w-md px-6 py-16">
+      <h1 className="text-2xl font-bold">Checkout</h1>
+      <p className="mt-1 text-sm text-muted">Sign in first, then create an order and pay.</p>
+      <form onSubmit={createOrder} className="mt-6 space-y-3 rounded-2xl border border-hairline p-5">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="What are you buying?" className="w-full rounded-xl border border-hairline bg-surface px-4 py-2 outline-none" />
+        <input type="number" min={10} value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="Amount (NPR)" className="w-full rounded-xl border border-hairline bg-surface px-4 py-2 outline-none" />
+        <button className="w-full rounded-full gradient-bg px-4 py-2 font-semibold on-accent">Create order</button>
+      </form>
+      {msg && <p className="mt-4 text-sm text-muted">{msg}</p>}
+      {orderId && (
+        <div className="mt-6 space-y-3">
+          <button onClick={payEsewa} className="w-full rounded-full border border-hairline px-4 py-3 font-semibold transition hover:bg-surface">Pay with eSewa <span className="text-muted">(works in test)</span></button>
+          <button onClick={payKhalti} className="w-full rounded-full border border-hairline px-4 py-3 font-semibold transition hover:bg-surface">Pay with Khalti</button>
+        </div>
+      )}
+      <p className="mt-6 text-xs text-muted">eSewa works out-of-the-box in test mode. Khalti needs KHALTI_SECRET in .env.</p>
+    </main>
+  );
+}
+`;
+
+// frontend app/checkout/success/page.tsx — verifies the returned payment server-side.
+const checkoutSuccessPage = (): string => `"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function CheckoutSuccessPage() {
+  const [status, setStatus] = useState<"verifying" | "paid" | "failed">("verifying");
+  const [detail, setDetail] = useState("");
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const orderId = q.get("orderId");
+    const data = q.get("data");   // eSewa returns a base64 \`data\` param
+    const pidx = q.get("pidx");   // Khalti returns \`pidx\`
+    const token = getToken();
+    if (!orderId || !token) { setStatus("failed"); setDetail("Missing order or session — please sign in."); return; }
+    (async () => {
+      let path = ""; let body: Record<string, string> = {};
+      if (data) { path = "/checkout/" + orderId + "/esewa/verify"; body = { data }; }
+      else if (pidx) { path = "/checkout/" + orderId + "/khalti/verify"; body = { pidx }; }
+      else { setStatus("failed"); setDetail("No payment token was returned."); return; }
+      try {
+        const res = await fetch(API + path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { const e: unknown = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? "Verification failed"); }
+        setStatus("paid");
+      } catch (e) { setStatus("failed"); setDetail(e instanceof Error ? e.message : "Verification failed"); }
+    })();
+  }, []);
+
+  return (
+    <main className="mx-auto max-w-md px-6 py-24 text-center">
+      {status === "verifying" && <p className="text-muted">Verifying your payment…</p>}
+      {status === "paid" && (<><h1 className="text-3xl font-bold">Payment successful 🎉</h1><p className="mt-2 text-muted">Thank you — your order is paid.</p></>)}
+      {status === "failed" && (<><h1 className="text-2xl font-bold">Payment not completed</h1><p className="mt-2 text-muted">{detail}</p></>)}
+      <Link href="/checkout" className="mt-6 inline-block rounded-full border border-hairline px-4 py-2 text-sm">Back to checkout</Link>
+    </main>
+  );
+}
+`;
+
+const checkoutFailedPage = (): string => `import Link from "next/link";
+
+export default function CheckoutFailedPage() {
+  return (
+    <main className="mx-auto max-w-md px-6 py-24 text-center">
+      <h1 className="text-2xl font-bold">Payment cancelled</h1>
+      <p className="mt-2 text-muted">Your payment was not completed.</p>
+      <Link href="/checkout" className="mt-6 inline-block rounded-full border border-hairline px-4 py-2 text-sm">Try again</Link>
+    </main>
+  );
+}
+`;
+
+/* ------------------------- feature: email (files) ------------------------- */
+
+// backend/src/mail/mailer.ts — a ready mail service (real SMTP, or console in dev).
+const mailerLib = (ctx: Ctx): string => `import { createTransport, createJsonTransport, mailerFromEnv, type Transport } from "@lacspace/mailer";
+import { welcomeEmail, verifyEmail, passwordResetEmail, toPlainText } from "@lacspace/email-templates";
+
+// how this works: if SMTP_* env vars are set, it sends real email over SMTP; otherwise
+// it logs the full message to the console (so the app runs with NO credentials). Adding
+// SMTP_* later switches to real delivery with no code change.
+export const transport: Transport = process.env.SMTP_HOST
+  ? createTransport(mailerFromEnv())
+  : createJsonTransport((json) => console.log("\\n[email:dev] set SMTP_* in .env to deliver for real:\\n" + json + "\\n"));
+
+const FROM = process.env.SMTP_FROM ?? ${JSON.stringify(ctx.name + " <no-reply@example.com>")};
+const brand = { brandName: ${JSON.stringify(ctx.name)} };
+
+export function sendWelcome(to: string, name?: string) {
+  const html = welcomeEmail({ name, message: "Thanks for joining " + brand.brandName + "!", ...brand });
+  return transport.send({ from: FROM, to, subject: "Welcome to " + brand.brandName, html, text: toPlainText(html) });
+}
+export function sendVerify(to: string, verifyUrl: string) {
+  const html = verifyEmail({ verifyUrl, expiresMinutes: 30, ...brand });
+  return transport.send({ from: FROM, to, subject: "Verify your email", html, text: toPlainText(html) });
+}
+export function sendReset(to: string, resetUrl: string) {
+  const html = passwordResetEmail({ resetUrl, expiresMinutes: 30, ...brand });
+  return transport.send({ from: FROM, to, subject: "Reset your password", html, text: toPlainText(html) });
+}
+`;
+
+// backend/src/routes/email.ts — mounted at /email behind requireAuth.
+const emailRoutes = (): string => `import express from "express";
+import { validateEmail } from "@lacspace/email-validate";
+import { asyncHandler, HttpError } from "../http.js";
+import { sendWelcome } from "../mail/mailer.js";
+
+const router = express.Router();
+
+// POST /email/test — send a sample welcome email (validates the address first).
+router.post("/test", asyncHandler(async (req, res) => {
+  const to = String((req.body ?? {}).to ?? "").trim();
+  const check = validateEmail(to);
+  if (!check.valid) throw new HttpError(400, check.reason ?? "Invalid email address");
+  const result = await sendWelcome(check.normalized ?? to);
+  res.json({ ok: true, messageId: result.messageId });
+}));
+
+export default router;
+`;
+
+// frontend app/email-test/page.tsx — send yourself a sample email.
+const emailTestPage = (): string => `"use client";
+import { useState } from "react";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function EmailTestPage() {
+  const [to, setTo] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+    try {
+      const token = getToken();
+      const res = await fetch(API + "/email/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+        body: JSON.stringify({ to }),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Failed to send");
+      setMsg("Sent! If no SMTP is configured, check the API console for the email.");
+    } catch (err) { setMsg(err instanceof Error ? err.message : "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <main className="mx-auto max-w-md px-6 py-16">
+      <h1 className="text-2xl font-bold">Send a test email</h1>
+      <p className="mt-1 text-muted">With no SMTP configured, the email is logged to the API console.</p>
+      <form onSubmit={send} className="mt-6 space-y-3">
+        <input type="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        <button disabled={busy} className="w-full rounded-full gradient-bg px-4 py-3 font-semibold on-accent disabled:opacity-60">{busy ? "Sending…" : "Send test email"}</button>
+      </form>
+      {msg && <p className="mt-4 text-sm text-muted">{msg}</p>}
     </main>
   );
 }

@@ -18,9 +18,13 @@
 - 🧩 `zonedParts()` → the full wall-clock breakdown in a zone (+ abbreviation)
 - 🔁 `fromZoned()` → wall time back to the correct UTC `Date` (two-pass DST fixpoint)
 - 🌐 `convert()` · `toZone()` — re-express one instant across zones
+- 🖊️ `formatInZone()` · `getAbbreviation()` — format an instant / read `EST`·`EDT` in a zone *(new in 1.1.0)*
+- ⚖️ `compareZones()` · `offsetDifference()` — how far ahead one zone is of another *(new in 1.1.0)*
 - 📜 `listTimeZones()` · `isValidTimeZone()` · `getSystemTimeZone()`
-- ☀️ `isDST()` · `nextTransition()` — best-effort DST detection by offset scanning
+- ☀️ `isDST()` · `nextTransition()` · `previousTransition()` · `listTransitions()` · `transitionsInYear()` — DST detection & scanning *(back/range scans new in 1.1.0)*
 - ⚡ Zero dependencies · 🌍 isomorphic (only needs `Intl`) · 📦 ESM + CJS · fully typed · no `node:` imports
+
+> **New in 1.1.0** — strictly additive: zoned string formatting (`formatInZone`) and abbreviation lookup (`getAbbreviation`), zone-vs-zone comparison (`compareZones` / `offsetDifference`), and backward/range DST scanning (`previousTransition` / `listTransitions` / `transitionsInYear`). Every existing export is byte-for-byte unchanged.
 
 > **Where it fits:** trading hours live in [`@lacspace/market-clock`](https://www.npmjs.com/package/@lacspace/market-clock); calendar math in UTC/local lives in `@lacspace/datetime`. This package is the **timezone layer** underneath both.
 
@@ -52,6 +56,34 @@ fromZoned({ year: 2024, month: 9, day: 1, hour: 15 }, "America/New_York");
 const c = convert(new Date("2024-07-15T18:00:00Z"), "America/New_York", "Asia/Tokyo");
 c.from.hour; // 14   (New York, EDT)
 c.to.hour;   // 3    (Tokyo, next day — JST +09:00)
+```
+
+### New in 1.1.0
+
+```ts
+import {
+  formatInZone, getAbbreviation,
+  compareZones, offsetDifference,
+  previousTransition, listTransitions, transitionsInYear,
+} from "@lacspace/timezone";
+
+const t = new Date("2024-07-15T12:00:00Z");
+
+formatInZone(t, "Asia/Kathmandu");                       // "Jul 15, 2024, 17:45:00"
+formatInZone(t, "Asia/Tokyo", { dateStyle: "medium", timeStyle: "short" });
+getAbbreviation("America/New_York", t);                  // "EDT"
+getAbbreviation("America/New_York", t, "long");          // "Eastern Daylight Time"
+
+const cmp = compareZones("Asia/Tokyo", "America/New_York", t);
+cmp.differenceHours; // 13   → Tokyo is 13h ahead of New York (EDT)
+cmp.ahead;           // "A"
+offsetDifference("Asia/Tokyo", "America/New_York", t);   // 780 (minutes)
+
+// Every DST switch in a window / year:
+transitionsInYear("America/New_York", 2024);
+// [ { at: 2024-03-10T07:00:00Z, offsetBefore:-300, offsetAfter:-240 },
+//   { at: 2024-11-03T06:00:00Z, offsetBefore:-240, offsetAfter:-300 } ]
+previousTransition("America/New_York", Date.UTC(2024, 5, 1)); // the 2024-03-10 spring-forward
 ```
 
 ## API
@@ -99,6 +131,26 @@ convert(instant, fromZone, toZone): { date: Date; from: ZonedParts; to: ZonedPar
 ```
 An instant is absolute, so `date` is unchanged; the zones only shape the returned wall-clock `parts`.
 
+### Zoned formatting *(new in 1.1.0)*
+
+```ts
+formatInZone(instant, zone, options?): string
+getAbbreviation(zone, instant?, style?: "short" | "long"): string
+```
+`formatInZone` renders an instant as a string **as observed in `zone`**, taking any `Intl.DateTimeFormatOptions` plus an optional `locale` (defaults to `"en-US"` for deterministic output; a sensible field set is used when none is given). The `zone` argument always wins over any `timeZone` you pass in `options`. `getAbbreviation` returns the zone's short (`"EST"`, `"UTC"`, or a numeric `"GMT+5:45"` fallback) or long (`"Eastern Standard Time"`) name at the instant — DST-aware.
+
+### Zone comparison *(new in 1.1.0)*
+
+```ts
+compareZones(zoneA, zoneB, instant?): {
+  zoneA; zoneB; offsetA; offsetB;
+  differenceMinutes /* offsetA − offsetB */;
+  differenceHours; ahead: "A" | "B" | "same";
+}
+offsetDifference(zoneA, zoneB, instant?): number   // minutes, = differenceMinutes
+```
+How far ahead one zone's clock is of another's at `instant` (defaults to now), DST-aware. Positive means `zoneA` is east of / ahead of `zoneB`.
+
 ### Zones
 
 ```ts
@@ -112,9 +164,13 @@ FALLBACK_TIME_ZONES: readonly string[]
 
 ```ts
 isDST(zone, instant?): boolean
-nextTransition(zone, from?): { at: Date; offsetBefore: number; offsetAfter: number } | null
+nextTransition(zone, from?): Transition | null
+previousTransition(zone, from?): Transition | null                       // new in 1.1.0
+listTransitions(zone, { from, to }): Transition[]                        // new in 1.1.0
+transitionsInYear(zone, year): Transition[]                              // new in 1.1.0
+// type Transition = { at: Date; offsetBefore: number; offsetAfter: number }
 ```
-`isDST` compares the offset at the instant against the zone's minimum offset over that calendar year (its standard time) — works in both hemispheres; zones without DST return `false`. `nextTransition` steps forward in 6-hour increments for up to ~13 months to find the next offset change, then binary-searches down to the millisecond. See the limitations below.
+`isDST` compares the offset at the instant against the zone's minimum offset over that calendar year (its standard time) — works in both hemispheres; zones without DST return `false`. `nextTransition` steps forward in 6-hour increments for up to ~13 months to find the next offset change, then binary-searches down to the millisecond. `previousTransition` is its backward mirror. `listTransitions` / `transitionsInYear` enumerate **every** offset change in a window (chronological order; `[]` for no-DST zones) by chaining `nextTransition`. See the limitations below.
 
 ## DST edge cases & honest limitations
 

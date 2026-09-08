@@ -17,6 +17,9 @@
 - 🧩 **Merging** — `mergeIntervals` (coalesce), `intersectAll`, `invert` (the classic **free/busy** calc)
 - 🔁 **Iteration** — `eachDayOfInterval`, `eachWeekOfInterval`, `eachMonthOfInterval`, `eachHourOfInterval`, generic `eachOfInterval`
 - 💼 **Business days** — `isBusinessDay`, `addBusinessDays`, `businessDaysBetween`, `next/prevBusinessDay`… weekend **and** holiday aware
+- ➕ **Algebra & analytics** *(new in 1.1.0)* — `containsInterval`, `overlapMs`, `midpoint`, `shift`, `expand`, `sortIntervals`, `totalDuration`, `coverage`, `gaps`, `differenceAll`, `maxConcurrency`
+
+> **New in 1.1.0** — strictly additive helpers for scheduling/analytics: full-containment & overlap-length checks, shift/expand/midpoint, and list analytics — total covered time, `coverage` (utilization 0–1), inner `gaps`, many-way `differenceAll`, and peak `maxConcurrency`. No existing API changed.
 
 Zero dependencies. Isomorphic (Node, browsers, Deno, Bun, edge). Works with `Date | number` everywhere.
 
@@ -52,6 +55,37 @@ addBusinessDays("2026-01-02", 1, { holidays: ["2026-01-06"] });     // Fri → M
 businessDaysBetween("2026-01-05", "2026-01-12");                    // 5
 ```
 
+### Analytics (new in 1.1.0)
+
+```ts
+import {
+  totalDuration, coverage, gaps, differenceAll, maxConcurrency,
+  containsInterval, overlapMs, shift, expand, midpoint,
+} from "@lacspace/interval";
+
+const shifts = [
+  interval("2026-01-05T09:00Z", "2026-01-05T13:00Z"),
+  interval("2026-01-05T12:00Z", "2026-01-05T17:00Z"),   // overlaps 12–13
+];
+
+totalDuration(shifts);                                   // 8h in ms (overlap counted once)
+coverage(shifts, interval("2026-01-05T09:00Z", "2026-01-05T17:00Z")); // 1 (100% utilization)
+maxConcurrency(shifts);                                  // 2 (peak simultaneous)
+gaps(shifts);                                            // [] (they touch/overlap → one block)
+
+// Set-subtract a whole list, e.g. remove breaks from a working day:
+differenceAll(
+  interval("2026-01-05T09:00Z", "2026-01-05T17:00Z"),
+  [interval("2026-01-05T12:00Z", "2026-01-05T13:00Z")], // lunch
+);                                                       // [ 09–12, 13–17 ]
+
+containsInterval(shifts[1], interval("2026-01-05T14:00Z", "2026-01-05T15:00Z")); // true
+overlapMs(shifts[0], shifts[1]);                         // 3_600_000 (1h)
+midpoint(shifts[0]);                                     // 2026-01-05T11:00Z
+shift(shifts[0], 3_600_000);                             // moved +1h
+expand(shifts[0], 900_000);                              // 15min buffer each side
+```
+
 ## Half-open ranges `[start, end)`
 
 Intervals are **half-open by default**: the `start` instant is included, the `end` instant is not. So two ranges that merely touch (`a.end === b.start`) do **not** overlap — they *abut*. This makes back-to-back slots compose cleanly (no double-counted boundary).
@@ -63,9 +97,9 @@ All calendar helpers (`startOfDay`, week/month boundaries, weekday detection, bu
 | Group | Functions |
 | --- | --- |
 | Build | `interval`, `isValidInterval`, `durationMs`, `isSameDay` |
-| Query | `contains`, `overlaps`, `abuts`, `isEqual` |
-| Combine | `intersection`, `union`, `difference`, `gap`, `clampDate`, `split` |
-| Lists | `mergeIntervals`, `intersectAll`, `invert` |
+| Query | `contains`, `overlaps`, `abuts`, `isEqual`, `containsInterval`, `overlapMs`, `isEmpty` |
+| Combine | `intersection`, `union`, `difference`, `gap`, `clampDate`, `split`, `shift`, `expand`, `midpoint` |
+| Lists | `mergeIntervals`, `intersectAll`, `invert`, `sortIntervals`, `totalDuration`, `coverage`, `gaps`, `differenceAll`, `maxConcurrency` |
 | Iterate | `eachDayOfInterval`, `eachWeekOfInterval`, `eachMonthOfInterval`, `eachHourOfInterval`, `eachOfInterval` |
 | Business days | `isBusinessDay`, `addBusinessDays`, `subtractBusinessDays`, `businessDaysBetween`, `nextBusinessDay`, `prevBusinessDay`, `eachBusinessDayOfInterval` |
 
@@ -77,6 +111,11 @@ All calendar helpers (`startOfDay`, week/month boundaries, weekday detection, bu
 - Iteration helpers return start-of-unit `Date[]` and are **inclusive of the end** unit.
 - Business-day config: `{ weekendDays?: number[] (default [0, 6]), holidays?: (Date | number | "YYYY-MM-DD")[] }`.
 - `businessDaysBetween(a, b)` counts the half-open range `[a, b)` and is signed (negative when `b < a`).
+- `totalDuration` / `coverage` merge overlaps first, so shared time is **counted once**; `coverage` returns a fraction in `[0, 1]` of the given window (`0` for a zero-length window).
+- `gaps(list)` returns only the spaces **between** merged blocks (no outer bound — use `invert` for a bounded free/busy calc).
+- `maxConcurrency(list)` is the peak number of intervals overlapping at one instant; half-open, so back-to-back intervals aren't simultaneous.
+- `differenceAll(a, subtract[])` subtracts a whole list from `a` (the many-way `difference`).
+- `expand(iv, ms)` grows both ends by `ms` (negative shrinks; collapses to the centre if over-shrunk); `shift(iv, ms)` translates the whole interval.
 
 ## Where it fits
 

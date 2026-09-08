@@ -13,6 +13,8 @@
 
 > The **data / arithmetic** side of time spans. Parse `P3Y6M4DT12H30M5S`, add and scale spans, normalize the carry, convert to milliseconds — all on one small, typed, immutable value. Zero dependencies, works in Node, the browser, Deno, Bun and edge runtimes (no `node:` imports).
 
+> **New in 1.1.0** — additive, fully backward-compatible: an optional calendar-safe `humanizeDuration()` (`"1h 30m"` / `"1 hour 30 minutes"`), digital-clock `toClock()` + `parseClock()` (`"01:30:00"` round-trips), and helpers `clampDuration()`, `sumDurations()`, `rebalance()`, `durationSign()` / `isNegativeDuration()`. Nothing existing changed.
+
 - ⏳ **ISO-8601 parser** — `P3Y6M4DT12H30M5S`, `PT1H30M`, `P1W`, fractional last component (`PT0.5H`), negative (`-PT30M`)
 - 🧱 **Immutable value** — `.add` / `.subtract` / `.negate` / `.abs` / `.scale` / `.normalize` all return a new `Duration`
 - 🔢 **Honest conversions** — `.toMillis()`, `.toSeconds()`, `.as(unit)` using fixed 24h/60m/60s math
@@ -68,6 +70,38 @@ Duration.between(new Date("2026-01-01T00:00Z"), new Date("2026-01-02T06:00Z"))
 duration({ hours: 36 }).as("days");  // 1.5
 ```
 
+## New in 1.1.0 — display & convenience helpers
+
+All additive; the core parse/build/math API is unchanged.
+
+```ts
+import {
+  humanizeDuration, toClock, parseClock,
+  clampDuration, sumDurations, rebalance,
+  durationSign, isNegativeDuration, duration, parseDuration,
+} from "@lacspace/duration";
+
+// Calendar-safe humanizer (reads the fields, never converts months/years)
+humanizeDuration(duration({ hours: 1, minutes: 30 }));                  // "1h 30m"
+humanizeDuration(duration({ hours: 1, minutes: 30 }), { short: false });// "1 hour 30 minutes"
+humanizeDuration(duration({ minutes: 90 }), { normalize: true });       // "1h 30m"
+humanizeDuration(parseDuration("P1Y6M"));                               // "1y 6mo"
+humanizeDuration(d, { short: false, conjunction: " and ", largest: 2 });// "1 hour and 30 minutes"
+
+// Digital clock (fixed part only — throws on months/years, like toMillis)
+toClock(duration({ hours: 1, minutes: 30 }));                           // "01:30:00"
+toClock(duration({ hours: 36 }));                                       // "36:00:00"
+toClock(duration({ days: 1, hours: 12 }), { showDays: true });          // "01:12:00:00"
+parseClock("01:30:00").toISO();                                         // "PT1H30M"  (round-trips)
+
+// Sign, clamp, sum, calendar-aware rebalance
+durationSign(parseDuration("-PT30M"));                                  // -1
+isNegativeDuration(duration({ minutes: -5 }));                          // true
+clampDuration(duration({ hours: 5 }), duration({ minutes: 30 }), duration({ hours: 2 })); // = 2h
+sumDurations(duration({ hours: 1 }), duration({ minutes: 30 })).normalize().toISO();      // "PT1H30M"
+rebalance(duration({ months: 1 }), { assumeMonthDays: 30 }).toMillis(); // 2592000000
+```
+
 ## Calendar honesty (the important part)
 
 A **week** and a **day** have fixed lengths here: `1 week = 7 days`, `1 day = 24 h`. This ignores DST and leap seconds — a deliberate, documented simplification.
@@ -103,7 +137,11 @@ Because of this:
 | Serialize | `.toISO()` `.toJSON()` `.toString()` |
 | Compare | `.equals` `.compare` `.isZero` |
 | Helpers | `isDuration(x)`, `maxDuration(...)`, `minDuration(...)`, `msPerUnit(unit, opts?)` |
+| Display *(1.1.0)* | `humanizeDuration(d, opts?)`, `toClock(d, opts?)`, `parseClock(str)` |
+| Ops *(1.1.0)* | `clampDuration(d, min, max)`, `sumDurations(...)`, `rebalance(d, opts?)`, `durationSign(d)`, `isNegativeDuration(d)` |
 | Constants | `MS_PER_SECOND` `MS_PER_MINUTE` `MS_PER_HOUR` `MS_PER_DAY` `MS_PER_WEEK` |
+
+`HumanizeOptions` = `{ units?, largest?, short?, separator?, conjunction?, normalize?, zero? }`. `ClockOptions` = `{ showDays?, fractionalDigits?, padLeading? }`.
 
 `CalendarOptions` = `{ assumeMonthDays?: number; assumeYearDays?: number }`. Supplying either is your explicit opt-in to approximating months/years; with only `assumeMonthDays` a year is `assumeMonthDays × 12` days.
 

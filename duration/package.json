@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/duration",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A zero-dependency, isomorphic Duration type — parse, build, normalize and do arithmetic on ISO-8601 time spans. Calendar-honest about months & years.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -39,7 +39,13 @@
     "immutable",
     "zero-dependency",
     "isomorphic",
-    "typescript"
+    "typescript",
+    "humanize-duration",
+    "format-duration",
+    "hh-mm-ss",
+    "clock",
+    "clamp",
+    "rebalance"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

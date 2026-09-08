@@ -446,3 +446,25 @@ export function eachBusinessDayOfInterval(iv: Interval, cfg?: BusinessDayConfig)
   const holidays = holidaySet(cfg);
   return eachDayOfInterval(iv).filter((d) => isBiz(d, weekend, holidays));
 }
+
+// ---------------------------------------------------------------------------
+// Extra interval algebra & list aggregation (added in 1.1.0)
+// ---------------------------------------------------------------------------
+
+export {
+  containsInterval,
+  overlapMs,
+  isEmpty,
+  midpoint,
+  shift,
+  expand,
+} from "./algebra";
+
+export {
+  sortIntervals,
+  totalDuration,
+  coverage,
+  gaps,
+  differenceAll,
+  maxConcurrency,
+} from "./aggregate";

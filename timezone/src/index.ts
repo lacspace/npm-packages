@@ -457,3 +457,16 @@ export function nextTransition(zone: string, from?: Instant): Transition | null 
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — zoned formatting, zone comparison, backward/range transitions
+// (focused sibling modules, re-exported here to keep the public surface flat).
+// ---------------------------------------------------------------------------
+
+export { formatInZone, getAbbreviation } from "./format";
+export type { FormatInZoneOptions } from "./format";
+
+export { compareZones, offsetDifference } from "./compare";
+export type { ZoneComparison } from "./compare";
+
+export { previousTransition, listTransitions, transitionsInYear } from "./transitions";

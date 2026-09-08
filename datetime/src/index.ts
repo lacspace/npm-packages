@@ -839,3 +839,42 @@ export function unix(input: DateInput): number {
 export function fromUnix(seconds: number): Date {
   return new Date(seconds * 1000);
 }
+
+// ---------------------------------------------------------------------------
+// New in 1.1.0 — relative-time, business days & calendar helpers
+// ---------------------------------------------------------------------------
+
+export { formatRelative } from "./relative";
+export type { RelativeUnit, RelativeOptions } from "./relative";
+
+export {
+  isBusinessDay,
+  addBusinessDays,
+  subBusinessDays,
+  nextBusinessDay,
+  previousBusinessDay,
+  businessDaysBetween,
+} from "./business";
+export type { BusinessDayOptions } from "./business";
+
+export {
+  isToday,
+  isYesterday,
+  isTomorrow,
+  isPast,
+  isFuture,
+  isFirstDayOfMonth,
+  isLastDayOfMonth,
+  nextWeekday,
+  previousWeekday,
+  getMonthName,
+  getWeekdayName,
+  getDaysInYear,
+  calendarGrid,
+} from "./calendar";
+export type {
+  NowOptions,
+  NameOptions,
+  CalendarCell,
+  CalendarGridOptions,
+} from "./calendar";

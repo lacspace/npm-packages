@@ -626,3 +626,19 @@ function describe(x: unknown): string {
   const t = typeof x;
   return t === "object" || t === "function" ? t : `${t} ${JSON.stringify(x)}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Additive extras (v1.1.0) — new modules, re-exported here                   */
+/* -------------------------------------------------------------------------- */
+
+export {
+  durationSign,
+  isNegativeDuration,
+  clampDuration,
+  sumDurations,
+  rebalance,
+} from "./ops";
+
+export { humanizeDuration, type HumanizeOptions } from "./humanize";
+
+export { toClock, parseClock, type ClockOptions } from "./clock";

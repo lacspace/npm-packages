@@ -13,6 +13,8 @@
 
 > Pure functions over the native `Date` — every one is **immutable** (your input is never mutated) and works the same in the browser and on the server. No `moment` bloat, no `date-fns` install list; date **math**, token **format/parse** and **comparison** in one tiny, typed, dependency-free package.
 
+> **New in 1.1.0** — `formatRelative` (`"3 hours ago"`, `"in 2 days"`, via native `Intl.RelativeTimeFormat`); **business-day math** with injectable weekends + holidays (`addBusinessDays`, `businessDaysBetween`, …); and **calendar helpers** — a month-grid builder (`calendarGrid`), now-relative predicates (`isToday`/`isPast`/…), weekday navigation and localized name getters. All strictly additive — nothing existing changed.
+
 - ➕ `add` / `subtract` — object durations, **month-overflow-safe** (`Jan 31 + 1 month → Feb 28/29`)
 - 📐 `startOf` / `endOf` — `year|quarter|month|week|day|hour|minute|second` (configurable week start)
 - 📏 `diff` / `difference` — signed truncated diffs **and** a full `{years,months,days,…}` breakdown
@@ -20,6 +22,9 @@
 - 🧮 `isLeapYear` `daysInMonth` `isWeekend` `getDayOfYear` `getWeekOfYear` `getQuarter` `isValid`
 - 🎯 `format` / `parse` — dayjs-style tokens (`YYYY-MM-DD HH:mm:ss`), `parse` is the strict inverse
 - 🌐 `parseISO` / `toISO` (RFC-3339), `unix` / `fromUnix`
+- 🕐 **`formatRelative`** — human distances via native `Intl.RelativeTimeFormat`, injectable `now`
+- 💼 **business days** — `isBusinessDay` `addBusinessDays` `subBusinessDays` `businessDaysBetween` `nextBusinessDay` `previousBusinessDay` (injectable weekends + holidays)
+- 📅 **calendar** — `calendarGrid` (month view) + `isToday`/`isYesterday`/`isTomorrow`/`isPast`/`isFuture`, `nextWeekday`/`previousWeekday`, `getMonthName`/`getWeekdayName`/`getDaysInYear`
 
 ## Install
 
@@ -49,6 +54,34 @@ isBetween("2021-06-15", "2021-01-01", "2021-12-31");   // true
 parseISO("2021-06-15T13:45:30Z");                       // Date (UTC instant)
 ```
 
+### New in 1.1.0
+
+```ts
+import {
+  formatRelative, addBusinessDays, businessDaysBetween, isBusinessDay,
+  calendarGrid, isToday, nextWeekday, getMonthName,
+} from "@lacspace/datetime";
+
+// Relative time — largest natural unit, or force one; `now` is injectable for tests
+formatRelative("2021-06-15T09:00", { now: "2021-06-15T12:00" }); // "3 hours ago"
+formatRelative(tomorrow);                                         // "tomorrow"
+formatRelative(deadline, { unit: "day", numeric: "always" });     // "in 5 days"
+
+// Business days — Sat/Sun off by default; inject your own weekends + holidays
+const holidays = ["2021-06-21"];
+addBusinessDays("2021-06-18", 1, { holidays });   // Tue 2021-06-22 (skips weekend + holiday)
+businessDaysBetween("2021-06-14", "2021-06-21");  // 5
+isBusinessDay("2021-06-19");                       // false (Saturday)
+
+// Calendar — a month grid (rows of 7 cells) for a date picker
+const weeks = calendarGrid("2021-06-10", { now: new Date() });
+weeks[0][0];        // { date, day, month, year, inMonth:false, isToday, isWeekend }
+
+isToday(someDate);                     // now-relative (also isYesterday/isTomorrow/isPast/isFuture)
+nextWeekday("2021-06-15", 1);          // next Monday after the 15th
+getMonthName("2021-01-05");            // "January"  (localized, { short:true } → "Jan")
+```
+
 ## API
 
 | Group | Functions |
@@ -58,10 +91,15 @@ parseISO("2021-06-15T13:45:30Z");                       // Date (UTC instant)
 | Diff | `diff`, `diffInDays`/`diffInMonths`/… , `difference` (breakdown) |
 | Compare | `isBefore`, `isAfter`, `isEqual`, `isSameDay`, `isSame`, `min`, `max`, `clamp`, `isBetween`, `closestTo` |
 | Query | `isLeapYear`, `daysInMonth`, `isWeekend`, `getDayOfYear`, `getWeekOfYear`, `getQuarter`, `isValid` |
+| Relative | `formatRelative(date, { now?, locale?, numeric?, style?, unit? })` — `"3 hours ago"` / `"in 2 days"` |
+| Business days | `isBusinessDay`, `addBusinessDays`, `subBusinessDays`, `nextBusinessDay`, `previousBusinessDay`, `businessDaysBetween` — all take `{ weekends?, holidays? }` |
+| Calendar | `calendarGrid(date, { weekStartsOn?, now?, fixedWeeks? })`, `isToday`/`isYesterday`/`isTomorrow`/`isPast`/`isFuture`, `isFirstDayOfMonth`/`isLastDayOfMonth`, `nextWeekday`/`previousWeekday`, `getMonthName`/`getWeekdayName`/`getDaysInYear` |
 | Format / parse | `format`, `parse` (tokens: `YYYY YY MMMM MMM MM M DD D dddd ddd HH H hh h mm m ss s SSS A a Z`, `[escape]`) |
 | ISO / unix | `parseISO`, `toISO`, `unix`, `fromUnix`, `toDate` |
 
 Arithmetic and formatting operate on the **local** wall-clock (like dayjs/moment); pass `{ utc: true }` to `format`/`toISO` for the UTC instant. Week helpers default to a **Monday** start (`{ weekStartsOn: 0 }` for Sunday). `parse` is strict by default — a mismatch returns an Invalid Date, or throws with `{ throwOnInvalid: true }`.
+
+`formatRelative` delegates to the platform `Intl.RelativeTimeFormat` (Node 18+ / modern browsers) and picks the largest natural unit using calendar-*approximate* thresholds (30.44-day months, 365.25-day years), so a forced `unit` gives exact control when you need it. Business-day and now-relative helpers take an injectable `now`/`holidays`, so they stay deterministic in tests and never touch the network. `holidays` are matched by local calendar day (time-of-day ignored); weekends default to Sat + Sun and are fully configurable.
 
 ### Works well with
 

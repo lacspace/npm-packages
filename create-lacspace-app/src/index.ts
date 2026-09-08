@@ -79,7 +79,7 @@ export interface FeatureDef {
   learn?: string;
 }
 
-export interface Ctx { name: string; template: TemplateDef; features: FeatureDef[]; }
+export interface Ctx { name: string; template: TemplateDef; features: FeatureDef[]; mode: "static" | "dynamic"; }
 
 /** Options accepted by the programmatic API (see `./lib`). */
 export interface GenerateOptions {
@@ -96,6 +96,21 @@ export interface GenerateOptions {
    * byte-for-byte.
    */
   features?: string[];
+  /**
+   * Project shape.
+   *
+   * - `"static"` (default) — today's single Next.js app, generated **byte-for-byte
+   *   unchanged**. The frontend and the whole existing flow.
+   * - `"dynamic"` — a full-stack **monorepo** (npm workspaces): a `frontend/`
+   *   Next.js app + a `backend/` Node · Express · MongoDB · Redis · TypeScript API
+   *   (working JWT auth + an example CRUD resource, built on `@lacspace/*`) + a
+   *   shared `types/` package the frontend and backend both import, plus a root
+   *   `docker-compose.yml` (Mongo + Redis) and one-command `npm run dev`.
+   *
+   * Additive: omit it (or pass `"static"`) and nothing about the existing output
+   * changes.
+   */
+  mode?: "static" | "dynamic";
 }
 
 /**
@@ -112,7 +127,8 @@ export function resolveContext(options: GenerateOptions = {}): Ctx {
   const seg = raw.split(/[\\/]/).filter(Boolean).pop() ?? "my-app";
   const name = seg.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") || "my-app";
   const features = normalizeFeatures(options.features);
-  return { name, template, features };
+  const mode: Ctx["mode"] = options.mode === "dynamic" ? "dynamic" : "static";
+  return { name, template, features, mode };
 }
 
 /**
@@ -2056,6 +2072,18 @@ Check the [first post](/blog/welcome) for the full Markdown reference.
 /* ------------------------------ file plan ------------------------------ */
 
 export function buildFiles(ctx: Ctx): Record<string, string> {
+  // ✨ Dynamic (full-stack) mode wraps the Next.js app in a monorepo alongside a
+  // Node/Express/MongoDB/Redis backend + a shared types package. Static mode is
+  // today's single-app scaffold, byte-for-byte unchanged.
+  if (ctx.mode === "dynamic") return buildFullStack(ctx);
+  return buildApp(ctx);
+}
+
+/**
+ * Build the single Next.js app as a `{ path: contents }` map — the `static`
+ * scaffold, and (path-prefixed) the `frontend/` half of a `dynamic` monorepo.
+ */
+function buildApp(ctx: Ctx): Record<string, string> {
   const isBlog = ctx.template.key === "blog";
   const isDocs = ctx.template.key === "docs";
   const files: Record<string, string> = {
@@ -5393,9 +5421,986 @@ const faqSection = (ctx: Ctx): string => {
       </section>`;
 };
 
+/* ============================ dynamic / full-stack ============================ */
+/*
+ * Dynamic mode wraps the Next.js app (the `static` scaffold) in an npm-workspaces
+ * MONOREPO alongside a real backend:
+ *
+ *   <name>/
+ *     ├─ package.json        ← workspaces + one-command `npm run dev` (concurrently)
+ *     ├─ docker-compose.yml   ← Mongo + Redis (optional)
+ *     ├─ .env.example         ← one env file for the whole project
+ *     ├─ types/               ← shared API types (imported by BOTH sides — no drift)
+ *     ├─ backend/             ← Node · Express · MongoDB · Redis · TypeScript API
+ *     │    (JWT auth + an example CRUD resource, built on @lacspace/* packages)
+ *     └─ frontend/            ← the Next.js app, wired to the API (login/account)
+ *
+ * It reuses buildApp() verbatim for the frontend (so nothing about the app scaffold
+ * changes), then layers the backend, the shared types, and the root wiring on top.
+ */
+
+/** The npm scope for the generated workspaces, e.g. `"@my-app"`. */
+const scope = (ctx: Ctx): string => `@${ctx.name}`;
+
+/* ---- shared types workspace (type-only → zero runtime coupling) ---- */
+
+const typesPkgJson = (ctx: Ctx): string => JSON.stringify({
+  name: `${scope(ctx)}/types`,
+  version: "0.1.0",
+  private: true,
+  // Type-only package: it ships a single .d.ts (no runtime code, nothing to build).
+  types: "./index.d.ts",
+  exports: { ".": { types: "./index.d.ts" } },
+}, null, 2) + "\n";
+
+const sharedTypes = (): string => `// Shared API contract — imported by BOTH the frontend and the backend, so the two
+// can never drift. These are TYPE-ONLY (no runtime code), so importing them adds
+// nothing to either bundle. Edit here once; both sides update. Use \`import type\`.
+
+/** A user, as returned by the API (no password; dates are ISO strings). */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
+/** The response from POST /auth/register and POST /auth/login. */
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+/** The shape of an error response from the API. */
+export interface ApiError {
+  error: string;
+  fields?: Record<string, string>;
+}
+
+/** The example CRUD resource. Rename "Note" to your real domain object. */
+export interface Note {
+  id: string;
+  title: string;
+  body: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateNoteInput {
+  title: string;
+  body?: string;
+}
+
+export interface UpdateNoteInput {
+  title?: string;
+  body?: string;
+}
+`;
+
+/* ---- root workspace files ---- */
+
+const rootPkgJson = (ctx: Ctx): string => JSON.stringify({
+  name: ctx.name,
+  version: "0.1.0",
+  private: true,
+  workspaces: ["types", "backend", "frontend"],
+  scripts: {
+    // Run the API and the frontend together (concurrently), colourised + kill-all.
+    dev: 'concurrently -k -n api,web -c blue,magenta "npm:dev:api" "npm:dev:web"',
+    "dev:api": `npm run dev --workspace ${scope(ctx)}/backend`,
+    "dev:web": `npm run dev --workspace ${scope(ctx)}/frontend`,
+    build: `npm run build --workspace ${scope(ctx)}/backend && npm run build --workspace ${scope(ctx)}/frontend`,
+    start: 'concurrently -k -n api,web -c blue,magenta "npm:start:api" "npm:start:web"',
+    "start:api": `npm run start --workspace ${scope(ctx)}/backend`,
+    "start:web": `npm run start --workspace ${scope(ctx)}/frontend`,
+    typecheck: `npm run typecheck --workspace ${scope(ctx)}/backend`,
+  },
+  devDependencies: { concurrently: "^9.1.0" },
+  engines: { node: ">=18" },
+}, null, 2) + "\n";
+
+const dockerCompose = (ctx: Ctx): string => `# Local infrastructure for ${ctx.name}. Start it with:  docker compose up -d
+# Optional — the API also runs with NO Redis, and against any MongoDB (e.g. Atlas).
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongo-data:
+`;
+
+const rootGitignore = (): string => `node_modules\n.env\n.env.local\n*.log\n.DS_Store\ndist\n.next\n`;
+
+const rootEnvExample = (ctx: Ctx): string => `# ${ctx.name} — ONE .env for the whole monorepo.  Copy it:  cp .env.example .env
+# The defaults below let the app run locally with zero changes.
+
+# --- Backend ---
+NODE_ENV=development
+PORT=4000
+
+# MongoDB. With Docker (docker compose up -d) the default just works. Or paste a
+# free MongoDB Atlas connection string here.
+MONGODB_URI=mongodb://localhost:27017/${ctx.name}
+
+# Signs JWTs. In production generate a strong value:  openssl rand -hex 32
+JWT_SECRET=dev-secret-change-me
+
+# Redis is OPTIONAL — leave empty to use the in-memory cache fallback.
+# With Docker, set it to:  redis://localhost:6379
+REDIS_URL=
+
+# Who may call the API (the frontend origin). Comma-separate for multiple.
+CORS_ORIGIN=http://localhost:3000
+
+# --- Frontend ---
+# Where the browser calls the API. Unset = http://localhost:4000 (local default).
+# NEXT_PUBLIC_API_URL=http://localhost:4000
+`;
+
+const rootReadme = (ctx: Ctx): string => `# ${ctx.name}
+
+A full-stack app scaffolded with [create-lacspace-app](https://www.npmjs.com/package/create-lacspace-app) — a **${ctx.template.label}** frontend + a real backend, wired together.
+
+\`\`\`
+${ctx.name}/
+├─ frontend/   Next.js 15 app (your UI) — talks to the API
+├─ backend/    Node · Express · MongoDB · Redis · TypeScript API
+├─ types/      Shared API types — imported by BOTH sides, so they can't drift
+└─ docker-compose.yml   Mongo + Redis for local dev (optional)
+\`\`\`
+
+## Quick start
+
+\`\`\`bash
+cp .env.example .env         # one env file for everything (sensible defaults)
+docker compose up -d         # optional: starts MongoDB + Redis locally
+npm install                  # installs all three workspaces at once
+npm run dev                  # runs the API (:4000) and the frontend (:3000) together
+\`\`\`
+
+Then open **http://localhost:3000** → visit **/register**, create an account, and you'll land on **/account** — a protected page that reads/writes the example "notes" resource through the API.
+
+**No Docker?** Point \`MONGODB_URI\` at any MongoDB (a free [Atlas](https://www.mongodb.com/atlas) cluster works). Redis is optional — leave \`REDIS_URL\` empty and the API uses an in-memory cache instead.
+
+## What's already built
+
+- **Auth** — \`POST /auth/register\`, \`POST /auth/login\` (JWT), \`GET /auth/me\`. Passwords hashed with \`@lacspace/password\`, tokens signed/verified with \`@lacspace/jwt\`.
+- **Example CRUD** — \`/notes\` (list · create · read · update · delete), protected, per-user, with a per-user cache (Redis or in-memory) that busts on writes.
+- **Validation** — request bodies validated with \`@lacspace/validate\`; failures return a clean 400.
+- **Rate limiting** — auth endpoints throttled with \`@lacspace/rate-limit\`.
+- **Typed env** — \`@lacspace/env\` fails fast at boot if config is wrong.
+
+Everything on the backend is built from zero-dependency \`@lacspace/*\` packages → https://lacspace.com/packages
+
+## Make it yours
+
+Rename the \`Note\` resource (in \`types/index.d.ts\`, \`backend/src/models/note.ts\`, \`backend/src/routes/notes.ts\`) to your real domain object, then follow the same pattern for more resources. The shared \`types/\` package keeps the frontend and backend in lock-step.
+`;
+
+/* ---- frontend ↔ backend wiring ---- */
+
+const frontendApiClient = (ctx: Ctx): string => `import type { AuthResponse, User, Note, CreateNoteInput, ApiError } from "${scope(ctx)}/types";
+
+// how this works: a tiny typed fetch wrapper around the backend API. The response
+// shapes come from the shared "${scope(ctx)}/types" package — the SAME types the
+// backend uses — so the client and server can never disagree about the contract.
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const TOKEN_KEY = "${ctx.name}_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+export function setToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  try { token ? localStorage.setItem(TOKEN_KEY, token) : localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const res = await fetch(\`\${BASE}\${path}\`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: \`Bearer \${token}\` } : {}),
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    let message = "Request failed";
+    try { message = ((await res.json()) as ApiError).error ?? message; } catch {}
+    throw new Error(message);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export const api = {
+  register: (input: { name: string; email: string; password: string }) =>
+    request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
+  login: (input: { email: string; password: string }) =>
+    request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
+  me: () => request<User>("/auth/me"),
+  listNotes: () => request<Note[]>("/notes"),
+  createNote: (input: CreateNoteInput) =>
+    request<Note>("/notes", { method: "POST", body: JSON.stringify(input) }),
+  deleteNote: (id: string) => request<void>(\`/notes/\${id}\`, { method: "DELETE" }),
+};
+`;
+
+const frontendLoginPage = (): string => `"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { api, setToken } from "@/lib/api";
+
+// how this works: posts to the backend /auth/login, stores the returned JWT, then
+// redirects to /account. Every request after this sends the token automatically.
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try {
+      const { token } = await api.login({ email, password });
+      setToken(token);
+      router.push("/account");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <main className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6">
+      <h1 className="text-2xl font-bold">Welcome back</h1>
+      <p className="mt-1 text-muted">Sign in to your account.</p>
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@example.com" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="Password" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <button disabled={busy} className="w-full rounded-full gradient-bg px-4 py-3 font-semibold on-accent transition hover:opacity-90 disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
+      </form>
+      <p className="mt-4 text-sm text-muted">No account? <Link href="/register" className="underline">Create one</Link></p>
+    </main>
+  );
+}
+`;
+
+const frontendRegisterPage = (): string => `"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { api, setToken } from "@/lib/api";
+
+// how this works: posts to /auth/register, stores the JWT, redirects to /account.
+export default function RegisterPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try {
+      const { token } = await api.register({ name, email, password });
+      setToken(token);
+      router.push("/account");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <main className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6">
+      <h1 className="text-2xl font-bold">Create your account</h1>
+      <p className="mt-1 text-muted">It takes a few seconds.</p>
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@example.com" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={8} placeholder="Password (min 8 chars)" className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 outline-none" />
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <button disabled={busy} className="w-full rounded-full gradient-bg px-4 py-3 font-semibold on-accent transition hover:opacity-90 disabled:opacity-60">{busy ? "Creating…" : "Create account"}</button>
+      </form>
+      <p className="mt-4 text-sm text-muted">Already have one? <Link href="/login" className="underline">Sign in</Link></p>
+    </main>
+  );
+}
+`;
+
+const frontendAccountPage = (ctx: Ctx): string => `"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { api, getToken, setToken } from "@/lib/api";
+import type { User, Note } from "${scope(ctx)}/types";
+
+// how this works: a PROTECTED page. On mount it calls /auth/me with the stored
+// token; if that fails it bounces to /login. Notes are the example CRUD resource.
+export default function AccountPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!getToken()) { router.push("/login"); return; }
+    (async () => {
+      try {
+        setUser(await api.me());
+        setNotes(await api.listNotes());
+      } catch { setToken(null); router.push("/login"); }
+    })();
+  }, [router]);
+
+  async function addNote(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      const note = await api.createNote({ title, body });
+      setNotes((prev) => [note, ...prev]);
+      setTitle(""); setBody("");
+    } catch (err) { setError(err instanceof Error ? err.message : "Failed to save"); }
+  }
+  async function remove(id: string) {
+    await api.deleteNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+  }
+  function signOut() { setToken(null); router.push("/login"); }
+
+  if (!user) return <main className="mx-auto max-w-2xl px-6 py-16 text-muted">Loading…</main>;
+
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Hi, {user.name}</h1>
+          <p className="text-muted">{user.email}</p>
+        </div>
+        <button onClick={signOut} className="rounded-full border border-hairline px-4 py-2 text-sm transition hover:bg-surface">Sign out</button>
+      </div>
+
+      <form onSubmit={addNote} className="mt-8 space-y-3 rounded-2xl border border-hairline bg-surface p-5">
+        <h2 className="font-semibold">Add a note</h2>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Title" className="w-full rounded-xl border border-hairline bg-app px-4 py-2 outline-none" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write something…" rows={3} className="w-full rounded-xl border border-hairline bg-app px-4 py-2 outline-none" />
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <button className="rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent">Save note</button>
+      </form>
+
+      <ul className="mt-6 space-y-3">
+        {notes.length === 0 && <li className="text-muted">No notes yet — add your first above.</li>}
+        {notes.map((n) => (
+          <li key={n.id} className="flex items-start justify-between rounded-2xl border border-hairline p-4">
+            <div>
+              <p className="font-medium">{n.title}</p>
+              {n.body && <p className="mt-1 text-sm text-muted">{n.body}</p>}
+            </div>
+            <button onClick={() => remove(n.id)} className="shrink-0 text-sm text-muted transition hover:text-red-400">Delete</button>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+`;
+
+/**
+ * Build a full-stack monorepo file map: the Next.js app under `frontend/`, a
+ * Node/Express/MongoDB/Redis API under `backend/`, a shared `types/` package, and
+ * the root workspace wiring. Reuses buildApp() verbatim for the frontend.
+ */
+function buildFullStack(ctx: Ctx): Record<string, string> {
+  const out: Record<string, string> = {};
+  const s = scope(ctx);
+
+  // 1. Frontend = the standard Next.js app, moved under frontend/.
+  const app = buildApp(ctx);
+  for (const [rel, content] of Object.entries(app)) out[`frontend/${rel}`] = content;
+
+  // 2. Make the frontend a workspace: scoped name + a dep on the shared types.
+  const fpkg = JSON.parse(out["frontend/package.json"]!) as { name: string; dependencies: Record<string, string> };
+  fpkg.name = `${s}/frontend`;
+  fpkg.dependencies[`${s}/types`] = "*";
+  out["frontend/package.json"] = JSON.stringify(fpkg, null, 2) + "\n";
+
+  // 3. Resolve the shared types from the frontend (tsconfig path + transpile).
+  const fts = JSON.parse(out["frontend/tsconfig.json"]!) as { compilerOptions: { paths: Record<string, string[]> } };
+  fts.compilerOptions.paths[`${s}/types`] = ["../types/index.d.ts"];
+  out["frontend/tsconfig.json"] = JSON.stringify(fts, null, 2) + "\n";
+  // next.config stays the base one — the shared types are type-only (erased at
+  // build), so no transpilePackages / runtime resolution is needed.
+
+  // 4. Document the API URL alongside the frontend's own env.
+  const fenv = out["frontend/.env.example"] ?? "";
+  out["frontend/.env.example"] = (fenv.endsWith("\n") || fenv === "" ? fenv : fenv + "\n") +
+    "\n# The backend API base URL. Unset = http://localhost:4000 (local default).\n# NEXT_PUBLIC_API_URL=http://localhost:4000\n";
+
+  // 5. Frontend ↔ backend wiring: a typed API client + auth/account pages.
+  out["frontend/lib/api.ts"] = frontendApiClient(ctx);
+  out["frontend/app/login/page.tsx"] = frontendLoginPage();
+  out["frontend/app/register/page.tsx"] = frontendRegisterPage();
+  out["frontend/app/account/page.tsx"] = frontendAccountPage(ctx);
+
+  // 6. The backend workspace (Express · MongoDB · Redis · JWT auth · CRUD).
+  Object.assign(out, backendFiles(ctx));
+
+  // 7. The shared types workspace (a single .d.ts — type-only, no build).
+  out["types/package.json"] = typesPkgJson(ctx);
+  out["types/index.d.ts"] = sharedTypes();
+
+  // 8. Root workspace: one install, one `npm run dev`, Docker for Mongo + Redis.
+  out["package.json"] = rootPkgJson(ctx);
+  out["docker-compose.yml"] = dockerCompose(ctx);
+  out[".gitignore"] = rootGitignore();
+  out[".env.example"] = rootEnvExample(ctx);
+  out["README.md"] = rootReadme(ctx);
+
+  return out;
+}
+
+/* ---- backend workspace (Node · Express · MongoDB · Redis · TypeScript) ---- */
+
+const backendPkgJson = (ctx: Ctx): string => JSON.stringify({
+  name: `${scope(ctx)}/backend`,
+  version: "0.1.0",
+  private: true,
+  type: "module",
+  main: "dist/index.js",
+  scripts: {
+    dev: "tsx watch src/index.ts",
+    build: "tsc -p tsconfig.json",
+    start: "node dist/index.js",
+    typecheck: "tsc -p tsconfig.json --noEmit",
+  },
+  dependencies: {
+    express: "^4.21.2",
+    cors: "^2.8.5",
+    mongoose: "^8.9.0",
+    ioredis: "^5.4.2",
+    dotenv: "^16.4.7",
+    // ✨ Backend built on zero-dep @lacspace/* packages instead of the usual grab-bag.
+    "@lacspace/env": "^1.1.0",
+    "@lacspace/jwt": "^1.4.0",
+    "@lacspace/password": "^1.1.0",
+    "@lacspace/validate": "^1.1.0",
+    "@lacspace/id": "^1.1.0",
+    "@lacspace/rate-limit": "^1.2.0",
+    "@lacspace/cache": "^1.1.0",
+    [`${scope(ctx)}/types`]: "*",
+  },
+  devDependencies: {
+    typescript: "^5.7.0",
+    tsx: "^4.19.2",
+    "@types/node": "^22.10.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+  },
+}, null, 2) + "\n";
+
+const backendTsconfig = (ctx: Ctx): string => JSON.stringify({
+  compilerOptions: {
+    target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext",
+    lib: ["ES2022"], esModuleInterop: true, allowSyntheticDefaultImports: true,
+    strict: true, skipLibCheck: true, resolveJsonModule: true,
+    outDir: "dist", rootDir: "src", sourceMap: true, types: ["node"],
+    baseUrl: ".", paths: { [`${scope(ctx)}/types`]: ["../types/index.d.ts"] },
+  },
+  include: ["src/**/*"],
+  exclude: ["node_modules", "dist"],
+}, null, 2) + "\n";
+
+const backendGitignore = (): string => `node_modules\ndist\n.env\n*.log\n`;
+
+const backendReadme = (ctx: Ctx): string => `# ${ctx.name} — API
+
+Node · Express · MongoDB · Redis (optional) · TypeScript. Built on zero-dependency \`@lacspace/*\` packages.
+
+Run it from the repo root with \`npm run dev\` (starts this API + the frontend). Standalone: \`npm run dev\` inside this folder.
+
+## Endpoints
+
+| Method | Path             | Auth | Description                    |
+|--------|------------------|------|--------------------------------|
+| GET    | \`/health\`        | —    | Liveness check                 |
+| POST   | \`/auth/register\` | —    | Create an account → JWT + user |
+| POST   | \`/auth/login\`    | —    | Log in → JWT + user            |
+| GET    | \`/auth/me\`       | ✓    | The current user               |
+| GET    | \`/notes\`         | ✓    | List your notes (cached)       |
+| POST   | \`/notes\`         | ✓    | Create a note                  |
+| GET    | \`/notes/:id\`     | ✓    | Read one note                  |
+| PATCH  | \`/notes/:id\`     | ✓    | Update a note                  |
+| DELETE | \`/notes/:id\`     | ✓    | Delete a note                  |
+
+Send \`Authorization: Bearer <token>\` for the ✓ routes (you get the token from register/login).
+
+## Layout
+
+\`\`\`
+src/
+├─ index.ts        boot: load env → connect Mongo → listen
+├─ load-env.ts     loads the root .env (imported first)
+├─ env.ts          typed, validated env (@lacspace/env)
+├─ app.ts          the Express app (CORS, routes, error handler)
+├─ db.ts           Mongoose connection
+├─ cache.ts        Redis, or an in-memory fallback (@lacspace/cache)
+├─ http.ts         HttpError + asyncHandler
+├─ validation.ts   request schemas (@lacspace/validate)
+├─ middleware/     auth (@lacspace/jwt) + error handling
+├─ models/         Mongoose models (User, Note)
+└─ routes/         auth + notes (the example CRUD resource)
+\`\`\`
+`;
+
+const backendLoadEnv = (): string => `import { config } from "dotenv";
+import { resolve } from "node:path";
+
+// how this works: the whole monorepo shares ONE .env at the repo root. When this
+// API runs via \`npm run dev\` its working directory is backend/, so the root .env
+// is one level up. This module is imported FIRST (before env.ts) so the variables
+// exist by the time anything reads them.
+config({ path: resolve(process.cwd(), "../.env") });
+config(); // also load backend/.env if you keep one (root values already set win)
+`;
+
+const backendEnv = (ctx: Ctx): string => `import { createEnv, str, port, oneOf } from "@lacspace/env";
+
+// how this works: fail-fast, TYPED environment variables (@lacspace/env). Bad or
+// missing values throw at boot with a clear message. Sensible dev defaults mean it
+// runs with zero config against a local MongoDB; set real values in the root .env.
+export const env = createEnv({
+  NODE_ENV: oneOf(["development", "production", "test"], { default: "development" }),
+  PORT: port({ default: 4000 }),
+  MONGODB_URI: str({ default: "mongodb://localhost:27017/${ctx.name}" }),
+  JWT_SECRET: str({ default: "dev-secret-change-me" }),
+  REDIS_URL: str({ optional: true }),
+  CORS_ORIGIN: str({ default: "http://localhost:3000" }),
+});
+
+if (env.NODE_ENV === "production" && env.JWT_SECRET === "dev-secret-change-me") {
+  throw new Error("Set a strong JWT_SECRET in production (see .env.example).");
+}
+`;
+
+const backendIndex = (ctx: Ctx): string => `import "./load-env.js"; // MUST be first: fills process.env before anything reads it
+import { env } from "./env.js";
+import { connectDb } from "./db.js";
+import { createApp } from "./app.js";
+
+// how this works: connect to MongoDB, build the Express app, then listen.
+async function main(): Promise<void> {
+  await connectDb(env.MONGODB_URI);
+  const app = createApp();
+  app.listen(env.PORT, () => {
+    console.log(\`🚀 ${ctx.name} API ready on http://localhost:\${env.PORT}\`);
+  });
+}
+
+main().catch((err) => {
+  console.error("Failed to start the API:", err);
+  process.exit(1);
+});
+`;
+
+const backendDb = (): string => `import mongoose from "mongoose";
+
+// how this works: opens the Mongoose connection. Call once at boot.
+export async function connectDb(uri: string): Promise<void> {
+  mongoose.set("strictQuery", true);
+  await mongoose.connect(uri);
+  console.log("✔ MongoDB connected");
+}
+`;
+
+const backendCache = (): string => `import { createCache } from "@lacspace/cache";
+import { Redis } from "ioredis";
+import { env } from "./env.js";
+
+// how this works: one cache interface, TWO backends. If REDIS_URL is set we use
+// Redis; otherwise we fall back to @lacspace/cache (zero-dep, in-memory) so the app
+// runs with NO Redis at all. The rest of the code doesn't care which is active.
+export interface Cache {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, ttlSeconds?: number): Promise<void>;
+  del(key: string): Promise<void>;
+  readonly kind: "redis" | "memory";
+}
+
+function redisCache(url: string): Cache {
+  const client = new Redis(url, { maxRetriesPerRequest: 2 });
+  client.on("error", (e: Error) => console.warn("⚠ Redis error:", e.message));
+  return {
+    kind: "redis",
+    async get(key) { return client.get(key); },
+    async set(key, value, ttl) { if (ttl) await client.set(key, value, "EX", ttl); else await client.set(key, value); },
+    async del(key) { await client.del(key); },
+  };
+}
+
+function memoryCache(): Cache {
+  const mem = createCache<string>({ max: 5000 });
+  return {
+    kind: "memory",
+    async get(key) { return mem.get(key) ?? null; },
+    async set(key, value, ttl) { mem.set(key, value, ttl ? ttl * 1000 : undefined); },
+    async del(key) { mem.delete(key); },
+  };
+}
+
+export const cache: Cache = env.REDIS_URL ? redisCache(env.REDIS_URL) : memoryCache();
+console.log(\`✔ Cache: \${cache.kind}\${cache.kind === "memory" ? " (no REDIS_URL — in-memory fallback)" : ""}\`);
+`;
+
+const backendHttp = (): string => `import type { Request, Response, NextFunction, RequestHandler } from "express";
+
+/** A simple HTTP error with a status code — throw it from any handler. */
+export class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "HttpError";
+  }
+}
+
+// how this works: Express v4 doesn't catch rejected Promises from async handlers,
+// so wrap them — any thrown error is forwarded to the error middleware.
+export const asyncHandler =
+  (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler =>
+  (req, res, next) => { fn(req, res, next).catch(next); };
+`;
+
+const backendExpressTypes = (): string => `// Adds req.user (populated by requireAuth) to Express's Request type.
+import "express";
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { sub: string; email: string; iat?: number; exp?: number; iss?: string };
+    }
+  }
+}
+
+export {};
+`;
+
+const backendErrorMw = (): string => `import type { Request, Response, NextFunction } from "express";
+import { ValidationError } from "@lacspace/validate";
+import { HttpError } from "../http.js";
+
+// how this works: ONE place that turns thrown errors into clean JSON responses.
+// Register it LAST (after all routes). Express identifies it by its 4 arguments.
+export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof ValidationError) {
+    res.status(400).json({ error: "Validation failed", fields: err.flatten() });
+    return;
+  }
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
+  console.error(err);
+  res.status(500).json({ error: "Internal server error" });
+}
+`;
+
+const backendAuthMw = (ctx: Ctx): string => `import type { RequestHandler } from "express";
+import { expressJwt } from "@lacspace/jwt";
+import { env } from "../env.js";
+
+// how this works: verifies the "Authorization: Bearer <token>" header with
+// @lacspace/jwt and attaches the decoded payload to req.user (see express.d.ts).
+// Missing/invalid token → it responds 401 automatically. Put it on any route you
+// want protected:  router.get("/secret", requireAuth, handler)
+// (@lacspace/jwt's middleware is framework-agnostic, so we cast it to Express's
+//  RequestHandler — it's a standard (req, res, next) function underneath.)
+export const requireAuth = expressJwt(env.JWT_SECRET, { issuer: "${ctx.name}-api" }) as unknown as RequestHandler;
+`;
+
+const backendUserModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+// how this works: the User fields. _id is a time-sortable UUID (@lacspace/id)
+// instead of an ObjectId, so ids are readable and orderable. We store only a
+// password HASH, never the raw password. (We DON'T extend mongoose.Document — that
+// would force _id to be an ObjectId; a plain interface lets _id be our string.)
+export interface UserDoc {
+  _id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema = new mongoose.Schema<UserDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    passwordHash: { type: String, required: true },
+  },
+  { timestamps: true },
+);
+
+export const User =
+  (mongoose.models.User as mongoose.Model<UserDoc>) ?? mongoose.model<UserDoc>("User", userSchema);
+`;
+
+const backendNoteModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+// how this works: the example CRUD resource. Rename "Note" to your real domain
+// object (Task, Post, Product…) and add fields — the routes follow the same shape.
+// (Plain interface, not mongoose.Document, so _id can be our string UUID.)
+export interface NoteDoc {
+  _id: string;
+  title: string;
+  body: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const noteSchema = new mongoose.Schema<NoteDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    title: { type: String, required: true, trim: true },
+    body: { type: String, default: "" },
+    userId: { type: String, required: true, index: true },
+  },
+  { timestamps: true },
+);
+
+export const Note =
+  (mongoose.models.Note as mongoose.Model<NoteDoc>) ?? mongoose.model<NoteDoc>("Note", noteSchema);
+`;
+
+const backendValidation = (): string => `import { v, type Infer } from "@lacspace/validate";
+
+// how this works: Zod-like schemas (@lacspace/validate). .parse(body) throws a
+// ValidationError on bad input, which the error middleware turns into a clean 400
+// with per-field messages.
+export const RegisterInput = v.object({
+  name: v.string().min(2).max(80),
+  email: v.string().email(),
+  password: v.string().min(8).max(200),
+});
+
+export const LoginInput = v.object({
+  email: v.string().email(),
+  password: v.string().min(1),
+});
+
+export const NoteInput = v.object({
+  title: v.string().min(1).max(200),
+  body: v.string().max(10_000).default(""),
+});
+
+export type RegisterBody = Infer<typeof RegisterInput>;
+export type LoginBody = Infer<typeof LoginInput>;
+export type NoteBody = Infer<typeof NoteInput>;
+`;
+
+const backendAuthRoutes = (ctx: Ctx): string => `import express from "express";
+import { hash, verify as verifyPassword } from "@lacspace/password";
+import { sign } from "@lacspace/jwt";
+import { asyncHandler, HttpError } from "../http.js";
+import { requireAuth } from "../middleware/auth.js";
+import { User, type UserDoc } from "../models/user.js";
+import { env } from "../env.js";
+import { RegisterInput, LoginInput } from "../validation.js";
+import type { AuthResponse, User as UserDTO } from "${scope(ctx)}/types";
+
+const ISSUER = "${ctx.name}-api";
+const WEEK = 60 * 60 * 24 * 7; // token lifetime, in seconds
+const router = express.Router();
+
+function toDTO(u: UserDoc): UserDTO {
+  return { id: String(u._id), email: u.email, name: u.name, createdAt: u.createdAt.toISOString() };
+}
+function tokenFor(u: UserDoc): Promise<string> {
+  return sign({ sub: String(u._id), email: u.email }, env.JWT_SECRET, { expiresIn: WEEK, issuer: ISSUER });
+}
+
+// POST /auth/register — create an account, return a JWT + the user.
+router.post("/register", asyncHandler(async (req, res) => {
+  const { name, email, password } = RegisterInput.parse(req.body);
+  if (await User.findOne({ email })) throw new HttpError(409, "That email is already registered");
+  const passwordHash = await hash(password); // PBKDF2 via @lacspace/password
+  const user = await User.create({ name, email, passwordHash });
+  const out: AuthResponse = { token: await tokenFor(user), user: toDTO(user) };
+  res.status(201).json(out);
+}));
+
+// POST /auth/login — verify credentials, return a JWT + the user.
+router.post("/login", asyncHandler(async (req, res) => {
+  const { email, password } = LoginInput.parse(req.body);
+  const user = await User.findOne({ email });
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    throw new HttpError(401, "Invalid email or password");
+  }
+  const out: AuthResponse = { token: await tokenFor(user), user: toDTO(user) };
+  res.json(out);
+}));
+
+// GET /auth/me — the current user (requires a valid token).
+router.get("/me", requireAuth, asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user!.sub);
+  if (!user) throw new HttpError(404, "User not found");
+  res.json(toDTO(user));
+}));
+
+export default router;
+`;
+
+const backendNoteRoutes = (ctx: Ctx): string => `import express from "express";
+import { asyncHandler, HttpError } from "../http.js";
+import { requireAuth } from "../middleware/auth.js";
+import { Note, type NoteDoc } from "../models/note.js";
+import { cache } from "../cache.js";
+import { NoteInput } from "../validation.js";
+import type { Note as NoteDTO } from "${scope(ctx)}/types";
+
+const router = express.Router();
+router.use(requireAuth); // every /notes route requires a valid token
+
+function toDTO(n: NoteDoc): NoteDTO {
+  return {
+    id: String(n._id),
+    title: n.title,
+    body: n.body,
+    userId: String(n.userId),
+    createdAt: n.createdAt.toISOString(),
+    updatedAt: n.updatedAt.toISOString(),
+  };
+}
+const listKey = (userId: string): string => \`notes:\${userId}\`;
+
+// GET /notes — this user's notes. Cached for 30s (Redis or in-memory); every write
+// below busts the cache, so reads are fast but never stale after a change.
+router.get("/", asyncHandler(async (req, res) => {
+  const userId = req.user!.sub;
+  const cached = await cache.get(listKey(userId));
+  if (cached) { res.json(JSON.parse(cached) as NoteDTO[]); return; }
+  const notes = await Note.find({ userId }).sort({ createdAt: -1 });
+  const dto = notes.map(toDTO);
+  await cache.set(listKey(userId), JSON.stringify(dto), 30);
+  res.json(dto);
+}));
+
+// POST /notes — create a note.
+router.post("/", asyncHandler(async (req, res) => {
+  const userId = req.user!.sub;
+  const { title, body } = NoteInput.parse(req.body);
+  const note = await Note.create({ title, body, userId });
+  await cache.del(listKey(userId));
+  res.status(201).json(toDTO(note));
+}));
+
+// GET /notes/:id — one note (only if it's yours).
+router.get("/:id", asyncHandler(async (req, res) => {
+  const note = await Note.findOne({ _id: req.params.id, userId: req.user!.sub });
+  if (!note) throw new HttpError(404, "Note not found");
+  res.json(toDTO(note));
+}));
+
+// PATCH /notes/:id — update a note.
+router.patch("/:id", asyncHandler(async (req, res) => {
+  const patch = NoteInput.partial().parse(req.body);
+  const note = await Note.findOneAndUpdate({ _id: req.params.id, userId: req.user!.sub }, { $set: patch }, { new: true });
+  if (!note) throw new HttpError(404, "Note not found");
+  await cache.del(listKey(req.user!.sub));
+  res.json(toDTO(note));
+}));
+
+// DELETE /notes/:id — delete a note.
+router.delete("/:id", asyncHandler(async (req, res) => {
+  const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.user!.sub });
+  if (!note) throw new HttpError(404, "Note not found");
+  await cache.del(listKey(req.user!.sub));
+  res.status(204).end();
+}));
+
+export default router;
+`;
+
+const backendApp = (ctx: Ctx): string => `import express from "express";
+import type { RequestHandler } from "express";
+import cors from "cors";
+import { rateLimit, expressRateLimit } from "@lacspace/rate-limit";
+import { env } from "./env.js";
+import { errorHandler } from "./middleware/error.js";
+import authRoutes from "./routes/auth.js";
+import noteRoutes from "./routes/notes.js";
+
+// how this works: assembles the Express app — CORS for the frontend, JSON parsing,
+// a health check, the auth + notes routers, then the error handler LAST.
+export function createApp(): express.Express {
+  const app = express();
+
+  app.use(cors({ origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()), credentials: true }));
+  app.use(express.json());
+
+  // Brute-force protection on auth: 20 requests / minute / IP (@lacspace/rate-limit).
+  const authLimiter = expressRateLimit(rateLimit({ limit: 20, windowMs: 60_000 })) as unknown as RequestHandler;
+
+  app.get("/health", (_req, res) => { res.json({ ok: true, service: "${ctx.name}-api" }); });
+  app.use("/auth", authLimiter, authRoutes);
+  app.use("/notes", noteRoutes);
+
+  app.use(errorHandler);
+  return app;
+}
+`;
+
+/** The backend workspace as a `{ path: contents }` map. */
+function backendFiles(ctx: Ctx): Record<string, string> {
+  return {
+    "backend/package.json": backendPkgJson(ctx),
+    "backend/tsconfig.json": backendTsconfig(ctx),
+    "backend/.gitignore": backendGitignore(),
+    "backend/README.md": backendReadme(ctx),
+    "backend/src/index.ts": backendIndex(ctx),
+    "backend/src/load-env.ts": backendLoadEnv(),
+    "backend/src/env.ts": backendEnv(ctx),
+    "backend/src/db.ts": backendDb(),
+    "backend/src/cache.ts": backendCache(),
+    "backend/src/app.ts": backendApp(ctx),
+    "backend/src/http.ts": backendHttp(),
+    "backend/src/express.d.ts": backendExpressTypes(),
+    "backend/src/validation.ts": backendValidation(),
+    "backend/src/middleware/auth.ts": backendAuthMw(ctx),
+    "backend/src/middleware/error.ts": backendErrorMw(),
+    "backend/src/models/user.ts": backendUserModel(),
+    "backend/src/models/note.ts": backendNoteModel(),
+    "backend/src/routes/auth.ts": backendAuthRoutes(ctx),
+    "backend/src/routes/notes.ts": backendNoteRoutes(ctx),
+  };
+}
+
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; theme?: string; features: string[]; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
 
 const splitList = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -5411,6 +6416,10 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--pm") a.pm = next();
     else if (arg === "--theme" || arg === "--accent") a.theme = next();
     else if (arg === "--with" || arg === "--features") a.features.push(...splitList(next()));
+    else if (arg === "--fullstack" || arg === "--full-stack" || arg === "--dynamic") a.mode = "dynamic";
+    else if (arg === "--static") a.mode = "static";
+    else if (arg === "--mode") { const m = next().toLowerCase(); a.mode = m === "dynamic" ? "dynamic" : "static"; }
+    else if (arg.startsWith("--mode=")) { const m = arg.slice(7).toLowerCase(); a.mode = m === "dynamic" ? "dynamic" : "static"; }
     else if (arg === "-h" || arg === "--help") a.help = true;
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
     else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
@@ -5497,6 +6506,9 @@ ${TEMPLATES.map((t) => `  ${t.key.padEnd(10)} ${t.description}`).join("\n")}
 
 ${c("bold", "Options")}
   -t, --template <key>   Template (${TEMPLATES.map((t) => t.key).join(" | ")})
+  --fullstack            Full-stack monorepo: Next.js frontend + Node/Express/
+                         MongoDB/Redis backend (JWT auth + CRUD) + shared types
+                         ${c("dim", "(alias --dynamic; default is --static, a single Next.js app)")}
   --with <a,b>           Feature add-ons, comma-separated (alias --features)
   --theme <name|hex>     Accent: a preset, a "#hex", or "from,to" (e.g. --theme lacspace)
   --pm <npm|pnpm|yarn|bun>  Package manager (default npm)
@@ -5846,6 +6858,7 @@ async function main(): Promise<void> {
 
   let name = args.name;
   let templateKey = args.template;
+  let mode: "static" | "dynamic" = args.mode ?? "static";
   const featureKeys: string[] = [...args.features];
 
   // Interactive prompts only when not --yes and attached to a TTY.
@@ -5859,6 +6872,15 @@ async function main(): Promise<void> {
         const ans = (await rl.question(`\n${c("green", "?")} Template ${c("dim", "(1)")}: `)).trim() || "1";
         const idx = /^\d+$/.test(ans) ? parseInt(ans, 10) - 1 : TEMPLATES.findIndex((t) => t.key === ans);
         templateKey = TEMPLATES[idx]?.key ?? "personal";
+      }
+      // ✨ Static vs dynamic — the project shape. Only ask when not already set
+      //    by a flag (--fullstack / --static / --mode).
+      if (args.mode === undefined) {
+        stdout.write(`\n  What kind of app?\n`);
+        stdout.write(`   ${c("cyan", "1")}. ${c("bold", "Static / frontend only")} ${c("dim", "— a single Next.js app (SEO site, marketing, blog, docs). Fast, deploy anywhere.")}\n`);
+        stdout.write(`   ${c("cyan", "2")}. ${c("bold", "Dynamic / full-stack")} ${c("dim", "— frontend + a Node·Express·MongoDB·Redis API with working auth & CRUD, wired together.")}\n`);
+        const ans = (await rl.question(`\n${c("green", "?")} Type ${c("dim", "(1)")}: `)).trim() || "1";
+        mode = ans === "2" || ans.toLowerCase().startsWith("dyn") || ans.toLowerCase().startsWith("full") ? "dynamic" : "static";
       }
       // ✨ Feature add-ons — a numbered picker (readline only, no raw mode).
       if (featureKeys.length === 0) {
@@ -5897,13 +6919,14 @@ async function main(): Promise<void> {
   }
 
   const features = normalizeFeatures(featureKeys);
-  const files = buildFiles({ name: projectName, template, features });
+  const files = buildFiles({ name: projectName, template, features, mode });
   for (const [rel, content] of Object.entries(files)) {
     const full = join(dir, rel);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, content);
   }
-  stdout.write(`\n  ${c("green", "✔")} Created ${c("bold", name)} ${c("dim", `(${template.label})`)}\n`);
+  const shape = mode === "dynamic" ? " · full-stack" : "";
+  stdout.write(`\n  ${c("green", "✔")} Created ${c("bold", name)} ${c("dim", `(${template.label}${shape})`)}\n`);
   if (features.length) stdout.write(`  ${c("green", "✔")} Feature add-ons: ${features.map((f) => c("cyan", f.key)).join(", ")}\n`);
   for (const rel of Object.keys(files)) stdout.write(`    ${c("dim", "+ " + rel)}\n`);
 
@@ -5923,8 +6946,18 @@ async function main(): Promise<void> {
   stdout.write(`\n${c("bold", "Done! Next steps")}\n`);
   stdout.write(`  ${c("cyan", `cd ${name}`)}\n`);
   if (!args.install) stdout.write(`  ${c("cyan", `${args.pm} install`)}\n`);
-  stdout.write(`  ${c("cyan", run)}\n`);
-  stdout.write(`\n  Edit ${c("cyan", "lib/site.ts")} (your SEO config) and ${c("cyan", "app/page.tsx")}.\n`);
+  if (mode === "dynamic") {
+    // Full-stack: one root install wires both workspaces; Mongo+Redis via compose
+    // (Redis is optional — the API falls back to an in-memory cache without it).
+    stdout.write(`  ${c("cyan", "cp .env.example .env")} ${c("dim", "— then, optionally:")} ${c("cyan", "docker compose up -d")} ${c("dim", "(Mongo + Redis)")}\n`);
+    stdout.write(`  ${c("cyan", run)} ${c("dim", "— runs the API (:4000) and the frontend (:3000) together")}\n`);
+    stdout.write(`\n  ${c("dim", "backend →")} ${c("cyan", "backend/src/")} ${c("dim", "(Express · MongoDB · Redis · JWT auth · example CRUD)")}\n`);
+    stdout.write(`  ${c("dim", "frontend →")} ${c("cyan", "frontend/app/")} ${c("dim", "· shared API types →")} ${c("cyan", "types/src/")}\n`);
+    stdout.write(`  ${c("dim", "No Docker? Point")} ${c("cyan", "MONGODB_URI")} ${c("dim", "at any MongoDB (e.g. free Atlas); Redis is optional.")}\n`);
+  } else {
+    stdout.write(`  ${c("cyan", run)}\n`);
+    stdout.write(`\n  Edit ${c("cyan", "lib/site.ts")} (your SEO config) and ${c("cyan", "app/page.tsx")}.\n`);
+  }
 
   // ✨ Feature add-on next-steps — makes the free/local AI story prominent.
   if (features.length) {

@@ -14,9 +14,17 @@
 npm create lacspace-app@latest my-app
 # or pick a template up front
 npx create-lacspace-app my-app --template saas
+# or scaffold a full-stack app (frontend + real API)
+npx create-lacspace-app my-app --template saas --fullstack
 ```
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
+
+> **New in v2.4 — static *or* full-stack.** Now the interactive prompt (after you pick a template) asks what *kind* of app you want:
+> - **Static / frontend only** *(default)* — today's single Next.js app, unchanged.
+> - **Dynamic / full-stack** (`--fullstack`) — an npm-workspaces **monorepo**: a `frontend/` Next.js app **+** a `backend/` **Node · Express · MongoDB · Redis · TypeScript** API **+** a shared `types/` package the two both import (so the API contract can't drift), plus a root `docker-compose.yml` (Mongo + Redis) and **one** `npm install` / `npm run dev` for the whole thing.
+>
+> The backend boots as a **real app**, not a stub: working **JWT auth** (`register` / `login` / `me`) and an example **CRUD** resource, all built on zero-dep `@lacspace/*` packages — passwords via `@lacspace/password`, tokens via `@lacspace/jwt`, request validation via `@lacspace/validate`, typed env via `@lacspace/env`, auth rate-limiting via `@lacspace/rate-limit`, and a **Redis cache that's optional** (no `REDIS_URL`? it falls back to an in-memory cache via `@lacspace/cache`, so it runs with zero infra). The frontend ships a typed API client + `/login`, `/register` and a protected `/account` page already wired to it. Every generated file carries `// how this works` teaching comments. **The static scaffold is byte-for-byte unchanged**, and the CLI stays **zero runtime dependencies** (all backend deps land in the *generated* app).
 
 > **New in v2.3 — composable feature add-ons + flagship AI.** Layer optional, self-contained add-ons onto *any* template with `--with <a,b>` (or pick them in the interactive prompt, or `add` them later). Two ship today — both **free, keyless and local by default** (Ollama, no API key):
 > - **`ai-chat`** — a streaming AI chat route (`/api/chat`) + a clean chat UI (`/chat`), guarded against prompt injection, built on the Lacspace AI Kit.

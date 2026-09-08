@@ -6,7 +6,7 @@ describe("feature registry", () => {
   it("listFeatures() returns copies of every feature (ai-chat + rag)", () => {
     const feats = listFeatures();
     const keys = feats.map((f) => f.key).sort();
-    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "content", "email", "payments", "rag", "search"]);
+    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "content", "email", "i18n", "payments", "quality", "rag", "search", "uploads"]);
     // Copies — mutating the result must not touch the registry.
     feats[0]!.label = "MUTATED";
     expect(FEATURES.find((f) => f.key === feats[0]!.key)!.label).not.toBe("MUTATED");
@@ -18,13 +18,18 @@ describe("feature registry", () => {
     expect(getFeature("does-not-exist")).toBeUndefined();
   });
 
-  it("every feature declares files, nextSteps, and adds deps (frontend or backend)", () => {
+  it("every feature declares files + nextSteps and contributes something", () => {
     for (const f of listFeatures()) {
       expect(typeof f.files).toBe("function");
       expect(f.nextSteps.length).toBeGreaterThan(0);
-      // A feature must contribute something: frontend deps, or a backend hook
-      // (backend-only add-ons like auth-pages carry their deps in backend()).
-      expect(Object.keys(f.deps).length > 0 || typeof f.backend === "function").toBe(true);
+      // A feature must contribute something: frontend deps, a backend hook, scripts,
+      // or root files (e.g. `quality` is scripts + a CI workflow only).
+      const contributes =
+        Object.keys(f.deps).length > 0 ||
+        typeof f.backend === "function" ||
+        typeof f.rootFiles === "function" ||
+        Object.keys(f.scripts ?? {}).length > 0;
+      expect(contributes, f.key).toBe(true);
     }
   });
 });
@@ -196,5 +201,28 @@ describe("feature: search", () => {
     const combo = generateProject({ template: "personal", features: ["content", "search"] });
     expect("content/updates/welcome.md" in combo).toBe(true);
     expect("app/api/search/route.ts" in combo).toBe(true);
+  });
+});
+
+describe("feature: i18n / quality (frontend + tooling)", () => {
+  it("i18n adds a runtime translator, locales and a switcher", () => {
+    const f = generateProject({ template: "personal", features: ["i18n"] });
+    for (const k of ["lib/i18n.ts", "components/language-provider.tsx", "app/i18n-demo/page.tsx", "locales/en.json", "locales/ne.json"]) {
+      expect(k in f, k).toBe(true);
+    }
+    expect(() => JSON.parse(f["locales/ne.json"]!)).not.toThrow();
+    // Stays static (no backend), works on any template.
+    expect(Object.keys(f).some((k) => k.startsWith("backend/"))).toBe(false);
+  });
+
+  it("quality adds CI at the project root + scripts, no runtime deps", () => {
+    const f = generateProject({ template: "saas", features: ["quality"] });
+    expect(".github/workflows/ci.yml" in f).toBe(true);
+    expect(f[".github/workflows/ci.yml"]).toContain("lacspace-size");
+    const pkg = JSON.parse(f["package.json"]!);
+    expect(pkg.scripts["size:check"]).toBeTruthy();
+    expect(pkg.scripts["deps:audit"]).toBeTruthy();
+    // npx-based → no runtime deps added to the app.
+    expect(pkg.dependencies["lacspace-size"]).toBeUndefined();
   });
 });

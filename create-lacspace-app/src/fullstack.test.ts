@@ -225,3 +225,21 @@ describe("recipes", () => {
     expect("app/updates/page.tsx" in merged).toBe(true);
   });
 });
+
+describe("feature: uploads + root files in dynamic mode", () => {
+  const f = generateProject({ name: "acme", template: "saas", features: ["uploads", "quality"] });
+  it("uploads adds a Mongo model, a public raw route, a signed-url dep, and a page", () => {
+    expect("backend/src/models/upload.ts" in f).toBe(true);
+    expect("backend/src/routes/uploads.ts" in f).toBe(true);
+    expect("frontend/app/uploads/page.tsx" in f).toBe(true);
+    // Mounted WITHOUT global auth (the raw route is public, guarded by a signed URL).
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/uploads", uploadRoutes)');
+    expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/signed-url"]).toBeTruthy();
+  });
+  it("rootFiles land at the MONOREPO root (not under frontend/) in dynamic mode", () => {
+    expect(".github/workflows/ci.yml" in f).toBe(true);
+    expect("frontend/.github/workflows/ci.yml" in f).toBe(false);
+    // CI targets the frontend's build output in a monorepo.
+    expect(f[".github/workflows/ci.yml"]).toContain("frontend/.next/static");
+  });
+});

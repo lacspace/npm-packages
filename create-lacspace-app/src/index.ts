@@ -69,6 +69,12 @@ export interface FeatureDef {
   deps: Record<string, string>;
   /** The files this feature drops in, given the resolved {@link Ctx}. */
   files: (ctx: Ctx) => Record<string, string>;
+  /**
+   * Files placed at the PROJECT ROOT — in static mode that's the app root; in
+   * dynamic mode it's the monorepo root (not `frontend/`). Use it for things a
+   * repo needs at the top, like a CI workflow.
+   */
+  rootFiles?: (ctx: Ctx) => Record<string, string>;
   /** Optional `.env.example` entries — `NAME: "explanatory comment"`. */
   env?: Record<string, string>;
   /** Optional `package.json` scripts, merged in. */
@@ -2250,6 +2256,14 @@ export function applyFeatures(files: Record<string, string>, ctx: Ctx): void {
     }
   }
 
+  // 1b. Root files — in static mode the app root IS the project root, so drop them
+  //     here. (In dynamic mode buildFullStack places them at the monorepo root.)
+  if (ctx.mode === "static") {
+    for (const feat of features) {
+      for (const [rel, content] of Object.entries(feat.rootFiles?.(ctx) ?? {})) files[rel] = content;
+    }
+  }
+
   // 2. Merge deps + scripts into package.json (parse → merge → re-stringify with
   //    the exact same 2-space + trailing-newline formatting as pkgJson()).
   const addDeps: Record<string, string> = {};
@@ -2541,6 +2555,68 @@ export const FEATURES: FeatureDef[] = [
       "Reuse the helpers in backend/src/mail/mailer.ts: sendWelcome / sendVerify / sendReset.",
     ],
     learn: "https://developer.lacspace.com/packages/mailer",
+  },
+  {
+    key: "i18n",
+    label: "i18n (multi-language)",
+    description: "Multi-language UI: a tiny runtime translator (t() + a language switcher) with English + Nepali locales, plus an i18n:check lint script.",
+    deps: {},
+    scripts: { "i18n:check": "npx lacspace-i18n@0.2.0 check locales" },
+    files: () => ({
+      "lib/i18n.ts": i18nLib(),
+      "components/language-provider.tsx": i18nProvider(),
+      "app/i18n-demo/page.tsx": i18nDemoPage(),
+      "locales/en.json": i18nEn(),
+      "locales/ne.json": i18nNe(),
+    }),
+    nextSteps: [
+      "Wrap app/layout.tsx's <body> with <LanguageProvider> (from @/components/language-provider).",
+      'Use it in a client component: const { t } = useT();  then {t("hello", { name })}.',
+      "Add keys in locales/*.json, then lint them with `npm run i18n:check`.",
+    ],
+    learn: "https://developer.lacspace.com/tools/i18n",
+  },
+  {
+    key: "quality",
+    label: "Quality & CI",
+    description: "One-command quality gates from the Lacspace dev-tools — bundle-size budget, dependency audit and fake fixtures — plus a ready GitHub Actions CI workflow.",
+    deps: {},
+    scripts: {
+      "size:check": "npx lacspace-size@0.2.0 .next/static --metric gzip --max 500kb",
+      "deps:audit": "npx lacspace-deps@0.2.0 . --fail-on duplicates",
+      "fixtures:gen": 'npx lacspace-fake@0.2.0 --fields "id:autoincrement,name:fullName,email:unique(email)" -n 50 --pretty -o fixtures/users.json',
+    },
+    files: () => ({}),
+    rootFiles: (ctx) => ({ ".github/workflows/ci.yml": qualityCiWorkflow(ctx) }),
+    nextSteps: [
+      "Run `npm run size:check` (bundle-size budget) and `npm run deps:audit` (dependency audit) — both fail loudly in CI.",
+      "Generate sample data: `npm run fixtures:gen` → fixtures/users.json.",
+      "The GitHub Actions workflow (.github/workflows/ci.yml) runs the checks on every push.",
+    ],
+    learn: "https://developer.lacspace.com/tools/size",
+  },
+  {
+    key: "uploads",
+    label: "File uploads",
+    description: "Authenticated file uploads stored in MongoDB, served via signed, expiring URLs (@lacspace/signed-url). No S3 required. Full-stack.",
+    requiresBackend: true,
+    deps: {},
+    files: () => ({ "app/uploads/page.tsx": uploadsPage() }),
+    backend: () => ({
+      deps: { "@lacspace/signed-url": "^1.1.0" },
+      files: {
+        "src/models/upload.ts": uploadModel(),
+        "src/routes/uploads.ts": uploadsRoutes(),
+      },
+      routes: [{ path: "/uploads", handler: "uploadRoutes", auth: false, importLine: 'import uploadRoutes from "./uploads.js";' }],
+      env: { UPLOAD_URL_SECRET: "Secret for signing file download URLs (blank = reuse JWT_SECRET)." },
+    }),
+    nextSteps: [
+      "Sign in, then open http://localhost:3000/uploads and upload an image or file.",
+      "Files are stored in MongoDB and served via signed, expiring links — no S3 required.",
+      "For large files or production, swap the Mongo storage for disk or object storage.",
+    ],
+    learn: "https://developer.lacspace.com/packages/signed-url",
   },
 ];
 
@@ -6712,6 +6788,307 @@ export default function EmailTestPage() {
 }
 `;
 
+/* ------------------------- feature: i18n (files) ------------------------- */
+
+const i18nLib = (): string => `import en from "@/locales/en.json";
+import ne from "@/locales/ne.json";
+
+// how this works: a tiny, dependency-free translator. Locale files live in locales/,
+// keys are flat strings, and {vars} are interpolated. A missing key falls back to
+// English, then to the key itself. Lint the files with \`npm run i18n:check\`.
+export const locales = ["en", "ne"] as const;
+export type Locale = (typeof locales)[number];
+export const defaultLocale: Locale = "en";
+
+const dicts: Record<Locale, Record<string, string>> = {
+  en: en as Record<string, string>,
+  ne: ne as Record<string, string>,
+};
+
+export function translate(locale: Locale, key: string, vars?: Record<string, string | number>): string {
+  const table = dicts[locale] ?? dicts[defaultLocale];
+  let str = table[key] ?? dicts[defaultLocale][key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) str = str.split("{" + k + "}").join(String(v));
+  return str;
+}
+`;
+
+const i18nProvider = (): string => `"use client";
+import { createContext, useContext, useEffect, useState } from "react";
+import { locales, defaultLocale, translate, type Locale } from "@/lib/i18n";
+
+// how this works: holds the current locale (persisted in localStorage) and exposes
+// t() via the useT() hook. Wrap your app in <LanguageProvider> once (in layout.tsx).
+interface LocaleCtxValue { locale: Locale; setLocale: (l: Locale) => void; }
+const LocaleCtx = createContext<LocaleCtxValue>({ locale: defaultLocale, setLocale: () => {} });
+
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("locale");
+      if (saved && (locales as readonly string[]).includes(saved)) setLocaleState(saved as Locale);
+    } catch {}
+  }, []);
+  const setLocale = (l: Locale) => { setLocaleState(l); try { localStorage.setItem("locale", l); } catch {} };
+  return <LocaleCtx.Provider value={{ locale, setLocale }}>{children}</LocaleCtx.Provider>;
+}
+
+export function useT() {
+  const { locale, setLocale } = useContext(LocaleCtx);
+  return {
+    t: (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars),
+    locale,
+    setLocale,
+  };
+}
+
+export function LanguageSwitcher() {
+  const { locale, setLocale } = useT();
+  return (
+    <div className="inline-flex gap-1 rounded-full border border-hairline p-1">
+      {locales.map((l) => (
+        <button
+          key={l}
+          onClick={() => setLocale(l)}
+          className={"rounded-full px-3 py-1 text-sm transition " + (l === locale ? "gradient-bg on-accent" : "text-muted hover:text-fg")}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+`;
+
+const i18nDemoPage = (): string => `"use client";
+import { LanguageProvider, LanguageSwitcher, useT } from "@/components/language-provider";
+
+function Demo() {
+  const { t } = useT();
+  return (
+    <div className="space-y-4">
+      <h1 className="text-3xl font-bold">{t("hello", { name: "world" })}</h1>
+      <p className="text-muted">{t("tagline")}</p>
+      <LanguageSwitcher />
+    </div>
+  );
+}
+
+export default function I18nDemoPage() {
+  return (
+    <main className="mx-auto max-w-md px-6 py-16">
+      <LanguageProvider>
+        <Demo />
+      </LanguageProvider>
+    </main>
+  );
+}
+`;
+
+const i18nEn = (): string => JSON.stringify(
+  { hello: "Hello, {name}!", tagline: "This text switches language instantly — no reload.", "nav.home": "Home", "nav.about": "About" },
+  null,
+  2,
+) + "\n";
+
+const i18nNe = (): string => JSON.stringify(
+  { hello: "नमस्ते, {name}!", tagline: "यो पाठ तुरुन्तै भाषा फेर्छ — रिलोड बिना।", "nav.home": "गृह", "nav.about": "बारेमा" },
+  null,
+  2,
+) + "\n";
+
+/* ------------------------- feature: quality (files) ------------------------- */
+
+// .github/workflows/ci.yml — a real CI gate using the Lacspace dev-tools.
+const qualityCiWorkflow = (ctx: Ctx): string => {
+  const sizePath = ctx.mode === "dynamic" ? "frontend/.next/static" : ".next/static";
+  const depsGate = ctx.mode === "dynamic" ? "duplicates" : "missing,duplicates";
+  return `name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Bundle-size budget
+        run: npx lacspace-size@0.2.0 ${sizePath} --metric gzip --max 500kb
+      - name: Dependency audit
+        run: npx lacspace-deps@0.2.0 . --fail-on ${depsGate}
+`;
+};
+
+/* ------------------------- feature: uploads (files) ------------------------- */
+
+const uploadModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+// how this works: files are stored base64-in-Mongo so it works with NO S3/disk setup.
+// For large files or production, swap this for disk or object storage.
+export interface UploadDoc {
+  _id: string;
+  userId: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  data: string; // base64
+  createdAt: Date;
+}
+
+const schema = new mongoose.Schema<UploadDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    userId: { type: String, required: true, index: true },
+    filename: { type: String, required: true },
+    contentType: { type: String, default: "application/octet-stream" },
+    size: { type: Number, default: 0 },
+    data: { type: String, required: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+);
+
+export const Upload =
+  (mongoose.models.Upload as mongoose.Model<UploadDoc>) ?? mongoose.model<UploadDoc>("Upload", schema);
+`;
+
+const uploadsRoutes = (): string => `import express from "express";
+import { signUrl, verifyUrl } from "@lacspace/signed-url";
+import { v } from "@lacspace/validate";
+import { asyncHandler, HttpError } from "../http.js";
+import { requireAuth } from "../middleware/auth.js";
+import { env } from "../env.js";
+import { Upload } from "../models/upload.js";
+
+// how this works: uploads live in Mongo; each file is served from a PUBLIC route
+// protected by a signed, expiring URL (@lacspace/signed-url) — so <img src> works
+// without a bearer token, yet the link can't be forged or shared forever.
+const router = express.Router();
+const SECRET = process.env.UPLOAD_URL_SECRET ?? env.JWT_SECRET;
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — base64-in-Mongo, keep it small
+
+const UploadInput = v.object({ filename: v.string().min(1).max(200), dataUrl: v.string().min(1) });
+
+// Sign a RELATIVE URL; the frontend prefixes it with the API base. Verified as-is.
+function signed(id: string): Promise<string> {
+  return signUrl("/uploads/" + id + "/raw", { secret: SECRET, expiresIn: 3600 });
+}
+
+// GET /uploads/:id/raw — PUBLIC, but the signed query params must verify.
+router.get("/:id/raw", asyncHandler(async (req, res) => {
+  const check = await verifyUrl(req.originalUrl, { secret: SECRET, clockToleranceSec: 60 });
+  if (!check.valid) throw new HttpError(check.reason === "expired" ? 410 : 403, "Link expired or invalid");
+  const file = await Upload.findById(req.params.id);
+  if (!file) throw new HttpError(404, "Not found");
+  res.setHeader("Content-Type", file.contentType);
+  res.send(Buffer.from(file.data, "base64"));
+}));
+
+// POST /uploads — protected: store a base64 data URL.
+router.post("/", requireAuth, asyncHandler(async (req, res) => {
+  const { filename, dataUrl } = UploadInput.parse(req.body);
+  const m = /^data:(.+?);base64,(.*)$/.exec(dataUrl);
+  if (!m) throw new HttpError(400, "Expected a base64 data URL");
+  const contentType = m[1]!;
+  const data = m[2]!;
+  const size = Math.floor((data.length * 3) / 4);
+  if (size > MAX_BYTES) throw new HttpError(413, "File too large (max 5 MB)");
+  const file = await Upload.create({ userId: req.user!.sub, filename, contentType, size, data });
+  res.status(201).json({ id: String(file._id), filename, contentType, size, url: await signed(String(file._id)) });
+}));
+
+// GET /uploads — protected: this user's files (with fresh signed URLs).
+router.get("/", requireAuth, asyncHandler(async (req, res) => {
+  const files = await Upload.find({ userId: req.user!.sub }).sort({ createdAt: -1 }).select("filename contentType size");
+  const out = await Promise.all(
+    files.map(async (f) => ({ id: String(f._id), filename: f.filename, contentType: f.contentType, size: f.size, url: await signed(String(f._id)) })),
+  );
+  res.json(out);
+}));
+
+export default router;
+`;
+
+const uploadsPage = (): string => `"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+interface FileItem { id: string; filename: string; contentType: string; size: number; url: string; }
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+}
+
+export default function UploadsPage() {
+  const router = useRouter();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    const res = await fetch(API + "/uploads", { headers: { Authorization: "Bearer " + token } });
+    if (res.ok) setFiles(await res.json());
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true); setError(null);
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      const token = getToken();
+      const res = await fetch(API + "/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+        body: JSON.stringify({ filename: file.name, dataUrl }),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Upload failed");
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Upload failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold">Uploads</h1>
+      <p className="mt-1 text-muted">Stored in MongoDB, served via signed, expiring links.</p>
+      <label className="mt-6 flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-hairline p-8 text-muted transition hover:bg-surface">
+        <input type="file" className="hidden" onChange={onPick} disabled={busy} />
+        {busy ? "Uploading…" : "Choose a file (max 5 MB)"}
+      </label>
+      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      <ul className="mt-6 space-y-2">
+        {files.map((f) => (
+          <li key={f.id} className="flex items-center justify-between rounded-xl border border-hairline p-3">
+            <a href={API + f.url} target="_blank" rel="noreferrer" className="truncate underline">{f.filename}</a>
+            <span className="ml-3 shrink-0 text-sm text-muted">{Math.max(1, Math.round(f.size / 1024))} KB</span>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+`;
+
 /* ============================ dynamic / full-stack ============================ */
 /*
  * Dynamic mode wraps the Next.js app (the `static` scaffold) in an npm-workspaces
@@ -7165,6 +7542,11 @@ function buildFullStack(ctx: Ctx): Record<string, string> {
   out[".gitignore"] = rootGitignore();
   out[".env.example"] = rootEnvExample(ctx);
   out["README.md"] = rootReadme(ctx);
+
+  // 8b. Add-on root files (e.g. a CI workflow) → the monorepo root.
+  for (const f of ctx.features) {
+    for (const [rel, content] of Object.entries(f.rootFiles?.(ctx) ?? {})) out[rel] = content;
+  }
 
   // 9. Add-on backend env vars → appended to the root .env.example (deduped).
   const envBase = out[".env.example"];

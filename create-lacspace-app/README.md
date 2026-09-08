@@ -20,6 +20,10 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.12 — real-time & privacy (16 add-ons).** Two more keyless, no-vendor add-ons:
+> - **`realtime`** — live server→browser updates over **Server-Sent Events** (`@lacspace/sse`): a channel hub + a `/live` stream + a React `useSSE` feed. No WebSocket server. Full-stack.
+> - **`consent`** — **GDPR-friendly cookie consent** (`@lacspace/consent`): a drop-in `<ConsentBanner/>`, per-category choices, cookie persistence and `whenConsent()` script-gating. Frontend.
+>
 > **New in v2.11 — the Web Engagement Kit (14 add-ons).** Three keyless, no-vendor add-ons on brand-new `@lacspace` packages:
 > - **`push`** — real **browser push notifications** (`@lacspace/web-push`): keyless VAPID, no Firebase/FCM. Generates a service worker, a subscribe button, and a backend that stores subscriptions and sends. Full-stack.
 > - **`captcha`** — a **privacy-friendly proof-of-work CAPTCHA** (`@lacspace/captcha`): no Google/Cloudflare, no keys, no tracking. A drop-in widget + a backend verify route. Full-stack.

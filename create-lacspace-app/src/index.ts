@@ -2678,6 +2678,38 @@ export const FEATURES: FeatureDef[] = [
     ],
     learn: "https://developer.lacspace.com/packages/web-push",
   },
+  {
+    key: "consent",
+    label: "Cookie consent",
+    description: "GDPR-friendly cookie consent (@lacspace/consent) — a drop-in <ConsentBanner/>, per-category choices, cookie persistence and whenConsent() script-gating. Frontend, any template.",
+    deps: { "@lacspace/consent": "^1.0.0" },
+    files: () => ({ "components/consent.tsx": consentComponent() }),
+    nextSteps: [
+      "Render <ConsentBanner/> once in app/layout.tsx: import { ConsentBanner } from '@/components/consent'.",
+      "Gate analytics/marketing scripts: whenConsent(consent, 'analytics', () => { /* load tag */ }).",
+      "The choice is stored in a cookie — gate server-side too with parseConsentCookie().",
+    ],
+    learn: "https://developer.lacspace.com/packages/consent",
+  },
+  {
+    key: "realtime",
+    label: "Real-time (SSE)",
+    description: "Live server-to-browser updates over Server-Sent Events (@lacspace/sse) — a channel hub + a /live stream + a React useSSE feed. No WebSocket server. Full-stack.",
+    requiresBackend: true,
+    deps: { "@lacspace/sse": "^1.0.0" },
+    files: () => ({ "app/live/page.tsx": realtimeLivePage() }),
+    backend: () => ({
+      deps: { "@lacspace/sse": "^1.0.0" },
+      files: { "src/routes/live.ts": realtimeRoutesBackend() },
+      routes: [{ path: "/live", handler: "liveRoutes", auth: false, importLine: 'import liveRoutes from "./live.js";' }],
+    }),
+    nextSteps: [
+      "Open http://localhost:3000/live in two tabs; click 'Broadcast' in one — the other updates instantly.",
+      "Push from anywhere on the server: hub.broadcast({ event: 'message', data }) in src/routes/live.ts.",
+      "SSE auto-reconnects and needs no WebSocket server — great for notifications and live feeds.",
+    ],
+    learn: "https://developer.lacspace.com/packages/sse",
+  },
 ];
 
 /* ------------------------- feature: ai-chat (files) ------------------------- */
@@ -7412,6 +7444,76 @@ router.post("/send", asyncHandler(async (req, res) => {
   const expired = results.filter((r) => r.result?.expired);
   await Promise.all(expired.map((r) => PushSubscriptionModel.deleteOne({ endpoint: r.subscription.endpoint })));
   res.json({ sent: results.filter((r) => r.result && !r.result.expired).length, removed: expired.length });
+}));
+
+export default router;
+`;
+
+/* --------------------------- feature: consent (cookies) --------------------------- */
+
+const consentComponent = (): string => `"use client";
+// how this works: re-export the consent UI + API from one component. Render
+// <ConsentBanner/> once in app/layout.tsx; gate scripts with whenConsent().
+export { ConsentBanner, useConsent } from "@lacspace/consent/react";
+export { consent, whenConsent } from "@lacspace/consent";
+`;
+
+/* --------------------------- feature: realtime (SSE) --------------------------- */
+
+const realtimeLivePage = (): string => `"use client";
+import { useState } from "react";
+import { useSSE } from "@lacspace/sse/react";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function LivePage() {
+  const [log, setLog] = useState<string[]>([]);
+  const { status } = useSSE(API + "/live", {
+    onEvent: { message: (m) => setLog((prev) => [String((m as { text?: string }).text ?? ""), ...prev].slice(0, 50)) },
+  });
+
+  async function broadcast() {
+    await fetch(API + "/live/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Hello at " + new Date().toLocaleTimeString() }),
+    });
+  }
+
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="text-2xl font-bold">Live feed</h1>
+      <p className="mt-1 text-muted">Server-Sent Events — status: {status}.</p>
+      <button className="mt-4 rounded-xl border border-hairline px-4 py-2" onClick={broadcast}>Broadcast a message</button>
+      <ul className="mt-6 space-y-2">
+        {log.map((line, i) => (<li key={i} className="rounded-xl border border-hairline p-3">{line}</li>))}
+      </ul>
+    </main>
+  );
+}
+`;
+
+const realtimeRoutesBackend = (): string => `import express from "express";
+import { SSEHub, sseHandler } from "@lacspace/sse";
+import { asyncHandler } from "../http.js";
+
+// how this works: one shared hub holds every open SSE connection. GET /live opens
+// a stream; POST /live/broadcast pushes a "message" event to everyone connected.
+// Push from anywhere in your app by importing this hub and calling hub.broadcast().
+const router = express.Router();
+const hub = new SSEHub();
+hub.startHeartbeat();
+
+router.get("/", (_req, res) => {
+  const client = sseHandler(res, { onClose: () => hub.remove(client) });
+  hub.add(client);
+  client.send({ event: "message", data: { text: "Connected to the live feed." } });
+});
+
+router.post("/broadcast", asyncHandler(async (req, res) => {
+  const text = typeof req.body?.text === "string" ? req.body.text : "ping";
+  const sent = hub.broadcast({ event: "message", data: { text } });
+  res.json({ sent });
 }));
 
 export default router;

@@ -276,4 +276,21 @@ describe("Web Engagement Kit add-ons", () => {
     expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/web-push"]).toBeTruthy();
     expect(f[".env.example"]).toContain("VAPID_PUBLIC");
   });
+
+  it("consent is frontend-only and re-exports the banner", () => {
+    const f = generateProject({ name: "acme", template: "blog", features: ["consent"] });
+    expect("backend/package.json" in f).toBe(false);
+    expect("components/consent.tsx" in f).toBe(true);
+    expect(f["components/consent.tsx"]).toContain("@lacspace/consent/react");
+    expect(JSON.parse(f["package.json"]!).dependencies["@lacspace/consent"]).toBeTruthy();
+  });
+
+  it("realtime upgrades to full-stack and mounts a public /live SSE route", () => {
+    const f = generateProject({ name: "acme", template: "dashboard", features: ["realtime"] });
+    expect("backend/src/routes/live.ts" in f).toBe(true);
+    expect("frontend/app/live/page.tsx" in f).toBe(true);
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/live", liveRoutes)');
+    expect(f["backend/src/routes/live.ts"]).toContain("SSEHub");
+    expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/sse"]).toBeTruthy();
+  });
 });

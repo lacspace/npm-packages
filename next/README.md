@@ -109,6 +109,17 @@ export const config = { matcher: ["/((?!_next/static|favicon.ico).*)"] };
 | `setAuthCookie` / `clearAuthCookie` | manage the session cookie |
 | `routeHandler(fn)` / `withAuth(fn)` | Route Handler wrappers |
 | `authGuard(req, opts?)` | middleware protection |
+| `setCsrfCookie` / `getCsrfToken` / `verifyCsrf` / `withCsrf` | CSRF double-submit protection |
+| **Pure helpers** (edge-safe, no `next`/`react`) | |
+| `serializeCookie(name, value, opts?)` | build a `Set-Cookie` value |
+| `parseCookieHeader(header)` / `getCookieValue(header, name)` | read a `Cookie` header |
+| `cacheControl(opts)` | build a `Cache-Control` value |
+| `matchPath(path, pattern)` / `matchesAny` / `createPathMatcher(patterns)` | route matching (`:param`, `*`, `**`, RegExp) |
+| `isSafeRedirectPath(target)` / `sanitizeRedirect(target, fallback?)` | open-redirect-safe `?next=` |
+| `extractBearerToken(authHeader)` | parse `Authorization: Bearer` |
+| `generateCsrfToken(bytes?)` / `timingSafeStringEqual(a, b)` | CSPRNG token + constant-time compare |
+| `statusFromError(err)` / `errorPayload(err, fallback?)` | JSON error shaping |
+| `parseSearchParams(input)` | query string → object (arrays for repeats) |
 
 > Client-side hooks (`useAuth`, `useQuery`) live in [`@lacspace/react`](https://www.npmjs.com/package/@lacspace/react) — use both together.
 
@@ -121,6 +132,42 @@ export const config = { matcher: ["/((?!_next/static|favicon.ico).*)"] };
 | [`@lacspace/rate-limit`](https://www.npmjs.com/package/@lacspace/rate-limit) | Rate limiting |
 | [`@lacspace/otp`](https://www.npmjs.com/package/@lacspace/otp) | TOTP/HOTP 2FA |
 | **`@lacspace/next`** | Next.js SDK integration (this package) |
+
+## New in 1.2.0 — edge-safe cookie, cache & routing utilities
+
+A set of **pure, dependency-free** helpers that don't import `next/*` or `react`,
+so they run anywhere (Edge runtime, workers, plain Node) and are trivial to unit
+test. Great for `middleware.ts`, custom Route Handlers, and open-redirect-safe
+sign-in flows.
+
+```ts
+import {
+  serializeCookie, parseCookieHeader, getCookieValue,
+  cacheControl, matchPath, createPathMatcher,
+  isSafeRedirectPath, sanitizeRedirect, extractBearerToken,
+  generateCsrfToken, timingSafeStringEqual, parseSearchParams,
+} from "@lacspace/next";
+
+// Cookies — build a Set-Cookie value / read a Cookie header
+serializeCookie("sid", "abc", { httpOnly: true, secure: true, sameSite: "lax", maxAge: 3600 });
+// "sid=abc; Max-Age=3600; HttpOnly; Secure; SameSite=Lax"
+getCookieValue(req.headers.get("cookie"), "sid");           // "abc"
+
+// Cache-Control header from options
+cacheControl({ public: true, maxAge: 60, staleWhileRevalidate: 30 });
+// "public, max-age=60, stale-while-revalidate=30"
+
+// Route matching (`:param`, `*` within a segment, `**` across segments, or RegExp)
+const isPublic = createPathMatcher(["/login", "/api/public/**", /^\/health$/]);
+isPublic("/api/public/ping"); // true
+
+// Open-redirect-safe `?next=` handling
+sanitizeRedirect(req.nextUrl.searchParams.get("next"), "/dashboard"); // rejects //evil.com, https://…
+
+// Bearer tokens + constant-time compare
+extractBearerToken(req.headers.get("authorization")); // "eyJ…" | undefined
+timingSafeStringEqual(a, b);
+```
 
 ## New in 1.2 — CSRF & token validation
 

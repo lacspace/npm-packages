@@ -17,8 +17,13 @@
 - 🧩 `<LacspaceProvider>` — one shared `LacspaceSDK` for the whole tree
 - 🔐 `useAuth()` — `{ user, loading, error, login, register, logout }`, live-synced to the SDK
 - 🔄 `useQuery(fetcher, deps?)` — fetch anything from the SDK with `{ data, loading, error, refetch }`
+- ✍️ `useMutation(mutator)` — run writes with `{ mutate, status, data, error, reset }`
+- 🚦 `useAuthStatus()` — `"loading" | "authenticated" | "unauthenticated"` in one value
 - 🪝 `useLacspace()` — the raw SDK for everything else
+- 🧪 A pure, framework-agnostic core (state machine · retry/backoff · polling) you can unit-test without a DOM
 - ⚡ Ships `"use client"` · `@lacspace/sdk` + `react` are peer deps · fully typed
+
+> **New in 1.2.0** — `useMutation` and `useAuthStatus` hooks, plus a fully **pure core** (`asyncReducer`, `deriveAuthStatus`, `computeBackoff`, `runWithRetry`, `resolveRefetchInterval`, `serializeDeps`) that has zero React/DOM coupling — testable under plain Node with all timing injectable. Fully backward compatible.
 
 ## Install
 
@@ -85,6 +90,63 @@ function Products() {
 const { data } = useQuery((sdk) => sdk.api.get(`products/${id}`), [id]);
 ```
 
+## `useMutation`
+
+Run one-off writes (checkout, tracking, profile updates) with managed `status`, `data` and `error`:
+
+```tsx
+import { useMutation } from "@lacspace/react";
+
+function CheckoutButton({ cartId }: { cartId: string }) {
+  const checkout = useMutation((sdk, id: string) => sdk.ecommerce.checkout(id));
+
+  if (checkout.isSuccess) return <p>Order {checkout.data!.orderId} placed 🎉</p>;
+
+  return (
+    <>
+      <button disabled={checkout.isLoading} onClick={() => checkout.mutate(cartId)}>
+        {checkout.isLoading ? "Placing…" : "Place order"}
+      </button>
+      {checkout.error && <p role="alert">{checkout.error.message}</p>}
+    </>
+  );
+}
+```
+
+`mutate()` never rejects (read `error` for failures); use `mutateAsync()` when you want a
+`try/catch` call site. Call `reset()` to return to the idle state.
+
+## `useAuthStatus`
+
+Gate routes on a single value instead of juggling `user` + `loading`:
+
+```tsx
+import { useAuthStatus } from "@lacspace/react";
+
+function Guard({ children }: { children: React.ReactNode }) {
+  const status = useAuthStatus(); // "loading" | "authenticated" | "unauthenticated"
+  if (status === "loading") return <Spinner />;
+  if (status === "unauthenticated") return <Redirect to="/login" />;
+  return <>{children}</>;
+}
+```
+
+## Pure core (no React, no DOM)
+
+Everything the hooks are built on is exported as plain functions you can use — and unit-test —
+anywhere, with all timing injectable:
+
+```ts
+import { computeBackoff, runWithRetry, deriveAuthStatus, serializeDeps } from "@lacspace/react";
+
+// Retry a flaky SDK call with exponential backoff:
+const products = await runWithRetry((sdk) => sdk.ecommerce.getProducts(), { retries: 3 });
+
+computeBackoff(2);                              // 4000 (ms)
+deriveAuthStatus({ user: null, loading: true }); // "loading"
+serializeDeps(["user", { id: 1 }]);             // stable cache key
+```
+
 ## `useLacspace`
 
 Grab the raw SDK for anything the hooks don't cover:
@@ -100,10 +162,29 @@ function BuyButton() {
 
 ## API
 
-- `<LacspaceProvider options={…} | client={…}>` — provides one shared SDK
-- `useLacspace()` → the `LacspaceSDK` instance
-- `useAuth()` → `{ user, loading, error, login, register, logout }`
-- `useQuery(fetcher, deps?)` → `{ data, loading, error, refetch }`
+| Export | Signature | Returns |
+| --- | --- | --- |
+| `<LacspaceProvider>` | `{ options?, client?, children }` | provides one shared SDK |
+| `useLacspace()` | — | the `LacspaceSDK` instance |
+| `useAuth()` | — | `{ user, loading, error, login, register, logout }` |
+| `useQuery(fetcher, deps?)` | `(sdk) => Promise<T>` | `{ data, loading, error, refetch }` |
+| `useMutation(mutator)` | `(sdk, vars) => Promise<T>` | `{ mutate, mutateAsync, data, error, status, isLoading, isSuccess, isError, isIdle, reset }` |
+| `useAuthStatus()` | — | `"loading" \| "authenticated" \| "unauthenticated"` |
+
+### Pure core (framework-agnostic)
+
+| Export | Signature |
+| --- | --- |
+| `asyncReducer(state, action)` | pure state machine → `AsyncState<T>` |
+| `initialAsyncState(seed?)` | `AsyncState<T>` |
+| `selectAsyncFlags(state)` | `{ isIdle, isLoading, isSuccess, isError }` |
+| `deriveAuthStatus({ user, loading? })` | `AuthStatus` |
+| `isAuthenticated(user)` | `boolean` |
+| `computeBackoff(attempt, opts?)` | delay in ms |
+| `runWithRetry(fn, opts?)` | `Promise<T>` (injectable `sleep`) |
+| `resolveRefetchInterval(interval, data, opts?)` | `number \| null` |
+| `serializeDeps(deps)` | stable string key |
+| `toError(value)` | `Error` |
 
 ## The Lacspace family
 

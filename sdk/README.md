@@ -92,6 +92,77 @@ await lac.api.post("support/tickets", { subject: "Help" });
 const lac = new LacspaceSDK({ baseURL, apiKey: process.env.LACSPACE_API_KEY });
 ```
 
+## New in 2.2.0
+
+Purely additive, injectable, isomorphic helpers — nothing above changed.
+
+**Named environments** — stop hard-coding base URLs:
+
+```ts
+import { createClientForEnvironment, resolveEnvironment, configFromEnvironment } from "@lacspace/sdk";
+
+const lac = createClientForEnvironment("staging");            // prod | staging | development | local
+resolveEnvironment("production").baseURL;                    // "https://api.lacspace.com/api"
+const cfg = configFromEnvironment("staging", { apiKey });     // your options win over the preset
+```
+
+**One config, many sources** — layer env preset → shared defaults → per-call overrides (headers deep-merge, `undefined` never clobbers):
+
+```ts
+import { mergeConfig } from "@lacspace/sdk";
+const opts = mergeConfig(base, { headers: { "X-App": "shop" } }, perRequest);
+```
+
+**Correlation / tracing** — trace one operation across auth, analytics and e-commerce:
+
+```ts
+import { createRequestContext, correlationHeaders, createIdempotencyKey } from "@lacspace/sdk";
+
+const ctx = createRequestContext();                          // { correlationId, startedAt }
+await lac.api.post("orders", cart, {
+  headers: { ...correlationHeaders({ id: ctx.correlationId }), "Idempotency-Key": createIdempotencyKey() },
+});
+```
+
+**Health / ping** — never rejects; reports ok, status and latency:
+
+```ts
+import { checkHealth } from "@lacspace/sdk";
+const { ok, status, latencyMs } = await checkHealth("https://api.lacspace.com/api/health");
+```
+
+**Typed error normalization** — one shape for every failure:
+
+```ts
+import { normalizeError, isRetryableError } from "@lacspace/sdk";
+try { await lac.ecommerce.checkout("cart_1"); }
+catch (e) { const n = normalizeError(e); if (n.retryable) retry(); }  // kind: http|network|timeout|abort|unknown
+```
+
+**Transport-agnostic pagination** — an async iterator over any cursor API:
+
+```ts
+import { paginate, collectPages } from "@lacspace/sdk";
+for await (const item of paginate((cursor) => lac.api.get("feed", { params: { cursor } }))) { /* … */ }
+const all = await collectPages((cursor) => lac.api.get("feed", { params: { cursor } }));
+```
+
+| Helper | Signature |
+| --- | --- |
+| `createClientForEnvironment` | `(env, options?) => LacspaceSDK` |
+| `resolveEnvironment` | `(env \| preset, overrides?) => EnvironmentPreset` |
+| `configFromEnvironment` | `(env, options?) => T` |
+| `mergeConfig` | `(...sources) => T` (headers deep-merged) |
+| `createRequestContext` | `({ id?, rng?, now? }) => { correlationId, startedAt }` |
+| `correlationHeaders` | `({ id?, header?, rng? }) => Record<string,string>` |
+| `createCorrelationId` / `createIdempotencyKey` | `(rng?) => string` |
+| `checkHealth` | `(url, { fetch?, now?, headers?, signal? }) => HealthResult` |
+| `normalizeError` / `isRetryableError` | `(e) => NormalizedError` / `boolean` |
+| `paginate` / `collectPages` | `(fetchPage, { start?, maxPages? }) => AsyncGenerator<T>` / `Promise<T[]>` |
+| `SDK_VERSION` | `string` |
+
+Every one is pure and injects its IO (`fetch` / clock / RNG), so tests never touch the network.
+
 ## One import for everything
 
 Every type and class from `api`, `auth` and `analytics` is re-exported here:

@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/auth",
-  "version": "2.1.4",
-  "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs.",
+  "version": "2.2.0",
+  "description": "Authentication flows (login, register, token, refresh) for Lacspace APIs, with PKCE, JWT expiry math, scope/role checks and proactive token refresh.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -39,7 +39,17 @@
     "access-token",
     "refresh-token",
     "auth-client",
-    "auto-refresh"
+    "auto-refresh",
+    "pkce",
+    "oauth",
+    "oidc",
+    "jwt-decode",
+    "token-expiry",
+    "scopes",
+    "rbac",
+    "roles",
+    "bearer-token",
+    "isomorphic"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

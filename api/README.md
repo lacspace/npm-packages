@@ -98,10 +98,18 @@ try {
 | --- | --- |
 | `new LacspaceApi(opts?)` | `{ baseURL?, apiKey?, headers?, fetch? }` |
 | `get/post/put/patch/delete<T>(path, …)` | typed requests |
+| `head/options<T>(path, opts?)` | `HEAD` / `OPTIONS` (default `responseType: "response"`) |
 | `request<T>(method, path, body?, init?)` | low-level escape hatch |
+| `paginate<T>` · `getAll<T>` | page-number pagination |
+| `paginateCursor<T>` · `getAllCursor<T>` | cursor pagination (`nextCursor`/`next_cursor`/`cursor`) |
 | `setToken(t)` · `getToken()` | manage the bearer token |
 | `createApi(opts?)` | factory for `new LacspaceApi(opts)` |
-| `LacspaceApiError` | `{ status, statusText, body }` |
+| `LacspaceApiError` · `isApiError(e)` | error type + type guard |
+| `buildQuery(params, opts?)` · `parseQuery(str)` | typed query strings (`repeat`/`comma`/`brackets`) |
+| `joinUrl(base, …parts)` · `joinPath(…parts)` · `withQuery(url, params)` | URL / path joining |
+| `normalizeHeaders(init)` · `mergeHeaders(…sources)` | case-insensitive header records |
+| `formBody(obj)` | `application/x-www-form-urlencoded` body |
+| `getStatus` · `getErrorBody<T>` · `isStatus` · `isClientError` · `isServerError` · `isNotFound` · `isUnauthorized` · `isForbidden` · `isConflict` · `isRateLimited` · `retryAfterMs` | typed error helpers |
 
 ## The Lacspace family
 
@@ -143,6 +151,46 @@ const pdf = await api.get("/report.pdf", { responseType: "blob" });
 ```
 
 Also: per-request `timeoutMs`/`AbortSignal`, in-flight de-duplication of concurrent GETs, opt-in `cacheTtlMs`, and `isApiError()` for clean `catch` blocks. Everything is additive — existing calls keep working.
+
+## New in 2.2.0 — helpers & cursor pagination
+
+All additive and dependency-free. Nothing about the client, its options, defaults, or error shape changed.
+
+```ts
+import {
+  createApi, joinUrl, withQuery, buildQuery, parseQuery,
+  mergeHeaders, formBody, isNotFound, isRateLimited, retryAfterMs, getErrorBody,
+} from "@lacspace/api";
+
+const api = createApi({ baseURL: "https://api.example.com" });
+
+// New verbs — HEAD & OPTIONS (default to the raw Response so you can read headers)
+const head = await api.head("reports/42");
+console.log(head.headers.get("etag"));
+
+// Cursor pagination — async-iterate or collect (reads nextCursor / next_cursor / cursor)
+for await (const row of api.paginateCursor("feed")) handle(row);
+const everything = await api.getAllCursor("feed");
+
+// URL & query helpers
+joinUrl("https://api.x.com/", "/v2/", "users");     // "https://api.x.com/v2/users"
+withQuery("/users?active=1", { page: 2 });          // "/users?active=1&page=2"
+buildQuery({ tags: ["a", "b"] }, { arrayFormat: "comma" }); // "tags=a%2Cb"
+parseQuery("tags=a&tags=b");                         // { tags: ["a", "b"] }
+
+// Header merging (case-insensitive, last wins) & form bodies
+mergeHeaders({ "Content-Type": "text/plain" }, { "content-type": "application/json" });
+await api.post("login", formBody({ email, password })); // x-www-form-urlencoded
+
+// Typed error helpers — no instanceof gymnastics
+try {
+  await api.get("users/me");
+} catch (e) {
+  if (isNotFound(e)) return null;
+  if (isRateLimited(e)) await wait(retryAfterMs(e) ?? 1000);
+  const problem = getErrorBody<{ message: string }>(e);
+}
+```
 
 ## Licensing
 

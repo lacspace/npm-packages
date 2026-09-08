@@ -13,6 +13,13 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { LacspaceSDK, type LacspaceSDKOptions } from "@lacspace/sdk";
 
+/**
+ * Framework-agnostic helpers (cookies, cache-control, path matching, redirect
+ * safety, bearer tokens, error shaping, search-params). Pure and runtime-neutral
+ * — safe to import in the Edge runtime, workers or plain Node.
+ */
+export * from "./core";
+
 const DEFAULT_COOKIE = "lacspace_token";
 
 export interface ServerClientOptions extends LacspaceSDKOptions {

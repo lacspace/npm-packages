@@ -126,6 +126,86 @@ await auth.login({ email, password });    // token persisted, listeners notified
 await auth.logout();                      // clears local token too
 ```
 
+## New in 2.2 — PKCE, JWT expiry math, scopes/roles & proactive refresh
+
+All of these are **pure, isomorphic, zero-dependency** helpers. Anything that touches
+the clock, randomness, hashing or timers is **injectable**, so they're deterministic and
+never hit the network — ideal for tests and edge runtimes.
+
+**JWT & expiry math** (no verification — inspection only)
+
+```ts
+import { decodeJwt, getTokenExpiry, isTokenExpired, tokenTimeToLive, refreshDelayMs } from "@lacspace/auth";
+
+const claims = decodeJwt(token);                      // payload or null
+getTokenExpiry(token);                                // epoch ms, or null
+isTokenExpired(token, { leewaySec: 30 });             // clock injectable
+tokenTimeToLive(token);                               // ms left, or null
+refreshDelayMs(token, { skewSec: 60 });               // ms until you should refresh
+```
+
+**Proactively refresh before expiry** (timers injectable)
+
+```ts
+const stop = auth.startAutoRefresh({ skewSec: 60, onRefresh: (r) => save(r.token) });
+// …later
+stop();
+```
+
+**Scopes & roles**
+
+```ts
+import { hasScope, hasAllScopes, hasRole, getUserRoles } from "@lacspace/auth";
+
+hasScope("read write", "write");                      // true
+hasAllScopes(user.scope, ["read", "write"]);          // true / false
+hasRole(auth.user, "admin");                          // reads roles/role
+auth.userHasRole("admin");  auth.userHasScope("write");
+```
+
+**PKCE / OAuth redirect flow** (randomness + hasher injectable)
+
+```ts
+import { createPkcePair, generateState, buildAuthorizeUrl, parseAuthCallback } from "@lacspace/auth";
+
+const { codeVerifier, codeChallenge } = await createPkcePair();
+const url = buildAuthorizeUrl({
+  authorizationEndpoint: "https://id.example.com/authorize",
+  clientId, redirectUri, scope: ["openid", "profile"],
+  state: generateState(), codeChallenge,
+});
+// after the redirect back:
+const { code, state } = parseAuthCallback(window.location.href);
+```
+
+**Auth headers & cross-tab sync**
+
+```ts
+import { bearerHeader, basicHeader, encodeAuthMessage, decodeAuthMessage } from "@lacspace/auth";
+
+fetch(url, { headers: bearerHeader(token) });
+channel.postMessage(encodeAuthMessage({ type: "logout" }));
+const msg = decodeAuthMessage(event.data);            // null if not ours
+```
+
+### Added API
+
+| Export | What it does |
+| --- | --- |
+| `decodeJwt(token)` · `getTokenExpiry(token)` | Inspect a JWT payload / read `exp` (ms) |
+| `isTokenExpired(token, {clock?,leewaySec?})` | Expiry check with injectable clock |
+| `tokenTimeToLive(token, {clock?})` · `refreshDelayMs(token, {clock?,skewSec?,minMs?,maxMs?})` | Time-left / when-to-refresh math |
+| `bearerHeader(token)` · `basicHeader(user, pass, {encode?})` | `Authorization` header builders |
+| `parseScopes` · `hasScope` · `hasAllScopes` · `hasAnyScope` | Scope parsing & checks |
+| `getUserRoles` · `hasRole` · `hasAnyRole` · `hasAllRoles` | Role checks (`roles`/`role`/custom claim) |
+| `randomString` · `generateState` · `generateNonce` · `generateCodeVerifier` | CSPRNG helpers (injectable `random`) |
+| `createPkcePair({verifier?,random?,sha256?})` · `codeChallengeS256(verifier, {sha256?})` | PKCE (injectable hasher) |
+| `buildAuthorizeUrl(opts)` · `parseAuthCallback(url)` | OAuth/OIDC redirect + callback |
+| `encodeAuthMessage` · `decodeAuthMessage` | Cross-tab sync codec |
+| `auth.startAutoRefresh({setTimer?,clearTimer?,clock?,skewSec?,onRefresh?,onError?})` | Proactive refresh before expiry → stop fn |
+| `auth.authHeader()` · `auth.expiresAt()` · `auth.isAuthenticated(opts?)` | Instance token helpers |
+| `auth.userHasRole(role)` · `auth.userHasScope(scope)` | Instance role/scope checks |
+
 ## Licensing
 
 This package is **free** under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms. Use it in personal and commercial projects at no cost; just keep the notice.

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/react",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "React hooks and provider for the Lacspace SDK — useAuth, useQuery, useLacspace.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,7 +38,13 @@
     "usequery",
     "react-auth",
     "context-provider",
-    "tanstack-alternative"
+    "tanstack-alternative",
+    "useauthstatus",
+    "async-state-machine",
+    "exponential-backoff",
+    "retry",
+    "polling",
+    "react-query-alternative"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

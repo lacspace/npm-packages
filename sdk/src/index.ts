@@ -76,3 +76,60 @@ export function createClient(options?: LacspaceSDKOptions): LacspaceSDK {
 }
 
 export default LacspaceSDK;
+
+/* ------------------------------------------------------------------ *
+ * New in 2.2.0 — pure, injectable client utilities.
+ * Everything above is unchanged; these are strictly additive.
+ * ------------------------------------------------------------------ */
+
+export {
+  LACSPACE_ENVIRONMENTS,
+  resolveEnvironment,
+  mergeConfig,
+  configFromEnvironment,
+  type LacspaceEnvironment,
+  type EnvironmentPreset,
+  type ClientConfigLike,
+} from "./environments";
+
+export {
+  createCorrelationId,
+  createIdempotencyKey,
+  correlationHeaders,
+  createRequestContext,
+  contextElapsedMs,
+  type RandomSource,
+  type CorrelationOptions,
+  type SdkRequestContext,
+  type RequestContextOptions,
+} from "./context";
+
+export {
+  SDK_VERSION,
+  normalizeError,
+  isRetryableError,
+  checkHealth,
+  paginate,
+  collectPages,
+  type ErrorKind,
+  type NormalizedError,
+  type HealthResult,
+  type HealthCheckOptions,
+  type PageResult,
+  type PageFetcher,
+  type PaginateOptions,
+} from "./runtime";
+
+import { configFromEnvironment, type LacspaceEnvironment, type EnvironmentPreset } from "./environments";
+
+/**
+ * Create a fully-wired {@link LacspaceSDK} for a named environment
+ * (production / staging / development / local). Your `options` win over the
+ * environment preset (base URL, headers, …).
+ */
+export function createClientForEnvironment(
+  env: LacspaceEnvironment | EnvironmentPreset,
+  options?: LacspaceSDKOptions,
+): LacspaceSDK {
+  return new LacspaceSDK(configFromEnvironment<LacspaceSDKOptions>(env, options));
+}

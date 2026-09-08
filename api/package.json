@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/api",
-  "version": "2.1.4",
-  "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs.",
+  "version": "2.2.0",
+  "description": "Lightweight, zero-dependency, isomorphic TypeScript HTTP client for Lacspace APIs — retries, interceptors, pagination, plus query/URL/header/form/error helpers.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -41,7 +41,15 @@
     "pagination",
     "axios-alternative",
     "ky-alternative",
-    "fetch-wrapper"
+    "fetch-wrapper",
+    "query-string",
+    "querystring",
+    "url-join",
+    "cursor-pagination",
+    "form-urlencoded",
+    "merge-headers",
+    "abortsignal",
+    "backoff"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

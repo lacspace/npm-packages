@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sdk",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "High-level TypeScript SDK for Lacspace — api, auth, analytics and e-commerce in one client.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -37,7 +37,16 @@
     "api-sdk",
     "client-library",
     "ecommerce-sdk",
-    "isomorphic"
+    "isomorphic",
+    "api-client",
+    "correlation-id",
+    "idempotency-key",
+    "pagination",
+    "async-iterator",
+    "health-check",
+    "error-handling",
+    "environment-config",
+    "zero-dependency"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

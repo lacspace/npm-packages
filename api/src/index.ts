@@ -175,6 +175,32 @@ function defaultExtract(page: unknown): unknown[] {
   return [];
 }
 
+export interface CursorPaginateOptions extends RequestOptions {
+  /** Query param carrying the cursor. Default "cursor". */
+  cursorParam?: string;
+  /** First cursor to send (omit for none). */
+  startCursor?: string | number;
+  /** Extract the array of items from a page response. Default `data ?? items ?? results ?? page`. */
+  extract?: (page: unknown) => unknown[];
+  /** Read the next cursor from a page; return null/undefined to stop. Default: common cursor fields. */
+  nextCursor?: (page: unknown) => string | number | null | undefined;
+  /** Safety cap on pages fetched. Default 1000. */
+  maxPages?: number;
+}
+
+function defaultNextCursor(page: unknown): string | number | null | undefined {
+  if (page && typeof page === "object") {
+    const o = page as Record<string, unknown>;
+    const candidates = [o.nextCursor, o.next_cursor, o.cursor, o.next];
+    const meta = o.meta as Record<string, unknown> | undefined;
+    if (meta) candidates.push(meta.nextCursor, meta.next_cursor, meta.cursor, meta.next);
+    for (const c of candidates) {
+      if (typeof c === "string" || typeof c === "number") return c;
+    }
+  }
+  return undefined;
+}
+
 export class LacspaceApi {
   private readonly baseURL: string;
   private apiKey?: string;
@@ -392,6 +418,43 @@ export class LacspaceApi {
   delete<T = unknown>(path: string, opts?: RequestOptions): Promise<T> {
     return this.request<T>("DELETE", path, undefined, opts);
   }
+  /** HEAD request. Defaults to `responseType: "response"` so you can read headers. */
+  head<T = Response>(path: string, opts?: RequestOptions): Promise<T> {
+    return this.request<T>("HEAD", path, undefined, { responseType: "response", ...opts });
+  }
+  /** OPTIONS request. Defaults to `responseType: "response"`. */
+  options<T = Response>(path: string, opts?: RequestOptions): Promise<T> {
+    return this.request<T>("OPTIONS", path, undefined, { responseType: "response", ...opts });
+  }
+
+  /** Async-iterate cursor-paginated pages, yielding each item. */
+  async *paginateCursor<T = unknown>(path: string, opts: CursorPaginateOptions = {}): AsyncGenerator<T, void, unknown> {
+    const {
+      cursorParam = "cursor",
+      startCursor,
+      extract = defaultExtract,
+      nextCursor = defaultNextCursor,
+      maxPages = 1000,
+      params,
+      ...rest
+    } = opts;
+    let cursor: string | number | null | undefined = startCursor;
+    for (let i = 0; i < maxPages; i++) {
+      const pageParams = { ...params, ...(cursor !== undefined && cursor !== null ? { [cursorParam]: cursor } : {}) };
+      const res = await this.get<unknown>(path, { ...rest, params: pageParams });
+      const items = extract(res);
+      for (const item of items) yield item as T;
+      cursor = nextCursor(res);
+      if (cursor === undefined || cursor === null || items.length === 0) return;
+    }
+  }
+
+  /** Collect every item across all cursor pages into one array. */
+  async getAllCursor<T = unknown>(path: string, opts?: CursorPaginateOptions): Promise<T[]> {
+    const out: T[] = [];
+    for await (const item of this.paginateCursor<T>(path, opts)) out.push(item);
+    return out;
+  }
 
   /** Async-iterate paginated pages, yielding each item. */
   async *paginate<T = unknown>(path: string, opts: PaginateOptions = {}): AsyncGenerator<T, void, unknown> {
@@ -417,5 +480,28 @@ export class LacspaceApi {
 export function createApi(options?: LacspaceApiOptions): LacspaceApi {
   return new LacspaceApi(options);
 }
+
+// ---------------------------------------------------------------------------
+// New in 2.2 — standalone, dependency-free helpers (colocated modules).
+// All additive: the client and its existing exports are unchanged.
+// ---------------------------------------------------------------------------
+export { buildQuery, parseQuery, type ArrayFormat, type BuildQueryOptions } from "./query";
+export { joinUrl, joinPath, withQuery } from "./url";
+export { normalizeHeaders, mergeHeaders } from "./headers";
+export { formBody } from "./forms";
+export {
+  getStatus,
+  getErrorBody,
+  isStatus,
+  isClientError,
+  isServerError,
+  isUnauthorized,
+  isForbidden,
+  isNotFound,
+  isConflict,
+  isRateLimited,
+  retryAfterMs,
+  type ApiErrorShape,
+} from "./errors";
 
 export default LacspaceApi;

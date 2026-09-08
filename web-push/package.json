@@ -1,0 +1,78 @@
+{
+  "name": "@lacspace/web-push",
+  "version": "1.0.0",
+  "description": "Send Web Push notifications to browsers with ZERO dependencies and NO vendor — pure Web Crypto (VAPID + RFC 8291 aes128gcm payload encryption). No Firebase, no FCM account, no keys to buy. Isomorphic: runs on Node, Deno, Bun and edge runtimes (Vercel Edge, Cloudflare Workers).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      },
+      "require": {
+        "types": "./dist/client.d.cts",
+        "default": "./dist/client.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "web-push",
+    "push-notifications",
+    "push",
+    "vapid",
+    "notifications",
+    "service-worker",
+    "rfc8291",
+    "rfc8292",
+    "aes128gcm",
+    "web-crypto",
+    "pwa",
+    "browser-notifications",
+    "no-firebase",
+    "keyless",
+    "zero-dependency",
+    "edge",
+    "isomorphic",
+    "cloudflare-workers",
+    "vercel-edge",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/web-push",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "web-push"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

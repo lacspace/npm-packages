@@ -1,0 +1,73 @@
+{
+  "name": "@lacspace/captcha",
+  "version": "1.0.0",
+  "description": "A keyless, privacy-friendly proof-of-work CAPTCHA with zero dependencies — no Google, no Cloudflare, no account, no tracking, no puzzles to squint at. Stateless HMAC-signed challenges (ALTCHA-style) verified with a single server secret. Isomorphic core + a drop-in browser widget.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      },
+      "require": {
+        "types": "./dist/client.d.cts",
+        "default": "./dist/client.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "captcha",
+    "proof-of-work",
+    "pow",
+    "bot-protection",
+    "anti-bot",
+    "spam-protection",
+    "altcha",
+    "privacy",
+    "keyless",
+    "no-recaptcha",
+    "gdpr",
+    "hmac",
+    "zero-dependency",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/captcha",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "captcha"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

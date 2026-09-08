@@ -117,6 +117,38 @@ export interface Matchers<R = void> {
   toBeTypeOf(type: TypeOfResult): R;
   /** `predicate(value)` returns truthy. */
   toSatisfy(predicate: (value: any) => boolean): R;
+
+  // --- Added in 1.1.0 (see extra.ts) ---
+  /** Value deep-equals one of the given candidates. */
+  toBeOneOf(candidates: unknown[]): R;
+  /** Finite number in the half-open range `[floor, ceiling)`. */
+  toBeWithin(floor: number, ceiling: number): R;
+  /** String starts with the given prefix. */
+  toStartWith(prefix: string): R;
+  /** String ends with the given suffix. */
+  toEndWith(suffix: string): R;
+  /** Empty string, array, Map, Set, iterable, array-like, or object with no own keys. */
+  toBeEmpty(): R;
+  /** Object (or function) has every one of the given keys. */
+  toHaveKeys(keys: Array<string | symbol> | string | symbol): R;
+  /** Array has the same members as `members`, ignoring order (deep-equal). */
+  toIncludeSameMembers(members: unknown[]): R;
+  /** Array is sorted ascending (or by the given comparator). */
+  toBeSorted(compareFn?: (a: any, b: any) => number): R;
+  /** `Array.isArray(value)`. */
+  toBeArray(): R;
+  /** `typeof value === "boolean"`. */
+  toBeBoolean(): R;
+  /** `typeof value === "string"`. */
+  toBeString(): R;
+  /** `typeof value === "number"`. */
+  toBeNumber(): R;
+  /** `typeof value === "function"`. */
+  toBeFunction(): R;
+  /** Non-null, non-array `object`. */
+  toBeObject(): R;
+  /** A valid `Date` instance (not Invalid Date). */
+  toBeDate(): R;
 }
 
 /**

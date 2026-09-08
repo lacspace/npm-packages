@@ -13,6 +13,8 @@
 
 > A Jest-style `expect` you can use **without a test runner**. On failure it throws a descriptive `AssertionError`, so it drops straight into **vitest / jest / node:test** — but it also runs in the **browser, edge and serverless**, or anywhere you just want a rich `assert`. No `node:` imports, no dependencies.
 
+> **New in 1.1.0** — 15 additional matchers (all `.not` / `.resolves` / `.rejects` aware, zero new deps): `toBeOneOf`, `toBeWithin`, `toStartWith`, `toEndWith`, `toBeEmpty`, `toHaveKeys`, `toIncludeSameMembers`, `toBeSorted`, and the type family `toBeArray` · `toBeBoolean` · `toBeString` · `toBeNumber` · `toBeFunction` · `toBeObject` · `toBeDate`. The matcher record is also exported as `extraMatchers` so you can register it into another `expect` instance.
+
 - 🎯 **Familiar fluent API** — `expect(x).toEqual(y)`, `.not`, `.resolves`, `.rejects`
 - 🧠 **Robust deep-equality** — primitives, arrays, plain objects, `Map`, `Set`, `Date`, `RegExp`, typed arrays, `NaN`, `+0/-0` and **circular references**
 - 🧩 **Asymmetric matchers** — `expect.any`, `expect.objectContaining`, `expect.stringMatching`, … honored inside `toEqual`/`toMatchObject`
@@ -102,6 +104,39 @@ expect({ a: { b: { c: 42 } } }).toHaveProperty("a.b.c", 42);
 expect({ list: [10, 20] }).toHaveProperty(["list", 1], 20);
 ```
 
+## More matchers (new in 1.1.0)
+
+```ts
+// value membership & ranges
+expect("b").toBeOneOf(["a", "b", "c"]);
+expect(5).toBeWithin(1, 10);            // half-open: [1, 10)
+
+// strings
+expect("hello world").toStartWith("hello");
+expect("hello world").toEndWith("world");
+
+// emptiness (string / array / Map / Set / iterable / object)
+expect([]).toBeEmpty();
+expect(new Map()).toBeEmpty();
+
+// objects & collections
+expect({ a: 1, b: 2 }).toHaveKeys(["a", "b"]);
+expect([1, 2, 3]).toIncludeSameMembers([3, 1, 2]); // order-independent, deep-equal
+expect([1, 2, 2, 3]).toBeSorted();
+expect([3, 2, 1]).toBeSorted((a, b) => b - a);     // custom comparator
+
+// type guards
+expect([]).toBeArray();
+expect("x").toBeString();
+expect(42).toBeNumber();
+expect(() => {}).toBeFunction();
+expect({}).toBeObject();     // arrays are NOT objects here
+expect(new Date()).toBeDate(); // must be a *valid* Date
+
+// they compose with .not / .resolves / .rejects like every other matcher:
+await expect(Promise.resolve(5)).resolves.toBeWithin(1, 10);
+```
+
 ## Custom matchers with `expect.extend`
 
 ```ts
@@ -174,6 +209,7 @@ catch (e) { console.error(e.message); }
 | `expect.not.*` | same factories | Inverted asymmetric matchers. |
 | `expect.extend` | `(matchers) => void` | Register custom matchers. |
 | `expect.equals` | `(a, b, strict?) => boolean` | The deep-equality engine. |
+| `extraMatchers` | `Record<string, RawMatcher>` | The 1.1.0 matcher record (already built in; re-register elsewhere via `expect.extend`). |
 | `assert` | `(cond, msg?) => void` + `.ok/.equal/.notEqual/.strictEqual/.deepEqual/.throws` | Lightweight assert surface. |
 | `equals` / `matchObject` | `(a, b, strict?)` / `(recv, subset)` | Standalone deep-equal / subset-match. |
 | `format` | `(value) => string` | Circular-safe pretty-printer. |
@@ -182,6 +218,8 @@ catch (e) { console.error(e.message); }
 ### Matchers
 
 `toBe` · `toEqual` · `toStrictEqual` · `toBeTruthy` · `toBeFalsy` · `toBeNull` · `toBeUndefined` · `toBeDefined` · `toBeNaN` · `toBeGreaterThan` · `toBeGreaterThanOrEqual` · `toBeLessThan` · `toBeLessThanOrEqual` · `toBeCloseTo` · `toContain` · `toContainEqual` · `toHaveLength` · `toHaveProperty` · `toMatch` · `toMatchObject` · `toThrow` · `toBeInstanceOf` · `toBeTypeOf` · `toSatisfy`
+
+**Added in 1.1.0:** `toBeOneOf` · `toBeWithin` · `toStartWith` · `toEndWith` · `toBeEmpty` · `toHaveKeys` · `toIncludeSameMembers` · `toBeSorted` · `toBeArray` · `toBeBoolean` · `toBeString` · `toBeNumber` · `toBeFunction` · `toBeObject` · `toBeDate`
 
 ## Limitations
 

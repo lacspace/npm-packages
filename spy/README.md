@@ -13,8 +13,12 @@
 
 > The test-double toolkit that doesn't care which runner you use. Record calls, program return/throw/resolve/reject behaviour, wrap or replace real methods, mock whole objects and freeze time — all with **one tiny dependency-free package** that works the same in Vitest, Jest, node:test, Mocha, Bun, Deno **and the browser**.
 
+> **New in 1.1.0** — **argument matchers** (`any`, `anything`, `predicate`, `stringMatching`, `objectContaining`, `arrayContaining`) usable anywhere a value is expected, including nested; richer **call inspection** (`.returnValues`, `.nthCall(n)`, `.nthCalledWith(n, …)`, `.calledOnceWith(…)`); two more **once-queue** behaviours (`.rejectsOnce`, `.callsFakeOnce`); and **`resetAll()`** to wipe the history of every active `spyOn`/`stub` without restoring them. All additive — nothing existing changed.
+
 - 🕵️ **Spies** — callable recorders with `.calls`, `.calledWith(...)` (deep equal), `.results`, and behaviour programming (`.returns`/`.throws`/`.resolves`/`.rejects`/`.callsFake`)
-- 🎬 **Once-queues** — `.returnsOnce`/`.resolvesOnce`/`.throwsOnce` consumed FIFO before falling back to the default
+- 🎬 **Once-queues** — `.returnsOnce`/`.resolvesOnce`/`.throwsOnce`/`.rejectsOnce`/`.callsFakeOnce` consumed FIFO before falling back to the default
+- 🎯 **Argument matchers** — `any`/`anything`/`predicate`/`stringMatching`/`objectContaining`/`arrayContaining` compose anywhere a value is expected (nested too)
+- 🔎 **Call inspection** — `.returnValues`, `.nthCall(n)`, `.nthCalledWith(n, …)`, `.calledOnceWith(…)`
 - 🩹 **spyOn / stub** — wrap a method (call-through) or replace it entirely, with getter/setter support, and `.restore()` to put the original back
 - 🧱 **Mocks** — turn every function on an object into a spy, or auto-mock an interface you only partially exercise
 - ⏱️ **Fake timers** — deterministic `setTimeout`/`setInterval`/`Date` with `.tick`, `.runAllTimers`, `.runOnlyPendingTimers`, `.setSystemTime`
@@ -78,6 +82,34 @@ next(); // → "a"
 next(); // → "b"
 next(); // → "default"
 next(); // → "default"
+```
+
+## Match arguments flexibly
+
+```ts
+import { spy, any, anything, objectContaining, stringMatching } from "@lacspace/spy";
+
+const save = spy();
+save(42, { user: "ada", role: "admin" });
+
+// Matchers slot in anywhere a value is expected — including nested.
+save.calledWith(any(Number), objectContaining({ user: "ada" })); // → true
+save.calledWith(any(String), anything());                        // → false
+
+// Also: any(Date) · predicate(fn, "desc") · stringMatching(/re/) · arrayContaining([...])
+save.nthCalledWith(1, any(Number), objectContaining({ role: stringMatching("adm") })); // → true
+```
+
+## Inspect calls
+
+```ts
+const parse = spy((n: number) => n * 2);
+parse(2); parse(5);
+
+parse.returnValues;         // → [4, 10]  (throws are skipped)
+parse.nthCall(2);           // → [5]      (1-based)
+parse.nthCalledWith(1, 2);  // → true
+parse.calledOnceWith(2);    // → false    (called twice)
 ```
 
 ## spyOn / stub existing methods
@@ -150,9 +182,11 @@ clock.restore();       // real setInterval / Date back
 ## Clean up everything at once
 
 ```ts
-import { restoreAll } from "@lacspace/spy";
+import { restoreAll, resetAll } from "@lacspace/spy";
 
 afterEach(() => restoreAll()); // undo every spyOn/stub/fake clock
+// or, to keep the patches but wipe recorded history between assertions:
+resetAll();                    // reset every active spyOn/stub spy (patches stay)
 ```
 
 ## API
@@ -166,13 +200,21 @@ afterEach(() => restoreAll()); // undo every spyOn/stub/fake clock
 | `mockObject` | `mockObject<T>(shape): Mocked<T>` | Copy of `shape` with every function (nested too) turned into a spy. |
 | `useFakeTimers` | `useFakeTimers(now?): FakeTimers` | Install deterministic fake `setTimeout`/`setInterval`/`Date`. |
 | `restoreAll` | `restoreAll(): void` | Restore every active `spyOn`/`stub`/fake clock. |
-| `deepEqual` | `deepEqual(a, b): boolean` | Structural equality used by `calledWith` (exported for convenience). |
+| `resetAll` | `resetAll(): void` | Clear the recorded history of every active `spyOn`/`stub` spy (patches kept). |
+| `deepEqual` | `deepEqual(a, b): boolean` | Structural equality used by `calledWith` (matcher-aware; exported for convenience). |
+| `any` | `any(ctor?): Matcher` | Match any value of a type (`any(Number)`), or literally anything (`any()`). |
+| `anything` | `anything(): Matcher` | Match any value except `null`/`undefined`. |
+| `predicate` | `predicate(fn, desc?): Matcher` | Match by a custom predicate function. |
+| `stringMatching` | `stringMatching(str \| re): Matcher` | Match a string by substring or `RegExp`. |
+| `objectContaining` | `objectContaining(partial): Matcher` | Match an object that has (at least) these props (deep, nestable). |
+| `arrayContaining` | `arrayContaining(items): Matcher` | Match an array that contains each item (order/extras ignored). |
+| `isMatcher` | `isMatcher(x): x is Matcher` | Type guard for argument matchers. |
 
 ### `Spy<F>` surface
 
-`.calls` · `.callCount` · `.called` · `.calledOnce` · `.firstCall` · `.lastCall` · `.results` · `.calledWith(...args)` · `.reset()` · `.restore()` · `.returns(v)` · `.throws(e)` · `.resolves(v)` · `.rejects(e)` · `.callsFake(fn)` · `.returnsOnce(v)` · `.resolvesOnce(v)` · `.throwsOnce(e)`
+`.calls` · `.callCount` · `.called` · `.calledOnce` · `.firstCall` · `.lastCall` · `.results` · `.returnValues` · `.calledWith(...args)` · `.nthCall(n)` · `.nthCalledWith(n, ...args)` · `.calledOnceWith(...args)` · `.reset()` · `.restore()` · `.returns(v)` · `.throws(e)` · `.resolves(v)` · `.rejects(e)` · `.callsFake(fn)` · `.returnsOnce(v)` · `.resolvesOnce(v)` · `.throwsOnce(e)` · `.rejectsOnce(e)` · `.callsFakeOnce(fn)`
 
-Types: `Spy`, `SpyResult`, `SpyOnOptions`, `Mocked`, `FakeTimers`, `AnyFn`.
+Types: `Spy`, `SpyResult`, `SpyOnOptions`, `Mocked`, `FakeTimers`, `AnyFn`, `Matcher`.
 
 ## Limitations
 
@@ -182,6 +224,8 @@ Types: `Spy`, `SpyResult`, `SpyOnOptions`, `Mocked`, `FakeTimers`, `AnyFn`.
 - **`.reset()` clears history only**, not programmed behaviour or the once-queue.
 - **`calledWith` uses structural deep equality**; functions and class instances with custom internals compare by reference/own-enumerable keys, not by custom `equals`.
 - **`process.nextTick`, microtasks and `requestAnimationFrame` are not faked** — only `setTimeout`/`clearTimeout`/`setInterval`/`clearInterval`/`Date`/`setImmediate`.
+- **`resetAll()` only touches `spyOn`/`stub` spies.** Standalone `spy()`/`mock()`/`mockObject()` instances are not centrally tracked (to avoid retaining them), so reset those yourself.
+- **Matchers are opt-in sentinels.** A matcher is recognised only when it is the actual matcher object returned by `any`/`objectContaining`/… — plain data is never treated as a matcher, and matchers are one-directional (they compare against the recorded value, not vice-versa).
 
 ## Licence
 

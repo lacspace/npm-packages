@@ -9,6 +9,8 @@ import type {
   TraitBuilder,
 } from "./types";
 import { hashSeed, hashString, makeRng, mulberry32 } from "./rng";
+import { makeFaker } from "./fake";
+import { deepAwait } from "./async";
 import { getBaseSeed, registerResetter } from "./state";
 import {
   ASSOC,
@@ -72,6 +74,7 @@ export function defineFactory<T, P = Record<string, any>>(
       pick: rng.pick,
       sample: rng.sample,
       uuid: rng.uuid,
+      fake: makeFaker(rng),
     } as BuildContext<P>;
     return ctx;
   }
@@ -146,6 +149,12 @@ export function defineFactory<T, P = Record<string, any>>(
     },
     buildList,
     buildMany: buildList,
+    buildAsync(o) {
+      return deepAwait(buildOne(o, []));
+    },
+    buildListAsync(n, o) {
+      return Promise.all(buildList(n, o).map((v) => deepAwait(v)));
+    },
     withTrait,
     afterBuild(hook) {
       afterHooks.push(hook);

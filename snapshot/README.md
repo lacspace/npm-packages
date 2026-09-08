@@ -13,6 +13,8 @@
 
 > The serializer is the hard part of snapshot testing. `@lacspace/snapshot` gives you a **stable, deterministic, pretty** serializer that turns any value into the same string every time — **sorted keys**, circular-safe, plugin-extensible — plus the two matchers built on top: an isomorphic **inline** matcher and a Node-only **file** matcher. No test runner required.
 
+> **New in 1.1.0** — three isomorphic, opt-in additions for taming volatile data: **property matchers** (`serializeWithMatchers` + `any`, `stringMatching`, …) that validate a shape while rendering volatile fields as stable labels; **redaction** (`redact`) that strips ids/timestamps/tokens by key, path or predicate before serializing; and **obsolete-snapshot detection** (`findObsoleteSnapshots`, `pruneSnapshots`) over a `.snap` name→snapshot map. All additive — the default `serialize` output is byte-for-byte unchanged.
+
 - 🧊 **Deterministic** — object keys are sorted, and `Map`/`Set` entries are sorted too, so property/insertion order never changes the snapshot
 - 🔁 **Circular-safe** — cycles render as `[Circular]` instead of throwing
 - 🧩 **Every type** — primitives, `NaN`/`-0`/`bigint`/`symbol`, arrays, plain objects, class instances (named), `Map`, `Set`, `Date`, `RegExp`, `Error`, functions, typed arrays
@@ -156,6 +158,59 @@ const remove = addSerializer({
 remove(); // unregister
 ```
 
+## Property matchers — stabilise volatile fields *(new in 1.1.0)*
+
+Embed matcher tokens in an expected **shape** and pass it to `serializeWithMatchers`. Matched fields (ids, dates, random tokens) are validated *and* rendered as stable labels, so the snapshot never changes; everything else serializes normally.
+
+```ts
+import { serializeWithMatchers, any, stringMatching } from "@lacspace/snapshot";
+
+const { pass, actual, errors } = serializeWithMatchers(
+  { id: crypto.randomUUID(), name: "Ada", createdAt: new Date() },
+  { id: any(String), createdAt: any(Date) },
+);
+// pass === true, errors === []
+// actual:
+// Object {
+//   "createdAt": Any<Date>,
+//   "id": Any<String>,
+//   "name": "Ada",
+// }
+```
+
+Available matchers: `anything()`, `any(Constructor)`, `stringMatching(str|RegExp)`, `stringContaining(str)`, `closeTo(n, precision?)`, `arrayContaining([...])`, `objectContaining({...})`. A literal (non-matcher) leaf in the shape must match strictly. On a mismatch, `pass` is `false`, `errors` lists each failure, and the unsatisfied field keeps its real value so the diff stays meaningful.
+
+## Redact volatile values *(new in 1.1.0)*
+
+`redact` returns a deep copy with selected slots replaced by a stable placeholder — by key name, dot-path (with `*` wildcards) or a predicate — so you can strip timestamps/ids/tokens before snapshotting without describing each field.
+
+```ts
+import { redact, serialize } from "@lacspace/snapshot";
+
+serialize(redact(payload, {
+  keys: ["id", /token/i],          // by property name (string or RegExp)
+  paths: ["items.*.createdAt"],    // by dot-path, `*` = one segment
+  predicate: (v) => v instanceof Date,
+  replacement: "[redacted]",        // default; may be a fn ({ value, key, path }) => ...
+}));
+```
+
+It is circular-safe, never mutates the input, and walks plain objects & arrays only (a `Map`/`Set`/`Date`/class instance is passed through by reference unless the slot itself is redacted).
+
+## Obsolete-snapshot detection *(new in 1.1.0)*
+
+Pure helpers over the `name → snapshot` map from `parseSnapshotFile` — compare stored keys against the keys used in a run, then prune.
+
+```ts
+import { findObsoleteSnapshots, pruneSnapshots, parseSnapshotFile, serializeSnapshotFile } from "@lacspace/snapshot";
+
+const stored = parseSnapshotFile(snapFileText);
+const report = findObsoleteSnapshots(stored, usedKeys); // { obsolete, missing, matched, storedCount, usedCount }
+if (report.obsolete.length) {
+  const cleaned = serializeSnapshotFile(pruneSnapshots(stored, usedKeys)); // write back
+}
+```
+
 ## API
 
 ### `@lacspace/snapshot` (isomorphic, no `node:` imports)
@@ -172,8 +227,21 @@ remove(); // unregister
 | `lineDiff` | `(expected: string, received: string) => string` | Minimal LCS line diff used in messages |
 | `mismatchMessage` | `(label, expected, received) => string` | A labelled `- Expected` / `+ Received` message |
 | `SnapshotMismatchError` | `class extends Error` | Thrown by `toMatchInlineSnapshot`; `.result` holds the `InlineSnapshotResult` |
+| `serializeWithMatchers` | `(value: unknown, shape: unknown, options?: SerializeOptions) => MatchResult` | Validate against a shape of matcher tokens; matched volatile fields render as stable labels *(1.1.0)* |
+| `anything` | `() => PropertyMatcher` | Matches any value except `null`/`undefined` *(1.1.0)* |
+| `any` | `(constructor: unknown) => PropertyMatcher` | Matches by `typeof` (primitives) or `instanceof` *(1.1.0)* |
+| `stringMatching` | `(pattern: string \| RegExp) => PropertyMatcher` | Matches a string matching a substring/regex *(1.1.0)* |
+| `stringContaining` | `(substring: string) => PropertyMatcher` | Matches a string containing a substring *(1.1.0)* |
+| `closeTo` | `(expected: number, precision?: number) => PropertyMatcher` | Matches a number within `10**-precision/2` *(1.1.0)* |
+| `arrayContaining` | `(items: readonly unknown[]) => PropertyMatcher` | Matches an array containing each item *(1.1.0)* |
+| `objectContaining` | `(shape: Record<string,unknown>) => PropertyMatcher` | Matches an object containing each key/value *(1.1.0)* |
+| `isMatcher` | `(value: unknown) => value is PropertyMatcher` | Type guard for matcher tokens *(1.1.0)* |
+| `redact` | `(value, options?: RedactOptions) => unknown` | Deep copy with volatile slots replaced by a placeholder (by key/path/predicate) *(1.1.0)* |
+| `findObsoleteSnapshots` | `(stored: Record<string,string>, used: Iterable<string>) => ObsoleteReport` | Compare stored vs used snapshot keys *(1.1.0)* |
+| `pruneSnapshots` | `(stored: Record<string,string>, used: Iterable<string>) => Record<string,string>` | Copy of the map with obsolete keys removed *(1.1.0)* |
 
 `SerializeOptions`: `{ indent?: number (2), maxDepth?: number (∞), printFunctionNames?: boolean (true), serializers?: SerializerPlugin[] }`.
+`MatchResult`: `{ pass: boolean; actual: string; errors: string[] }`. `RedactOptions`: `{ keys?: Array<string|RegExp>; paths?: string[]; predicate?: (value, key, path) => boolean; replacement?: string | (ctx) => unknown }`. `ObsoleteReport`: `{ obsolete: string[]; missing: string[]; matched: string[]; storedCount: number; usedCount: number }`.
 `SerializerPlugin`: `{ test(value): boolean; serialize(value, ctx): string }` where `ctx = { indent, indentation, depth, print(child) }`.
 
 ### `@lacspace/snapshot/node` (Node-only)
@@ -202,6 +270,8 @@ Re-exports everything above, plus:
 - The serializer walks values eagerly; extremely large graphs are held in memory while formatting.
 - Getters that throw render as `[Thrown: ...]` rather than failing the whole serialization.
 - No async serializers — plugins are synchronous.
+- **Property matchers / redaction** descend into plain objects and arrays only. A matched *slot* holding a `Map`/`Set`/`Date`/class instance is handled, but `redact` will not recurse *inside* those containers (it passes them through by reference); `serializeWithMatchers` preserves an instance's prototype label but only rewrites the plain keys named in the shape.
+- `findObsoleteSnapshots`/`pruneSnapshots` are pure map operations — collecting the "used" keys and writing the pruned map back to disk is left to you (no runner hook or automatic cleanup).
 
 ## License
 

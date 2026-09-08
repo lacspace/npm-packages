@@ -80,6 +80,25 @@ export function createSpy<F extends AnyFn = AnyFn>(options: SpyInternalOptions =
   self.calledWith = (...args: unknown[]): boolean =>
     calls.some((call) => deepEqual(call, args));
 
+  // Call inspection helpers (all matcher-aware via deepEqual). Call indices are
+  // 1-based to read naturally: nthCall(1) is the first call.
+  Object.defineProperty(self, "returnValues", {
+    get: () =>
+      results.filter((r) => r.type === "return").map((r) => (r as { value: unknown }).value),
+    enumerable: true,
+  });
+
+  self.nthCall = ((n: number): unknown[] | undefined =>
+    n >= 1 && n <= calls.length ? calls[n - 1] : undefined) as Spy<F>["nthCall"];
+
+  self.nthCalledWith = (n: number, ...args: unknown[]): boolean => {
+    const call = n >= 1 && n <= calls.length ? calls[n - 1] : undefined;
+    return call !== undefined && deepEqual(call, args);
+  };
+
+  self.calledOnceWith = (...args: unknown[]): boolean =>
+    calls.length === 1 && deepEqual(calls[0], args);
+
   self.reset = (): void => {
     calls.length = 0;
     results.length = 0;
@@ -121,6 +140,14 @@ export function createSpy<F extends AnyFn = AnyFn>(options: SpyInternalOptions =
   };
   self.throwsOnce = (error: unknown) => {
     onceQueue.push({ type: "throw", error });
+    return self;
+  };
+  self.rejectsOnce = (error?: unknown) => {
+    onceQueue.push({ type: "reject", error });
+    return self;
+  };
+  self.callsFakeOnce = (impl: AnyFn) => {
+    onceQueue.push({ type: "fake", fn: impl });
     return self;
   };
 

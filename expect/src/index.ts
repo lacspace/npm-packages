@@ -22,3 +22,4 @@ export { AssertionError } from "./error";
 
 export { equals, matchObject } from "./equals";
 export { format } from "./format";
+export { extraMatchers } from "./extra";

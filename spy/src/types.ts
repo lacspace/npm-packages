@@ -38,9 +38,25 @@ export interface Spy<F extends AnyFn = AnyFn> {
   readonly lastCall: Parameters<F> | undefined;
   /** The return/throw outcome of each call, in call order. */
   readonly results: ReadonlyArray<SpyResult<ReturnType<F>>>;
+  /** The returned value of every call that returned (throws are skipped), in order. */
+  readonly returnValues: ReadonlyArray<ReturnType<F>>;
 
-  /** Deep-equality check: was the spy ever called with exactly these args? */
+  /**
+   * Deep-equality check: was the spy ever called with exactly these args?
+   * Any argument may be an argument {@link Matcher} (`any`, `objectContaining`, …).
+   */
   calledWith(...args: Parameters<F>): boolean;
+  /** Argument tuple of the `n`-th call (1-based), or `undefined` if out of range. */
+  nthCall(n: number): Parameters<F> | undefined;
+  /**
+   * Deep-equality check against the `n`-th call (1-based). Args may be matchers.
+   */
+  nthCalledWith(n: number, ...args: Parameters<F>): boolean;
+  /**
+   * `true` if the spy was called **exactly once** and that call matched `args`
+   * (deep equal; args may be matchers).
+   */
+  calledOnceWith(...args: Parameters<F>): boolean;
 
   /** Clear recorded calls and results. Programmed behaviour is kept. */
   reset(): void;
@@ -67,6 +83,10 @@ export interface Spy<F extends AnyFn = AnyFn> {
   resolvesOnce(value?: unknown): this;
   /** Queue a one-shot behaviour: the next call throws `error`. FIFO. */
   throwsOnce(error: unknown): this;
+  /** Queue a one-shot behaviour: the next call returns a promise rejecting with `error`. FIFO. */
+  rejectsOnce(error?: unknown): this;
+  /** Queue a one-shot behaviour: the next call delegates to `fn` (called with the spy's `this`). FIFO. */
+  callsFakeOnce(fn: F): this;
 }
 
 /** Options for {@link spyOn}. */

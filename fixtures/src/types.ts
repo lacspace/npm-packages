@@ -5,6 +5,8 @@
  * `build(ctx)` return value, so consumers rarely need to name these directly.
  */
 
+import type { Faker } from "./fake";
+
 /**
  * A small, deterministic random-number generator bound to a single build.
  * Every method draws from the same seeded stream, so identical seeds and
@@ -40,6 +42,8 @@ export interface BuildContext<P = Record<string, any>> extends Rng {
   readonly params: P;
   /** The deterministic RNG for this build (same object the `ctx.*` helpers use). */
   readonly seed: Rng;
+  /** Seeded fake-data helpers (names, emails, dates, …) bound to this build's RNG. */
+  readonly fake: Faker;
 }
 
 /** A value produced from the build context (a "lazy" field value). */
@@ -139,6 +143,10 @@ export interface Factory<T, P = Record<string, any>> {
   buildList(n: number, overrides?: BuildOptions<T, P>): T[];
   /** Alias of {@link Factory.buildList}. */
   buildMany(n: number, overrides?: BuildOptions<T, P>): T[];
+  /** Build one `T`, then deep-resolve any `Promise`-valued fields it contains. */
+  buildAsync(overrides?: BuildOptions<T, P>): Promise<Awaited<T>>;
+  /** Build `n` objects, each with its promise-valued fields resolved. */
+  buildListAsync(n: number, overrides?: BuildOptions<T, P>): Promise<Awaited<T>[]>;
   /** Start a chained builder pre-loaded with a trait. */
   withTrait(name: string): TraitBuilder<T, P>;
   /** Derive a new factory with extra fields, traits, transient defaults or hooks. */

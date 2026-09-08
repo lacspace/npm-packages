@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/expect",
-  "version": "1.0.0",
-  "description": "A tiny, zero-dependency, runner-agnostic fluent assertion library — expect(...).toEqual/.toThrow/.resolves, asymmetric matchers, expect.extend and a deep-equal engine that handles Map, Set, typed arrays and circular refs. Isomorphic and fully typed.",
+  "version": "1.1.0",
+  "description": "A tiny, zero-dependency, runner-agnostic fluent assertion library — expect(...).toEqual/.toThrow/.resolves, 35+ matchers (toBeOneOf, toBeWithin, toBeSorted, toIncludeSameMembers, type & string matchers), asymmetric matchers, expect.extend and a deep-equal engine that handles Map, Set, typed arrays and circular refs. Isomorphic and fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -45,7 +45,14 @@
     "browser",
     "typescript",
     "zero-dependency",
-    "isomorphic"
+    "isomorphic",
+    "jest-extended",
+    "to-be-one-of",
+    "to-be-sorted",
+    "to-be-within",
+    "type-matchers",
+    "same-members",
+    "unit-testing"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

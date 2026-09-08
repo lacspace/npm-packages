@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/spy",
-  "version": "1.0.0",
-  "description": "A tiny, zero-dependency test-doubles library — spies, stubs, mocks and deterministic fake timers that work in any test runner or the browser. Isomorphic and fully typed.",
+  "version": "1.1.0",
+  "description": "A tiny, zero-dependency test-doubles library — spies, stubs, mocks, argument matchers and deterministic fake timers that work in any test runner or the browser. Isomorphic and fully typed.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -41,6 +41,11 @@
     "testing",
     "test",
     "assertions",
+    "argument-matchers",
+    "matchers",
+    "objectContaining",
+    "call-inspection",
+    "resetAll",
     "typescript",
     "zero-dependency",
     "isomorphic"

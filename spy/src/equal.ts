@@ -1,15 +1,26 @@
+import { isMatcher } from "./matchers";
+
 /**
  * Structural deep-equality used by {@link Spy.calledWith}.
  *
  * Handles primitives (with `NaN === NaN` and `+0 !== -0`), arrays, plain
  * objects, `Date`, `RegExp`, `Map` and `Set`. Functions and other references
  * fall back to identity (`===`). Guards against cyclic structures.
+ *
+ * If either side is an argument {@link Matcher} (from `any`, `objectContaining`,
+ * …) the matcher's predicate decides the comparison — so matchers can be used
+ * anywhere a value is expected, including nested inside objects and arrays.
  */
 export function deepEqual(a: unknown, b: unknown): boolean {
   return equal(a, b, new WeakMap());
 }
 
 function equal(a: unknown, b: unknown, seen: WeakMap<object, unknown>): boolean {
+  // Argument matchers decide their own comparison (checked before Object.is so
+  // a matcher never accidentally equals itself as data).
+  if (isMatcher(b)) return b.test(a);
+  if (isMatcher(a)) return a.test(b);
+
   if (Object.is(a, b)) return true;
 
   if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) {

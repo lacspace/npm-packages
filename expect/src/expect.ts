@@ -7,6 +7,7 @@
 import { equals } from "./equals";
 import { format, diff, matcherHint } from "./format";
 import { builtinMatchers } from "./matchers";
+import { extraMatchers } from "./extra";
 import { makeAsymmetric } from "./asymmetric";
 import { AssertionError } from "./error";
 import type {
@@ -21,7 +22,7 @@ import type {
 } from "./types";
 
 /** Global matcher registry (built-ins + anything added via `expect.extend`). */
-const registry: Record<string, RawMatcher> = { ...builtinMatchers };
+const registry: Record<string, RawMatcher> = { ...builtinMatchers, ...extraMatchers };
 
 const utils: MatcherUtils = {
   format,

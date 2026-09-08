@@ -42,6 +42,9 @@ function install<F extends AnyFn>(
       restoreMember();
       deregister(entry);
     },
+    reset(): void {
+      s.reset();
+    },
   };
   // Wrap the spy's own restore so it also undoes the patch + deregisters.
   s.restore = () => entry.restore();

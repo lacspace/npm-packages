@@ -1,0 +1,69 @@
+{
+  "name": "@lacspace/rerank",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency reranker for RAG — classic Okapi BM25, TF-IDF and keyword-overlap lexical scorers, Reciprocal Rank Fusion, hybrid vector+lexical blending and MMR diversity, with an injectable cross-encoder/LLM scorer. Keyless, isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rerank",
+    "reranker",
+    "bm25",
+    "okapi-bm25",
+    "tf-idf",
+    "reciprocal-rank-fusion",
+    "rrf",
+    "mmr",
+    "maximal-marginal-relevance",
+    "hybrid-search",
+    "rag",
+    "retrieval",
+    "semantic-search",
+    "cross-encoder",
+    "vector-search",
+    "embeddings",
+    "ai",
+    "llm",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/rerank",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "rerank"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

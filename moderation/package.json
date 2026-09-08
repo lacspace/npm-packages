@@ -1,0 +1,66 @@
+{
+  "name": "@lacspace/moderation",
+  "version": "1.0.0",
+  "description": "A tiny, zero-dependency, keyless content-safety toolkit for AI apps — detect and redact PII, flag toxic/unsafe content, catch prompt-injection, and validate LLM output with composable guardrails. Isomorphic and fully typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "moderation",
+    "content-safety",
+    "guardrails",
+    "pii",
+    "pii-detection",
+    "redaction",
+    "prompt-injection",
+    "toxicity",
+    "llm-safety",
+    "ai-safety",
+    "content-moderation",
+    "ai",
+    "llm",
+    "guardrail",
+    "output-validation",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/moderation",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "moderation"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

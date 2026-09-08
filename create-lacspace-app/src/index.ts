@@ -2337,6 +2337,51 @@ export const FEATURES: FeatureDef[] = [
     ],
     learn: "https://developer.lacspace.com/packages/rag",
   },
+  {
+    key: "content",
+    label: "Content / blog",
+    description: "A markdown content section (/updates) for any template — plus an RSS feed and an llms.txt. Drop in .md files, get pages.",
+    deps: {
+      "@lacspace/markdown": "^1.1.0",
+      "@lacspace/rss": "^1.4.0",
+      "@lacspace/llms-txt": "^1.4.0",
+    },
+    files: (ctx) => ({
+      "content/updates/welcome.md": contentSampleWelcome(ctx),
+      "content/updates/building-in-public.md": contentSampleSecond(),
+      "lib/content.ts": contentLib(),
+      "app/updates/page.tsx": updatesListPage(),
+      "app/updates/[slug]/page.tsx": updatePostPage(),
+      "app/feed.xml/route.ts": feedRoute(),
+      "app/llms.txt/route.ts": llmsRoute(),
+    }),
+    nextSteps: [
+      "Add markdown files to content/updates/ — each becomes a page at /updates/<name>.",
+      "Run `npm run dev` and open http://localhost:3000/updates, /feed.xml and /llms.txt.",
+      "Set NEXT_PUBLIC_SITE_URL in .env so the feed and llms.txt links are absolute.",
+    ],
+    learn: "https://developer.lacspace.com/packages/markdown",
+  },
+  {
+    key: "search",
+    label: "Search",
+    description: "Instant, keyless full-text search (BM25) over your markdown content — a search box + /search page + API route. No key, no service.",
+    deps: {
+      "@lacspace/rerank": "^1.0.0",
+      "@lacspace/markdown": "^1.1.0",
+    },
+    files: () => ({
+      "app/api/search/route.ts": searchRoute(),
+      "components/search.tsx": searchBox(),
+      "app/search/page.tsx": searchPage(),
+    }),
+    nextSteps: [
+      "Add markdown to content/ (e.g. the `content` add-on's content/updates/) — search indexes it automatically.",
+      "Run `npm run dev` and open http://localhost:3000/search, or drop <Search /> into your header.",
+      "Want semantic search? Upgrade to @lacspace/embeddings + @lacspace/vector (keyless-local via Ollama).",
+    ],
+    learn: "https://developer.lacspace.com/packages/rerank",
+  },
 ];
 
 /* ------------------------- feature: ai-chat (files) ------------------------- */
@@ -5420,6 +5465,301 @@ const faqSection = (ctx: Ctx): string => {
         </div>
       </section>`;
 };
+
+/* ------------------------- feature: content (files) ------------------------- */
+
+// lib/content.ts — reads content/updates/*.md at request time (server-only).
+const contentLib = (): string => `import fs from "node:fs";
+import path from "node:path";
+import { parseFrontmatter, markdownToHtml, excerpt } from "@lacspace/markdown";
+
+// how this works: every .md file in content/updates/ becomes a post. Frontmatter
+// (title/date/description) is read with @lacspace/markdown; the body is rendered to
+// safe HTML (raw HTML in the source is escaped, so this is XSS-safe by construction).
+const DIR = path.join(process.cwd(), "content/updates");
+
+export interface PostMeta { slug: string; title: string; date: string; description: string; }
+export interface Post extends PostMeta { html: string; }
+
+function read(slug: string): Post | null {
+  const file = path.join(DIR, slug + ".md");
+  if (!fs.existsSync(file)) return null;
+  const { data, content } = parseFrontmatter(fs.readFileSync(file, "utf8"));
+  return {
+    slug,
+    title: String(data.title ?? slug),
+    date: String(data.date ?? ""),
+    description: String(data.description ?? excerpt(content, { length: 160 })),
+    html: markdownToHtml(content, { headingIds: true, openLinksInNewTab: true }),
+  };
+}
+
+export function getAllPosts(): PostMeta[] {
+  if (!fs.existsSync(DIR)) return [];
+  return fs.readdirSync(DIR)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => read(f.replace(/\\.md$/, ""))!)
+    .filter(Boolean)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+export function getPost(slug: string): Post | null {
+  return read(slug);
+}
+`;
+
+// app/updates/page.tsx — the post list.
+const updatesListPage = (): string => `import Link from "next/link";
+import { site } from "@/lib/site";
+import { getAllPosts } from "@/lib/content";
+
+export const metadata = site.meta({ title: "Updates", path: "/updates" });
+
+export default function UpdatesPage() {
+  const posts = getAllPosts();
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="text-3xl font-bold">Updates</h1>
+      <p className="mt-2 text-muted">News, notes and posts. <a href="/feed.xml" className="underline">RSS</a></p>
+      {posts.length === 0 && (
+        <p className="mt-8 text-muted">No posts yet — add a markdown file in <code>content/updates/</code>.</p>
+      )}
+      <ul className="mt-8 space-y-6">
+        {posts.map((p) => (
+          <li key={p.slug} className="border-b border-hairline pb-6">
+            <Link href={\`/updates/\${p.slug}\`} className="text-xl font-semibold hover:underline">{p.title}</Link>
+            {p.date && <p className="mt-1 text-sm text-muted">{p.date}</p>}
+            <p className="mt-2 text-muted">{p.description}</p>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+`;
+
+// app/updates/[slug]/page.tsx — a single post. The [&_h2]:… classes style the
+// rendered markdown without needing global "prose" CSS, so it looks good on ANY template.
+const updatePostPage = (): string => `import Link from "next/link";
+import { notFound } from "next/navigation";
+import { site } from "@/lib/site";
+import { getAllPosts, getPost } from "@/lib/content";
+
+export function generateStaticParams() {
+  return getAllPosts().map((p) => ({ slug: p.slug }));
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPost(slug);
+  return site.meta({ title: post?.title ?? "Updates", path: \`/updates/\${slug}\` });
+}
+
+export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPost(slug);
+  if (!post) notFound();
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16">
+      <Link href="/updates" className="text-sm text-muted hover:underline">← Updates</Link>
+      <h1 className="mt-4 text-3xl font-bold">{post.title}</h1>
+      {post.date && <p className="mt-1 text-sm text-muted">{post.date}</p>}
+      <article
+        className="mt-8 leading-7 [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_p]:mt-4 [&_p]:text-muted [&_a]:underline [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1 [&_pre]:mt-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:text-sm [&_code]:text-sm"
+        dangerouslySetInnerHTML={{ __html: post.html }}
+      />
+    </main>
+  );
+}
+`;
+
+// app/feed.xml/route.ts — an RSS 2.0 feed of your posts (@lacspace/rss).
+const feedRoute = (): string => `import { rssResponse } from "@lacspace/rss";
+import { getAllPosts } from "@/lib/content";
+
+export const dynamic = "force-static";
+
+export function GET() {
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const items = getAllPosts().map((p) => ({
+    title: p.title,
+    link: base + "/updates/" + p.slug,
+    description: p.description,
+    // Only pass a date the feed can parse (rfc822Date throws on bad input).
+    date: p.date && !Number.isNaN(Date.parse(p.date)) ? p.date : undefined,
+  }));
+  return rssResponse(
+    { title: "Updates", link: base, description: "The latest posts and updates.", feedUrl: base + "/feed.xml" },
+    items,
+  );
+}
+`;
+
+// app/llms.txt/route.ts — an llms.txt content index for AI crawlers (@lacspace/llms-txt).
+const llmsRoute = (): string => `import { llmsTxtFromPages } from "@lacspace/llms-txt";
+import { getAllPosts } from "@/lib/content";
+
+export const dynamic = "force-static";
+
+export function GET() {
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const txt = llmsTxtFromPages(
+    getAllPosts().map((p) => ({ title: p.title, url: base + "/updates/" + p.slug, content: p.description, section: "Updates" })),
+    { title: "Updates", summary: "A content index for large language models." },
+  );
+  return new Response(txt, { headers: { "content-type": "text/plain; charset=utf-8" } });
+}
+`;
+
+const contentSampleWelcome = (ctx: Ctx): string => `---
+title: Welcome to ${ctx.template.siteName}'s content section
+date: 2026-01-15
+description: This markdown file became a page automatically — here's how it works.
+---
+
+## It just works
+
+Drop any \\\`.md\\\` file into \\\`content/updates/\\\` and it becomes a page at \\\`/updates/<filename>\\\`, listed on \\\`/updates\\\`, and included in \\\`/feed.xml\\\` and \\\`/llms.txt\\\`.
+
+- Frontmatter \\\`title\\\`, \\\`date\\\` and \\\`description\\\` are read automatically.
+- The body is rendered safely with \\\`@lacspace/markdown\\\` — raw HTML is escaped, so it's XSS-safe.
+- Delete this file when you're ready to write your own.
+`;
+
+const contentSampleSecond = (): string => `---
+title: Building in public
+date: 2026-01-10
+description: A second example post so the list and feed have something to show.
+---
+
+## Why a content section?
+
+Every product needs a place for changelog posts, announcements and notes. This one is
+Markdown-powered, needs no database, and ships an RSS feed and an \\\`llms.txt\\\` for free.
+
+### Add your own
+
+1. Create \\\`content/updates/my-post.md\\\`.
+2. Add frontmatter (\\\`title\\\`, \\\`date\\\`, \\\`description\\\`).
+3. Write. That's it — it appears at \\\`/updates/my-post\\\`.
+`;
+
+/* ------------------------- feature: search (files) ------------------------- */
+
+// app/api/search/route.ts — instant BM25 search over content/**/*.md (@lacspace/rerank).
+const searchRoute = (): string => `import fs from "node:fs";
+import path from "node:path";
+import { parseFrontmatter, toPlainText, excerpt } from "@lacspace/markdown";
+import { rerank } from "@lacspace/rerank";
+
+// how this works: full-text search with BM25 ranking — no external service, no API
+// key, no Ollama. It scans your markdown at request time and ranks matches. (For a
+// big site, precompute the corpus at build time and cache it instead.)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const ROOT = path.join(process.cwd(), "content");
+// Map a content/<dir>/ to the route it renders under.
+const SECTION: Record<string, string> = { updates: "/updates", posts: "/blog", docs: "/docs" };
+
+interface Entry { id: string; title: string; url: string; text: string; }
+
+function corpus(): Entry[] {
+  if (!fs.existsSync(ROOT)) return [];
+  const out: Entry[] = [];
+  for (const dir of fs.readdirSync(ROOT)) {
+    const full = path.join(ROOT, dir);
+    if (!fs.statSync(full).isDirectory()) continue;
+    const base = SECTION[dir] ?? "/" + dir;
+    for (const file of fs.readdirSync(full)) {
+      if (!file.endsWith(".md")) continue;
+      const slug = file.replace(/\\.md$/, "");
+      const { data, content } = parseFrontmatter(fs.readFileSync(path.join(full, file), "utf8"));
+      out.push({ id: dir + "/" + slug, title: String(data.title ?? slug), url: base + "/" + slug, text: toPlainText(content) });
+    }
+  }
+  return out;
+}
+
+export async function GET(req: Request) {
+  const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
+  if (!q) return Response.json([]);
+  const docs = corpus().map((e) => ({ id: e.id, text: e.title + "\\n" + e.text, metadata: { title: e.title, url: e.url } }));
+  const hits = await rerank(q, docs, { method: "bm25", k: 8 });
+  return Response.json(hits.map((h) => ({
+    title: String(h.metadata?.title ?? ""),
+    url: String(h.metadata?.url ?? "#"),
+    snippet: excerpt(h.text.split("\\n").slice(1).join(" "), { length: 140 }),
+  })));
+}
+`;
+
+// components/search.tsx — a debounced search box with a results dropdown.
+const searchBox = (): string => `"use client";
+import { useState, useEffect, useRef } from "react";
+
+interface Result { title: string; url: string; snippet: string; }
+
+export function Search() {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<Result[]>([]);
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (!q.trim()) { setResults([]); return; }
+    timer.current = setTimeout(async () => {
+      const res = await fetch("/api/search?q=" + encodeURIComponent(q));
+      setResults(await res.json());
+      setOpen(true);
+    }, 200);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [q]);
+
+  return (
+    <div className="relative w-full max-w-md">
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onFocus={() => { if (results.length) setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Search…"
+        className="w-full rounded-xl border border-hairline bg-surface px-4 py-2 outline-none"
+      />
+      {open && results.length > 0 && (
+        <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-hairline bg-app shadow-lg">
+          {results.map((r) => (
+            <li key={r.url}>
+              <a href={r.url} className="block px-4 py-3 transition hover:bg-surface">
+                <p className="font-medium">{r.title}</p>
+                <p className="mt-0.5 text-sm text-muted">{r.snippet}</p>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+`;
+
+// app/search/page.tsx — a standalone search page.
+const searchPage = (): string => `import { site } from "@/lib/site";
+import { Search } from "@/components/search";
+
+export const metadata = site.meta({ title: "Search", path: "/search" });
+
+export default function SearchPage() {
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16">
+      <h1 className="text-3xl font-bold">Search</h1>
+      <p className="mt-2 text-muted">Instant, keyless full-text search over your content.</p>
+      <div className="mt-8"><Search /></div>
+    </main>
+  );
+}
+`;
 
 /* ============================ dynamic / full-stack ============================ */
 /*

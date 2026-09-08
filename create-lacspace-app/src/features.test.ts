@@ -6,7 +6,7 @@ describe("feature registry", () => {
   it("listFeatures() returns copies of every feature (ai-chat + rag)", () => {
     const feats = listFeatures();
     const keys = feats.map((f) => f.key).sort();
-    expect(keys).toEqual(["ai-chat", "rag"]);
+    expect(keys).toEqual(["ai-chat", "content", "rag", "search"]);
     // Copies — mutating the result must not touch the registry.
     feats[0]!.label = "MUTATED";
     expect(FEATURES.find((f) => f.key === feats[0]!.key)!.label).not.toBe("MUTATED");
@@ -153,5 +153,46 @@ describe("composition + normalization", () => {
     const withUnknown = generateProject({ template: "personal", features: ["totally-unknown"] });
     const base = generateProject({ template: "personal" });
     expect(JSON.stringify(withUnknown)).toBe(JSON.stringify(base));
+  });
+});
+
+describe("feature: content", () => {
+  const files = generateProject({ template: "business", features: ["content"] });
+  it("adds a markdown content section + RSS + llms.txt", () => {
+    for (const f of [
+      "content/updates/welcome.md",
+      "lib/content.ts",
+      "app/updates/page.tsx",
+      "app/updates/[slug]/page.tsx",
+      "app/feed.xml/route.ts",
+      "app/llms.txt/route.ts",
+    ]) expect(f in files, f).toBe(true);
+    expect(files["app/feed.xml/route.ts"]).toContain("@lacspace/rss");
+    expect(files["app/llms.txt/route.ts"]).toContain("@lacspace/llms-txt");
+  });
+  it("does not collide with the blog template's own content/posts", () => {
+    const blog = generateProject({ template: "blog", features: ["content"] });
+    // Blog template owns content/posts/*; the add-on owns content/updates/*.
+    expect("content/posts/welcome.md" in blog).toBe(true);
+    expect("content/updates/welcome.md" in blog).toBe(true);
+    expect("lib/posts.ts" in blog).toBe(true);
+    expect("lib/content.ts" in blog).toBe(true);
+  });
+});
+
+describe("feature: search", () => {
+  const files = generateProject({ template: "saas", features: ["search"] });
+  it("adds a keyless BM25 search route + box + page", () => {
+    expect("app/api/search/route.ts" in files).toBe(true);
+    expect("components/search.tsx" in files).toBe(true);
+    expect("app/search/page.tsx" in files).toBe(true);
+    expect(files["app/api/search/route.ts"]).toContain("@lacspace/rerank");
+    // BM25 (no embeddings / no Ollama needed).
+    expect(files["app/api/search/route.ts"]).toContain('method: "bm25"');
+  });
+  it("content + search compose (search indexes the content dir)", () => {
+    const combo = generateProject({ template: "personal", features: ["content", "search"] });
+    expect("content/updates/welcome.md" in combo).toBe(true);
+    expect("app/api/search/route.ts" in combo).toBe(true);
   });
 });

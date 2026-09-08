@@ -20,6 +20,12 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.5 — more prebuilt add-ons.** The `--with` catalog grows beyond AI:
+> - **`content`** — a Markdown content section (`/updates`) for *any* template, with an auto-generated **RSS feed** and **`llms.txt`**. Drop `.md` files in, get pages.
+> - **`search`** — **instant, keyless full-text search** (BM25) over your Markdown — a search box, a `/search` page and an API route. No API key, no service, no Ollama required.
+>
+> More add-ons (auth, payments, email, analytics…) are on the way — same rules: additive, keyless, free-first.
+
 > **New in v2.4 — static *or* full-stack.** Now the interactive prompt (after you pick a template) asks what *kind* of app you want:
 > - **Static / frontend only** *(default)* — today's single Next.js app, unchanged.
 > - **Dynamic / full-stack** (`--fullstack`) — an npm-workspaces **monorepo**: a `frontend/` Next.js app **+** a `backend/` **Node · Express · MongoDB · Redis · TypeScript** API **+** a shared `types/` package the two both import (so the API contract can't drift), plus a root `docker-compose.yml` (Mongo + Redis) and **one** `npm install` / `npm run dev` for the whole thing.

@@ -24,6 +24,46 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  formatCount,
+  linearGradient,
+  tiltTransform,
+  pointerFraction,
+  nextIndex,
+  filterCommands,
+} from "./core";
+
+/* Pure, framework-agnostic building blocks — re-exported so you can drive your
+ * own animations, hotkey lists and formatters without pulling in React. */
+export {
+  cx,
+  clamp,
+  lerp,
+  mapRange,
+  easings,
+  ease,
+  formatCount,
+  linearGradient,
+  tiltTransform,
+  pointerFraction,
+  nextIndex,
+  scoreMatch,
+  filterCommands,
+  rankCommands,
+  typewriterStep,
+  createUid,
+  stagger,
+} from "./core";
+export type {
+  ClassValue,
+  EasingName,
+  FormatCountOptions,
+  TiltOptions,
+  Rect,
+  TypewriterState,
+  TypewriterTiming,
+} from "./core";
+
 /* ------------------------------------------------------------------ *
  * Utilities
  * ------------------------------------------------------------------ */
@@ -164,10 +204,7 @@ export function Counter({
     return () => cancelAnimationFrame(raf);
   }, [inView, reduced, value, duration]);
 
-  const num = display.toFixed(decimals);
-  const [int, frac] = num.split(".");
-  const grouped = separator ? int!.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : int;
-  const text = `${prefix}${grouped}${frac ? "." + frac : ""}${suffix}`;
+  const text = formatCount(display, { decimals, separator, prefix, suffix });
   return createElement(as, { ref, className }, text);
 }
 
@@ -199,7 +236,7 @@ export function GradientText({
   style,
 }: GradientTextProps): ReactNode {
   const s: CSSProperties = {
-    backgroundImage: `linear-gradient(${angle}deg, ${from}, ${to})`,
+    backgroundImage: linearGradient(from, to, angle),
     backgroundSize: animate ? "200% 200%" : undefined,
     WebkitBackgroundClip: "text",
     backgroundClip: "text",
@@ -243,9 +280,8 @@ export function TiltCard({ children, max = 8, scale = 1.02, className, style }: 
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width - 0.5;
-      const py = (e.clientY - r.top) / r.height - 0.5;
-      setT(`perspective(900px) rotateY(${px * max}deg) rotateX(${-py * max}deg) scale(${scale})`);
+      const { px, py } = pointerFraction(r, e.clientX, e.clientY);
+      setT(tiltTransform({ px, py, max, scale }));
     },
     [max, scale, reduced],
   );
@@ -430,11 +466,10 @@ export function CommandPalette({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((i) => `${i.label} ${i.group ?? ""} ${i.keywords ?? ""}`.toLowerCase().includes(q));
-  }, [items, query]);
+  const filtered = useMemo(
+    () => filterCommands(items, query, (i) => `${i.label} ${i.group ?? ""} ${i.keywords ?? ""}`),
+    [items, query],
+  );
 
   useEffect(() => setActive(0), [query, open]);
 
@@ -450,10 +485,10 @@ export function CommandPalette({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => Math.min(filtered.length - 1, a + 1));
+      setActive((a) => nextIndex(a, 1, filtered.length));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((a) => Math.max(0, a - 1));
+      setActive((a) => nextIndex(a, -1, filtered.length));
     } else if (e.key === "Enter") {
       e.preventDefault();
       choose(filtered[active]);

@@ -2,12 +2,33 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type DependencyList,
   type EffectCallback,
   type RefObject,
 } from "react";
+import {
+  buildMediaQuery,
+  clampStep,
+  createHistory,
+  getPaginationRange,
+  getPaginationState,
+  listInsert,
+  listMove,
+  listRemoveAt,
+  listUpdateAt,
+  moveStep,
+  pushHistory,
+  redoHistory,
+  resetHistory,
+  stepProgress,
+  undoHistory,
+  type History,
+  type PaginationState,
+  type PaginationToken,
+} from "./core";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -776,3 +797,336 @@ export function useLockBodyScroll(locked = true): void {
     };
   }, [locked]);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Pagination                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Controls returned alongside a {@link PaginationState} by {@link usePagination}. */
+export interface PaginationControls extends PaginationState {
+  /** Go to a specific 1-based page (clamped). */
+  setPage: (page: number | ((prev: number) => number)) => void;
+  /** Change the page size (the current page is re-clamped). */
+  setPageSize: (size: number) => void;
+  /** Advance one page (no-op on the last page). */
+  next: () => void;
+  /** Go back one page (no-op on the first page). */
+  prev: () => void;
+  /** Jump to the first page. */
+  first: () => void;
+  /** Jump to the last page. */
+  last: () => void;
+  /** Compact control range with ellipsis gaps, e.g. `[1, "…", 5, 6, 7, "…", 20]`. */
+  range: PaginationToken[];
+}
+
+/**
+ * Fully-derived, SSR-safe pagination state with navigation controls and a
+ * ready-to-render ellipsis page range. All math is pure (see
+ * {@link getPaginationState}) so the current page is always clamped in bounds.
+ *
+ * @example
+ * const p = usePagination({ totalItems: 240, pageSize: 20 });
+ * // p.pageCount === 12; p.range, p.next(), p.setPage(5)…
+ */
+export function usePagination(options: {
+  totalItems: number;
+  pageSize?: number;
+  initialPage?: number;
+  /** Sibling pages shown either side of the current page in `range`. */
+  siblings?: number;
+  /** Pinned pages at each end in `range`. */
+  boundaries?: number;
+}): PaginationControls {
+  const { totalItems, pageSize: initialSize = 10, initialPage = 1, siblings, boundaries } =
+    options;
+  const [page, setPageState] = useState(initialPage);
+  const [pageSize, setSizeState] = useState(initialSize);
+
+  const state = useMemo(
+    () => getPaginationState({ totalItems, page, pageSize }),
+    [totalItems, page, pageSize],
+  );
+
+  const setPage = useCallback(
+    (next: number | ((prev: number) => number)) =>
+      setPageState((prev) => (typeof next === "function" ? next(prev) : next)),
+    [],
+  );
+  const setPageSize = useCallback((size: number) => setSizeState(size), []);
+  const next = useCallback(() => setPageState((p) => p + 1), []);
+  const prev = useCallback(() => setPageState((p) => p - 1), []);
+  const first = useCallback(() => setPageState(1), []);
+  const last = useCallback(() => setPageState(state.pageCount), [state.pageCount]);
+
+  const range = useMemo(
+    () => getPaginationRange(state.page, state.pageCount, { siblings, boundaries }),
+    [state.page, state.pageCount, siblings, boundaries],
+  );
+
+  return { ...state, setPage, setPageSize, next, prev, first, last, range };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Stepper / wizard                                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Controls returned by {@link useStep} for a multi-step flow. */
+export interface StepControls {
+  /** Current 0-based step (always clamped into `[0, count - 1]`). */
+  step: number;
+  /** Total number of steps. */
+  count: number;
+  /** Advance one step (wraps when `loop`, otherwise saturates). */
+  next: () => void;
+  /** Go back one step (wraps when `loop`, otherwise saturates). */
+  prev: () => void;
+  /** Jump to a specific step (clamped). */
+  go: (step: number) => void;
+  /** Return to the initial step. */
+  reset: () => void;
+  /** `true` on the first step. */
+  isFirst: boolean;
+  /** `true` on the last step. */
+  isLast: boolean;
+  /** Progress through the flow as a `0..1` fraction. */
+  progress: number;
+}
+
+/**
+ * Wizard/stepper state over `count` steps, backed by the pure step math in
+ * `core` ({@link clampStep}, {@link moveStep}, {@link stepProgress}).
+ *
+ * @example
+ * const s = useStep(4);
+ * // s.step, s.next(), s.progress, s.isLast
+ */
+export function useStep(
+  count: number,
+  options: { initial?: number; loop?: boolean } = {},
+): StepControls {
+  const { initial = 0, loop = false } = options;
+  const [step, setStep] = useState(() => clampStep(initial, count));
+
+  const next = useCallback(() => setStep((s) => moveStep(s, count, +1, loop)), [count, loop]);
+  const prev = useCallback(() => setStep((s) => moveStep(s, count, -1, loop)), [count, loop]);
+  const go = useCallback((n: number) => setStep(clampStep(n, count)), [count]);
+  const reset = useCallback(() => setStep(clampStep(initial, count)), [initial, count]);
+
+  const current = clampStep(step, count);
+  return {
+    step: current,
+    count,
+    next,
+    prev,
+    go,
+    reset,
+    isFirst: current === 0,
+    isLast: count <= 0 ? true : current === count - 1,
+    progress: stepProgress(current, count),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Undo / redo history                                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Controls returned by {@link useHistory}. */
+export interface HistoryControls<T> {
+  /** Push a new present (clears the redo stack). */
+  set: (value: T | ((prev: T) => T)) => void;
+  /** Step back to the previous value. */
+  undo: () => void;
+  /** Step forward to a previously-undone value. */
+  redo: () => void;
+  /** Reset the history to a single present (defaults to the initial value). */
+  reset: (value?: T) => void;
+  /** `true` when an undo is possible. */
+  canUndo: boolean;
+  /** `true` when a redo is possible. */
+  canRedo: boolean;
+  /** The raw immutable {@link History} record. */
+  history: History<T>;
+}
+
+/**
+ * State with built-in undo/redo, backed by the pure history buffer in `core`.
+ * `limit` caps how many past entries are retained (`0` = unbounded).
+ *
+ * @example
+ * const [value, { set, undo, redo, canUndo }] = useHistory("");
+ */
+export function useHistory<T>(
+  initial: T,
+  options: { limit?: number } = {},
+): [T, HistoryControls<T>] {
+  const { limit = 0 } = options;
+  const initialRef = useRef(initial);
+  const [history, setHistory] = useState<History<T>>(() => createHistory(initial, limit));
+
+  const set = useCallback(
+    (value: T | ((prev: T) => T)) =>
+      setHistory((h) => {
+        const nextValue =
+          typeof value === "function" ? (value as (p: T) => T)(h.present) : value;
+        return pushHistory(h, nextValue);
+      }),
+    [],
+  );
+  const undo = useCallback(() => setHistory((h) => undoHistory(h)), []);
+  const redo = useCallback(() => setHistory((h) => redoHistory(h)), []);
+  const reset = useCallback(
+    (value?: T) => setHistory((h) => resetHistory(h, value === undefined ? initialRef.current : value)),
+    [],
+  );
+
+  return [
+    history.present,
+    {
+      set,
+      undo,
+      redo,
+      reset,
+      canUndo: history.past.length > 0,
+      canRedo: history.future.length > 0,
+      history,
+    },
+  ];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  List (array) state                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Controls returned by {@link useList} for immutable array state. */
+export interface ListControls<T> {
+  /** Replace the whole list (value or updater). */
+  set: (value: T[] | ((prev: T[]) => T[])) => void;
+  /** Append one or more items to the end. */
+  push: (...items: T[]) => void;
+  /** Insert items at `index` (negative counts from the end). */
+  insertAt: (index: number, ...items: T[]) => void;
+  /** Replace/update the item at `index`. */
+  updateAt: (index: number, value: T | ((prev: T) => T)) => void;
+  /** Remove the item at `index`. */
+  removeAt: (index: number) => void;
+  /** Move the item at `from` to `to`. */
+  move: (from: number, to: number) => void;
+  /** Keep only the items matching `predicate`. */
+  filter: (predicate: (item: T, index: number) => boolean) => void;
+  /** Empty the list. */
+  clear: () => void;
+}
+
+/**
+ * Immutable array state with ergonomic mutators, backed by the pure list
+ * operations in `core` ({@link listInsert}, {@link listRemoveAt},
+ * {@link listUpdateAt}, {@link listMove}).
+ *
+ * @example
+ * const [items, { push, removeAt, move }] = useList<string>([]);
+ */
+export function useList<T>(initial: T[] = []): [T[], ListControls<T>] {
+  const [list, setList] = useState<T[]>(initial);
+
+  const set = useCallback(
+    (value: T[] | ((prev: T[]) => T[])) =>
+      setList((prev) => (typeof value === "function" ? (value as (p: T[]) => T[])(prev) : value)),
+    [],
+  );
+  const push = useCallback((...items: T[]) => setList((prev) => [...prev, ...items]), []);
+  const insertAt = useCallback(
+    (index: number, ...items: T[]) => setList((prev) => listInsert(prev, index, ...items)),
+    [],
+  );
+  const updateAt = useCallback(
+    (index: number, value: T | ((prev: T) => T)) =>
+      setList((prev) => listUpdateAt(prev, index, value)),
+    [],
+  );
+  const removeAt = useCallback((index: number) => setList((prev) => listRemoveAt(prev, index)), []);
+  const move = useCallback((from: number, to: number) => setList((prev) => listMove(prev, from, to)), []);
+  const filter = useCallback(
+    (predicate: (item: T, index: number) => boolean) =>
+      setList((prev) => prev.filter(predicate)),
+    [],
+  );
+  const clear = useCallback(() => setList([]), []);
+
+  return [list, { set, push, insertAt, updateAt, removeAt, move, filter, clear }];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Breakpoints / preference media queries                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `true` when the viewport width is at least `min` (and at most `max`, if
+ * given). Builds the query with the pure {@link buildMediaQuery} helper and
+ * tracks it via {@link useMediaQuery} — SSR-safe (`false` on the server).
+ *
+ * @example
+ * const isTablet = useBreakpoint(768, 1023);
+ * const isDesktop = useBreakpoint(1024);
+ */
+export function useBreakpoint(min: number | string, max?: number | string): boolean {
+  const query = useMemo(
+    () => buildMediaQuery({ minWidth: min, ...(max != null ? { maxWidth: max } : {}) }),
+    [min, max],
+  );
+  return useMediaQuery(query);
+}
+
+/**
+ * `true` when the user prefers a dark color scheme. SSR-safe.
+ *
+ * @example
+ * const dark = usePrefersDark();
+ */
+export function usePrefersDark(): boolean {
+  return useMediaQuery("(prefers-color-scheme: dark)");
+}
+
+/**
+ * `true` when the user has requested reduced motion. SSR-safe.
+ *
+ * @example
+ * const reduceMotion = usePrefersReducedMotion();
+ */
+export function usePrefersReducedMotion(): boolean {
+  return useMediaQuery("(prefers-reduced-motion: reduce)");
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Re-exported pure helpers (framework-agnostic, from ./core)                  */
+/* -------------------------------------------------------------------------- */
+
+export {
+  clamp,
+  getPaginationState,
+  getPaginationRange,
+  clampStep,
+  moveStep,
+  stepProgress,
+  createHistory,
+  pushHistory,
+  undoHistory,
+  redoHistory,
+  resetHistory,
+  canUndo,
+  canRedo,
+  listInsert,
+  listRemoveAt,
+  listUpdateAt,
+  listMove,
+  buildMediaQuery,
+  minWidthQuery,
+  maxWidthQuery,
+  betweenWidthQuery,
+} from "./core";
+export type {
+  PaginationState,
+  PaginationToken,
+  History,
+  MediaQueryOptions,
+} from "./core";

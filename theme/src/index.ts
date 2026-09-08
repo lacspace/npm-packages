@@ -11,6 +11,17 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { resolveTheme, systemThemeFromMatches } from "./core";
+
+/**
+ * Pure, framework-agnostic theming core — theme resolution, CSS-variable and
+ * stylesheet generation, WCAG contrast helpers, `prefers-color-scheme` query /
+ * selector builders, injectable-storage persistence, and a small theme
+ * controller. All React-free and safe to use on the server.
+ *
+ * @public
+ */
+export * from "./core";
 
 /**
  * A theme name. Usually `"light"`, `"dark"`, or `"system"`, but any custom
@@ -111,7 +122,7 @@ function getSystemTheme(): "light" | "dark" {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return "light";
   }
-  return window.matchMedia(MEDIA).matches ? "dark" : "light";
+  return systemThemeFromMatches(window.matchMedia(MEDIA).matches);
 }
 
 /**
@@ -210,10 +221,10 @@ export function ThemeProvider(props: ThemeProviderProps): ReactElement {
     if (stored) setThemeState(stored);
   }, [storageKey]);
 
-  const resolvedTheme = useMemo<string>(() => {
-    if (theme === "system" && enableSystem) return systemTheme ?? "light";
-    return theme;
-  }, [theme, systemTheme, enableSystem]);
+  const resolvedTheme = useMemo<string>(
+    () => resolveTheme(theme, { systemTheme, enableSystem }),
+    [theme, systemTheme, enableSystem],
+  );
 
   // Apply the resolved theme to <html>. Only runs on the client, so the server
   // markup is never mutated during render.

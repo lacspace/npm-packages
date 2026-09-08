@@ -62,6 +62,40 @@ import { Reveal, Counter, GradientText, TiltCard, Marquee, Typewriter, CommandPa
 | `usePrefersReducedMotion()` | `true` when the user opted out of motion |
 | `cn(...)` | tiny class-name joiner |
 
+## Pure helpers · New in 1.1.0
+
+The math and formatting that power the components are now exported as **pure,
+framework-agnostic functions** — no React, no DOM. Use them to drive your own
+animations, hotkey lists, counters and gradients, and test them anywhere.
+
+```ts
+import {
+  cx, clamp, lerp, mapRange, easings, ease, formatCount, linearGradient,
+  tiltTransform, pointerFraction, nextIndex, scoreMatch, filterCommands,
+  rankCommands, typewriterStep, createUid, stagger,
+} from "@lacspace/ui";
+
+formatCount(12480, { suffix: "+" });                 // "12,480+"
+linearGradient("#22d3ee", "#6366f1");                // "linear-gradient(135deg, #22d3ee, #6366f1)"
+ease("easeOutCubic", 0.4);                           // eased progress in [0,1]
+nextIndex(2, 1, 3, { loop: true });                  // 0  (wrap-around list nav)
+rankCommands(items, "settings", (i) => i.label);     // best matches first
+stagger(3);                                          // 0.24s — delay for the 3rd Reveal
+```
+
+| | |
+| --- | --- |
+| `cx(...parts: ClassValue[]): string` | class joiner that also accepts numbers |
+| `clamp(n, min, max)` · `lerp(a, b, t)` · `mapRange(n, inMin, inMax, outMin, outMax)` | number math |
+| `easings` · `ease(name, t)` | named easing functions (`easeOutCubic`, `easeOutBack`, …), `t` clamped to `[0,1]` |
+| `formatCount(value, { decimals?, separator?, prefix?, suffix? })` | the `<Counter>` display formatter |
+| `linearGradient(from, to, angle?)` | build a `linear-gradient(...)` string |
+| `tiltTransform({ px, py, max?, scale?, perspective? })` · `pointerFraction(rect, x, y)` | the `<TiltCard>` 3D-tilt math |
+| `nextIndex(current, delta, length, { loop? })` | roving/arrow-key selection index |
+| `scoreMatch(text, query)` · `filterCommands(items, q, key?)` · `rankCommands(items, q, key?)` | command-palette filtering & ranking |
+| `typewriterStep(words, state, timing?)` | pure `<Typewriter>` state machine → `{ state, delay }` |
+| `createUid(prefix?)` · `stagger(index, step?, base?)` | deterministic ids & stagger timing |
+
 ## Why it's tiny
 
 No `framer-motion`, no `cmdk`, no runtime CSS-in-JS. Animations use CSS transitions, `requestAnimationFrame` and `IntersectionObserver` — the platform. The whole kit gzips to a few KB and tree-shakes to only what you import.

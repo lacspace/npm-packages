@@ -12,14 +12,17 @@
 
 </div>
 
-> Instead of installing a handful of single-purpose hook libraries, get **28 SSR-safe, fully-typed React hooks** — storage, debounce/throttle, media queries, click-outside, clipboard and more — in one tree-shakeable package.
+> Instead of installing a handful of single-purpose hook libraries, get **36 SSR-safe, fully-typed React hooks** — storage, debounce/throttle, media queries, click-outside, clipboard, pagination, steppers, undo/redo and more — in one tree-shakeable package.
 
 - 💾 `useLocalStorage` / `useSessionStorage` — JSON state, cross-tab sync, SSR-safe
 - ⏱️ `useDebounce` / `useDebouncedCallback` / `useThrottle` / `useInterval` / `useTimeout`
 - 🖱️ `useOnClickOutside` / `useHover` / `useEventListener` / `useIntersectionObserver`
-- 📐 `useMediaQuery` / `useWindowSize` / `useScrollPosition`
+- 📐 `useMediaQuery` / `useBreakpoint` / `usePrefersDark` / `useWindowSize` / `useScrollPosition`
+- 📄 `usePagination` / `useStep` / `useHistory` (undo/redo) / `useList`
 - 🧰 `useToggle` / `useCounter` / `useDisclosure` / `useCopyToClipboard` / `useIdle` + more
 - ⚡ Zero deps · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · tree-shakeable
+
+> **New in 1.1.0** — `usePagination` (clamped state + ellipsis page range), `useStep` (wizard/stepper), `useHistory` (undo/redo), `useList` (immutable array state), `useBreakpoint` / `usePrefersDark` / `usePrefersReducedMotion`, plus pure, DOM-free helpers (`getPaginationState`, `getPaginationRange`, `buildMediaQuery`, list/history/step utilities) you can use without React. All additive and fully backward-compatible.
 
 ## Install
 
@@ -121,6 +124,45 @@ function Share({ url }: { url: string }) {
 | `useOnlineStatus` | Tracks online/offline (SSR-safe, `true` on server) |
 | `useIdle` | `true` after N ms of no user activity |
 | `useLockBodyScroll` | Locks body scroll while active, restores on cleanup |
+| `usePagination` | Clamped pagination state + navigation + ellipsis page `range` |
+| `useStep` | Stepper/wizard state — `next/prev/go`, `progress`, `isFirst/isLast` |
+| `useHistory` | State with built-in undo/redo (`canUndo/canRedo`, `limit`) |
+| `useList` | Immutable array state — `push/insertAt/updateAt/removeAt/move/filter` |
+| `useBreakpoint` | `true` when the viewport is at/above (and optionally below) a width |
+| `usePrefersDark` | `true` when the user prefers a dark color scheme |
+| `usePrefersReducedMotion` | `true` when the user requests reduced motion |
+
+### Pure helpers (no React)
+
+Framework-agnostic building blocks — importable and testable without React:
+
+| Helper | What it does |
+| --- | --- |
+| `getPaginationState({ totalItems, page, pageSize })` | Fully-derived, clamped pagination snapshot |
+| `getPaginationRange(page, pageCount, opts?)` | Compact page range with `"…"` gaps |
+| `clampStep` / `moveStep` / `stepProgress` | Stepper math |
+| `createHistory` / `pushHistory` / `undoHistory` / `redoHistory` / `resetHistory` / `canUndo` / `canRedo` | Undo/redo buffer |
+| `listInsert` / `listRemoveAt` / `listUpdateAt` / `listMove` | Immutable array operations |
+| `buildMediaQuery` / `minWidthQuery` / `maxWidthQuery` / `betweenWidthQuery` | CSS media-query string builders |
+| `clamp` | Bound a number into a range |
+
+```tsx
+import { usePagination, useStep, useHistory, useList } from "@lacspace/hooks";
+
+// Paginate a list with a ready-to-render page range.
+const p = usePagination({ totalItems: 240, pageSize: 20 });
+// p.page, p.pageCount, p.range → [1, "…", 5, 6, 7, "…", 12], p.next(), p.setPage(5)
+
+// Drive a multi-step wizard.
+const s = useStep(4);
+// s.step, s.next(), s.progress, s.isLast
+
+// Undo/redo any state.
+const [value, { set, undo, redo, canUndo }] = useHistory("");
+
+// Immutable array state with ergonomic mutators.
+const [items, { push, removeAt, move }] = useList<string>([]);
+```
 
 ## Why it's tiny
 

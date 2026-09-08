@@ -5,26 +5,61 @@
  * focus/reconnect revalidation, polling, and mutations. Think "SWR-lite": `useQuery`
  * and `useMutation` in ~2KB, zero runtime dependencies, SSR-safe and fully typed.
  *
+ * The React hooks below are thin wrappers over the framework-agnostic core in
+ * `./core` (cache, key hashing, dedup, retry/backoff, matching, invalidation, GC),
+ * which is also re-exported here so it can be used from anywhere — inside or outside
+ * React.
+ *
  * @packageDocumentation
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  __internal,
+  DISABLED_SNAPSHOT,
+  serializeQueryKey,
+  triggerFetch,
+  type QueryKey,
+  type QueryFetcher,
+  type RetryOptions,
+} from "./core";
 
-/**
- * A cache key. Either a plain string, or a (readonly) array that is serialized to a
- * stable string key — object properties are sorted so key order never matters.
- *
- * @example
- * ```ts
- * "users";              // simple string key
- * ["user", 42];         // array key -> stable string
- * ["list", { q: "a" }]; // objects are key-sorted before serializing
- * ```
- */
-export type QueryKey = string | readonly unknown[];
+const { getEntry, buildSnapshot } = __internal;
 
-/** A function that resolves the data for a given key. Receives the original key. */
-export type QueryFetcher<T> = (key: QueryKey) => Promise<T> | T;
+/* ------------------------------------------------------------------ *
+ * Public re-exports from the pure core
+ * ------------------------------------------------------------------ */
+
+export {
+  // key hashing
+  serializeQueryKey,
+  // imperative cache API
+  getQueryData,
+  setQueryData,
+  mutate,
+  prefetchQuery,
+  clearQueryCache,
+  // inspection / matching / invalidation / subscriptions / GC
+  getQueryState,
+  getQueryKeys,
+  matchQueryKey,
+  invalidateQueries,
+  removeQuery,
+  subscribeQuery,
+  gcQueries,
+  // retry / backoff
+  computeBackoff,
+  runWithRetry,
+} from "./core";
+
+export type {
+  QueryKey,
+  QueryFetcher,
+  QueryFilter,
+  QueryState,
+  RetryOptions,
+  BackoffOptions,
+} from "./core";
 
 /**
  * Options for {@link useQuery}.
@@ -46,6 +81,10 @@ export interface QueryOptions<T> {
   initialData?: T;
   /** Keep showing the previous key's data while a new key loads. Default `false`. */
   keepPreviousData?: boolean;
+  /** Retry a failing fetcher this many times (exponential backoff). Default `0` (no retry). */
+  retry?: number;
+  /** Delay between retries: fixed ms, or a function of the (zero-based) attempt index. */
+  retryDelay?: number | ((attempt: number) => number);
   /** Called after each successful fetch for this hook (mount-guarded). */
   onSuccess?: (data: T) => void;
   /** Called after each failed fetch for this hook (mount-guarded). */
@@ -104,238 +143,6 @@ export interface MutationResult<TData, TVars> {
   reset: () => void;
 }
 
-/** Immutable view of an entry's public state, shared by all subscribers of a key. */
-interface Snapshot<T> {
-  data: T | undefined;
-  error: unknown;
-  isValidating: boolean;
-  updatedAt: number;
-}
-
-/** Internal, mutable cache record for a single key. */
-interface CacheEntry {
-  data: unknown;
-  error: unknown;
-  isValidating: boolean;
-  updatedAt: number;
-  promise: Promise<unknown> | null;
-  fetcher: QueryFetcher<unknown> | null;
-  listeners: Set<() => void>;
-  snapshot: Snapshot<unknown>;
-}
-
-/* ------------------------------------------------------------------ *
- * Module-level singleton cache + pub/sub
- * ------------------------------------------------------------------ */
-
-const cache = new Map<string, CacheEntry>();
-
-/** A stable snapshot returned for disabled queries so `useSyncExternalStore` never tears. */
-const DISABLED_SNAPSHOT: Snapshot<unknown> = Object.freeze({
-  data: undefined,
-  error: undefined,
-  isValidating: false,
-  updatedAt: 0,
-});
-
-/** Recursively stringify a value with object keys sorted, for stable array keys. */
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
-  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  return "{" + keys.map((k) => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}";
-}
-
-/** Serialize any {@link QueryKey} to a stable string. */
-function serializeKey(key: QueryKey): string {
-  return typeof key === "string" ? key : stableStringify(key);
-}
-
-/** Build a fresh immutable snapshot from an entry's current fields. */
-function buildSnapshot(entry: CacheEntry): Snapshot<unknown> {
-  return {
-    data: entry.data,
-    error: entry.error,
-    isValidating: entry.isValidating,
-    updatedAt: entry.updatedAt,
-  };
-}
-
-/** Rebuild the snapshot and notify all subscribers of the entry. */
-function commit(entry: CacheEntry): void {
-  entry.snapshot = buildSnapshot(entry);
-  entry.listeners.forEach((l) => l());
-}
-
-/** Get (or lazily create) the cache entry for a serialized key. */
-function getEntry(keyStr: string): CacheEntry {
-  let entry = cache.get(keyStr);
-  if (!entry) {
-    entry = {
-      data: undefined,
-      error: undefined,
-      isValidating: false,
-      updatedAt: 0,
-      promise: null,
-      fetcher: null,
-      listeners: new Set(),
-      snapshot: DISABLED_SNAPSHOT,
-    };
-    entry.snapshot = buildSnapshot(entry);
-    cache.set(keyStr, entry);
-  }
-  return entry;
-}
-
-/**
- * Core fetch with de-duplication: concurrent calls for the same key reuse the single
- * in-flight promise. On success, data is written and any error cleared; on failure,
- * the error is recorded and the promise re-thrown.
- */
-function triggerFetch<T>(keyStr: string, fetcher: QueryFetcher<T>, originalKey: QueryKey): Promise<T> {
-  const entry = getEntry(keyStr);
-  if (entry.promise) return entry.promise as Promise<T>;
-
-  entry.isValidating = true;
-  commit(entry);
-
-  const promise = (async () => {
-    try {
-      const data = await fetcher(originalKey);
-      entry.data = data;
-      entry.error = undefined;
-      entry.updatedAt = Date.now();
-      return data;
-    } catch (err) {
-      entry.error = err;
-      throw err;
-    } finally {
-      entry.promise = null;
-      entry.isValidating = false;
-      commit(entry);
-    }
-  })();
-
-  entry.promise = promise;
-  return promise as Promise<T>;
-}
-
-/* ------------------------------------------------------------------ *
- * Imperative cache API (usable without React)
- * ------------------------------------------------------------------ */
-
-/**
- * Read the currently cached data for a key without subscribing.
- *
- * @example
- * ```ts
- * const user = getQueryData<User>(["user", 1]);
- * ```
- */
-export function getQueryData<T>(key: QueryKey): T | undefined {
-  const entry = cache.get(serializeKey(key));
-  return entry ? (entry.data as T | undefined) : undefined;
-}
-
-/**
- * Write data into the cache for a key. Accepts a value or an updater function; all
- * mounted components using the key re-render. Any stored error is cleared.
- *
- * @example
- * ```ts
- * setQueryData(["user", 1], { name: "Ada" });
- * setQueryData<number>("count", (prev) => (prev ?? 0) + 1);
- * ```
- */
-export function setQueryData<T>(key: QueryKey, data: T | ((prev: T | undefined) => T)): void {
-  const entry = getEntry(serializeKey(key));
-  const next =
-    typeof data === "function"
-      ? (data as (prev: T | undefined) => T)(entry.data as T | undefined)
-      : data;
-  entry.data = next;
-  entry.error = undefined;
-  entry.updatedAt = Date.now();
-  commit(entry);
-}
-
-/**
- * Globally update and/or revalidate a key (like SWR's `mutate`).
- *
- * - With `data` omitted: revalidate (refetch using the key's last fetcher).
- * - With `data` given: optimistically set it, then revalidate — unless `revalidate:false`.
- *
- * @example
- * ```ts
- * // optimistic update, then refetch to confirm
- * await mutate(["user", 1], { ...user, name: "Grace" });
- *
- * // pure revalidation
- * await mutate("todos");
- *
- * // optimistic only, skip refetch
- * await mutate("todos", newTodos, { revalidate: false });
- * ```
- */
-export async function mutate<T>(
-  key: QueryKey,
-  data?: T | ((prev: T | undefined) => T),
-  options?: { revalidate?: boolean },
-): Promise<T | undefined> {
-  const keyStr = serializeKey(key);
-  const entry = getEntry(keyStr);
-
-  if (data !== undefined) {
-    setQueryData<T>(key, data);
-    if (options?.revalidate === false) return entry.data as T | undefined;
-  }
-
-  if (entry.fetcher) {
-    try {
-      return await triggerFetch<T>(keyStr, entry.fetcher as QueryFetcher<T>, key);
-    } catch {
-      return entry.data as T | undefined;
-    }
-  }
-  return entry.data as T | undefined;
-}
-
-/**
- * Fetch and populate the cache ahead of render — e.g. on route change or hover.
- *
- * @example
- * ```ts
- * await prefetchQuery(["user", id], (k) => api.get(k));
- * ```
- */
-export function prefetchQuery<T>(key: QueryKey, fetcher: QueryFetcher<T>): Promise<T> {
-  const keyStr = serializeKey(key);
-  getEntry(keyStr).fetcher = fetcher as QueryFetcher<unknown>;
-  return triggerFetch<T>(keyStr, fetcher, key);
-}
-
-/**
- * Clear all cached data. Entries with active subscribers are reset (subscribers
- * re-render with empty state); unused entries are removed.
- *
- * @example
- * ```ts
- * clearQueryCache(); // e.g. on logout
- * ```
- */
-export function clearQueryCache(): void {
-  cache.forEach((entry, keyStr) => {
-    entry.data = undefined;
-    entry.error = undefined;
-    entry.updatedAt = 0;
-    entry.promise = null;
-    entry.isValidating = false;
-    commit(entry);
-    if (entry.listeners.size === 0) cache.delete(keyStr);
-  });
-}
-
 /* ------------------------------------------------------------------ *
  * Hooks
  * ------------------------------------------------------------------ */
@@ -358,7 +165,7 @@ export function clearQueryCache(): void {
  *   const { data, error, isLoading, refetch } = useQuery(
  *     ["user", id],
  *     ([, uid]) => fetch(`/api/users/${uid}`).then((r) => r.json()),
- *     { staleTime: 30_000 }
+ *     { staleTime: 30_000, retry: 2 }
  *   );
  *   if (isLoading) return <p>Loading…</p>;
  *   if (error) return <button onClick={refetch}>Retry</button>;
@@ -372,7 +179,7 @@ export function useQuery<T>(
   options: QueryOptions<T> = {},
 ): QueryResult<T> {
   const enabled = options.enabled !== false && key !== null && key !== false;
-  const keyStr = enabled ? serializeKey(key) : null;
+  const keyStr = enabled ? serializeQueryKey(key) : null;
 
   // Latest-ref pattern: avoid stale closures without re-subscribing on every render.
   const fetcherRef = useRef(fetcher);
@@ -394,7 +201,7 @@ export function useQuery<T>(
   // very first paint is correct. Idempotent; only mutates when something changes.
   useMemo(() => {
     if (keyStr === null) return;
-    const entry = getEntry(keyStr);
+    const entry = getEntry(keyStr, key as QueryKey);
     let changed = false;
     if (entry.data === undefined && optionsRef.current.initialData !== undefined) {
       entry.data = optionsRef.current.initialData;
@@ -413,7 +220,7 @@ export function useQuery<T>(
   const subscribe = useCallback(
     (onChange: () => void) => {
       if (keyStr === null) return () => {};
-      const entry = getEntry(keyStr);
+      const entry = getEntry(keyStr, keyRef.current as QueryKey);
       entry.listeners.add(onChange);
       return () => {
         entry.listeners.delete(onChange);
@@ -431,11 +238,16 @@ export function useQuery<T>(
 
   const refetch = useCallback(async (): Promise<T | undefined> => {
     if (keyStr === null) return undefined;
-    const entry = getEntry(keyStr);
+    const entry = getEntry(keyStr, keyRef.current as QueryKey);
     entry.fetcher = fetcherRef.current as QueryFetcher<unknown>;
     const activeKey = (keyRef.current as QueryKey) ?? keyStr;
+    const retries = optionsRef.current.retry;
+    const retryCfg: RetryOptions | undefined =
+      retries && retries > 0
+        ? { retries, retryDelay: optionsRef.current.retryDelay }
+        : undefined;
     try {
-      const result = await triggerFetch<T>(keyStr, fetcherRef.current, activeKey);
+      const result = await triggerFetch<T>(keyStr, fetcherRef.current, activeKey, retryCfg);
       if (isMountedRef.current) optionsRef.current.onSuccess?.(result);
       return result;
     } catch (err) {
@@ -447,7 +259,7 @@ export function useQuery<T>(
   // Fetch on mount / key change when data is missing or stale.
   useEffect(() => {
     if (keyStr === null) return;
-    const entry = getEntry(keyStr);
+    const entry = getEntry(keyStr, keyRef.current as QueryKey);
     entry.fetcher = fetcherRef.current as QueryFetcher<unknown>;
     const staleTime = optionsRef.current.staleTime ?? 0;
     const fresh = entry.data !== undefined && Date.now() - entry.updatedAt < staleTime;

@@ -20,6 +20,12 @@
 - 🌍 `mutate` / `setQueryData` / `getQueryData` / `prefetchQuery` / `clearQueryCache` — from anywhere
 - ⚡ ~2 KB · 🌍 SSR-safe · 📦 ESM + CJS · fully typed · React peer dep only
 
+> **New in 1.1.0** — a pure, framework-agnostic core you can drive from anywhere:
+> `invalidateQueries(filter)` with structural key matching, `getQueryState` /
+> `subscribeQuery` / `removeQuery` / `getQueryKeys` cache inspection, `gcQueries`
+> garbage collection, `serializeQueryKey`, `computeBackoff` / `runWithRetry`, plus
+> `retry` / `retryDelay` options on `useQuery`. Fully additive and backward-compatible.
+
 ## Install
 
 ```bash
@@ -112,21 +118,66 @@ import { prefetchQuery } from "@lacspace/query";
 />;
 ```
 
+### Invalidate & inspect queries (new in 1.1.0)
+
+`invalidateQueries` marks matching entries stale and refetches them. A **string** key
+matches exactly; an **array** key matches any entry with the same leading segments
+(a structural prefix match), so one call can invalidate a whole family:
+
+```ts
+import { invalidateQueries, getQueryState } from "@lacspace/query";
+
+// refetch every ["user", …] query (["user", 1], ["user", 2, { posts: true }], …)
+await invalidateQueries(["user"]);
+
+// just mark stale, don't refetch yet
+await invalidateQueries("todos", { refetch: false });
+
+// predicate filter over the serialized key
+await invalidateQueries((keyStr) => keyStr.startsWith('["report"'));
+
+// read state without subscribing
+const state = getQueryState<User>(["user", 1], 30_000); // { data, error, updatedAt, isValidating, isStale }
+```
+
+Also available from anywhere: `subscribeQuery(key, cb)` (subscribe outside React),
+`removeQuery(key)`, `getQueryKeys()`, `serializeQueryKey(key)`, and
+`gcQueries({ maxAge })` to drop unused entries.
+
+### Retry with backoff (new in 1.1.0)
+
+```tsx
+const { data } = useQuery(["user", id], fetchUser, { retry: 3, retryDelay: 500 });
+```
+
+The retry/backoff math is exposed as pure, testable helpers — `computeBackoff(attempt, opts?)`
+and `runWithRetry(fn, opts?)` (with an injectable `sleep`, so it never needs real timers).
+
 ## API
 
 | Export | Description |
 | --- | --- |
-| `useQuery(key, fetcher, options?)` | Subscribe to a key; fetch with dedup, SWR, focus/reconnect/poll revalidation. Returns `{ data, error, isLoading, isFetching, isSuccess, isError, refetch }`. |
+| `useQuery(key, fetcher, options?)` | Subscribe to a key; fetch with dedup, SWR, focus/reconnect/poll revalidation, optional `retry`. Returns `{ data, error, isLoading, isFetching, isSuccess, isError, refetch }`. |
 | `useMutation(fn, options?)` | Run an async mutation. Returns `{ mutate, mutateAsync, data, error, isPending, isSuccess, isError, reset }`. |
 | `mutate(key, data?, options?)` | Global update/revalidate (like SWR's `mutate`). Omit `data` to revalidate; pass `data` to set optimistically then revalidate unless `revalidate: false`. |
 | `prefetchQuery(key, fetcher)` | Fetch and populate the cache ahead of render. |
 | `getQueryData(key)` | Read cached data without subscribing. |
 | `setQueryData(key, data)` | Write cached data (value or updater); all subscribers re-render. |
+| `getQueryState(key, staleTime?)` | Read full state `{ data, error, updatedAt, isValidating, isStale }` without subscribing. |
+| `invalidateQueries(filter?, options?)` | Mark matching queries stale and (by default) refetch them. Filter by key (prefix), object (`{ key, exact, predicate }`) or predicate. |
+| `matchQueryKey(key, filter)` | Pure test of whether a key matches a `QueryFilter`. |
+| `subscribeQuery(key, cb)` | Subscribe to a key's changes from outside React; returns an unsubscribe fn. |
+| `removeQuery(key)` | Remove a single cached query (resets subscribed entries, deletes idle ones). |
+| `getQueryKeys()` | List the serialized keys currently in the cache. |
+| `gcQueries(options?)` | Garbage-collect idle entries older than `maxAge`; returns the count removed. |
+| `serializeQueryKey(key)` | Serialize any `QueryKey` to its stable string form. |
+| `computeBackoff(attempt, options?)` | Exponential-backoff delay (ms) for a retry attempt. |
+| `runWithRetry(fn, options?)` | Run `fn`, retrying on rejection with backoff (injectable `sleep`). |
 | `clearQueryCache()` | Reset/remove all cached entries (e.g. on logout). |
 
 **`useQuery` options:** `enabled`, `staleTime` (ms, default `0`), `refetchOnWindowFocus`
 (default `true`), `refetchOnReconnect` (default `true`), `refetchInterval`,
-`initialData`, `keepPreviousData`, `onSuccess`, `onError`.
+`initialData`, `keepPreviousData`, `retry` (default `0`), `retryDelay`, `onSuccess`, `onError`.
 
 **`useMutation` options:** `onSuccess`, `onError`, `onSettled`.
 

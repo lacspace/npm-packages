@@ -20,6 +20,8 @@
 - **Class or data-attribute** — `<html class="dark">` or `<html data-theme="dark">`, your call.
 - **Zero dependencies** — one React peer dep, nothing else.
 
+> **New in 1.1.0** — a **pure, framework-agnostic core** you can use anywhere (server, Vue, vanilla, tests): theme resolution (`resolveTheme`, `toggleTheme`, `cycleTheme`), **CSS-variable + stylesheet generation** from design tokens (`cssVariables`, `generateThemeCss`), **WCAG contrast helpers** (`contrastRatio`, `meetsContrast`, `bestContrastColor`), `prefers-color-scheme` query/selector builders, colour math (`mixHex`/`lighten`/`darken`), and a small **`createThemeController`** with **injectable** storage. All additive — every existing export is unchanged.
+
 ## Install
 
 ```bash
@@ -154,6 +156,66 @@ Throws if used outside a `ThemeProvider`.
 ### `getThemeScript(options?): string`
 
 Returns a self-contained, `try/catch`-wrapped IIFE string (no external references) that applies the stored/OS theme to `<html>` before paint. Options mirror the provider: `storageKey`, `defaultTheme`, `attribute`, `themes`, `enableSystem`. **Always pass the same options you give `<ThemeProvider>`** so the pre-hydration paint matches React.
+
+## Framework-agnostic core (new in 1.1.0)
+
+Everything below is pure logic — **no React, no DOM, no `localStorage`**. Use it on the server, in a Vue/Svelte/vanilla app, or in tests. The React `ThemeProvider`/`useTheme` are thin wrappers over these same functions.
+
+```ts
+import {
+  resolveTheme,
+  generateThemeCss,
+  contrastRatio,
+  bestContrastColor,
+  createThemeController,
+  createMemoryStorage,
+} from "@lacspace/theme";
+
+// Resolve "system" against the OS scheme.
+resolveTheme("system", { systemTheme: "dark" }); // "dark"
+
+// Generate a theme stylesheet from design tokens.
+generateThemeCss(
+  { light: { bg: "#ffffff", fg: "#0b0b0c" }, dark: { bg: "#0b0b0c", fg: "#ffffff" } },
+  { defaultTheme: "light", attribute: "data-theme" },
+);
+// :root { --bg: #ffffff; --fg: #0b0b0c; }
+// [data-theme="dark"] { --bg: #0b0b0c; --fg: #ffffff; }
+
+// WCAG contrast checks.
+contrastRatio("#000000", "#ffffff"); // 21
+bestContrastColor("#4d9fff");        // "#000000" — the readable text colour
+
+// A portable controller with injectable storage (great for SSR/tests).
+const theme = createThemeController({ storage: createMemoryStorage() });
+theme.subscribe((s) => document.documentElement.setAttribute("data-theme", s.resolvedTheme));
+theme.setTheme("dark");
+theme.toggle();
+```
+
+### Core API
+
+| Export | Signature | Purpose |
+| --- | --- | --- |
+| `resolveTheme` | `(theme, opts?) => string` | Resolve `"system"` to a concrete theme. |
+| `toggleTheme` | `(resolved) => string` | Flip `light`↔`dark` (custom themes unchanged). |
+| `cycleTheme` | `(current, themes) => string` | Next theme in the list, wrapping. |
+| `isValidTheme` | `(theme, themes) => boolean` | Membership check. |
+| `systemThemeFromMatches` | `(matches) => "light" \| "dark"` | Map a `matchMedia` result to a scheme. |
+| `prefersColorSchemeQuery` | `(scheme?) => string` | Build `(prefers-color-scheme: …)`. |
+| `themeSelector` | `(theme, attribute?) => string` | `.dark` or `[data-theme="dark"]`. |
+| `cssVariables` | `(tokens, opts?) => Record<string,string>` | Token map → `--var` map. |
+| `renderCssVariables` | `(tokens, opts?) => string` | Token map → declaration lines. |
+| `generateThemeCss` | `(themes, opts?) => string` | Full multi-theme stylesheet. |
+| `parseHex` / `rgbToHex` | `(hex) => Rgb \| null` / `(rgb) => string` | Hex ↔ RGB. |
+| `relativeLuminance` | `(color) => number` | WCAG relative luminance. |
+| `contrastRatio` | `(a, b) => number` | WCAG contrast ratio (1–21). |
+| `meetsContrast` | `(fg, bg, opts?) => boolean` | AA/AAA pass check. |
+| `bestContrastColor` | `(bg, opts?) => string` | Readable text colour for a surface. |
+| `mixHex` / `lighten` / `darken` | `(hex, …) => string` | Colour math. |
+| `createMemoryStorage` | `(seed?) => ThemeStorage` | In-memory storage shim. |
+| `readStoredTheme` / `writeStoredTheme` | `(storage, key, …) => …` | Never-throw persistence codec. |
+| `createThemeController` | `(opts?) => ThemeController` | Resolve + persist + subscribe, storage injected. |
 
 ## Why it's tiny
 

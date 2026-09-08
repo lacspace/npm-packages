@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/ui",
-  "version": "1.0.3",
-  "description": "A tiny, dependency-free React kit that makes a page feel alive — scroll reveals, animated counters, gradient text, tilt cards, marquees, a typewriter and a ⌘K command palette. No animation library, no CSS import. Respects prefers-reduced-motion; Tailwind-friendly.",
+  "version": "1.1.0",
+  "description": "A tiny, dependency-free React kit that makes a page feel alive — scroll reveals, animated counters, gradient text, tilt cards, marquees, a typewriter and a ⌘K command palette — plus framework-agnostic helpers (easings, variant class builder, tilt/gradient math, command filter & scorer). No animation library, no CSS import. Respects prefers-reduced-motion; Tailwind-friendly.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -43,7 +43,15 @@
     "tailwind",
     "nextjs",
     "typescript",
-    "zero-dependency"
+    "zero-dependency",
+    "easing",
+    "easing-functions",
+    "class-variance",
+    "classnames",
+    "count-up-formatter",
+    "fuzzy-search",
+    "command-filter",
+    "roving-tabindex"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

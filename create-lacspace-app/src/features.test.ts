@@ -6,7 +6,7 @@ describe("feature registry", () => {
   it("listFeatures() returns copies of every feature (ai-chat + rag)", () => {
     const feats = listFeatures();
     const keys = feats.map((f) => f.key).sort();
-    expect(keys).toEqual(["ai-chat", "content", "rag", "search"]);
+    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "content", "rag", "search"]);
     // Copies — mutating the result must not touch the registry.
     feats[0]!.label = "MUTATED";
     expect(FEATURES.find((f) => f.key === feats[0]!.key)!.label).not.toBe("MUTATED");
@@ -18,11 +18,13 @@ describe("feature registry", () => {
     expect(getFeature("does-not-exist")).toBeUndefined();
   });
 
-  it("every feature declares deps, files, nextSteps", () => {
+  it("every feature declares files, nextSteps, and adds deps (frontend or backend)", () => {
     for (const f of listFeatures()) {
-      expect(Object.keys(f.deps).length).toBeGreaterThan(0);
       expect(typeof f.files).toBe("function");
       expect(f.nextSteps.length).toBeGreaterThan(0);
+      // A feature must contribute something: frontend deps, or a backend hook
+      // (backend-only add-ons like auth-pages carry their deps in backend()).
+      expect(Object.keys(f.deps).length > 0 || typeof f.backend === "function").toBe(true);
     }
   });
 });

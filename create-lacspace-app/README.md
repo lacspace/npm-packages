@@ -20,6 +20,12 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.6 — full-stack add-ons.** Add-ons can now wire the **backend** too. Requesting one automatically upgrades your project to full-stack (`--fullstack`):
+> - **`auth-pages`** — account management on top of the built-in login/register: edit profile, change password, and **TOTP two-factor auth (2FA)** with backup codes (`@lacspace/otp`), plus a settings page.
+> - **`analytics`** — **privacy-first, cookieless** web analytics (`@lacspace/analytics-lite`): a tracker, a MongoDB collector, and a dashboard. No cookies, no personal data.
+>
+> Under the hood the backend gained a **route manifest** (`routes/index.ts`) that add-ons register into — so every add-on's API routes, models, deps and env compose cleanly. `payments` and `email` are next.
+
 > **New in v2.5 — more prebuilt add-ons.** The `--with` catalog grows beyond AI:
 > - **`content`** — a Markdown content section (`/updates`) for *any* template, with an auto-generated **RSS feed** and **`llms.txt`**. Drop `.md` files in, get pages.
 > - **`search`** — **instant, keyless full-text search** (BM25) over your Markdown — a search box, a `/search` page and an API route. No API key, no service, no Ollama required.

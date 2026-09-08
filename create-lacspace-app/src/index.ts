@@ -77,6 +77,41 @@ export interface FeatureDef {
   nextSteps: string[];
   /** Optional "learn more" URL for `LEARN.md`. */
   learn?: string;
+  /**
+   * When true, this add-on needs the full-stack backend (a database + a real API).
+   * Requesting it in `static` mode automatically upgrades the project to `dynamic`.
+   */
+  requiresBackend?: boolean;
+  /**
+   * Optional backend (Express) contribution — applied **only in dynamic mode**.
+   * Lets an add-on drop backend files, register routes, add backend deps and
+   * document backend env vars. See {@link FeatureBackend}.
+   */
+  backend?: (ctx: Ctx) => FeatureBackend;
+}
+
+/** An add-on's contribution to the `backend/` workspace (dynamic mode only). */
+export interface FeatureBackend {
+  /** Files under `backend/` — e.g. `"src/routes/payments.ts"`, `"src/models/payment.ts"`. */
+  files?: Record<string, string>;
+  /** Extra backend deps, merged into `backend/package.json`. */
+  deps?: Record<string, string>;
+  /** Express route groups this add-on mounts (assembled in `src/routes/index.ts`). */
+  routes?: FeatureRoute[];
+  /** Extra root `.env.example` entries — `NAME: "explanatory comment"`. */
+  env?: Record<string, string>;
+}
+
+/** One Express route group registered by a backend add-on. */
+export interface FeatureRoute {
+  /** Mount path, e.g. `"/payments"`. */
+  path: string;
+  /** The exact import line, e.g. `import paymentRoutes from "./payments.js";`. */
+  importLine: string;
+  /** The router identifier used in `app.use`, e.g. `"paymentRoutes"`. */
+  handler: string;
+  /** Protect the group with the shared `requireAuth` middleware. */
+  auth?: boolean;
 }
 
 export interface Ctx { name: string; template: TemplateDef; features: FeatureDef[]; mode: "static" | "dynamic"; }
@@ -127,7 +162,10 @@ export function resolveContext(options: GenerateOptions = {}): Ctx {
   const seg = raw.split(/[\\/]/).filter(Boolean).pop() ?? "my-app";
   const name = seg.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") || "my-app";
   const features = normalizeFeatures(options.features);
-  const mode: Ctx["mode"] = options.mode === "dynamic" ? "dynamic" : "static";
+  // A backend add-on (auth, payments, …) needs the full-stack backend, so requesting
+  // one auto-upgrades a static project to dynamic.
+  let mode: Ctx["mode"] = options.mode === "dynamic" ? "dynamic" : "static";
+  if (mode === "static" && features.some((f) => f.requiresBackend)) mode = "dynamic";
   return { name, template, features, mode };
 }
 
@@ -2381,6 +2419,52 @@ export const FEATURES: FeatureDef[] = [
       "Want semantic search? Upgrade to @lacspace/embeddings + @lacspace/vector (keyless-local via Ollama).",
     ],
     learn: "https://developer.lacspace.com/packages/rerank",
+  },
+  {
+    key: "auth-pages",
+    label: "Auth & account",
+    description: "Account management on top of the built-in login/register: edit profile, change password, and TOTP two-factor auth (2FA) with backup codes. Full-stack.",
+    requiresBackend: true,
+    deps: {},
+    files: () => ({ "app/account/settings/page.tsx": authSettingsPage() }),
+    backend: (ctx) => ({
+      deps: { "@lacspace/otp": "^1.2.0" },
+      files: {
+        "src/models/two-factor.ts": authTwoFactorModel(),
+        "src/routes/account.ts": authAccountRoutes(ctx),
+      },
+      routes: [{ path: "/account", handler: "accountRoutes", auth: true, importLine: 'import accountRoutes from "./account.js";' }],
+    }),
+    nextSteps: [
+      "Sign in, then open http://localhost:3000/account/settings.",
+      "Enable 2FA: add the shown secret to an authenticator app (Google Authenticator, Authy…), then verify.",
+      "Backup codes are shown once on enable — store them somewhere safe.",
+    ],
+    learn: "https://developer.lacspace.com/packages/otp",
+  },
+  {
+    key: "analytics",
+    label: "Analytics",
+    description: "Privacy-first, cookieless web analytics: a tracker (@lacspace/analytics-lite), a collector that stores events in MongoDB, and a dashboard. Full-stack.",
+    requiresBackend: true,
+    deps: { "@lacspace/analytics-lite": "^1.1.0" },
+    files: (ctx) => ({
+      "components/analytics.tsx": analyticsComponent(ctx),
+      "app/analytics/page.tsx": analyticsDashboard(),
+    }),
+    backend: () => ({
+      files: {
+        "src/models/event.ts": analyticsEventModel(),
+        "src/routes/events.ts": analyticsEventsRoutes(),
+      },
+      routes: [{ path: "/events", handler: "eventRoutes", auth: false, importLine: 'import eventRoutes from "./events.js";' }],
+    }),
+    nextSteps: [
+      "Add <Analytics /> to app/layout.tsx (inside <body>) to start tracking page views.",
+      "Browse your site, then open http://localhost:3000/analytics (sign in) to see the dashboard.",
+      "It's cookieless and stores no personal data — privacy-first by default.",
+    ],
+    learn: "https://developer.lacspace.com/packages/analytics-lite",
   },
 ];
 
@@ -5761,6 +5845,392 @@ export default function SearchPage() {
 }
 `;
 
+/* ------------------------- feature: auth-pages (files) ------------------------- */
+
+// backend/src/models/two-factor.ts — stores each user's TOTP secret + backup codes.
+const authTwoFactorModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+// how this works: a separate collection for 2FA so the base User model stays simple.
+// NOTE: the TOTP secret is stored as-is here — in production, encrypt it at rest with
+// @lacspace/crypto (encrypt/decrypt) using a key from your env.
+export interface TwoFactorDoc {
+  _id: string;
+  userId: string;
+  secret: string;
+  enabled: boolean;
+  backupHashes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const schema = new mongoose.Schema<TwoFactorDoc>(
+  {
+    _id: { type: String, default: () => uuidv7() },
+    userId: { type: String, required: true, unique: true, index: true },
+    secret: { type: String, required: true },
+    enabled: { type: Boolean, default: false },
+    backupHashes: { type: [String], default: [] },
+  },
+  { timestamps: true },
+);
+
+export const TwoFactor =
+  (mongoose.models.TwoFactor as mongoose.Model<TwoFactorDoc>) ?? mongoose.model<TwoFactorDoc>("TwoFactor", schema);
+`;
+
+// backend/src/routes/account.ts — mounted at /account behind requireAuth.
+const authAccountRoutes = (ctx: Ctx): string => `import express from "express";
+import { hash, verify as verifyPassword } from "@lacspace/password";
+import { setupTotp, verifyTotp, generateBackupCodes, verifyBackupCode } from "@lacspace/otp";
+import { v } from "@lacspace/validate";
+import { asyncHandler, HttpError } from "../http.js";
+import { User } from "../models/user.js";
+import { TwoFactor } from "../models/two-factor.js";
+
+// This whole group is mounted behind requireAuth (see routes/index.ts), so
+// req.user is always set here.
+const router = express.Router();
+const ISSUER = "${ctx.name}";
+
+const ProfileInput = v.object({ name: v.string().min(2).max(80) });
+const PasswordInput = v.object({ currentPassword: v.string().min(1), newPassword: v.string().min(8).max(200) });
+const CodeInput = v.object({ code: v.string().min(6).max(12) });
+
+// GET /account/2fa — is two-factor enabled?
+router.get("/2fa", asyncHandler(async (req, res) => {
+  const tf = await TwoFactor.findOne({ userId: req.user!.sub });
+  res.json({ enabled: Boolean(tf?.enabled) });
+}));
+
+// PATCH /account/profile — update your display name.
+router.patch("/profile", asyncHandler(async (req, res) => {
+  const { name } = ProfileInput.parse(req.body);
+  const user = await User.findByIdAndUpdate(req.user!.sub, { $set: { name } }, { new: true });
+  if (!user) throw new HttpError(404, "User not found");
+  res.json({ id: String(user._id), name: user.name, email: user.email });
+}));
+
+// POST /account/password — change your password (verifies the current one).
+router.post("/password", asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = PasswordInput.parse(req.body);
+  const user = await User.findById(req.user!.sub);
+  if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {
+    throw new HttpError(401, "Current password is incorrect");
+  }
+  user.passwordHash = await hash(newPassword);
+  await user.save();
+  res.json({ ok: true });
+}));
+
+// POST /account/2fa/setup — create a TOTP secret; show \`uri\` as a QR / \`secret\` to type.
+router.post("/2fa/setup", asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user!.sub);
+  if (!user) throw new HttpError(404, "User not found");
+  const { secret, uri } = setupTotp({ account: user.email, issuer: ISSUER });
+  await TwoFactor.findOneAndUpdate(
+    { userId: String(user._id) },
+    { $set: { secret, enabled: false } },
+    { upsert: true, new: true },
+  );
+  res.json({ secret, uri });
+}));
+
+// POST /account/2fa/enable — verify a code, turn 2FA on, return one-time backup codes.
+router.post("/2fa/enable", asyncHandler(async (req, res) => {
+  const { code } = CodeInput.parse(req.body);
+  const tf = await TwoFactor.findOne({ userId: req.user!.sub });
+  if (!tf) throw new HttpError(400, "Run 2FA setup first");
+  if ((await verifyTotp(code, tf.secret, { window: 1 })) === null) throw new HttpError(401, "Invalid code");
+  const { codes, hashes } = await generateBackupCodes(10);
+  tf.enabled = true;
+  tf.backupHashes = hashes;
+  await tf.save();
+  res.json({ enabled: true, backupCodes: codes });
+}));
+
+// POST /account/2fa/disable — verify a TOTP or backup code, then turn 2FA off.
+router.post("/2fa/disable", asyncHandler(async (req, res) => {
+  const { code } = CodeInput.parse(req.body);
+  const tf = await TwoFactor.findOne({ userId: req.user!.sub });
+  if (!tf || !tf.enabled) { res.json({ enabled: false }); return; }
+  const ok = (await verifyTotp(code, tf.secret, { window: 1 })) !== null || (await verifyBackupCode(code, tf.backupHashes)) >= 0;
+  if (!ok) throw new HttpError(401, "Invalid code");
+  await TwoFactor.deleteOne({ userId: req.user!.sub });
+  res.json({ enabled: false });
+}));
+
+export default router;
+`;
+
+// frontend app/account/settings/page.tsx — profile + password + 2FA management.
+const authSettingsPage = (): string => `"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+async function call<T>(path: string, body?: unknown, method = "POST"): Promise<T> {
+  const token = getToken();
+  const res = await fetch(API + path, {
+    method,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? "Request failed");
+  return data as T;
+}
+const msgOf = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
+const field = "w-full rounded-xl border border-hairline bg-surface px-4 py-2 outline-none";
+const card = "rounded-2xl border border-hairline p-5 space-y-3";
+const btn = "rounded-full gradient-bg px-4 py-2 text-sm font-semibold on-accent";
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [enabled, setEnabled] = useState(false);
+  const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [backup, setBackup] = useState<string[] | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 3000); };
+
+  useEffect(() => {
+    if (!getToken()) { router.push("/login"); return; }
+    call<{ enabled: boolean }>("/account/2fa", undefined, "GET").then((r) => setEnabled(r.enabled)).catch(() => {});
+  }, [router]);
+
+  async function saveName(e: React.FormEvent) {
+    e.preventDefault();
+    try { await call("/account/profile", { name }, "PATCH"); flash("Profile updated"); } catch (err) { flash(msgOf(err)); }
+  }
+  async function savePassword(e: React.FormEvent) {
+    e.preventDefault();
+    try { await call("/account/password", { currentPassword: current, newPassword: next }); setCurrent(""); setNext(""); flash("Password changed"); } catch (err) { flash(msgOf(err)); }
+  }
+  async function begin2fa() {
+    try { setSetup(await call<{ secret: string; uri: string }>("/account/2fa/setup")); } catch (err) { flash(msgOf(err)); }
+  }
+  async function enable2fa() {
+    try { const r = await call<{ backupCodes: string[] }>("/account/2fa/enable", { code }); setBackup(r.backupCodes); setEnabled(true); setSetup(null); setCode(""); } catch (err) { flash(msgOf(err)); }
+  }
+  async function disable2fa() {
+    const c = window.prompt("Enter a current 2FA code (or a backup code) to disable:");
+    if (!c) return;
+    try { await call("/account/2fa/disable", { code: c }); setEnabled(false); flash("2FA disabled"); } catch (err) { flash(msgOf(err)); }
+  }
+
+  return (
+    <main className="mx-auto max-w-lg space-y-6 px-6 py-16">
+      <h1 className="text-2xl font-bold">Account settings</h1>
+      {msg && <p className="rounded-xl border border-hairline bg-surface px-4 py-2 text-sm">{msg}</p>}
+
+      <form onSubmit={saveName} className={card}>
+        <h2 className="font-semibold">Profile</h2>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New display name" className={field} />
+        <button className={btn}>Save name</button>
+      </form>
+
+      <form onSubmit={savePassword} className={card}>
+        <h2 className="font-semibold">Change password</h2>
+        <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" className={field} />
+        <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (min 8)" className={field} />
+        <button className={btn}>Change password</button>
+      </form>
+
+      <div className={card}>
+        <h2 className="font-semibold">Two-factor authentication {enabled && <span className="text-green-500">· on</span>}</h2>
+        {!enabled && !setup && <button onClick={begin2fa} className={btn}>Enable 2FA</button>}
+        {!enabled && setup && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted">Add this secret to your authenticator app (Google Authenticator, Authy…):</p>
+            <code className="block break-all rounded-lg bg-surface p-3 text-sm">{setup.secret}</code>
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code" className={field} />
+            <button onClick={enable2fa} className={btn}>Verify & enable</button>
+          </div>
+        )}
+        {enabled && <button onClick={disable2fa} className="rounded-full border border-hairline px-4 py-2 text-sm">Disable 2FA</button>}
+        {backup && (
+          <div className="mt-2 space-y-2">
+            <p className="text-sm font-medium">Save these backup codes (shown once):</p>
+            <ul className="grid grid-cols-2 gap-1 rounded-lg bg-surface p-3 font-mono text-sm">
+              {backup.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+`;
+
+/* ------------------------- feature: analytics (files) ------------------------- */
+
+// backend/src/models/event.ts — a single analytics event.
+const analyticsEventModel = (): string => `import mongoose from "mongoose";
+import { uuidv7 } from "@lacspace/id";
+
+export interface EventDoc {
+  _id: string;
+  type: string;
+  path: string;
+  referrer: string;
+  screen: string;
+  sid: string;
+  props: Record<string, unknown>;
+  ts: Date;
+}
+
+const schema = new mongoose.Schema<EventDoc>({
+  _id: { type: String, default: () => uuidv7() },
+  type: { type: String, default: "pageview", index: true },
+  path: { type: String, default: "/" },
+  referrer: { type: String, default: "" },
+  screen: { type: String, default: "" },
+  sid: { type: String, default: "" },
+  props: { type: mongoose.Schema.Types.Mixed, default: {} },
+  ts: { type: Date, default: Date.now, index: true },
+});
+
+export const Event =
+  (mongoose.models.Event as mongoose.Model<EventDoc>) ?? mongoose.model<EventDoc>("Event", schema);
+`;
+
+// backend/src/routes/events.ts — a public collector (POST) + a protected summary (GET).
+const analyticsEventsRoutes = (): string => `import express from "express";
+import { asyncHandler } from "../http.js";
+import { requireAuth } from "../middleware/auth.js";
+import { Event } from "../models/event.js";
+
+const router = express.Router();
+
+// POST /events — the tracker beacon posts here. Public + cookieless (no PII stored).
+router.post("/", asyncHandler(async (req, res) => {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  await Event.create({
+    type: String(b.type ?? "pageview"),
+    path: String(b.path ?? "/"),
+    referrer: String(b.referrer ?? ""),
+    screen: String(b.screen ?? ""),
+    sid: String(b.sid ?? ""),
+    props: b.props && typeof b.props === "object" ? (b.props as Record<string, unknown>) : {},
+  });
+  res.status(204).end();
+}));
+
+// GET /events/summary — dashboard aggregates (protected: only signed-in owners).
+router.get("/summary", requireAuth, asyncHandler(async (_req, res) => {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [total, pageviews, topPaths, byDay] = await Promise.all([
+    Event.countDocuments({}),
+    Event.countDocuments({ type: "pageview" }),
+    Event.aggregate([
+      { $match: { type: "pageview" } },
+      { $group: { _id: "$path", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 8 },
+    ]),
+    Event.aggregate([
+      { $match: { ts: { $gte: since } } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$ts" } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+  ]);
+  res.json({
+    total,
+    pageviews,
+    topPaths: topPaths.map((p: { _id: string; count: number }) => ({ path: p._id, count: p.count })),
+    byDay: byDay.map((d: { _id: string; count: number }) => ({ day: d._id, count: d.count })),
+  });
+}));
+
+export default router;
+`;
+
+// frontend components/analytics.tsx — the client tracker. Add <Analytics/> to layout.
+const analyticsComponent = (ctx: Ctx): string => `"use client";
+import { useEffect } from "react";
+import { createAnalytics } from "@lacspace/analytics-lite";
+
+// how this works: cookieless, privacy-first tracking. It POSTs page views + events to
+// your backend /events collector (stored in MongoDB). No cookies, no localStorage, no
+// personal data. Respects the browser's Do-Not-Track.
+const ENDPOINT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000") + "/events";
+
+export function Analytics() {
+  useEffect(() => {
+    const a = createAnalytics({ endpoint: ENDPOINT, siteId: ${JSON.stringify(ctx.name)}, respectDNT: true });
+    a.pageview();
+    return a.autoTrack();
+  }, []);
+  return null;
+}
+`;
+
+// frontend app/analytics/page.tsx — the dashboard (protected).
+const analyticsDashboard = (): string => `"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getToken } from "@/lib/api";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+interface Summary {
+  total: number;
+  pageviews: number;
+  topPaths: { path: string; count: number }[];
+  byDay: { day: string; count: number }[];
+}
+
+export default function AnalyticsPage() {
+  const router = useRouter();
+  const [data, setData] = useState<Summary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    fetch(API + "/events/summary", { headers: { Authorization: "Bearer " + token } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Please sign in"))))
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+  }, [router]);
+
+  if (error) return <main className="mx-auto max-w-3xl px-6 py-16 text-muted">{error}</main>;
+  if (!data) return <main className="mx-auto max-w-3xl px-6 py-16 text-muted">Loading…</main>;
+  const max = Math.max(1, ...data.byDay.map((d) => d.count));
+
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="text-3xl font-bold">Analytics</h1>
+      <p className="mt-1 text-muted">Cookieless, privacy-first — last 30 days.</p>
+      <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-hairline p-5"><p className="text-sm text-muted">Total events</p><p className="text-3xl font-bold">{data.total}</p></div>
+        <div className="rounded-2xl border border-hairline p-5"><p className="text-sm text-muted">Page views</p><p className="text-3xl font-bold">{data.pageviews}</p></div>
+      </div>
+      <h2 className="mt-8 font-semibold">Top pages</h2>
+      <ul className="mt-3 space-y-2">
+        {data.topPaths.length === 0 && <li className="text-muted">No data yet — browse your site with &lt;Analytics/&gt; mounted.</li>}
+        {data.topPaths.map((p) => (
+          <li key={p.path} className="flex justify-between border-b border-hairline pb-2"><span className="truncate">{p.path}</span><span className="text-muted">{p.count}</span></li>
+        ))}
+      </ul>
+      <h2 className="mt-8 font-semibold">Events per day</h2>
+      <div className="mt-3 flex items-end gap-1" style={{ height: 120 }}>
+        {data.byDay.map((d) => (
+          <div key={d.day} className="flex-1 rounded-t" style={{ height: (d.count / max) * 100 + "%", backgroundColor: "var(--accent, #6366f1)" }} title={d.day + ": " + d.count} />
+        ))}
+      </div>
+    </main>
+  );
+}
+`;
+
 /* ============================ dynamic / full-stack ============================ */
 /*
  * Dynamic mode wraps the Next.js app (the `static` scaffold) in an npm-workspaces
@@ -6215,47 +6685,73 @@ function buildFullStack(ctx: Ctx): Record<string, string> {
   out[".env.example"] = rootEnvExample(ctx);
   out["README.md"] = rootReadme(ctx);
 
+  // 9. Add-on backend env vars → appended to the root .env.example (deduped).
+  const envBase = out[".env.example"];
+  const seen = new Set(
+    (envBase.match(/^#?\s*([A-Z0-9_]+)=/gm) ?? []).map((l) => l.replace(/^#?\s*/, "").replace(/=.*/, "")),
+  );
+  const lines: string[] = [];
+  for (const f of ctx.features) {
+    const b = f.backend?.(ctx);
+    if (!b?.env) continue;
+    const fresh = Object.entries(b.env).filter(([name]) => !seen.has(name));
+    if (!fresh.length) continue;
+    lines.push("", `# --- ${f.label} (${f.key}) ---`);
+    for (const [name, comment] of fresh) {
+      if (comment) lines.push(`# ${comment}`);
+      lines.push(`${name}=`);
+      seen.add(name);
+    }
+  }
+  if (lines.length) out[".env.example"] = envBase.replace(/\n?$/, "\n") + lines.join("\n") + "\n";
+
   return out;
 }
 
 /* ---- backend workspace (Node · Express · MongoDB · Redis · TypeScript) ---- */
 
-const backendPkgJson = (ctx: Ctx): string => JSON.stringify({
-  name: `${scope(ctx)}/backend`,
-  version: "0.1.0",
-  private: true,
-  type: "module",
-  main: "dist/index.js",
-  scripts: {
-    dev: "tsx watch src/index.ts",
-    build: "tsc -p tsconfig.json",
-    start: "node dist/index.js",
-    typecheck: "tsc -p tsconfig.json --noEmit",
-  },
-  dependencies: {
-    express: "^4.21.2",
-    cors: "^2.8.5",
-    mongoose: "^8.9.0",
-    ioredis: "^5.4.2",
-    dotenv: "^16.4.7",
-    // ✨ Backend built on zero-dep @lacspace/* packages instead of the usual grab-bag.
-    "@lacspace/env": "^1.1.0",
-    "@lacspace/jwt": "^1.4.0",
-    "@lacspace/password": "^1.1.0",
-    "@lacspace/validate": "^1.1.0",
-    "@lacspace/id": "^1.1.0",
-    "@lacspace/rate-limit": "^1.2.0",
-    "@lacspace/cache": "^1.1.0",
-    [`${scope(ctx)}/types`]: "*",
-  },
-  devDependencies: {
-    typescript: "^5.7.0",
-    tsx: "^4.19.2",
-    "@types/node": "^22.10.0",
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17",
-  },
-}, null, 2) + "\n";
+const backendPkgJson = (ctx: Ctx): string => {
+  // Backend deps contributed by selected add-ons (payments, email, …).
+  const featureDeps: Record<string, string> = {};
+  for (const f of ctx.features) Object.assign(featureDeps, f.backend?.(ctx)?.deps ?? {});
+  return JSON.stringify({
+    name: `${scope(ctx)}/backend`,
+    version: "0.1.0",
+    private: true,
+    type: "module",
+    main: "dist/index.js",
+    scripts: {
+      dev: "tsx watch src/index.ts",
+      build: "tsc -p tsconfig.json",
+      start: "node dist/index.js",
+      typecheck: "tsc -p tsconfig.json --noEmit",
+    },
+    dependencies: {
+      express: "^4.21.2",
+      cors: "^2.8.5",
+      mongoose: "^8.9.0",
+      ioredis: "^5.4.2",
+      dotenv: "^16.4.7",
+      // ✨ Backend built on zero-dep @lacspace/* packages instead of the usual grab-bag.
+      "@lacspace/env": "^1.1.0",
+      "@lacspace/jwt": "^1.4.0",
+      "@lacspace/password": "^1.1.0",
+      "@lacspace/validate": "^1.1.0",
+      "@lacspace/id": "^1.1.0",
+      "@lacspace/rate-limit": "^1.2.0",
+      "@lacspace/cache": "^1.1.0",
+      ...featureDeps,
+      [`${scope(ctx)}/types`]: "*",
+    },
+    devDependencies: {
+      typescript: "^5.7.0",
+      tsx: "^4.19.2",
+      "@types/node": "^22.10.0",
+      "@types/express": "^4.17.21",
+      "@types/cors": "^2.8.17",
+    },
+  }, null, 2) + "\n";
+};
 
 const backendTsconfig = (ctx: Ctx): string => JSON.stringify({
   compilerOptions: {
@@ -6685,37 +7181,56 @@ export default router;
 `;
 
 const backendApp = (ctx: Ctx): string => `import express from "express";
-import type { RequestHandler } from "express";
 import cors from "cors";
-import { rateLimit, expressRateLimit } from "@lacspace/rate-limit";
 import { env } from "./env.js";
 import { errorHandler } from "./middleware/error.js";
-import authRoutes from "./routes/auth.js";
-import noteRoutes from "./routes/notes.js";
+import { registerRoutes } from "./routes/index.js";
 
 // how this works: assembles the Express app — CORS for the frontend, JSON parsing,
-// a health check, the auth + notes routers, then the error handler LAST.
+// a health check, all route groups (see routes/index.ts), then the error handler LAST.
 export function createApp(): express.Express {
   const app = express();
 
   app.use(cors({ origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()), credentials: true }));
   app.use(express.json());
 
-  // Brute-force protection on auth: 20 requests / minute / IP (@lacspace/rate-limit).
-  const authLimiter = expressRateLimit(rateLimit({ limit: 20, windowMs: 60_000 })) as unknown as RequestHandler;
-
   app.get("/health", (_req, res) => { res.json({ ok: true, service: "${ctx.name}-api" }); });
-  app.use("/auth", authLimiter, authRoutes);
-  app.use("/notes", noteRoutes);
+  registerRoutes(app);
 
   app.use(errorHandler);
   return app;
 }
 `;
 
-/** The backend workspace as a `{ path: contents }` map. */
+// src/routes/index.ts — one place that mounts every route group. Add-ons register
+// their routers here (assembled from each feature's backend().routes).
+const backendRoutesIndex = (ctx: Ctx): string => {
+  const featureRoutes = ctx.features.flatMap((f) => f.backend?.(ctx)?.routes ?? []);
+  const needsAuth = featureRoutes.some((r) => r.auth);
+  const importLines = featureRoutes.map((r) => r.importLine).join("\n");
+  const mountLines = featureRoutes
+    .map((r) => `  app.use(${JSON.stringify(r.path)}, ${r.auth ? "requireAuth, " : ""}${r.handler});`)
+    .join("\n");
+  return `import type { Express, RequestHandler } from "express";
+import { rateLimit, expressRateLimit } from "@lacspace/rate-limit";
+${needsAuth ? 'import { requireAuth } from "../middleware/auth.js";\n' : ""}import authRoutes from "./auth.js";
+import noteRoutes from "./notes.js";
+${importLines ? importLines + "\n" : ""}
+// how this works: every route group is mounted here. Add a new resource by creating
+// a router in routes/ and adding one app.use(...) line below.
+export function registerRoutes(app: Express): void {
+  // Brute-force protection on auth: 20 requests / minute / IP (@lacspace/rate-limit).
+  const authLimiter = expressRateLimit(rateLimit({ limit: 20, windowMs: 60_000 })) as unknown as RequestHandler;
+  app.use("/auth", authLimiter, authRoutes);
+  app.use("/notes", noteRoutes);
+${mountLines}
+}
+`;
+};
+
+/** The backend workspace as a `{ path: contents }` map (base + add-on backends). */
 function backendFiles(ctx: Ctx): Record<string, string> {
-  return {
+  const files: Record<string, string> = {
     "backend/package.json": backendPkgJson(ctx),
     "backend/tsconfig.json": backendTsconfig(ctx),
     "backend/.gitignore": backendGitignore(),
@@ -6735,7 +7250,15 @@ function backendFiles(ctx: Ctx): Record<string, string> {
     "backend/src/models/note.ts": backendNoteModel(),
     "backend/src/routes/auth.ts": backendAuthRoutes(ctx),
     "backend/src/routes/notes.ts": backendNoteRoutes(ctx),
+    "backend/src/routes/index.ts": backendRoutesIndex(ctx),
   };
+  // ✨ Add-on backend files (payments, email, …), placed under backend/.
+  for (const f of ctx.features) {
+    const b = f.backend?.(ctx);
+    if (!b?.files) continue;
+    for (const [rel, content] of Object.entries(b.files)) files["backend/" + rel] = content;
+  }
+  return files;
 }
 
 /* ------------------------------ cli ------------------------------ */

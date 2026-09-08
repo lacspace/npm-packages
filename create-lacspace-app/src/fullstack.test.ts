@@ -128,3 +128,44 @@ describe("mode: dynamic (full-stack monorepo)", () => {
     expect(Object.keys(withAi)).toContain("backend/src/app.ts");
   });
 });
+
+describe("backend-aware add-ons (require the full-stack backend)", () => {
+  it("a requiresBackend add-on auto-upgrades a static request to dynamic", () => {
+    const f = generateProject({ name: "acme", template: "saas", features: ["auth-pages"] });
+    // No mode passed, yet a monorepo was produced.
+    expect(Object.keys(f).some((k) => k.startsWith("backend/"))).toBe(true);
+    expect("frontend/app/account/settings/page.tsx" in f).toBe(true);
+  });
+
+  it("auth-pages contributes backend files, a route, an otp dep, and a frontend page", () => {
+    const f = generateProject({ name: "acme", template: "personal", features: ["auth-pages"] });
+    expect("backend/src/models/two-factor.ts" in f).toBe(true);
+    expect("backend/src/routes/account.ts" in f).toBe(true);
+    // Route registered in the manifest, behind auth.
+    expect(f["backend/src/routes/index.ts"]).toContain('import accountRoutes from "./account.js"');
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/account", requireAuth, accountRoutes)');
+    // Backend dep merged.
+    expect(JSON.parse(f["backend/package.json"]!).dependencies["@lacspace/otp"]).toBeTruthy();
+  });
+
+  it("analytics contributes a public collector + protected summary + frontend tracker/dashboard", () => {
+    const f = generateProject({ name: "acme", template: "business", features: ["analytics"] });
+    expect("backend/src/models/event.ts" in f).toBe(true);
+    expect("backend/src/routes/events.ts" in f).toBe(true);
+    // Mounted WITHOUT global auth (the collector is public; summary is guarded inside).
+    expect(f["backend/src/routes/index.ts"]).toContain('app.use("/events", eventRoutes)');
+    expect("frontend/components/analytics.tsx" in f).toBe(true);
+    expect("frontend/app/analytics/page.tsx" in f).toBe(true);
+    expect(JSON.parse(f["frontend/package.json"]!).dependencies["@lacspace/analytics-lite"]).toBeTruthy();
+  });
+
+  it("multiple backend add-ons register distinct routes in the manifest", () => {
+    const f = generateProject({ name: "acme", template: "saas", features: ["auth-pages", "analytics"] });
+    const idx = f["backend/src/routes/index.ts"]!;
+    expect(idx).toContain('app.use("/account", requireAuth, accountRoutes)');
+    expect(idx).toContain('app.use("/events", eventRoutes)');
+    // Base routes still there.
+    expect(idx).toContain('app.use("/auth"');
+    expect(idx).toContain('app.use("/notes", noteRoutes)');
+  });
+});

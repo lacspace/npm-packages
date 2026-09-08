@@ -30,9 +30,11 @@ import {
   type GenerateOptions,
   type TemplateDef,
   type FeatureDef,
+  type FeatureBackend,
+  type FeatureRoute,
 } from "./index.js";
 
-export type { GenerateOptions, TemplateDef, FeatureDef };
+export type { GenerateOptions, TemplateDef, FeatureDef, FeatureBackend, FeatureRoute };
 
 /** A project file map: relative path → file contents. */
 export type ProjectFiles = Record<string, string>;

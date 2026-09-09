@@ -62,8 +62,6 @@ export function craftMark(opts: AnimateOptions = {}): string {
   const CRAFTOUT = RIPPLE_DELAY + 200;
   const BREATHE = RIPPLE_DELAY + T.rippleDur + 120;
   const edgeDelay = (i: number) => CONN_START + i * T.lineStep;
-  const cx = (NODES[7]![0] / VIEWBOX) * 100;
-  const cy = (NODES[7]![1] / VIEWBOX) * 100;
 
   const css = `
 .${g}-outline{fill:none;stroke:url(#${g}-grad);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:${g}-draw ${T.outlineDur}ms cubic-bezier(.65,0,.35,1) ${T.outlineDelay}ms forwards}
@@ -72,7 +70,7 @@ export function craftMark(opts: AnimateOptions = {}): string {
 .${g}-node{fill:url(#${g}-grad);opacity:0;transform:scale(0);transform-box:fill-box;transform-origin:center;animation:${g}-pop ${T.dotDur}ms cubic-bezier(.34,1.35,.64,1) forwards var(--d)}
 .${g}-glow{fill:rgba(96,190,255,.55);opacity:0;transform:scale(.2);transform-box:fill-box;transform-origin:center;animation:${g}-glow 820ms ease-out forwards var(--d)}
 .${g}-craft{animation:${g}-craftout 500ms ease ${CRAFTOUT}ms forwards}
-.${g}-final{opacity:0;clip-path:circle(0% at ${cx}% ${cy}%);animation:${g}-ripple ${T.rippleDur}ms cubic-bezier(.4,0,.2,1) ${RIPPLE_DELAY}ms forwards${loop ? `,${g}-breathe 3.6s ease-in-out ${BREATHE + 400}ms infinite` : `,${g}-breathe 3.6s ease-in-out ${BREATHE}ms 1`}}
+.${g}-final{opacity:0;transform-box:fill-box;transform-origin:center;animation:${g}-bloom ${T.rippleDur}ms cubic-bezier(.34,1.2,.64,1) ${RIPPLE_DELAY}ms forwards${loop ? `,${g}-breathe 3.6s ease-in-out ${BREATHE + 400}ms infinite` : `,${g}-breathe 3.6s ease-in-out ${BREATHE}ms 1`}}
 .${g}-ignite{fill:rgba(214,251,255,.9);opacity:0;transform:scale(.4);transform-box:fill-box;transform-origin:center;animation:${g}-ignite ${T.igniteDur}ms ease-out ${IGNITE_DELAY}ms forwards}
 @keyframes ${g}-draw{to{stroke-dashoffset:0;opacity:1}from{stroke-dashoffset:1;opacity:1}}
 @keyframes ${g}-signal{0%{stroke-dashoffset:.15;opacity:0}15%{opacity:1}85%{opacity:1}100%{stroke-dashoffset:-1;opacity:0}}
@@ -80,9 +78,9 @@ export function craftMark(opts: AnimateOptions = {}): string {
 @keyframes ${g}-glow{0%{opacity:0;transform:scale(.2)}35%{opacity:.9}100%{opacity:0;transform:scale(1.5)}}
 @keyframes ${g}-craftout{to{opacity:0}}
 @keyframes ${g}-ignite{0%{opacity:0;transform:scale(.4)}28%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(2.9)}}
-@keyframes ${g}-ripple{from{opacity:1;clip-path:circle(0% at ${cx}% ${cy}%)}to{opacity:1;clip-path:circle(110% at ${cx}% ${cy}%)}}
+@keyframes ${g}-bloom{0%{opacity:0;transform:scale(.42)}55%{opacity:1}100%{opacity:1;transform:scale(1)}}
 @keyframes ${g}-breathe{50%{transform:scale(.978)}}
-@media (prefers-reduced-motion:reduce){.${g}-outline,.${g}-edge,.${g}-pulse,.${g}-node,.${g}-glow,.${g}-craft{animation:none;opacity:0}.${g}-final{animation:none;opacity:1;clip-path:none}}`;
+@media (prefers-reduced-motion:reduce){.${g}-outline,.${g}-edge,.${g}-pulse,.${g}-node,.${g}-glow,.${g}-craft{animation:none;opacity:0}.${g}-final{animation:none;opacity:1;transform:none}}`;
 
   const finalNet = EDGES.map(([a, b]) => `<line x1="${NODES[a]![0]}" y1="${NODES[a]![1]}" x2="${NODES[b]![0]}" y2="${NODES[b]![1]}" stroke="rgba(214,251,255,.85)" stroke-width="1.4" stroke-linecap="round"/>`).join("") +
     NODES.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.4" fill="${HEX.cyan}"/>`).join("");

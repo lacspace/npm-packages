@@ -1,16 +1,24 @@
 <div align="center">
 
+<img src="./.github/assets/lacspace-mark.svg" width="132" height="132" alt="The Lacspace mark, crafting itself" />
+
 # Lacspace Packages
 
-**Small, sharp, open-source TypeScript packages for building on Lacspace — and for building in Nepal.**
+**Small, sharp, open-source TypeScript packages & CLIs — zero-dependency, isomorphic, keyless.**
 
-[![packages](https://img.shields.io/badge/packages-95-blue)](https://developer.lacspace.com/packages)
-[![types](https://img.shields.io/badge/types-included-blue)](https://developer.lacspace.com/packages)
-[![licence](https://img.shields.io/badge/licence-Lacspace%20Free-green)](https://developer.lacspace.com/licenses/lacspace-free-1.0)
+_Think · Innovate · Execute_
+
+[![packages](https://img.shields.io/badge/packages-130%2B-4d9fff)](https://developer.lacspace.com/packages)
+[![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
+[![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
+[![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
+[![licence](https://img.shields.io/badge/licence-Lacspace%20Free-16a34a)](https://developer.lacspace.com/licenses/lacspace-free-1.0)
+
+**[Catalog](https://developer.lacspace.com/packages) · [Handbook](https://developer.lacspace.com/handbook) · [Live tools](https://developer.lacspace.com/tools) · [Contribute](#-contributing) · [Brand kit](https://www.npmjs.com/package/@lacspace/brand)**
 
 </div>
 
-One monorepo, **95 published packages**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point.
+One monorepo, **130+ published packages and CLIs**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -20,7 +28,7 @@ One monorepo, **95 published packages**. Most are **zero-dependency**, **isomorp
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 95 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 130+ packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -259,7 +267,20 @@ Date math, durations, timezones and time ranges — a tiny date toolkit that com
 | [`@lacspace/timezone`](./timezone) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftimezone?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/timezone) | IANA offsets & zoned↔UTC conversion via `Intl`, DST-aware, no bundled tz data |
 | [`@lacspace/interval`](./interval) | [![v](https://img.shields.io/npm/v/%40lacspace%2Finterval?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/interval) | Time ranges, merge/free-busy, date iteration & business-day math |
 
+### 🎨 Media Kit
+
+Generate real logos and images **without AI** — and use the official Lacspace brand. Curated JSON "brains" + deterministic geometry, not a diffusion model. [Try the Studio](https://developer.lacspace.com/tools/studio/try) · [Brand Center](https://developer.lacspace.com/tools/brand/try).
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/logo`](./logo) | [![v](https://img.shields.io/npm/v/%40lacspace%2Flogo?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/logo) | No-AI logo generator — name + keywords → on-brand SVG (5 engines, brand-kit, animate) |
+| [`@lacspace/image`](./image) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fimage?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/image) | No-AI image engine — gradients/patterns/mesh, PNG/JPEG/WebP with an exact size budget |
+| [`@lacspace/brand`](./brand) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fbrand?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/brand) | The official Lacspace mark, colours & animations — installable favicon/PWA icon, React |
+| [`@lacspace/og`](./og) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fog?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/og) | Open Graph / social card generator for `next/og` and the edge |
+
 ### CLIs & tools
+
+24 standalone `lacspace-*` CLIs ship here too — scraper, leads, monitor, enrich, extract, sql, cron, qr, icon, http, fake, and more. [Browse the live tools →](https://developer.lacspace.com/tools)
 
 | Package | Version | What it does |
 | --- | --- | --- |
@@ -419,10 +440,27 @@ Watch the GitHub repo, follow the [@lacspace org on npm](https://www.npmjs.com/o
 **Can I contribute or suggest a new package or tool?**
 Yes — ideas and contributions are welcome via GitHub issues and pull requests.
 
+## 🤝 Contributing
+
+New contributors are genuinely welcome — and some of the highest-impact contributions are also the easiest.
+
+- **Grow the Media Kit's JSON "brain".** The [`@lacspace/logo`](./logo) generator gets smarter the more curated data it has. Adding a **palette**, an **icon** (a 24-grid line SVG with keyword tags) or a **font pairing** is a small, self-contained PR — no engine changes needed. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **Fix a bug or sharpen the docs.** Every package has tests; a failing-test-first PR is the fastest path to a merge.
+- **Propose a package.** Open an issue describing the one job it does. Tiny, focused, zero-dependency wins.
+
+```bash
+git clone https://github.com/lacspace/npm-packages && cd npm-packages
+npm install            # workspaces link automatically
+npm test               # vitest across the monorepo
+```
+
+Every package is **zero-dependency by default, isomorphic, dual ESM + CJS, fully typed**, and ships under the Lacspace Free Licence — keep new work in that spirit and it'll feel right at home. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for conventions.
+
 ## 🌐 Links
 
 - Developer platform → **[developer.lacspace.com](https://developer.lacspace.com)**
 - Package catalog → **[developer.lacspace.com/packages](https://developer.lacspace.com/packages)**
+- Live tools & playgrounds → **[developer.lacspace.com/tools](https://developer.lacspace.com/tools)**
 - Templates gallery → **[templates.lacspace.com](https://templates.lacspace.com)**
 - Company → **[lacspace.com](https://lacspace.com)**
 
@@ -431,3 +469,15 @@ Yes — ideas and contributions are welcome via GitHub issues and pull requests.
 The packages in this repository are **free**, published under the **[Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — permissive freedoms for personal and commercial use. See each package's `LICENSE` file.
 
 Lacspace also ships **Client-specific** and **Private** (proprietary) packages under separate terms — those are not in this repository.
+
+---
+
+<div align="center">
+
+**If these save you time, a ⭐ helps other developers find them.**
+
+<sub>zero-dependency · isomorphic · TypeScript · ESM + CJS · keyless · no-AI logo &amp; image generation · Web Crypto · Node · edge · browser · React · payments · auth · SEO · AI · developer tools</sub>
+
+<sub>Built by <a href="https://lacspace.com">Lacspace</a> · <a href="https://developer.lacspace.com">developer.lacspace.com</a></sub>
+
+</div>

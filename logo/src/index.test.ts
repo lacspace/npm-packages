@@ -117,9 +117,16 @@ describe("animateLogo", () => {
     const svg = animateLogo({ name: "Orbit Labs", keywords: "ai, network" });
     expect(valid(svg)).toBe(true);
     expect(svg).toContain("@keyframes lac-in");
-    expect(svg).toContain("lac-wipe");
-    expect(svg).toContain('class="lac-root"');
+    // animates an inner group, never the root <svg>, and rests visible
+    expect(svg).toContain('<g class="lac-in">');
+    expect(svg).not.toContain('class="lac-root"');
     expect(svg).toContain("prefers-reduced-motion");
+  });
+  it("draws the logo at rest (not parked invisible) via `both` fill + a visible reduced-motion state", () => {
+    const svg = animateLogo({ name: "Orbit Labs", keywords: "ai" });
+    // the group carries the animation; the logo body is inside it
+    expect(svg.indexOf('<g class="lac-in">')).toBeLessThan(svg.indexOf("</g>"));
+    expect(svg).toContain("opacity:1;transform:none");
   });
   it("accepts a LogoResult and is deterministic", () => {
     const r = generateLogo({ name: "Acme", seed: 5 });

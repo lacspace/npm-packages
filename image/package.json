@@ -1,0 +1,74 @@
+{
+  "name": "@lacspace/image",
+  "version": "1.0.0",
+  "description": "Generate images without AI — draw gradients, patterns and placeholders, resize, and export to PNG, JPEG, WebP or SVG with an exact file-size budget (KB/MB). Zero-dependency, isomorphic: native Canvas in the browser, pure-JS encoders in Node.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "image",
+    "image-generator",
+    "png",
+    "jpeg",
+    "jpg",
+    "webp",
+    "svg",
+    "png-encoder",
+    "jpeg-encoder",
+    "encode-image",
+    "resize-image",
+    "image-resize",
+    "compress-image",
+    "target-file-size",
+    "file-size-budget",
+    "gradient",
+    "pattern",
+    "placeholder",
+    "canvas",
+    "offscreencanvas",
+    "raster",
+    "no-ai",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/image",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "image"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

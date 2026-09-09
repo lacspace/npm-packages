@@ -1,0 +1,25 @@
+{
+  "colorWords": {
+    "blue": "midnight-azure", "azure": "midnight-azure", "navy": "deep-indigo",
+    "purple": "electric-violet", "violet": "electric-violet", "indigo": "deep-indigo",
+    "orange": "sunset-flame", "amber": "amber-glow", "sunset": "sunset-flame",
+    "green": "forest-verdant", "mint": "mint-clean", "emerald": "emerald-lux",
+    "gold": "royal-gold", "golden": "royal-gold",
+    "pink": "rose-blush", "rose": "rose-blush", "coral": "coral-crush",
+    "teal": "ocean-teal", "cyan": "aqua-marine", "aqua": "aqua-marine",
+    "black": "ink-noir", "mono": "slate-mono", "grey": "slate-mono", "gray": "slate-mono", "monochrome": "ink-noir",
+    "red": "crimson-bold", "crimson": "crimson-bold",
+    "wine": "berry-wine", "maroon": "berry-wine", "burgundy": "berry-wine",
+    "sky": "sky-fresh", "clay": "terra-clay", "brown": "terra-clay", "earth": "terra-clay",
+    "lime": "cyber-lime", "steel": "steel-blue"
+  },
+  "vibeWords": {
+    "fast": "bold", "quick": "bold", "speed": "bold", "power": "bold", "strong": "bold",
+    "calm": "minimal", "quiet": "minimal", "simple": "minimal", "clean": "minimal",
+    "fun": "playful", "friendly": "playful", "happy": "playful", "bright": "playful",
+    "premium": "luxe", "luxury": "luxe", "elegant": "luxe", "exclusive": "luxe", "royal": "luxe",
+    "smart": "techy", "digital": "techy", "future": "techy", "innovative": "techy",
+    "natural": "eco", "fresh": "eco", "pure": "eco", "sustainable": "eco",
+    "trust": "finance", "secure": "finance", "reliable": "finance", "professional": "modern"
+  }
+}

@@ -1,0 +1,16 @@
+[
+  { "id": "grotesk-modern", "display": "Space Grotesk", "body": "Inter", "weight": 700, "mood": ["tech", "modern", "bold", "startup"], "stack": "'Space Grotesk', 'Inter', system-ui, sans-serif" },
+  { "id": "geist-clean", "display": "Sora", "body": "Inter", "weight": 700, "mood": ["tech", "clean", "corporate", "modern"], "stack": "'Sora', 'Inter', system-ui, sans-serif" },
+  { "id": "poppins-round", "display": "Poppins", "body": "Poppins", "weight": 700, "mood": ["playful", "friendly", "startup", "food"], "stack": "'Poppins', 'Segoe UI', system-ui, sans-serif" },
+  { "id": "montserrat-strong", "display": "Montserrat", "body": "Inter", "weight": 800, "mood": ["bold", "corporate", "sport", "modern"], "stack": "'Montserrat', system-ui, sans-serif" },
+  { "id": "playfair-luxe", "display": "Playfair Display", "body": "Lora", "weight": 700, "mood": ["luxe", "heritage", "elegant", "beauty"], "stack": "'Playfair Display', Georgia, serif" },
+  { "id": "cormorant-lux", "display": "Cormorant Garamond", "body": "EB Garamond", "weight": 600, "mood": ["luxe", "elegant", "premium", "heritage"], "stack": "'Cormorant Garamond', Georgia, serif" },
+  { "id": "dmserif-editorial", "display": "DM Serif Display", "body": "DM Sans", "weight": 400, "mood": ["editorial", "elegant", "creative", "premium"], "stack": "'DM Serif Display', Georgia, serif" },
+  { "id": "archivo-industrial", "display": "Archivo", "body": "Archivo", "weight": 800, "mood": ["industrial", "bold", "sport", "modern"], "stack": "'Archivo', 'Arial Narrow', system-ui, sans-serif" },
+  { "id": "manrope-soft", "display": "Manrope", "body": "Manrope", "weight": 700, "mood": ["clean", "calm", "medical", "startup"], "stack": "'Manrope', system-ui, sans-serif" },
+  { "id": "outfit-geometric", "display": "Outfit", "body": "Inter", "weight": 600, "mood": ["modern", "minimal", "tech", "clean"], "stack": "'Outfit', system-ui, sans-serif" },
+  { "id": "fraunces-craft", "display": "Fraunces", "body": "Newsreader", "weight": 600, "mood": ["organic", "heritage", "craft", "warm"], "stack": "'Fraunces', Georgia, serif" },
+  { "id": "quicksand-friendly", "display": "Quicksand", "body": "Nunito", "weight": 700, "mood": ["friendly", "playful", "beauty", "calm"], "stack": "'Quicksand', 'Nunito', system-ui, sans-serif" },
+  { "id": "orbitron-future", "display": "Orbitron", "body": "Rajdhani", "weight": 700, "mood": ["future", "tech", "sport", "bold"], "stack": "'Orbitron', 'Rajdhani', system-ui, sans-serif" },
+  { "id": "bricolage-quirk", "display": "Bricolage Grotesque", "body": "Inter", "weight": 700, "mood": ["creative", "startup", "modern", "playful"], "stack": "'Bricolage Grotesque', system-ui, sans-serif" }
+]

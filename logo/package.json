@@ -1,0 +1,71 @@
+{
+  "name": "@lacspace/logo",
+  "version": "1.0.0",
+  "description": "Generate real logos and brand marks without AI. Give a name + a few keywords and get on-brand SVG logos — monograms, icon lockups, geometric marks and emblems — from a curated JSON brain of palettes, fonts, icons and shapes. Deterministic, seeded variations, zero-dependency, isomorphic. Export to PNG/JPEG/WebP via @lacspace/image.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "logo",
+    "logo-generator",
+    "logo-maker",
+    "brand",
+    "branding",
+    "brand-identity",
+    "monogram",
+    "emblem",
+    "wordmark",
+    "icon",
+    "svg-logo",
+    "generative",
+    "deterministic",
+    "no-ai",
+    "brand-kit",
+    "favicon",
+    "identicon",
+    "palette",
+    "design-system",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/logo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "logo"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

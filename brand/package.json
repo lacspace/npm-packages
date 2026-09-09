@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/brand",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "The official Lacspace brand mark, colours and animations \u2014 for everyone to use. Render the self-contained SVG logo and the signature self-crafting reveal anywhere (zero-dep, isomorphic), make Lacspace installable as a favicon / PWA app-icon, and reach the pixel-exact master artwork + Lottie motion. Free to reference Lacspace; don't alter the mark. Includes React bindings.",
   "type": "module",
   "main": "./dist/index.cjs",

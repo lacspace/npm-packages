@@ -15,6 +15,7 @@
 
 import { VIEWBOX, MARK_PATH, NODES, EDGES, craftOrder } from "./geometry.js";
 import { HEX, MARK_GRADIENT } from "./colors.js";
+import { ARTWORK_INNER } from "./artwork.js";
 
 export interface AnimateOptions {
   /** px size (square). Default 320. */
@@ -82,9 +83,6 @@ export function craftMark(opts: AnimateOptions = {}): string {
 @keyframes ${g}-breathe{50%{transform:scale(.978)}}
 @media (prefers-reduced-motion:reduce){.${g}-outline,.${g}-edge,.${g}-pulse,.${g}-node,.${g}-glow,.${g}-craft{animation:none;opacity:0}.${g}-final{animation:none;opacity:1;transform:none}}`;
 
-  const finalNet = EDGES.map(([a, b]) => `<line x1="${NODES[a]![0]}" y1="${NODES[a]![1]}" x2="${NODES[b]![0]}" y2="${NODES[b]![1]}" stroke="rgba(214,251,255,.85)" stroke-width="1.4" stroke-linecap="round"/>`).join("") +
-    NODES.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.4" fill="${HEX.cyan}"/>`).join("");
-
   const edgesSvg = edges.map(([a, b], i) => `<line class="${g}-edge" x1="${NODES[a]![0]}" y1="${NODES[a]![1]}" x2="${NODES[b]![0]}" y2="${NODES[b]![1]}" pathLength="1" style="--d:${edgeDelay(i)}ms"/>`).join("");
   const pulsesSvg = edges.map(([a, b], i) => `<line class="${g}-pulse" x1="${NODES[a]![0]}" y1="${NODES[a]![1]}" x2="${NODES[b]![0]}" y2="${NODES[b]![1]}" pathLength="1" style="--d:${edgeDelay(i) + T.lineDur}ms"/>`).join("");
   const nodesSvg = NODES.map(([x, y], i) => `<g style="--d:${birth[i]! * T.dotStagger}ms"><circle class="${g}-glow" cx="${x}" cy="${y}" r="7.2"/><circle class="${g}-node" cx="${x}" cy="${y}" r="3.7"/></g>`).join("");
@@ -98,16 +96,15 @@ export function craftMark(opts: AnimateOptions = {}): string {
     `<g>${edgesSvg}</g><g>${pulsesSvg}</g><g>${nodesSvg}</g>` +
     `<circle class="${g}-ignite" cx="${NODES[7]![0]}" cy="${NODES[7]![1]}" r="5.2"/>` +
     `</g>` +
-    `<g class="${g}-final"><path d="${MARK_PATH}" fill="url(#${g}-grad)"/>${finalNet}</g>` +
+    `<g class="${g}-final">${ARTWORK_INNER}</g>` +
     `</svg>`
   );
 }
 
 // ── simple loops ────────────────────────────────────────────────────────────
-function baseMark(g: string): string {
-  const wires = EDGES.map(([a, b]) => `<line x1="${NODES[a]![0]}" y1="${NODES[a]![1]}" x2="${NODES[b]![0]}" y2="${NODES[b]![1]}" stroke="rgba(214,251,255,.8)" stroke-width="1.4" stroke-linecap="round"/>`).join("");
-  const dots = NODES.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.4" fill="${HEX.cyan}"/>`).join("");
-  return `<path d="${MARK_PATH}" fill="url(#${g}-grad)"/>${wires}${dots}`;
+// The simple loops animate the real, professional artwork.
+function baseMark(_g: string): string {
+  return ARTWORK_INNER;
 }
 
 export function pulseMark(opts: AnimateOptions = {}): string {

@@ -27,21 +27,28 @@ import {
 const valid = (svg: string) => svg.startsWith("<svg") && svg.trimEnd().endsWith("</svg>");
 
 describe("mark", () => {
-  it("renders a valid self-contained SVG", () => {
+  it("renders a valid self-contained SVG (the real artwork by default)", () => {
     const svg = mark();
     expect(valid(svg)).toBe(true);
     expect(svg).toContain("aria-label=\"Lacspace\"");
-    expect(svg).toContain(MARK_PATH.slice(0, 24));
+    // default full-colour mark is the real detailed artwork (namespaced ids)
+    expect(svg).toContain("lacm-");
+    expect(svg).toContain("linearGradient");
+  });
+
+  it("the geometric styles use the network silhouette", () => {
+    expect(mark({ style: "network" })).toContain(MARK_PATH.slice(0, 24));
+    expect(mark({ variant: "white" })).toContain(MARK_PATH.slice(0, 24));
   });
 
   it("is deterministic", () => {
     expect(mark({ variant: "cyan", size: 128 })).toBe(mark({ variant: "cyan", size: 128 }));
+    expect(mark()).toBe(mark());
   });
 
-  it("full colour uses the gradient; solid variants use a flat fill", () => {
-    expect(mark({ variant: "fullcolor" })).toContain("linearGradient");
+  it("solid variants use a flat fill, not the real artwork", () => {
     const white = mark({ variant: "white" });
-    expect(white).not.toContain("linearGradient");
+    expect(white).not.toContain("lacm-");
     expect(white).toContain("#FFFFFF");
   });
 

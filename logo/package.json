@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/logo",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Generate real logos and brand marks without AI. Give a name + a few keywords and get on-brand SVG logos \u2014 monograms, icon lockups, geometric marks and emblems \u2014 from a curated JSON brain of palettes, fonts, icons and shapes. Deterministic, seeded variations, zero-dependency, isomorphic. Export to PNG/JPEG/WebP via @lacspace/image.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,38 +1,716 @@
 [
-  { "id": "midnight-azure", "name": "Midnight Azure", "mood": ["tech", "trust", "bold", "corporate"], "bg": "#0b1020", "surface": "#141a2e", "primary": "#3b82f6", "accent": "#22d3ee", "on": "#eef4ff", "from": "#0BB9D9", "to": "#3B82F6" },
-  { "id": "electric-violet", "name": "Electric Violet", "mood": ["tech", "creative", "bold", "future"], "bg": "#0c0a1a", "surface": "#171235", "primary": "#7c3aed", "accent": "#3b82f6", "on": "#f3efff", "from": "#3B82F6", "to": "#7C3AED" },
-  { "id": "sunset-flame", "name": "Sunset Flame", "mood": ["warm", "bold", "food", "energy"], "bg": "#1a0d08", "surface": "#2a140b", "primary": "#f97316", "accent": "#ef4444", "on": "#fff4ec", "from": "#F97316", "to": "#EF4444" },
-  { "id": "forest-verdant", "name": "Forest Verdant", "mood": ["eco", "calm", "organic", "health"], "bg": "#08140f", "surface": "#0f2119", "primary": "#22c55e", "accent": "#84cc16", "on": "#eefef4", "from": "#22C55E", "to": "#84CC16" },
-  { "id": "royal-gold", "name": "Royal Gold", "mood": ["luxe", "heritage", "premium", "elegant"], "bg": "#12100a", "surface": "#1e1a10", "primary": "#d4af37", "accent": "#b08d2b", "on": "#fbf6e6", "from": "#E7C767", "to": "#B08D2B" },
-  { "id": "rose-blush", "name": "Rose Blush", "mood": ["playful", "beauty", "warm", "friendly"], "bg": "#1a0d14", "surface": "#2a1420", "primary": "#f472b6", "accent": "#fb7185", "on": "#fff0f7", "from": "#F472B6", "to": "#FB7185" },
-  { "id": "ocean-teal", "name": "Ocean Teal", "mood": ["calm", "trust", "medical", "clean"], "bg": "#06141a", "surface": "#0b2029", "primary": "#14b8a6", "accent": "#06b6d4", "on": "#e8fdfb", "from": "#14B8A6", "to": "#06B6D4" },
-  { "id": "slate-mono", "name": "Slate Mono", "mood": ["minimal", "mono", "corporate", "modern"], "bg": "#0a0a0b", "surface": "#17181b", "primary": "#e5e7eb", "accent": "#9ca3af", "on": "#f8fafc", "from": "#E5E7EB", "to": "#9CA3AF" },
-  { "id": "ink-noir", "name": "Ink Noir", "mood": ["minimal", "mono", "luxe", "bold"], "bg": "#0a0a0a", "surface": "#161616", "primary": "#fafafa", "accent": "#d4d4d4", "on": "#ffffff", "from": "#FAFAFA", "to": "#A3A3A3" },
-  { "id": "coral-crush", "name": "Coral Crush", "mood": ["playful", "food", "warm", "energy"], "bg": "#1a0f0c", "surface": "#2a1712", "primary": "#fb7185", "accent": "#fbbf24", "on": "#fff3ee", "from": "#FB7185", "to": "#FBBF24" },
-  { "id": "deep-indigo", "name": "Deep Indigo", "mood": ["finance", "trust", "corporate", "tech"], "bg": "#0a0d1a", "surface": "#12172b", "primary": "#6366f1", "accent": "#818cf8", "on": "#eef0ff", "from": "#6366F1", "to": "#818CF8" },
-  { "id": "emerald-lux", "name": "Emerald Lux", "mood": ["luxe", "finance", "premium", "eco"], "bg": "#06140d", "surface": "#0c2117", "primary": "#10b981", "accent": "#d4af37", "on": "#eafef4", "from": "#10B981", "to": "#D4AF37" },
-  { "id": "cyber-lime", "name": "Cyber Lime", "mood": ["tech", "bold", "future", "energy"], "bg": "#0a0f08", "surface": "#141d0d", "primary": "#a3e635", "accent": "#22d3ee", "on": "#f4ffe6", "from": "#A3E635", "to": "#22D3EE" },
-  { "id": "berry-wine", "name": "Berry Wine", "mood": ["luxe", "beauty", "warm", "premium"], "bg": "#160a12", "surface": "#25121f", "primary": "#be185d", "accent": "#9333ea", "on": "#fdeef6", "from": "#BE185D", "to": "#9333EA" },
-  { "id": "sky-fresh", "name": "Sky Fresh", "mood": ["clean", "friendly", "calm", "medical"], "bg": "#081018", "surface": "#0f1d2b", "primary": "#0ea5e9", "accent": "#38bdf8", "on": "#eef8ff", "from": "#0EA5E9", "to": "#38BDF8" },
-  { "id": "terra-clay", "name": "Terra Clay", "mood": ["organic", "warm", "earthy", "heritage"], "bg": "#150f0a", "surface": "#241a11", "primary": "#c2703d", "accent": "#a3762b", "on": "#fbf1e6", "from": "#C2703D", "to": "#A3762B" },
-  { "id": "grape-soda", "name": "Grape Soda", "mood": ["playful", "creative", "bold", "friendly"], "bg": "#100a1a", "surface": "#1c122b", "primary": "#8b5cf6", "accent": "#ec4899", "on": "#f4efff", "from": "#8B5CF6", "to": "#EC4899" },
-  { "id": "mint-clean", "name": "Mint Clean", "mood": ["clean", "eco", "health", "calm"], "bg": "#08140f", "surface": "#0f231b", "primary": "#34d399", "accent": "#a7f3d0", "on": "#effef7", "from": "#34D399", "to": "#A7F3D0" },
-  { "id": "crimson-bold", "name": "Crimson Bold", "mood": ["bold", "energy", "sport", "food"], "bg": "#160809", "surface": "#260d0f", "primary": "#dc2626", "accent": "#f59e0b", "on": "#fff0ee", "from": "#DC2626", "to": "#F59E0B" },
-  { "id": "steel-blue", "name": "Steel Blue", "mood": ["corporate", "trust", "industrial", "tech"], "bg": "#0a0e12", "surface": "#141b22", "primary": "#64748b", "accent": "#0ea5e9", "on": "#eef3f8", "from": "#64748B", "to": "#0EA5E9" },
-  { "id": "amber-glow", "name": "Amber Glow", "mood": ["warm", "friendly", "energy", "food"], "bg": "#161005", "surface": "#261c0a", "primary": "#f59e0b", "accent": "#fcd34d", "on": "#fff8e8", "from": "#F59E0B", "to": "#FCD34D" },
-  { "id": "aqua-marine", "name": "Aqua Marine", "mood": ["calm", "clean", "travel", "fresh"], "bg": "#06131a", "surface": "#0b2029", "primary": "#06b6d4", "accent": "#2dd4bf", "on": "#e8fcff", "from": "#06B6D4", "to": "#2DD4BF" },
-  { "id": "plum-noir", "name": "Plum Noir", "mood": ["luxe", "creative", "mono", "elegant"], "bg": "#0d0912", "surface": "#181020", "primary": "#a855f7", "accent": "#6b7280", "on": "#f2ecfb", "from": "#A855F7", "to": "#6B7280" },
-  { "id": "graphite-orange", "name": "Graphite Orange", "mood": ["industrial", "bold", "sport", "modern"], "bg": "#0b0b0d", "surface": "#17181c", "primary": "#f97316", "accent": "#e5e7eb", "on": "#fafafa", "from": "#F97316", "to": "#E5E7EB" },
-  { "id": "teal-gold", "name": "Teal Gold", "mood": ["luxe", "finance", "premium", "corporate"], "bg": "#06130f", "surface": "#0b201a", "primary": "#0f9d8f", "accent": "#d4af37", "on": "#eafcf7", "from": "#0F9D8F", "to": "#D4AF37" },
-  { "id": "sunrise-coral", "name": "Sunrise Coral", "mood": ["warm", "food", "friendly", "energy"], "bg": "#1a0e0a", "surface": "#2a1710", "primary": "#ff7a59", "accent": "#ffd166", "on": "#fff3ee", "from": "#FF7A59", "to": "#FFD166" },
-  { "id": "deep-forest", "name": "Deep Forest", "mood": ["eco", "heritage", "calm", "organic"], "bg": "#071310", "surface": "#0d201b", "primary": "#2f855a", "accent": "#a3b18a", "on": "#eafaf2", "from": "#2F855A", "to": "#A3B18A" },
-  { "id": "neon-magenta", "name": "Neon Magenta", "mood": ["creative", "bold", "playful", "future"], "bg": "#120a12", "surface": "#201220", "primary": "#e91e8c", "accent": "#22d3ee", "on": "#ffeef8", "from": "#E91E8C", "to": "#22D3EE" },
-  { "id": "arctic-blue", "name": "Arctic Blue", "mood": ["clean", "medical", "tech", "calm"], "bg": "#07101a", "surface": "#0d1d2b", "primary": "#2b8fe0", "accent": "#8ed1fc", "on": "#eef7ff", "from": "#2B8FE0", "to": "#8ED1FC" },
-  { "id": "charcoal-lime", "name": "Charcoal Lime", "mood": ["industrial", "tech", "bold", "sport"], "bg": "#0c0d0a", "surface": "#171a12", "primary": "#c6f135", "accent": "#64748b", "on": "#f6ffe6", "from": "#C6F135", "to": "#64748B" },
-  { "id": "lavender-dream", "name": "Lavender Dream", "mood": ["beauty", "playful", "calm", "friendly"], "bg": "#100c18", "surface": "#1b1528", "primary": "#a78bfa", "accent": "#f0abfc", "on": "#f4efff", "from": "#A78BFA", "to": "#F0ABFC" },
-  { "id": "ruby-noir", "name": "Ruby Noir", "mood": ["luxe", "beauty", "bold", "premium"], "bg": "#140708", "surface": "#220d10", "primary": "#e11d48", "accent": "#f59e0b", "on": "#ffeef1", "from": "#E11D48", "to": "#F59E0B" },
-  { "id": "honey-amber", "name": "Honey Amber", "mood": ["warm", "food", "heritage", "friendly"], "bg": "#161006", "surface": "#241a0a", "primary": "#e0a92e", "accent": "#c2703d", "on": "#fff7e6", "from": "#E0A92E", "to": "#C2703D" },
-  { "id": "cobalt-electric", "name": "Cobalt Electric", "mood": ["tech", "bold", "future", "trust"], "bg": "#080b1a", "surface": "#101630", "primary": "#2f5cff", "accent": "#22d3ee", "on": "#eef1ff", "from": "#2F5CFF", "to": "#22D3EE" },
-  { "id": "sage-earth", "name": "Sage Earth", "mood": ["eco", "organic", "calm", "health"], "bg": "#0d120c", "surface": "#171f14", "primary": "#78a662", "accent": "#c9a26b", "on": "#f1f8ea", "from": "#78A662", "to": "#C9A26B" },
-  { "id": "peach-cream", "name": "Peach Cream", "mood": ["playful", "beauty", "friendly", "kids"], "bg": "#1a1210", "surface": "#2a1e18", "primary": "#ff9e80", "accent": "#ffcfa3", "on": "#fff4ee", "from": "#FF9E80", "to": "#FFCFA3" }
+ {
+  "id": "midnight-azure",
+  "name": "Midnight Azure",
+  "mood": [
+   "tech",
+   "trust",
+   "bold",
+   "corporate"
+  ],
+  "bg": "#0b1020",
+  "surface": "#141a2e",
+  "primary": "#3b82f6",
+  "accent": "#22d3ee",
+  "on": "#eef4ff",
+  "from": "#0BB9D9",
+  "to": "#3B82F6"
+ },
+ {
+  "id": "electric-violet",
+  "name": "Electric Violet",
+  "mood": [
+   "tech",
+   "creative",
+   "bold",
+   "future"
+  ],
+  "bg": "#0c0a1a",
+  "surface": "#171235",
+  "primary": "#7c3aed",
+  "accent": "#3b82f6",
+  "on": "#f3efff",
+  "from": "#3B82F6",
+  "to": "#7C3AED"
+ },
+ {
+  "id": "sunset-flame",
+  "name": "Sunset Flame",
+  "mood": [
+   "warm",
+   "bold",
+   "food",
+   "energy"
+  ],
+  "bg": "#1a0d08",
+  "surface": "#2a140b",
+  "primary": "#f97316",
+  "accent": "#ef4444",
+  "on": "#fff4ec",
+  "from": "#F97316",
+  "to": "#EF4444"
+ },
+ {
+  "id": "forest-verdant",
+  "name": "Forest Verdant",
+  "mood": [
+   "eco",
+   "calm",
+   "organic",
+   "health"
+  ],
+  "bg": "#08140f",
+  "surface": "#0f2119",
+  "primary": "#22c55e",
+  "accent": "#84cc16",
+  "on": "#eefef4",
+  "from": "#22C55E",
+  "to": "#84CC16"
+ },
+ {
+  "id": "royal-gold",
+  "name": "Royal Gold",
+  "mood": [
+   "luxe",
+   "heritage",
+   "premium",
+   "elegant"
+  ],
+  "bg": "#12100a",
+  "surface": "#1e1a10",
+  "primary": "#d4af37",
+  "accent": "#b08d2b",
+  "on": "#fbf6e6",
+  "from": "#E7C767",
+  "to": "#B08D2B"
+ },
+ {
+  "id": "rose-blush",
+  "name": "Rose Blush",
+  "mood": [
+   "playful",
+   "beauty",
+   "warm",
+   "friendly"
+  ],
+  "bg": "#1a0d14",
+  "surface": "#2a1420",
+  "primary": "#f472b6",
+  "accent": "#fb7185",
+  "on": "#fff0f7",
+  "from": "#F472B6",
+  "to": "#FB7185"
+ },
+ {
+  "id": "ocean-teal",
+  "name": "Ocean Teal",
+  "mood": [
+   "calm",
+   "trust",
+   "medical",
+   "clean"
+  ],
+  "bg": "#06141a",
+  "surface": "#0b2029",
+  "primary": "#14b8a6",
+  "accent": "#06b6d4",
+  "on": "#e8fdfb",
+  "from": "#14B8A6",
+  "to": "#06B6D4"
+ },
+ {
+  "id": "slate-mono",
+  "name": "Slate Mono",
+  "mood": [
+   "minimal",
+   "mono",
+   "corporate",
+   "modern"
+  ],
+  "bg": "#0a0a0b",
+  "surface": "#17181b",
+  "primary": "#e5e7eb",
+  "accent": "#9ca3af",
+  "on": "#f8fafc",
+  "from": "#E5E7EB",
+  "to": "#9CA3AF"
+ },
+ {
+  "id": "ink-noir",
+  "name": "Ink Noir",
+  "mood": [
+   "minimal",
+   "mono",
+   "luxe",
+   "bold"
+  ],
+  "bg": "#0a0a0a",
+  "surface": "#161616",
+  "primary": "#fafafa",
+  "accent": "#d4d4d4",
+  "on": "#ffffff",
+  "from": "#FAFAFA",
+  "to": "#A3A3A3"
+ },
+ {
+  "id": "coral-crush",
+  "name": "Coral Crush",
+  "mood": [
+   "playful",
+   "food",
+   "warm",
+   "energy"
+  ],
+  "bg": "#1a0f0c",
+  "surface": "#2a1712",
+  "primary": "#fb7185",
+  "accent": "#fbbf24",
+  "on": "#fff3ee",
+  "from": "#FB7185",
+  "to": "#FBBF24"
+ },
+ {
+  "id": "deep-indigo",
+  "name": "Deep Indigo",
+  "mood": [
+   "finance",
+   "trust",
+   "corporate",
+   "tech"
+  ],
+  "bg": "#0a0d1a",
+  "surface": "#12172b",
+  "primary": "#6366f1",
+  "accent": "#818cf8",
+  "on": "#eef0ff",
+  "from": "#6366F1",
+  "to": "#818CF8"
+ },
+ {
+  "id": "emerald-lux",
+  "name": "Emerald Lux",
+  "mood": [
+   "luxe",
+   "finance",
+   "premium",
+   "eco"
+  ],
+  "bg": "#06140d",
+  "surface": "#0c2117",
+  "primary": "#10b981",
+  "accent": "#d4af37",
+  "on": "#eafef4",
+  "from": "#10B981",
+  "to": "#D4AF37"
+ },
+ {
+  "id": "cyber-lime",
+  "name": "Cyber Lime",
+  "mood": [
+   "tech",
+   "bold",
+   "future",
+   "energy"
+  ],
+  "bg": "#0a0f08",
+  "surface": "#141d0d",
+  "primary": "#a3e635",
+  "accent": "#22d3ee",
+  "on": "#f4ffe6",
+  "from": "#A3E635",
+  "to": "#22D3EE"
+ },
+ {
+  "id": "berry-wine",
+  "name": "Berry Wine",
+  "mood": [
+   "luxe",
+   "beauty",
+   "warm",
+   "premium"
+  ],
+  "bg": "#160a12",
+  "surface": "#25121f",
+  "primary": "#be185d",
+  "accent": "#9333ea",
+  "on": "#fdeef6",
+  "from": "#BE185D",
+  "to": "#9333EA"
+ },
+ {
+  "id": "sky-fresh",
+  "name": "Sky Fresh",
+  "mood": [
+   "clean",
+   "friendly",
+   "calm",
+   "medical"
+  ],
+  "bg": "#081018",
+  "surface": "#0f1d2b",
+  "primary": "#0ea5e9",
+  "accent": "#38bdf8",
+  "on": "#eef8ff",
+  "from": "#0EA5E9",
+  "to": "#38BDF8"
+ },
+ {
+  "id": "terra-clay",
+  "name": "Terra Clay",
+  "mood": [
+   "organic",
+   "warm",
+   "earthy",
+   "heritage"
+  ],
+  "bg": "#150f0a",
+  "surface": "#241a11",
+  "primary": "#c2703d",
+  "accent": "#a3762b",
+  "on": "#fbf1e6",
+  "from": "#C2703D",
+  "to": "#A3762B"
+ },
+ {
+  "id": "grape-soda",
+  "name": "Grape Soda",
+  "mood": [
+   "playful",
+   "creative",
+   "bold",
+   "friendly"
+  ],
+  "bg": "#100a1a",
+  "surface": "#1c122b",
+  "primary": "#8b5cf6",
+  "accent": "#ec4899",
+  "on": "#f4efff",
+  "from": "#8B5CF6",
+  "to": "#EC4899"
+ },
+ {
+  "id": "mint-clean",
+  "name": "Mint Clean",
+  "mood": [
+   "clean",
+   "eco",
+   "health",
+   "calm"
+  ],
+  "bg": "#08140f",
+  "surface": "#0f231b",
+  "primary": "#34d399",
+  "accent": "#a7f3d0",
+  "on": "#effef7",
+  "from": "#34D399",
+  "to": "#A7F3D0"
+ },
+ {
+  "id": "crimson-bold",
+  "name": "Crimson Bold",
+  "mood": [
+   "bold",
+   "energy",
+   "sport",
+   "food"
+  ],
+  "bg": "#160809",
+  "surface": "#260d0f",
+  "primary": "#dc2626",
+  "accent": "#f59e0b",
+  "on": "#fff0ee",
+  "from": "#DC2626",
+  "to": "#F59E0B"
+ },
+ {
+  "id": "steel-blue",
+  "name": "Steel Blue",
+  "mood": [
+   "corporate",
+   "trust",
+   "industrial",
+   "tech"
+  ],
+  "bg": "#0a0e12",
+  "surface": "#141b22",
+  "primary": "#64748b",
+  "accent": "#0ea5e9",
+  "on": "#eef3f8",
+  "from": "#64748B",
+  "to": "#0EA5E9"
+ },
+ {
+  "id": "amber-glow",
+  "name": "Amber Glow",
+  "mood": [
+   "warm",
+   "friendly",
+   "energy",
+   "food"
+  ],
+  "bg": "#161005",
+  "surface": "#261c0a",
+  "primary": "#f59e0b",
+  "accent": "#fcd34d",
+  "on": "#fff8e8",
+  "from": "#F59E0B",
+  "to": "#FCD34D"
+ },
+ {
+  "id": "aqua-marine",
+  "name": "Aqua Marine",
+  "mood": [
+   "calm",
+   "clean",
+   "travel",
+   "fresh"
+  ],
+  "bg": "#06131a",
+  "surface": "#0b2029",
+  "primary": "#06b6d4",
+  "accent": "#2dd4bf",
+  "on": "#e8fcff",
+  "from": "#06B6D4",
+  "to": "#2DD4BF"
+ },
+ {
+  "id": "plum-noir",
+  "name": "Plum Noir",
+  "mood": [
+   "luxe",
+   "creative",
+   "mono",
+   "elegant"
+  ],
+  "bg": "#0d0912",
+  "surface": "#181020",
+  "primary": "#a855f7",
+  "accent": "#6b7280",
+  "on": "#f2ecfb",
+  "from": "#A855F7",
+  "to": "#6B7280"
+ },
+ {
+  "id": "graphite-orange",
+  "name": "Graphite Orange",
+  "mood": [
+   "industrial",
+   "bold",
+   "sport",
+   "modern"
+  ],
+  "bg": "#0b0b0d",
+  "surface": "#17181c",
+  "primary": "#f97316",
+  "accent": "#e5e7eb",
+  "on": "#fafafa",
+  "from": "#F97316",
+  "to": "#E5E7EB"
+ },
+ {
+  "id": "teal-gold",
+  "name": "Teal Gold",
+  "mood": [
+   "luxe",
+   "finance",
+   "premium",
+   "corporate"
+  ],
+  "bg": "#06130f",
+  "surface": "#0b201a",
+  "primary": "#0f9d8f",
+  "accent": "#d4af37",
+  "on": "#eafcf7",
+  "from": "#0F9D8F",
+  "to": "#D4AF37"
+ },
+ {
+  "id": "sunrise-coral",
+  "name": "Sunrise Coral",
+  "mood": [
+   "warm",
+   "food",
+   "friendly",
+   "energy"
+  ],
+  "bg": "#1a0e0a",
+  "surface": "#2a1710",
+  "primary": "#ff7a59",
+  "accent": "#ffd166",
+  "on": "#fff3ee",
+  "from": "#FF7A59",
+  "to": "#FFD166"
+ },
+ {
+  "id": "deep-forest",
+  "name": "Deep Forest",
+  "mood": [
+   "eco",
+   "heritage",
+   "calm",
+   "organic"
+  ],
+  "bg": "#071310",
+  "surface": "#0d201b",
+  "primary": "#2f855a",
+  "accent": "#a3b18a",
+  "on": "#eafaf2",
+  "from": "#2F855A",
+  "to": "#A3B18A"
+ },
+ {
+  "id": "neon-magenta",
+  "name": "Neon Magenta",
+  "mood": [
+   "creative",
+   "bold",
+   "playful",
+   "future"
+  ],
+  "bg": "#120a12",
+  "surface": "#201220",
+  "primary": "#e91e8c",
+  "accent": "#22d3ee",
+  "on": "#ffeef8",
+  "from": "#E91E8C",
+  "to": "#22D3EE"
+ },
+ {
+  "id": "arctic-blue",
+  "name": "Arctic Blue",
+  "mood": [
+   "clean",
+   "medical",
+   "tech",
+   "calm"
+  ],
+  "bg": "#07101a",
+  "surface": "#0d1d2b",
+  "primary": "#2b8fe0",
+  "accent": "#8ed1fc",
+  "on": "#eef7ff",
+  "from": "#2B8FE0",
+  "to": "#8ED1FC"
+ },
+ {
+  "id": "charcoal-lime",
+  "name": "Charcoal Lime",
+  "mood": [
+   "industrial",
+   "tech",
+   "bold",
+   "sport"
+  ],
+  "bg": "#0c0d0a",
+  "surface": "#171a12",
+  "primary": "#c6f135",
+  "accent": "#64748b",
+  "on": "#f6ffe6",
+  "from": "#C6F135",
+  "to": "#64748B"
+ },
+ {
+  "id": "lavender-dream",
+  "name": "Lavender Dream",
+  "mood": [
+   "beauty",
+   "playful",
+   "calm",
+   "friendly"
+  ],
+  "bg": "#100c18",
+  "surface": "#1b1528",
+  "primary": "#a78bfa",
+  "accent": "#f0abfc",
+  "on": "#f4efff",
+  "from": "#A78BFA",
+  "to": "#F0ABFC"
+ },
+ {
+  "id": "ruby-noir",
+  "name": "Ruby Noir",
+  "mood": [
+   "luxe",
+   "beauty",
+   "bold",
+   "premium"
+  ],
+  "bg": "#140708",
+  "surface": "#220d10",
+  "primary": "#e11d48",
+  "accent": "#f59e0b",
+  "on": "#ffeef1",
+  "from": "#E11D48",
+  "to": "#F59E0B"
+ },
+ {
+  "id": "honey-amber",
+  "name": "Honey Amber",
+  "mood": [
+   "warm",
+   "food",
+   "heritage",
+   "friendly"
+  ],
+  "bg": "#161006",
+  "surface": "#241a0a",
+  "primary": "#e0a92e",
+  "accent": "#c2703d",
+  "on": "#fff7e6",
+  "from": "#E0A92E",
+  "to": "#C2703D"
+ },
+ {
+  "id": "cobalt-electric",
+  "name": "Cobalt Electric",
+  "mood": [
+   "tech",
+   "bold",
+   "future",
+   "trust"
+  ],
+  "bg": "#080b1a",
+  "surface": "#101630",
+  "primary": "#2f5cff",
+  "accent": "#22d3ee",
+  "on": "#eef1ff",
+  "from": "#2F5CFF",
+  "to": "#22D3EE"
+ },
+ {
+  "id": "sage-earth",
+  "name": "Sage Earth",
+  "mood": [
+   "eco",
+   "organic",
+   "calm",
+   "health"
+  ],
+  "bg": "#0d120c",
+  "surface": "#171f14",
+  "primary": "#78a662",
+  "accent": "#c9a26b",
+  "on": "#f1f8ea",
+  "from": "#78A662",
+  "to": "#C9A26B"
+ },
+ {
+  "id": "peach-cream",
+  "name": "Peach Cream",
+  "mood": [
+   "playful",
+   "beauty",
+   "friendly",
+   "kids"
+  ],
+  "bg": "#1a1210",
+  "surface": "#2a1e18",
+  "primary": "#ff9e80",
+  "accent": "#ffcfa3",
+  "on": "#fff4ee",
+  "from": "#FF9E80",
+  "to": "#FFCFA3"
+ },
+ {
+  "id": "crypto-gold",
+  "name": "Crypto Gold",
+  "from": "#F7931A",
+  "to": "#7B3F00",
+  "primary": "#F7931A",
+  "on": "#FFFFFF",
+  "bg": "#1A1206",
+  "surface": "#2A1E0C",
+  "mood": [
+   "crypto",
+   "finance",
+   "bold",
+   "tech"
+  ],
+  "accent": "#FFC24B"
+ },
+ {
+  "id": "coral-reef",
+  "name": "Coral Reef",
+  "from": "#FF6B6B",
+  "to": "#FF9E7D",
+  "primary": "#FF6B6B",
+  "on": "#FFFFFF",
+  "bg": "#2A1414",
+  "surface": "#3A1E1E",
+  "mood": [
+   "playful",
+   "food",
+   "warm",
+   "creative"
+  ],
+  "accent": "#FFD07D"
+ },
+ {
+  "id": "nordic-slate",
+  "name": "Nordic Slate",
+  "from": "#64748B",
+  "to": "#334155",
+  "primary": "#475569",
+  "on": "#FFFFFF",
+  "bg": "#0F172A",
+  "surface": "#1E293B",
+  "mood": [
+   "corporate",
+   "minimal",
+   "modern",
+   "legal"
+  ],
+  "accent": "#94A3B8"
+ },
+ {
+  "id": "botanic",
+  "name": "Botanic",
+  "from": "#4D7C4D",
+  "to": "#2F5233",
+  "primary": "#3E7A3E",
+  "on": "#FFFFFF",
+  "bg": "#0F1A0F",
+  "surface": "#1A2A1A",
+  "mood": [
+   "eco",
+   "organic",
+   "health",
+   "calm"
+  ],
+  "accent": "#8FBF6F"
+ },
+ {
+  "id": "berry-plum",
+  "name": "Berry Plum",
+  "from": "#A21CAF",
+  "to": "#6B21A8",
+  "primary": "#A21CAF",
+  "on": "#FFFFFF",
+  "bg": "#1A0A1E",
+  "surface": "#2A122E",
+  "mood": [
+   "beauty",
+   "luxury",
+   "creative",
+   "bold"
+  ],
+  "accent": "#E879F9"
+ },
+ {
+  "id": "deep-teal",
+  "name": "Deep Teal",
+  "from": "#0D9488",
+  "to": "#065F5B",
+  "primary": "#0D9488",
+  "on": "#FFFFFF",
+  "bg": "#04201E",
+  "surface": "#08302C",
+  "mood": [
+   "health",
+   "corporate",
+   "calm",
+   "tech"
+  ],
+  "accent": "#5EEAD4"
+ }
 ]

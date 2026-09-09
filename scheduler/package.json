@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/scheduler",
+  "version": "1.0.0",
+  "description": "A tiny in-process job scheduler for Node and the browser — runs callbacks on an interval, a cron schedule or at a specific time, with start/stop, overlap protection, jitter and per-job error isolation. Zero-dependency, isomorphic, TypeScript-first.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "scheduler",
+    "job-scheduler",
+    "cron",
+    "cron-job",
+    "task-scheduler",
+    "setinterval-alternative",
+    "node-cron-alternative",
+    "recurring-tasks",
+    "timers",
+    "in-process",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/scheduler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "scheduler"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

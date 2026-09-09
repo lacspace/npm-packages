@@ -12,5 +12,9 @@
   { "id": "fraunces-craft", "display": "Fraunces", "body": "Newsreader", "weight": 600, "mood": ["organic", "heritage", "craft", "warm"], "stack": "'Fraunces', Georgia, serif" },
   { "id": "quicksand-friendly", "display": "Quicksand", "body": "Nunito", "weight": 700, "mood": ["friendly", "playful", "beauty", "calm"], "stack": "'Quicksand', 'Nunito', system-ui, sans-serif" },
   { "id": "orbitron-future", "display": "Orbitron", "body": "Rajdhani", "weight": 700, "mood": ["future", "tech", "sport", "bold"], "stack": "'Orbitron', 'Rajdhani', system-ui, sans-serif" },
-  { "id": "bricolage-quirk", "display": "Bricolage Grotesque", "body": "Inter", "weight": 700, "mood": ["creative", "startup", "modern", "playful"], "stack": "'Bricolage Grotesque', system-ui, sans-serif" }
+  { "id": "bricolage-quirk", "display": "Bricolage Grotesque", "body": "Inter", "weight": 700, "mood": ["creative", "startup", "modern", "playful"], "stack": "'Bricolage Grotesque', system-ui, sans-serif" },
+  { "id": "lexend-clear", "display": "Lexend", "body": "Inter", "weight": 600, "mood": ["education", "clean", "friendly", "medical", "calm"], "stack": "'Lexend', system-ui, sans-serif" },
+  { "id": "anton-impact", "display": "Anton", "body": "Inter", "weight": 400, "mood": ["bold", "sport", "industrial", "energy"], "stack": "'Anton', 'Arial Narrow', system-ui, sans-serif" },
+  { "id": "baloo-kids", "display": "Baloo 2", "body": "Nunito", "weight": 700, "mood": ["kids", "playful", "friendly", "food"], "stack": "'Baloo 2', 'Nunito', system-ui, sans-serif" },
+  { "id": "libre-editorial", "display": "Libre Franklin", "body": "Lora", "weight": 700, "mood": ["editorial", "corporate", "heritage", "elegant", "legal"], "stack": "'Libre Franklin', Georgia, serif" }
 ]

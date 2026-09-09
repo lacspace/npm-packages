@@ -22,6 +22,14 @@
  */
 
 export { Surface, gradient, radial, pattern } from "./surface.js";
+export {
+  identicon,
+  mesh,
+  placeholder,
+  type IdenticonOptions,
+  type MeshOptions,
+  type PlaceholderOptions,
+} from "./generators.js";
 export { encode } from "./encode.js";
 export { fit } from "./fit.js";
 export { encodePng, encodePngSync } from "./png.js";

@@ -58,6 +58,20 @@ console.log(formatBytes(r.size), "at q", r.quality, `${r.width}×${r.height}`);
 
 > It's a best-effort **ceiling** — the closest fit ≤ your budget within the quality/scale bounds, never padded up to it.
 
+## 🆕 Generators (v1.1.0)
+
+Deterministic, no-AI building blocks — same input, same image:
+
+```ts
+import { identicon, mesh, placeholder, encode } from "@lacspace/image";
+
+const avatar = identicon("ada@lacspace.com", { size: 240 });     // symmetric avatar from any string
+const bg     = mesh(1200, 630, { seed: "brand" });               // smooth multi-point mesh gradient
+const lqip   = placeholder(600, 315, { seed: "hero-1" });        // tasteful seeded gradient placeholder
+
+const png = await encode(avatar, { format: "png" });
+```
+
 ## The surface API
 
 `Surface` is a plain RGBA pixel buffer with a small, chainable drawing API. Everything is deterministic and identical across Node and the browser.
@@ -128,6 +142,10 @@ formatBytes(1536);   // "1.5 KB"
 - `encodePng(source, level?)` · `encodePngSync(source)` · `encodeJpeg(source, quality)`
 - `rasterizeSvg(svg, { width?, height?, background? })`
 - `Surface`, `gradient`, `radial`, `pattern`, `parseColor`, `parseSize`, `formatBytes`, `hasCanvas`, `canvasSupports`
+
+## Contributing 💙
+
+New patterns, generators and encoders are welcome — see [CONTRIBUTING.md](https://github.com/lacspace/npm-packages/blob/main/CONTRIBUTING.md). Open an issue or PR; first-time contributors welcome.
 
 ## License
 

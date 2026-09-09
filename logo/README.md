@@ -63,6 +63,30 @@ suggest({ name: "Ledgerly", keywords: "fintech trust money" });
 //   notes: ["mood \"Finance\" from keywords", "palette Deep Indigo", ...] }
 ```
 
+## 🆕 Brand-in-a-box (v1.1.0)
+
+One brief → a whole consistent identity: logo lockups, a favicon/app-icon set, the palette and CSS variables — all sharing the same palette, type and icon.
+
+```ts
+import { generateBrandKit } from "@lacspace/logo";
+
+const kit = generateBrandKit({ name: "Orbit Labs", keywords: "ai, network, fast" });
+kit.primary.svg;    // horizontal lockup     kit.stacked.svg;  // icon over wordmark
+kit.mark.svg;       // app icon / avatar     kit.wordmark.svg; // wordmark only
+kit.mono.svg;       // single-colour stamp   kit.favicon;      // { svg, sizes[], links, manifestIcons }
+kit.colors;         // [{ role, hex }, …]     kit.css;          // :root { --brand-primary: … }
+```
+
+Just need a favicon set?
+
+```ts
+import { generateFavicon } from "@lacspace/logo";
+const fav = generateFavicon({ name: "Nova", keywords: "tech" });
+// fav.svg (scalable) + fav.sizes (16…512) + fav.links (<link> tags) + fav.manifestIcons
+```
+
+> **v1.1.0** also grows the JSON brain to **67 icons**, **36 palettes**, **18 type pairings** and new industry moods (education, legal, real-estate, kids, fitness…).
+
 ## The five engines
 
 | Engine | What you get |
@@ -122,6 +146,16 @@ import { PALETTES, FONTS, ICONS, MOODS } from "@lacspace/logo";
 - `generateLogoSet(brief, count = 12)` → `LogoResult[]`
 - `suggest(brief)` → the interpretation only (no render)
 - `tokenize(brief)`, `initials(name)`, and the `PALETTES` / `FONTS` / `ICONS` / `MOODS` data
+
+## Contributing 💙
+
+This generator gets smarter the more curated data it has — and **the JSON brain is the easiest place to help.** Adding a palette, an icon (with keyword tags) or a font pairing is a small, high-impact PR:
+
+- Palettes → `logo/src/data/palettes.json`
+- Icons (24-grid line SVG + `keywords`) → `logo/src/data/icons.json`
+- Fonts, moods, keyword mappings → the other files in `logo/src/data/`
+
+See [CONTRIBUTING.md](https://github.com/lacspace/npm-packages/blob/main/CONTRIBUTING.md). New contributors welcome — open an issue or PR.
 
 ## License
 

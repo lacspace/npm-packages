@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Surface, gradient, pattern, encode, fit, encodeJpeg, encodePng, parseSize, formatBytes } from "./index.js";
+import { Surface, gradient, pattern, encode, fit, encodeJpeg, encodePng, parseSize, formatBytes, identicon, mesh, placeholder } from "./index.js";
 
 const PNG_SIG = [137, 80, 78, 71];
 const isPng = (b: Uint8Array) => PNG_SIG.every((v, i) => b[i] === v);
@@ -92,5 +92,34 @@ describe("fit (size budget)", () => {
     const full = (await encode(photo, { format: "png" })).size;
     const r = await fit(photo, { format: "png", maxBytes: Math.floor(full / 2) });
     expect(r.size).toBeLessThan(full);
+  });
+});
+
+describe("generators", () => {
+  it("identicon is square, deterministic and horizontally symmetric", () => {
+    const a = identicon("ada@lacspace.com", { size: 120 });
+    const b = identicon("ada@lacspace.com", { size: 120 });
+    expect(a.width).toBe(120);
+    expect(Buffer.from(a.data)).toEqual(Buffer.from(b.data));
+    // mirror check: left column pixel == right column pixel
+    const x0 = 0, x1 = a.width - 1, y = 60;
+    const p0 = (y * a.width + x0) * 4;
+    const p1 = (y * a.width + x1) * 4;
+    expect([a.data[p0], a.data[p0 + 1], a.data[p0 + 2]]).toEqual([a.data[p1], a.data[p1 + 1], a.data[p1 + 2]]);
+    expect(identicon("someone-else@x.com").data).not.toEqual(a.data);
+  });
+
+  it("mesh fills every pixel opaque and is seed-deterministic", () => {
+    const m = mesh(80, 50, { seed: "brand" });
+    expect(m.width).toBe(80);
+    expect(m.data[3]).toBe(255);
+    expect(Buffer.from(mesh(80, 50, { seed: "brand" }).data)).toEqual(Buffer.from(m.data));
+  });
+
+  it("placeholder produces a valid encodable surface", async () => {
+    const p = placeholder(300, 158, { seed: "hero" });
+    const r = await encode(p, { format: "png" });
+    expect(r.bytes[0]).toBe(137); // PNG signature
+    expect(r.width).toBe(300);
   });
 });

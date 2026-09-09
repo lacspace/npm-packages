@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/image",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Generate images without AI — draw gradients, patterns and placeholders, resize, and export to PNG, JPEG, WebP or SVG with an exact file-size budget (KB/MB). Zero-dependency, isomorphic: native Canvas in the browser, pure-JS encoders in Node.",
   "type": "module",
   "main": "./dist/index.cjs",

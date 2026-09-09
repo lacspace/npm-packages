@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateLogo, generateLogoSet, suggest, initials, PALETTES, ICONS } from "./index.js";
+import { generateLogo, generateLogoSet, suggest, generateBrandKit, generateFavicon, initials, PALETTES, ICONS } from "./index.js";
 
 const valid = (svg: string) => svg.startsWith("<svg") && svg.trimEnd().endsWith("</svg>");
 
@@ -81,7 +81,33 @@ describe("suggest + helpers", () => {
     expect(initials("Nova")).toBe("NO");
   });
   it("ships a non-trivial JSON brain", () => {
-    expect(PALETTES.length).toBeGreaterThanOrEqual(20);
-    expect(ICONS.length).toBeGreaterThanOrEqual(30);
+    expect(PALETTES.length).toBeGreaterThanOrEqual(30);
+    expect(ICONS.length).toBeGreaterThanOrEqual(60);
+  });
+});
+
+describe("brand kit (brand-in-a-box)", () => {
+  const kit = generateBrandKit({ name: "Orbit Labs", keywords: "ai, network, fast" });
+  it("produces every variant as valid SVG", () => {
+    for (const k of ["primary", "stacked", "mark", "wordmark", "mono"] as const) {
+      expect(valid(kit[k].svg), k).toBe(true);
+    }
+  });
+  it("keeps one consistent palette across variants", () => {
+    expect([kit.primary, kit.stacked, kit.mark, kit.wordmark].every((v) => v.palette.id === kit.palette.id)).toBe(true);
+  });
+  it("emits a favicon set + colours + css vars", () => {
+    expect(kit.favicon.sizes.length).toBeGreaterThan(3);
+    expect(kit.favicon.svg).toContain("<svg");
+    expect(kit.colors.find((c) => c.role === "primary")?.hex).toBe(kit.palette.primary);
+    expect(kit.css).toContain("--brand-primary");
+  });
+  it("is deterministic", () => {
+    expect(generateBrandKit({ name: "Acme" }).primary.svg).toBe(generateBrandKit({ name: "Acme" }).primary.svg);
+  });
+  it("generateFavicon sizes the same mark", () => {
+    const fav = generateFavicon({ name: "Nova", keywords: "tech" });
+    expect(fav.sizes.find((s) => s.size === 32)?.svg).toContain('width="32"');
+    expect(fav.links).toContain("apple-touch-icon");
   });
 });

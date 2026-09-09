@@ -1,0 +1,77 @@
+{
+  "name": "@lacspace/brand",
+  "version": "1.0.0",
+  "description": "The official Lacspace brand mark, colours and animations — for everyone to use. Render the self-contained SVG logo and the signature self-crafting reveal anywhere (zero-dep, isomorphic), make Lacspace installable as a favicon / PWA app-icon, and reach the pixel-exact master artwork + Lottie motion. Free to reference Lacspace; don't alter the mark. Includes React bindings.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    },
+    "./react": {
+      "import": { "types": "./dist/react.d.ts", "default": "./dist/react.js" },
+      "require": { "types": "./dist/react.d.cts", "default": "./dist/react.cjs" }
+    },
+    "./assets/*": "./assets/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "lacspace",
+    "brand",
+    "logo",
+    "brand-assets",
+    "brand-kit",
+    "logo-animation",
+    "animated-svg",
+    "lottie",
+    "favicon",
+    "app-icon",
+    "pwa-icon",
+    "identity",
+    "svg-logo",
+    "brand-guidelines",
+    "react",
+    "typescript",
+    "zero-dependency",
+    "isomorphic"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/brand",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "brand"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true }
+  },
+  "devDependencies": {
+    "react": "^18.3.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

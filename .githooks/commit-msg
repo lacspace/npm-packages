@@ -1,0 +1,6 @@
+#!/bin/sh
+# Lacspace commit policy — commits are authored solely by Lacspace.
+# Strip any AI / third-party attribution so it never appears as a repo "contributor".
+f="$1"
+sed -E '/^[[:space:]]*[Cc]o-[Aa]uthored-[Bb]y:/d; /[Gg]enerated with \[?[Cc]laude/d; /claude\.com\/claude-code/d; /noreply@anthropic\.com/d' "$f" > "$f.lac" && mv "$f.lac" "$f"
+exit 0

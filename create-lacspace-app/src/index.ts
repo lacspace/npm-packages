@@ -8033,6 +8033,7 @@ const backendPkgJson = (ctx: Ctx): string => {
       "@lacspace/id": "^1.1.0",
       "@lacspace/rate-limit": "^1.2.0",
       "@lacspace/cache": "^1.1.0",
+      "@lacspace/logger": "^1.0.0",
       ...featureDeps,
       [`${scope(ctx)}/types`]: "*",
     },
@@ -8134,20 +8135,54 @@ const backendIndex = (ctx: Ctx): string => `import "./load-env.js"; // MUST be f
 import { env } from "./env.js";
 import { connectDb } from "./db.js";
 import { createApp } from "./app.js";
+import { log } from "./logger.js";
 
 // how this works: connect to MongoDB, build the Express app, then listen.
 async function main(): Promise<void> {
   await connectDb(env.MONGODB_URI);
   const app = createApp();
   app.listen(env.PORT, () => {
-    console.log(\`🚀 ${ctx.name} API ready on http://localhost:\${env.PORT}\`);
+    log.info("${ctx.name} API ready", { url: \`http://localhost:\${env.PORT}\` });
   });
 }
 
 main().catch((err) => {
-  console.error("Failed to start the API:", err);
+  log.fatal("Failed to start the API", { err });
   process.exit(1);
 });
+`;
+
+const backendLogger = (): string => `import { createLogger, jsonConsole, prettyConsole } from "@lacspace/logger";
+import type { Request, Response, NextFunction } from "express";
+import { env } from "./env.js";
+
+// how this works: one structured logger for the whole API (@lacspace/logger, zero-dep).
+// In production we emit JSON-per-line (clean for log aggregators); in dev we print a
+// readable, coloured line. Common secret fields are redacted before anything is logged.
+const isProd = env.NODE_ENV === "production";
+export const log = createLogger({
+  level: isProd ? "info" : "debug",
+  transports: [isProd ? jsonConsole() : prettyConsole({ colors: true })],
+  redact: ["password", "token", "authorization", "*.password", "*.token"],
+});
+
+// Request logger — one line per request with method, path, status and duration.
+// Each request gets a child logger with a short request id you can thread through.
+export function requestLogger(req: Request, res: Response, next: NextFunction): void {
+  const start = Date.now();
+  const reqId = Math.random().toString(36).slice(2, 10);
+  (req as Request & { log: typeof log }).log = log.child({ reqId });
+  res.on("finish", () => {
+    log.info("request", {
+      reqId,
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      ms: Date.now() - start,
+    });
+  });
+  next();
+}
 `;
 
 const backendDb = (): string => `import mongoose from "mongoose";
@@ -8476,16 +8511,19 @@ export default router;
 const backendApp = (ctx: Ctx): string => `import express from "express";
 import cors from "cors";
 import { env } from "./env.js";
+import { requestLogger } from "./logger.js";
 import { errorHandler } from "./middleware/error.js";
 import { registerRoutes } from "./routes/index.js";
 
 // how this works: assembles the Express app — CORS for the frontend, JSON parsing,
-// a health check, all route groups (see routes/index.ts), then the error handler LAST.
+// structured request logging (@lacspace/logger), a health check, all route groups
+// (see routes/index.ts), then the error handler LAST.
 export function createApp(): express.Express {
   const app = express();
 
   app.use(cors({ origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()), credentials: true }));
   app.use(express.json());
+  app.use(requestLogger); // one structured log line per request
 
   app.get("/health", (_req, res) => { res.json({ ok: true, service: "${ctx.name}-api" }); });
   registerRoutes(app);
@@ -8533,6 +8571,7 @@ function backendFiles(ctx: Ctx): Record<string, string> {
     "backend/src/env.ts": backendEnv(ctx),
     "backend/src/db.ts": backendDb(),
     "backend/src/cache.ts": backendCache(),
+    "backend/src/logger.ts": backendLogger(),
     "backend/src/app.ts": backendApp(ctx),
     "backend/src/http.ts": backendHttp(),
     "backend/src/express.d.ts": backendExpressTypes(),

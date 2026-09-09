@@ -42,12 +42,23 @@ function inkColor(spec: Spec): string {
   return spec.background === "transparent" ? spec.palette.primary : spec.palette.on;
 }
 
-/** The wordmark text element(s). */
-export function wordmarkEl(spec: Spec, x: number, y: number, fontSize: number, anchor: "start" | "middle"): string {
+/** The wordmark text element(s). Pass `textLen` to lock the rendered width so the
+ * word always fits its box exactly — regardless of which font actually loads. */
+export function wordmarkEl(
+  spec: Spec,
+  x: number,
+  y: number,
+  fontSize: number,
+  anchor: "start" | "middle",
+  textLen?: number,
+): string {
   const isLuxe = spec.font.mood.includes("luxe") || spec.font.mood.includes("elegant");
   const tracking = isLuxe ? fontSize * 0.04 : 0;
   const ls = tracking ? ` letter-spacing="${nn(tracking)}"` : "";
-  return `<text x="${nn(x)}" y="${nn(y)}" font-family="${spec.font.stack}" font-weight="${spec.font.weight}" font-size="${nn(fontSize)}" fill="${inkColor(spec)}" text-anchor="${anchor}" dominant-baseline="middle"${ls}>${esc(spec.name)}</text>`;
+  // textLength must describe the same content the tracking produces; subtract the
+  // trailing tracking so the lock matches the estimate used to size the box.
+  const tl = textLen ? ` textLength="${nn(textLen)}" lengthAdjust="spacingAndGlyphs"` : "";
+  return `<text x="${nn(x)}" y="${nn(y)}" font-family="${spec.font.stack}" font-weight="${spec.font.weight}" font-size="${nn(fontSize)}" fill="${inkColor(spec)}" text-anchor="${anchor}" dominant-baseline="middle"${ls}${tl}>${esc(spec.name)}</text>`;
 }
 
 function background(spec: Spec, w: number, h: number, defsId: string): string {
@@ -92,7 +103,7 @@ export function compose(spec: Spec, mark: Mark): { svg: string; width: number; h
     const h = Math.round(fontSize * 1.5);
     // small accent tick before the word
     const tick = `<rect x="${pad - Math.round(spec.size * 0.03)}" y="${Math.round(h / 2 - fontSize * 0.36)}" width="${Math.round(spec.size * 0.014)}" height="${Math.round(fontSize * 0.72)}" rx="2" fill="${spec.palette.primary}"/>`;
-    const body = tick + wordmarkEl(spec, pad, h / 2, fontSize, "start");
+    const body = tick + wordmarkEl(spec, pad, h / 2, fontSize, "start", tw);
     return { svg: wrapSvg(spec, w, h, defs, body), width: w, height: h };
   }
 
@@ -106,7 +117,7 @@ export function compose(spec: Spec, mark: Mark): { svg: string; width: number; h
     const markX = (w - markSize) / 2;
     const body =
       `<g transform="translate(${nn(markX)} ${pad})">${mark.svg}</g>` +
-      wordmarkEl(spec, w / 2, pad + markSize + gap + fontSize * 0.5, fontSize, "middle");
+      wordmarkEl(spec, w / 2, pad + markSize + gap + fontSize * 0.5, fontSize, "middle", tw);
     return { svg: wrapSvg(spec, w, h, defs, body), width: w, height: h };
   }
 
@@ -119,6 +130,6 @@ export function compose(spec: Spec, mark: Mark): { svg: string; width: number; h
   const h = Math.round(markSize + pad * 2);
   const body =
     `<g transform="translate(${pad} ${pad})">${mark.svg}</g>` +
-    wordmarkEl(spec, pad + markSize + gap, h / 2, fontSize, "start");
+    wordmarkEl(spec, pad + markSize + gap, h / 2, fontSize, "start", tw);
   return { svg: wrapSvg(spec, w, h, defs, body), width: w, height: h };
 }

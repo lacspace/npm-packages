@@ -137,3 +137,16 @@ describe("animateLogo", () => {
     expect(animateLogo({ name: "X" }, { shimmer: false })).not.toContain("lac-shim-g");
   });
 });
+
+describe("wordmark never clips", () => {
+  it("locks the wordmark width with textLength so long names fit their box", () => {
+    const r = generateLogo({ name: "Brightwave Analytics", keywords: "data ai", engine: "wordmark", layout: "icon-left" });
+    expect(r.svg).toContain("textLength=");
+    expect(r.svg).toContain('lengthAdjust="spacingAndGlyphs"');
+  });
+  it("wider names produce a wider box (estimate scales)", () => {
+    const short = generateLogo({ name: "Al", engine: "wordmark", layout: "wordmark-only" });
+    const long = generateLogo({ name: "Alexandria Holdings", engine: "wordmark", layout: "wordmark-only" });
+    expect(long.width).toBeGreaterThan(short.width);
+  });
+});

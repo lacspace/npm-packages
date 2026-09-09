@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/events",
+  "version": "1.0.0",
+  "description": "A fully type-safe event emitter / tiny pub-sub for Node and the browser — declare an events map and get compile-time-checked on/emit, error-isolated dispatch, once, waitFor and wildcard listeners. Zero-dependency, isomorphic, tree-shakeable.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "event-emitter",
+    "eventemitter",
+    "events",
+    "pubsub",
+    "pub-sub",
+    "typed-events",
+    "type-safe",
+    "mitt-alternative",
+    "nanoevents-alternative",
+    "observer",
+    "emitter",
+    "browser",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/events",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "events"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

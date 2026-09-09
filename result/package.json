@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/result",
+  "version": "1.0.0",
+  "description": "Typed, functional error handling for TypeScript — Result<T,E> (Ok/Err) and Option<T> (Some/None), so functions return errors as values instead of throwing. Tree-shakeable plain-object tagged unions with standalone helpers. Zero-dependency, isomorphic, TypeScript-first.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "result-type",
+    "option-type",
+    "either",
+    "neverthrow-alternative",
+    "ts-results",
+    "functional",
+    "error-handling",
+    "railway-oriented",
+    "discriminated-union",
+    "type-safe",
+    "zero-dependency",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/result",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "result"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

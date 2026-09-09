@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/queue",
+  "version": "1.0.0",
+  "description": "A tiny in-memory async task queue with a concurrency limit for Node and the browser — run up to N tasks at once, prioritise, pause/resume, abort and await the drain. Zero-dependency, isomorphic, TypeScript-first.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "queue",
+    "task-queue",
+    "job-queue",
+    "concurrency",
+    "concurrency-limit",
+    "p-queue-alternative",
+    "p-limit-alternative",
+    "async-queue",
+    "promise-queue",
+    "priority-queue",
+    "rate-control",
+    "throttle-concurrency",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/queue",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "queue"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

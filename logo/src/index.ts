@@ -21,6 +21,7 @@
 
 export { generateLogo, generateLogoSet, suggest } from "./generate.js";
 export { generateBrandKit, generateFavicon, type BrandKit, type FaviconSet, type BrandColor } from "./brand.js";
+export { animateLogo, type AnimateOptions } from "./animate.js";
 export { tokenize } from "./brief.js";
 export { PALETTES, FONTS, ICONS, MOODS } from "./data.js";
 export { initials } from "./text.js";

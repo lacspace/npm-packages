@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateLogo, generateLogoSet, suggest, generateBrandKit, generateFavicon, initials, PALETTES, ICONS } from "./index.js";
+import { generateLogo, generateLogoSet, suggest, generateBrandKit, generateFavicon, animateLogo, initials, PALETTES, ICONS } from "./index.js";
 
 const valid = (svg: string) => svg.startsWith("<svg") && svg.trimEnd().endsWith("</svg>");
 
@@ -109,5 +109,24 @@ describe("brand kit (brand-in-a-box)", () => {
     const fav = generateFavicon({ name: "Nova", keywords: "tech" });
     expect(fav.sizes.find((s) => s.size === 32)?.svg).toContain('width="32"');
     expect(fav.links).toContain("apple-touch-icon");
+  });
+});
+
+describe("animateLogo", () => {
+  it("wraps a logo in a self-contained CSS reveal", () => {
+    const svg = animateLogo({ name: "Orbit Labs", keywords: "ai, network" });
+    expect(valid(svg)).toBe(true);
+    expect(svg).toContain("@keyframes lac-in");
+    expect(svg).toContain("lac-wipe");
+    expect(svg).toContain('class="lac-root"');
+    expect(svg).toContain("prefers-reduced-motion");
+  });
+  it("accepts a LogoResult and is deterministic", () => {
+    const r = generateLogo({ name: "Acme", seed: 5 });
+    expect(animateLogo(r)).toBe(animateLogo(r));
+  });
+  it("honours loop + shimmer:false", () => {
+    expect(animateLogo({ name: "X" }, { loop: true })).toContain("infinite");
+    expect(animateLogo({ name: "X" }, { shimmer: false })).not.toContain("lac-shim-g");
   });
 });

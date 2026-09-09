@@ -87,6 +87,19 @@ const fav = generateFavicon({ name: "Nova", keywords: "tech" });
 
 > **v1.1.0** also grows the JSON brain to **67 icons**, **36 palettes**, **18 type pairings** and new industry moods (education, legal, real-estate, kids, fitness…).
 
+## 🆕 Animated logo reveal (v1.2.0)
+
+Turn any logo into a **self-contained animated SVG** that crafts itself on load (wipe + scale-in + a light shimmer) — pure CSS, no JS, works in any browser, README or site, and respects `prefers-reduced-motion`.
+
+```ts
+import { animateLogo } from "@lacspace/logo";
+
+const svg = animateLogo({ name: "Orbit Labs", keywords: "ai, network" }, { loop: true });
+// drop `svg` straight into a page or save as .svg — it animates itself
+```
+
+> **v1.2.0** also grows the brain to **79 icons** (insurance, dental, eyewear, audio, construction, HR, jewelry, marine, energy…).
+
 ## The five engines
 
 | Engine | What you get |

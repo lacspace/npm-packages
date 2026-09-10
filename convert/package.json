@@ -1,0 +1,75 @@
+{
+  "name": "@lacspace/convert",
+  "version": "1.0.0",
+  "description": "The data-conversion hub of the Lacspace Sheets Kit — convert tabular and structured data between JSON, NDJSON, CSV, TSV, XLSX, YAML, TOML, Markdown, HTML and SQL in one call. Format sniffing, type inference, flatten/unflatten, column select/rename, streaming row iterator. Zero external dependencies, isomorphic, TypeScript-first.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@lacspace/csv": "^1.2.0",
+    "@lacspace/xlsx": "^1.2.0"
+  },
+  "keywords": [
+    "convert",
+    "data-conversion",
+    "json-to-csv",
+    "csv-to-json",
+    "json-to-xlsx",
+    "xlsx-to-json",
+    "csv-to-xlsx",
+    "json-to-yaml",
+    "yaml-to-json",
+    "toml",
+    "ndjson",
+    "markdown-table",
+    "html-table",
+    "sql-insert",
+    "format-detection",
+    "type-inference",
+    "flatten",
+    "unflatten",
+    "sheets-kit",
+    "spreadsheet",
+    "isomorphic",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/convert",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "convert"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

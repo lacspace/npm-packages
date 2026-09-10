@@ -131,6 +131,11 @@ export function aoaToCsv(rows: (CellValue[] | ReadCell[])[], opts: AoaToCsvOptio
   const nl = opts.newline ?? "\r\n";
   const cell = (v: CellValue | ReadCell): string => {
     if (v === null || v === undefined) return "";
+    if (typeof v === "object" && !(v instanceof Date) && typeof (v as { f?: unknown }).f === "string") {
+      const cached = (v as { f: string; v?: CellValue }).v;
+      v = cached === undefined ? `=${(v as { f: string }).f}` : (cached as CellValue | ReadCell);
+      if (v === null || v === undefined) return "";
+    }
     let s: string;
     if (v instanceof Date) s = isoFromDate(v);
     else if (typeof v === "boolean") s = v ? "true" : "false";

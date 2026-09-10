@@ -111,7 +111,26 @@ export function columnLetter(index: number): string {
 const EPOCH_OFFSET = 25569; // days between 1899-12-30 and 1970-01-01
 const toSerial = (d: Date): number => d.getTime() / 86400000 + EPOCH_OFFSET;
 
-export type CellValue = string | number | boolean | Date | null | undefined;
+/**
+ * A live Excel formula in a cell. `f` is the formula without a leading `=`
+ * (`"B2*C2"`, `"SUM(D2:D20)"`); `v` is an optional cached value shown by apps
+ * that do not recalculate on open (and what `xlsxToJson` reads back).
+ */
+export interface FormulaCell {
+  f: string;
+  v?: string | number | boolean | Date | null;
+}
+
+/** Build a {@link FormulaCell}: `formula("B2*C2", 1700)`. A leading `=` is stripped. */
+export function formula(f: string, v?: FormulaCell["v"]): FormulaCell {
+  return v === undefined ? { f: f.replace(/^=/, "") } : { f: f.replace(/^=/, ""), v };
+}
+
+export function isFormulaCell(value: unknown): value is FormulaCell {
+  return typeof value === "object" && value !== null && !(value instanceof Date) && typeof (value as FormulaCell).f === "string";
+}
+
+export type CellValue = string | number | boolean | Date | null | undefined | FormulaCell;
 
 export interface Column {
   /** Header label shown in row 1. */
@@ -146,7 +165,21 @@ interface Sheet {
 
 /* ------------------------------ cell rendering ------------------------------ */
 
+function formulaXml(ref: string, cell: FormulaCell, style: number): string {
+  const v = cell.v;
+  let st = style;
+  if (v instanceof Date && st === 0) st = 2;
+  const s = st ? ` s="${st}"` : "";
+  const f = `<f>${xmlEsc(cell.f)}</f>`;
+  if (v === null || v === undefined || v === "") return `<c r="${ref}"${s}>${f}</c>`;
+  if (typeof v === "number") return `<c r="${ref}"${s}>${f}<v>${Number.isFinite(v) ? v : 0}</v></c>`;
+  if (typeof v === "boolean") return `<c r="${ref}"${s} t="b">${f}<v>${v ? 1 : 0}</v></c>`;
+  if (v instanceof Date) return `<c r="${ref}"${s}>${f}<v>${toSerial(v)}</v></c>`;
+  return `<c r="${ref}"${s} t="str">${f}<v>${xmlEsc(String(v))}</v></c>`;
+}
+
 function cellXml(ref: string, value: CellValue, style: number): string {
+  if (isFormulaCell(value)) return formulaXml(ref, value, style);
   // A Date with no explicit column style falls back to the built-in date
   // format (style index 2); a column `numFmt` overrides it via `style`.
   let st = style;

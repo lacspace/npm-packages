@@ -86,6 +86,27 @@ const bytes = jsonToXlsx(
 );
 ```
 
+## Live formulas
+
+Write a real Excel formula into a cell (with an optional cached value so apps that
+do not recalculate on open still show a number). Formulas use normal A1 references.
+
+```ts
+import { Workbook, formula } from "@lacspace/xlsx";
+
+new Workbook()
+  .sheet("Invoice", [
+    ["Item", "Qty", "Rate", "Amount"],
+    ["Shirt", 2, 850, formula("B2*C2", 1700)],
+    ["Scarf", 5, 450, formula("B3*C3", 2250)],
+    ["", "", "Total", formula("SUM(D2:D3)", 3950)],
+  ], { header: true })
+  .toBytes();
+```
+
+Excel, Numbers and Google Sheets recalculate `=B2*C2` live; `xlsxToJson` reads the
+cached value back. Pair with `@lacspace/formula` to compute the cached values.
+
 ## CSV ↔ XLSX
 
 ```ts

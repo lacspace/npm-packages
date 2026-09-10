@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { Workbook, jsonToXlsx, readWorkbook, xlsxToJson } from "./index";
+import { Workbook, jsonToXlsx, readWorkbook, xlsxToJson, formula } from "./index";
 
 /** Decode the (STORE-method, uncompressed) .xlsx bytes to a searchable string. */
 const asText = (bytes: Uint8Array): string => Buffer.from(bytes).toString("latin1");
@@ -90,4 +90,33 @@ test("output has the required OOXML package parts (structural validity)", () => 
     expect(xml).toContain(part);
   }
   expect(xml).toContain("spreadsheetml.sheet.main+xml");
+});
+
+test("a formula cell writes <f> (no leading =) with its cached value and reads back", async () => {
+  const bytes = new Workbook()
+    .sheet("Sheet1", [
+      ["Qty", "Rate", "Amount"],
+      [2, 850, formula("=B2*C2", 1700)],
+      [5, 450, { f: "B3*C3", v: 2250 }],
+      ["", "Total", formula("SUM(C2:C3)", 3950)],
+    ], { header: true })
+    .toBytes();
+  const xml = asText(bytes);
+  expect(xml).toContain('<c r="C2"><f>B2*C2</f><v>1700</v></c>');
+  expect(xml).toContain("<f>SUM(C2:C3)</f><v>3950</v>");
+  const rows = await xlsxToJson(bytes);
+  expect(rows[0]).toEqual({ Qty: 2, Rate: 850, Amount: 1700 });
+  expect(rows[2]!.Amount).toBe(3950);
+});
+
+test("formula cells with text / boolean / no cached value serialise safely", () => {
+  const xml = asText(new Workbook().sheet("S", [[formula('IF(A2>1,"hi","lo")', "hi"), formula("A1>1", true), formula("A1")]]).toBytes());
+  expect(xml).toContain('t="str"><f>IF(A2&gt;1,&quot;hi&quot;,&quot;lo&quot;)</f><v>hi</v>');
+  expect(xml).toContain('t="b"><f>A1&gt;1</f><v>1</v>');
+  expect(xml).toContain('<c r="C1"><f>A1</f></c>');
+});
+
+test("CSV export unwraps a formula cell to its cached value (or the formula text)", async () => {
+  const { aoaToCsv } = await import("./csv");
+  expect(aoaToCsv([[1, formula("A1*2", 2)], [3, formula("A2*2")]])).toBe("1,2\r\n3,=A2*2");
 });

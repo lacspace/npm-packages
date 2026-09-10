@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/formula",
+  "version": "1.0.0",
+  "description": "A safe spreadsheet formula engine — parse and evaluate Excel-style formulas (SUM, IF, SUMIFS, VLOOKUP-style LOOKUP, text, date, logic — 100+ functions) over rows and columns with no eval, no new Function and no dependencies. The engine behind LUMIFORM in Lacspace's ERPs. Row-scoped, isomorphic, with per-function reference metadata.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["formula", "formula-engine", "formula-parser", "spreadsheet-formula", "excel-formula", "excel-functions", "sumif", "vlookup", "expression-evaluator", "safe-eval", "no-eval", "hyperformula-alternative", "formula-parser-alternative", "hot-formula-parser-alternative", "spreadsheet", "datagrid", "computed-columns", "isomorphic", "zero-dependency", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/formula",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "formula" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" }
+}

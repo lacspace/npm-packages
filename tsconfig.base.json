@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": false
   },
-  "exclude": ["**/dist", "**/node_modules", "lacspace-leads", "lacspace-scraper", "lacspace-monitor", "lacspace-enrich", "lacspace-extract", "lacspace-sql", "lacspace-inspect", "lacspace-dotenv", "lacspace-webhook", "lacspace-har", "lacspace-cron", "lacspace-icon", "lacspace-http", "lacspace-fake", "lacspace-deps", "lacspace-json", "lacspace-qr", "lacspace-svg", "lacspace-i18n", "lacspace-changelog", "lacspace-mock", "lacspace-size", "lacspace-schema", "lacspace-license", "lacspace-rag"]
+  "exclude": ["**/dist", "**/node_modules", "lacspace-leads", "lacspace-scraper", "lacspace-monitor", "lacspace-enrich", "lacspace-extract", "lacspace-sql", "lacspace-inspect", "lacspace-dotenv", "lacspace-webhook", "lacspace-har", "lacspace-cron", "lacspace-icon", "lacspace-http", "lacspace-fake", "lacspace-deps", "lacspace-json", "lacspace-qr", "lacspace-svg", "lacspace-i18n", "lacspace-changelog", "lacspace-mock", "lacspace-size", "lacspace-schema", "lacspace-license", "lacspace-rag", "lacspace-excel"]
 }

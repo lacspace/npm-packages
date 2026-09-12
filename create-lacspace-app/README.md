@@ -202,6 +202,8 @@ Every template is Next.js 15 App Router + React 19 + Tailwind v4 — dark, moder
 | `--no-install` | skip installing dependencies |
 | `--no-git` | skip git init |
 | `-y, --yes` | accept defaults (needs a project name) |
+| `-h, --help` | show every flag |
+| `-v, --version` | print the installed version |
 
 ### 🎨 Themes
 

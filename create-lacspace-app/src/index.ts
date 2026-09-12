@@ -11,12 +11,12 @@
  *
  * Zero runtime dependencies — Node built-ins only.
  */
-import { existsSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, dirname, resolve, basename } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, argv, cwd, exit } from "node:process";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
 const C = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
@@ -8595,12 +8595,32 @@ function backendFiles(ctx: Ctx): Record<string, string> {
 
 /* ------------------------------ cli ------------------------------ */
 
-interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; recipe?: string; dryRun: boolean; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; }
+// The installed version, read from the package.json that ships beside dist/.
+// npm always includes package.json in the tarball, so this resolves for global
+// installs, npx runs and local checkouts alike.
+function cliVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const rel of ["../package.json", "./package.json", "../../package.json"]) {
+      const file = resolve(here, rel);
+      if (!existsSync(file)) continue;
+      const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+      const version = (parsed as { name?: string; version?: string }).version;
+      const name = (parsed as { name?: string }).name;
+      if (typeof version === "string" && (name === "create-lacspace-app" || rel !== "../../package.json")) return version;
+    }
+  } catch {
+    // Unreadable or absent package.json — fall through to "unknown".
+  }
+  return "unknown";
+}
+
+interface Args { name?: string; template?: string; theme?: string; features: string[]; mode?: "static" | "dynamic"; recipe?: string; dryRun: boolean; yes: boolean; install: boolean; git: boolean; pm: string; help: boolean; version: boolean; unknown: string[]; }
 
 const splitList = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 function parseArgs(list: string[]): Args {
-  const a: Args = { features: [], yes: false, install: true, git: true, pm: "npm", help: false, dryRun: false };
+  const a: Args = { features: [], yes: false, install: true, git: true, pm: "npm", help: false, version: false, dryRun: false, unknown: [] };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
     const next = (): string => list[++i] ?? "";
@@ -8619,6 +8639,7 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--recipe") a.recipe = next();
     else if (arg.startsWith("--recipe=")) a.recipe = arg.slice(9);
     else if (arg === "-h" || arg === "--help") a.help = true;
+    else if (arg === "-v" || arg === "-V" || arg === "--version") a.version = true;
     else if (arg.startsWith("--template=")) a.template = arg.slice(11);
     else if (arg.startsWith("--theme=")) a.theme = arg.slice(8);
     else if (arg.startsWith("--accent=")) a.theme = arg.slice(9);
@@ -8626,6 +8647,7 @@ function parseArgs(list: string[]): Args {
     else if (arg.startsWith("--with=")) a.features.push(...splitList(arg.slice(7)));
     else if (arg.startsWith("--features=")) a.features.push(...splitList(arg.slice(11)));
     else if (!arg.startsWith("-") && !a.name) a.name = arg;
+    else if (arg.startsWith("-")) a.unknown.push(arg);
   }
   return a;
 }
@@ -8719,6 +8741,7 @@ ${c("bold", "Options")}
   --no-git               Skip git init
   -y, --yes              Accept defaults (needs <name>)
   -h, --help             Show this help
+  -v, --version          Print the version and exit
 
 ${c("bold", "Feature add-ons")} ${c("dim", "(--with) — free & keyless, local by default")}
 ${FEATURES.map((f) => `  ${f.key.padEnd(11)} ${f.description}`).join("\n")}
@@ -9100,6 +9123,10 @@ async function main(): Promise<void> {
   if (raw[0] === "explain" || raw[0] === "info") { runExplain(raw.slice(1)); return; }
   const args = parseArgs(raw);
   if (args.help) { stdout.write(HELP + "\n"); return; }
+  if (args.version) { stdout.write(`create-lacspace-app ${cliVersion()}\n`); return; }
+  if (args.unknown.length) {
+    stdout.write(c("yellow", `\n  ! Unknown option${args.unknown.length > 1 ? "s" : ""}: ${args.unknown.join(", ")} — ignoring. Run with --help to see every flag.\n`));
+  }
 
   stdout.write(`\n${c("bold", c("magenta", "◆ create-lacspace-app"))} ${c("dim", "— a gorgeous Next.js starter, batteries wired")}\n\n`);
 
@@ -9260,8 +9287,27 @@ async function main(): Promise<void> {
 // Only run the interactive CLI when this file is executed directly (as the
 // `create-lacspace-app` bin), NOT when it is imported by the library entry
 // (`./lib`) — importing must be free of side effects.
-const invokedAsCli = argv[1] ? import.meta.url === pathToFileURL(argv[1]).href : false;
-if (invokedAsCli) {
+//
+// argv[1] is the path the shell invoked. Package managers install bins as
+// SYMLINKS (node_modules/.bin/create-lacspace-app -> ../create-lacspace-app/dist/index.js),
+// and Node resolves symlinks before setting import.meta.url, so a raw
+// string compare never matches under npx / npm i -g. Resolve argv[1] to its
+// real path first, and keep a bin-name fallback for shim wrappers that are
+// not symlinks at all.
+function isDirectRun(): boolean {
+  const entry = argv[1];
+  if (!entry) return false;
+  const here = import.meta.url;
+  if (here === pathToFileURL(entry).href) return true;
+  try {
+    if (here === pathToFileURL(realpathSync(entry)).href) return true;
+  } catch {
+    // argv[1] may not exist on disk (custom loaders); fall through.
+  }
+  return basename(entry).replace(/\.[cm]?js$/, "") === "create-lacspace-app";
+}
+
+if (isDirectRun()) {
   main().catch((err: unknown) => {
     stdout.write(c("red", `\n✗ ${err instanceof Error ? err.message : String(err)}\n\n`));
     exit(1);

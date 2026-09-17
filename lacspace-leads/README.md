@@ -11,6 +11,7 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 ## Why it's different
 
 - **Free & keyless** — uses a real browser (via [Playwright](https://playwright.dev)), not a paid Places API.
+- **Ask for a number, get that number** — one Google search stops at ~120 results; `--target 500` keeps searching (every area you name, then tiles of the map) until it has 500 unique businesses.
 - **Sweep a whole city** — comma-separate areas and it runs each search, then **merges and de-duplicates** into one list: `--area "Thamel,Baneshwor,Patan"`.
 - **Search by radius** — centre on a coordinate and keep only what's within range: `--near "27.72,85.32" --radius 2km`. Each lead gets a `distanceKm`, sorted nearest-first.
 - **Accumulate a master list** — `--append` merges each run into your existing file and de-duplicates, so daily runs build one clean database.
@@ -26,6 +27,132 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 - **Pipe to enrich** — `--enrich-out sites.ndjson` (or the `pipeToEnrich` hook) hands websites straight to [`lacspace-enrich`](https://www.npmjs.com/package/lacspace-enrich) for full company profiles — no hard dependency.
 - **Robust & polite** — `--proxy`, `--retries`, `--jitter`, per-listing delays and a permission-first prompt before it opens a browser.
 - **Library too** — `import { searchLeads, searchLeadsBatch, searchLeadsDetailed } from "lacspace-leads"`.
+
+## How to use it
+
+### 1. Run it and answer the questions
+
+No flags to learn first. Run it bare and it walks you through business type, city, areas, how many leads you want and the file format — every question has a default, so you can press Enter through it:
+
+```bash
+npx lacspace-leads
+```
+
+Type more than ~120 at the "how many" question and it automatically switches to a full sweep, because a single Google search cannot return more than that.
+
+### 2. Or say it in one line
+
+```bash
+npx lacspace-leads restaurants --city Kathmandu --area Baneshwor -f xlsx
+```
+
+A real Chromium window opens, walks the map and writes the file into the folder you ran it from. Add `--headless` once you trust it and the window stays hidden.
+
+### 3. Ask for the number of leads you actually want
+
+`-n / --limit` is the cap for **one search**, and Google itself stops serving a single search at roughly **120 results** — which is why `--limit 500` comes back with about 114. `--target` is the flag that goes past that:
+
+```bash
+# 500 unique restaurants, however many searches that takes
+npx lacspace-leads restaurants --city Kathmandu --target 500 -f xlsx
+```
+
+It expands coverage in this order, stopping the moment it has enough:
+
+1. **Every place you named** — each city x area x type is its own search.
+2. **Map tiles** — the same query re-centred on a grid of points walking outwards from the city centre. The centre comes from the map itself, so no geocoding service and no API key.
+
+Name your neighbourhoods to put the areas you care about first, and to finish sooner:
+
+```bash
+npx lacspace-leads restaurants --city Kathmandu \
+  --areas "Baneshwor, Thamel, Patan, Lazimpat" --target 400
+```
+
+Tune the grid with `--step` (spacing between tiles — tighter finds more in a dense city) and `--tiles` (how far out to go):
+
+```bash
+npx lacspace-leads cafes --city Lalitpur --target 600 --step 1.5km --tiles 60
+```
+
+If the map genuinely runs out before the target, it tells you instead of pretending:
+
+```
+! The map ran out of new results at 214 — that is everything Google lists here.
+  Widen it: more areas, more cities, a bigger --step, or related --types.
+```
+
+### 4. Several cities, several areas, several business types
+
+Comma-separate any of them. Every combination becomes its own search and the results merge into one de-duplicated list:
+
+```bash
+npx lacspace-leads \
+  --type "restaurant, cafe" \
+  --cities "Kathmandu, Lalitpur, Bhaktapur" \
+  --areas "Baneshwor, Thamel" \
+  --target 600 -f xlsx
+```
+
+Add `--split city` to also write one file per city (or `area`, or `type`) beside the master export:
+
+```bash
+npx lacspace-leads gyms --cities "Kathmandu, Pokhara" --target 300 --split city -f xlsx
+```
+
+Long sweeps are resumable — `--resume` checkpoints after every search, so an interruption continues instead of re-scraping.
+
+### 5. Turn listings into contacts
+
+```bash
+# Emails + social profiles from each business website
+npx lacspace-leads clinics --city Pokhara --target 200 --enrich -f xlsx
+
+# Only addresses whose domain really accepts mail
+npx lacspace-leads hotels --city Kathmandu --target 150 \
+  --enrich --verify-emails --has-valid-email -f csv
+
+# Phones in international format, ready for a CRM or bulk SMS
+npx lacspace-leads pharmacies --city Biratnagar --target 200 --country NP --has-phone
+```
+
+### 6. Narrow it to the right prospects
+
+```bash
+# Businesses with NO website — the pitch list for web work
+npx lacspace-leads "beauty salon" --city Pokhara --target 200 --no-website --has-phone -f csv
+
+# Only well-reviewed places, best first
+npx lacspace-leads restaurants --city Kathmandu --target 300 \
+  --min-rating 4 --min-reviews 50 --sort reviews --desc
+
+# Just the columns an outreach list needs
+npx lacspace-leads cafes --city Lalitpur --target 200 --preset outreach
+```
+
+### 7. Make it repeatable
+
+```bash
+# One master file that grows and de-duplicates every run
+npx lacspace-leads restaurants --city Kathmandu --target 300 --append -o master.csv
+
+# Export only the businesses that aren't already in it
+npx lacspace-leads restaurants --city Kathmandu --target 300 \
+  --dedupe-across master.csv -o new-this-week.csv
+
+# The whole campaign saved in one file, ready for a schedule
+npx lacspace-leads --config campaign.json
+```
+
+### When something looks wrong
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| Far fewer leads than the target | The map ran out — that really is everything Google lists for that query | More areas or cities, related `--type`s, or a bigger `--step` |
+| About 114 back from `--limit 500` | Google's per-search ceiling | Use `--target 500` instead |
+| No leads at all | Usually a CAPTCHA or a page change | Drop `--headless` to watch it, raise `--delay`, try again shortly |
+| Empty address / website columns | `--no-details` was on, so listings were never opened | Remove it (`--no-website` and `--split` turn details back on for you) |
+| Everything grouped under "other" with `--split` | Same cause — no addresses to match against | Same fix |
 
 ## Install
 

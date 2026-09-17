@@ -286,7 +286,7 @@ Generate real logos and images **without AI** — and use the official Lacspace 
 | --- | --- | --- |
 | [`create-lacspace-app`](./create-lacspace-app) | [![v](https://img.shields.io/npm/v/create-lacspace-app?label=%20&color=blue)](https://www.npmjs.com/package/create-lacspace-app) | Scaffold a beautiful, production-ready Next.js app — also a library |
 | [`create-lacspace-seo`](./create-lacspace-seo) | [![v](https://img.shields.io/npm/v/create-lacspace-seo?label=%20&color=blue)](https://www.npmjs.com/package/create-lacspace-seo) | Scaffold a complete SEO setup into a Next.js App Router app in seconds |
-| [`lacspace-leads`](./lacspace-leads) | [![v](https://img.shields.io/npm/v/lacspace-leads?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-leads) | Free, open-source local-business lead finder (Google Maps → JSON/CSV/Excel) |
+| [`lacspace-leads`](./lacspace-leads) | [![v](https://img.shields.io/npm/v/lacspace-leads?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-leads) | Free, open-source local-business lead finder (Google Maps → JSON/CSV/Excel). `--target 500` sweeps past Google's ~120-per-search ceiling by tiling the map |
 <!-- PACKAGE-TABLES:END -->
 
 ## ✨ Conventions

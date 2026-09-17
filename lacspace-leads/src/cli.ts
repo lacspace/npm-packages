@@ -1,5 +1,5 @@
 import { writeFileSync, existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, extname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
 import { scrapeLeads as searchLeads } from "./scrape.js";
@@ -22,6 +22,8 @@ import { summarize, formatSummary } from "./summary.js";
 import { leadsToEnrichInput } from "./pipe.js";
 import type { BatchQuery } from "./batch.js";
 import { parseLatLngPair, parseDistance } from "./geo.js";
+import { sweepLeads, MAX_PER_SEARCH } from "./sweep.js";
+import { groupLeads, groupSlug, SPLIT_KEYS, type SplitKey } from "./split.js";
 import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
 import type { Lead } from "./types.js";
 import {
@@ -49,9 +51,10 @@ const log = (s = ""): void => void stderr.write(s + "\n");
 interface Args {
   city?: string; area?: string; type?: string; query?: string; near?: string; radius?: string;
   fields?: string; preset?: string; format: OutputFormat; out?: string; append: boolean;
-  limit: number; total?: number; headless: boolean; details: boolean; delay: number;
+  limit: number; total?: number; target?: number; step?: string; tiles?: number; split?: string;
+  headless: boolean; details: boolean; delay: number;
   emails: boolean; socials: boolean; verifyEmails: boolean;
-  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean; hasContact: boolean; nameExclude?: string;
+  minRating?: number; minReviews?: number; hasPhone: boolean; hasWebsite: boolean; noWebsite: boolean; hasEmail: boolean; hasValidEmail: boolean; hasContact: boolean; nameExclude?: string;
   openNow: boolean; price?: number; category?: string; businessStatus?: string;
   config?: string;
   dedupe?: SearchOptions["dedupe"]; sort?: SortKey; desc?: boolean;
@@ -66,7 +69,7 @@ function parseArgs(list: string[]): Args {
   const a: Args = {
     format: "json", append: false, limit: 60, headless: false, details: true, delay: 700,
     emails: false, socials: false, verifyEmails: false,
-    hasPhone: false, hasWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
+    hasPhone: false, hasWebsite: false, noWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
     openNow: false,
     cleanUrls: true, jitter: false, resume: false, summary: false, yes: false, help: false,
   };
@@ -85,6 +88,11 @@ function parseArgs(list: string[]): Args {
     else if (arg === "-o" || arg === "--out") a.out = next();
     else if (arg === "--append") a.append = true;
     else if (arg === "-n" || arg === "--limit") a.limit = parseInt(next(), 10) || a.limit;
+    else if (arg === "--target" || arg === "--want" || arg === "--goal") a.target = parseInt(next(), 10) || a.target;
+    else if (arg === "--step" || arg === "--tile-step") a.step = next();
+    else if (arg === "--tiles" || arg === "--max-tiles") a.tiles = parseInt(next(), 10) || a.tiles;
+    else if (arg === "--split" || arg === "--split-by") a.split = next();
+    else if (arg === "--no-website" || arg === "--without-website") a.noWebsite = true;
     else if (arg === "--total") a.total = parseInt(next(), 10) || a.total;
     else if (arg === "--headless") a.headless = true;
     else if (arg === "--no-details") a.details = false;
@@ -150,7 +158,14 @@ ${c("bold", "Search options")}
       --radius <dist>   Keep only leads within this of --near, e.g. 2km, 500m, 1mi
       --fields <list>   Columns: ${ALL_FIELDS.join(",")}
       --preset <name>   Field bundle: ${Object.keys(FIELD_PRESETS).join(" | ")}
-  -n, --limit <n>       Max listings per search   (default 60)
+  -n, --limit <n>       Max listings per SEARCH   (default 60, Google caps ~120)
+      --target <n>      How many leads you want IN TOTAL — keeps searching
+                        (every area you named, then tiles the map) until it has
+                        them. Use this one for 500+.
+      --step <dist>     Spacing between map tiles      (default 2.5km)
+      --tiles <n>       Most map tiles to try          (default 49)
+      --split <key>     Write one file per city | area | type
+      --no-website      Only businesses with NO website (the pitch list)
       --total <n>       Cap the merged result (batch searches)
       --no-details      Names + Maps URLs only (fast, no per-listing open)
 
@@ -375,12 +390,20 @@ async function main(): Promise<void> {
 
   if (!args.query && !args.type && !args.yes) {
     args.type = await prompt(`${c("green", "?")} Business type ${c("dim", "(e.g. restaurants)")}: `);
-    args.city = args.city ?? (await prompt(`${c("green", "?")} City ${c("dim", "(optional)")}: `));
-    args.area = args.area ?? (await prompt(`${c("green", "?")} Area ${c("dim", "(optional)")}: `));
+    args.city = args.city ?? (await prompt(`${c("green", "?")} City ${c("dim", "(one, or several: Kathmandu, Pokhara)")}: `));
+    args.area = args.area ?? (await prompt(`${c("green", "?")} Area ${c("dim", "(optional, several allowed: Baneshwor, Thamel)")}: `));
     const fmt = await prompt(`${c("green", "?")} Format ${c("dim", "(json/csv/xlsx)")} ${c("dim", "[json]")}: `, "json");
     if (fmt === "csv" || fmt === "xlsx" || fmt === "json") args.format = fmt;
-    const lim = await prompt(`${c("green", "?")} How many ${c("dim", "[60]")}: `, "60");
-    args.limit = parseInt(lim, 10) || args.limit;
+    const lim = await prompt(`${c("green", "?")} How many leads in total ${c("dim", "[60]")}: `, "60");
+    const wanted = parseInt(lim, 10) || args.limit;
+    // Above what a single Google search returns, switch to a target sweep so the
+    // number typed here is the number actually collected.
+    if (wanted > MAX_PER_SEARCH) {
+      args.target = wanted;
+      log(`  ${c("dim", `${wanted} is more than one search returns, so I'll sweep every area, then tile the map.`)}`);
+    } else {
+      args.limit = wanted;
+    }
     const em = await prompt(`${c("green", "?")} Also find emails from websites? ${c("dim", "(slower) [y/N]")} `);
     if (/^y/i.test(em)) args.emails = true;
   }
@@ -407,6 +430,16 @@ async function main(): Promise<void> {
 
   // Radius search: parse the centre point and (optional) radius up front.
   const nearPoint = args.near ? parseLatLngPair(args.near) : undefined;
+  const tileStepM = args.step ? parseDistance(args.step) : undefined;
+
+  // --split city/area reads each lead's ADDRESS and --no-website reads its
+  // WEBSITE; both only exist when listings are opened. Say so rather than
+  // quietly filing every lead under "other".
+  if (!args.details && (args.split || args.noWebsite)) {
+    const needs = [args.split ? `--split ${args.split}` : "", args.noWebsite ? "--no-website" : ""].filter(Boolean).join(" and ");
+    log(c("yellow", `  ! ${needs} needs each listing's details, but --no-details is on — turning details back on.`));
+    args.details = true;
+  }
   if (args.near && !nearPoint) {
     log(c("red", `\n✗ --near must be "lat,lng", e.g. --near "27.7172,85.3240".`));
     exit(1);
@@ -449,6 +482,7 @@ async function main(): Promise<void> {
   if (args.minReviews !== undefined) filters.minReviews = args.minReviews;
   if (args.hasPhone) filters.hasPhone = true;
   if (args.hasWebsite) filters.hasWebsite = true;
+  if (args.noWebsite) filters.noWebsite = true;
   if (args.hasEmail) filters.hasEmail = true;
   if (args.hasValidEmail) filters.hasValidEmail = true;
   if (args.hasContact) filters.hasContact = true;
@@ -547,8 +581,23 @@ async function main(): Promise<void> {
   }
 
   let leads;
+  let sweptShort = false;
   try {
-    if (isBatch) {
+    if (args.target !== undefined) {
+      // Target mode: keep searching until we have the number that was asked for.
+      const sweepOpts = {
+        ...opts,
+        target: args.target,
+        onNotice: (m: string) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`),
+      } as Parameters<typeof sweepLeads>[0];
+      if (tileStepM !== undefined) sweepOpts.stepM = tileStepM;
+      if (args.tiles !== undefined) sweepOpts.maxTiles = args.tiles;
+      if (args.limit !== 60) sweepOpts.perSearch = args.limit;
+      const swept = await sweepLeads(sweepOpts);
+      leads = swept.leads;
+      sweptShort = swept.stats.saturated && leads.length < args.target;
+      log(`  ${c("cyan", "◷")} ${c("dim", `${swept.stats.searches} search${swept.stats.searches === 1 ? "" : "es"} + ${swept.stats.tiles} map tile${swept.stats.tiles === 1 ? "" : "s"} → ${swept.stats.unique} unique`)}`);
+    } else if (isBatch) {
       const batchOpts = { ...opts } as SearchOptions & { total?: number } & {
         skip?: (q: BatchQuery) => boolean;
         seedLeads?: Lead[];
@@ -572,6 +621,14 @@ async function main(): Promise<void> {
     return;
   } finally {
     process.removeListener("SIGINT", onSig);
+  }
+
+  if (sweptShort) {
+    log(c("yellow", `\n  ! The map ran out of new results at ${leads.length} — that is everything Google lists here.`));
+    log(c("dim", "    Widen it: more areas (--areas a,b,c), more cities (--cities x,y), a bigger --step, or related --types.\n"));
+  } else if (args.target === undefined && args.limit > leads.length && leads.length >= MAX_PER_SEARCH - 20) {
+    log(c("yellow", `\n  ! Google stops a single search at about ${MAX_PER_SEARCH} results, so --limit ${args.limit} could only return ${leads.length}.`));
+    log(c("dim", `    To really get ${args.limit}, ask for a total: --target ${args.limit} — it sweeps every area you name, then tiles the map.\n`));
   }
 
   if (leads.length === 0) {
@@ -644,6 +701,26 @@ async function main(): Promise<void> {
     log(`\n  ${c("green", "✔")} ${c("bold", String(leads.length))} leads written to stdout ${c("dim", `(${args.format})`)}\n`);
     printSummary();
     return;
+  }
+
+  if (args.split) {
+    const key = args.split.trim().toLowerCase() as SplitKey;
+    if (!SPLIT_KEYS.includes(key)) {
+      log(c("yellow", `  ! --split "${args.split}" is not one of ${SPLIT_KEYS.join(", ")} — writing a single file instead.`));
+    } else {
+      const requested = (key === "area" ? args.area : key === "city" ? args.city : "")
+        ?.split(",").map((x) => x.trim()).filter(Boolean) ?? [];
+      const groups = groupLeads(leads, key, requested);
+      const ext = extname(out) || `.${args.format}`;
+      const stem = out.slice(0, out.length - ext.length);
+      log("");
+      for (const [group, rows] of groups) {
+        const file = `${stem}-${groupSlug(group)}${ext}`;
+        const part = serialize(rows, args.format, fields, serOpts);
+        writeFileSync(file, part.binary ? Buffer.from(part.data as Uint8Array) : (part.data as string));
+        log(`  ${c("green", "✔")} ${c("bold", String(rows.length))} leads → ${c("cyan", file)}`);
+      }
+    }
   }
 
   writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));

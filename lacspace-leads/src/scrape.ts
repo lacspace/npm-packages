@@ -338,12 +338,21 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
     const page = await context.newPage();
     const urlOpts: { hl?: string; gl?: string; center?: { lat: number; lng: number; zoom?: number } } = { hl: locale };
     if (opts.region) urlOpts.gl = opts.region;
-    if (near) urlOpts.center = { lat: near.lat, lng: near.lng, zoom: zoomForRadius(opts.radiusM ?? 2000, near.lat) };
+    if (near) urlOpts.center = { lat: near.lat, lng: near.lng, zoom: zoomForRadius(opts.radiusM ?? opts.zoomRadiusM ?? 2000, near.lat) };
     await page.goto(mapsSearchUrl(query, urlOpts), { waitUntil: "domcontentloaded", timeout: 45000 });
     await dismissConsent(page);
 
     await loadResults(page, limit, delayMs, onProgress, signal);
     if (signal?.aborted) throw new LeadsError("Search aborted.", "ABORTED");
+
+    // Tell the caller where Google actually centred this search. A target sweep
+    // uses it to tile the map, which needs no geocoding service at all.
+    if (opts.onCenter) {
+      const at = parseLatLng(page.url());
+      if (at.latitude !== undefined && at.longitude !== undefined) {
+        try { opts.onCenter({ lat: at.latitude, lng: at.longitude }); } catch { /* a bad hook never breaks a run */ }
+      }
+    }
 
     // Collect result links (name + href) from the feed.
     const cards = await page
@@ -359,6 +368,21 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
     if (cards.length === 0) {
       onProgress?.("no listings found (Google may have shown a CAPTCHA or an empty result).");
       return [];
+    }
+
+    // Drop anything the caller already has BEFORE opening listings — on an
+    // overlapping map tile that is most of them, and each open costs a page load.
+    if (opts.skipListing) {
+      const all = cards as { href: string; name?: string }[];
+      const before = all.length;
+      const fresh = all.filter((card) => {
+        try { return !opts.skipListing!({ name: card.name, href: card.href }); } catch { return true; }
+      });
+      if (fresh.length !== before) {
+        onProgress?.(`${before - fresh.length} of ${before} already collected — skipping them.`);
+        all.splice(0, before, ...fresh);
+      }
+      if (all.length === 0) return [];
     }
 
     let leads: Lead[] = [];

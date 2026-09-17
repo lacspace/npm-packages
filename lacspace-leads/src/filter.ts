@@ -10,6 +10,7 @@ export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
     if (filters.minReviews !== undefined && !(typeof l.reviews === "number" && l.reviews >= filters.minReviews)) return false;
     if (filters.hasPhone && !l.phone) return false;
     if (filters.hasWebsite && !l.website) return false;
+    if (filters.noWebsite && l.website) return false;
     if (filters.hasEmail && !l.email) return false;
     if (filters.hasValidEmail && l.emailStatus !== "valid") return false;
     if (filters.hasContact && !(l.phone || l.email || l.website)) return false;

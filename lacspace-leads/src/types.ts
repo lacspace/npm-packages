@@ -175,6 +175,8 @@ export interface LeadFilters {
   hasPhone?: boolean;
   /** Keep only leads that have a website. */
   hasWebsite?: boolean;
+  /** Keep only leads with NO website — the classic "they need a site" pitch list. */
+  noWebsite?: boolean;
   /** Keep only leads that have an email (implies enrichment). */
   hasEmail?: boolean;
   /** Keep only leads whose email passed MX verification (implies `verifyEmails`). */
@@ -216,6 +218,23 @@ export interface SearchOptions {
   near?: { lat: number; lng: number };
   /** Keep only leads within this many metres of `near`. Requires `near`. */
   radiusM?: number;
+  /**
+   * Return true to skip a search result before it is opened. A sweep passes the
+   * listings it already holds, so re-visiting the same restaurant across
+   * overlapping map tiles costs nothing.
+   */
+  skipListing?: (listing: { name?: string; href: string }) => boolean;
+  /**
+   * Frame the map on a circle of this many metres WITHOUT filtering by it.
+   * A sweep uses it so each tile's viewport matches the tile size; `radiusM`
+   * stays the thing that actually drops far-away leads.
+   */
+  zoomRadiusM?: number;
+  /**
+   * Called once with the map centre Google settled on for this search, parsed
+   * from the results URL. A sweep uses it to tile the map without geocoding.
+   */
+  onCenter?: (center: { lat: number; lng: number }) => void;
   /** Max number of leads to collect. Default 60. */
   limit?: number;
   /** Fields to collect. Default: all of {@link ALL_FIELDS}. */

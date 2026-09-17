@@ -59,7 +59,12 @@ npx lacspace-leads [type] [options]
 | `--enrich-out <file>` | Also write `{ name, website, domain }` NDJSON, ready to feed [`lacspace-enrich`](https://www.npmjs.com/package/lacspace-enrich) |
 | `--resume` | Resume an interrupted **multi-search sweep** from its checkpoint file (`<out>.checkpoint.json`) |
 | `--sheet <name>` | Excel sheet name (default `Leads`) |
-| `-n, --limit <n>` | Max listings **per search** (default `60`) |
+| `-n, --limit <n>` | Max listings **per search** (default `60`; Google itself stops near 120) |
+| `--target <n>` | How many leads you want **in total** — keeps searching until it has them. Use this for 300, 500, 1000 |
+| `--step <dist>` | Spacing between map tiles in a target sweep (default `2.5km`) |
+| `--tiles <n>` | Most map tiles to try (default `49`) |
+| `--split <key>` | Write one file per `city`, `area` or `type` alongside the main file |
+| `--no-website` | Only businesses with **no website** — the "you need a site" pitch list |
 | `--total <n>` | Cap the merged result when sweeping several searches |
 | `--no-details` | Skip opening each listing — names + Maps URLs only, much faster |
 | `--sort <key>` | `rating` · `reviews` · `name` · `priceLevel` · `distance` (missing values last) |
@@ -111,6 +116,29 @@ npx lacspace-leads [type] [options]
 
 Run with no arguments for an interactive walkthrough.
 
+## Ask for a number and actually get it (`--target`)
+
+One Google Maps search stops at roughly **120 results**, so `--limit 500` can only ever hand back about 114. `--target` is the honest version: say how many leads you want in total and the tool keeps going until it has them.
+
+```bash
+# 500 restaurants, however many searches that takes
+npx lacspace-leads restaurants --city Kathmandu --target 500 -f xlsx
+```
+
+It expands coverage in this order, stopping the moment the target is met:
+
+1. **Every place you named** — each city x area x type is its own search.
+2. **Map tiles** — the same query re-centred on a grid of points around the city, walking outwards from the middle. No geocoding service and no API key: the centre comes from the map itself.
+
+Every step is de-duplicated against everything collected so far, so the number you get is unique businesses, not rows. If the map runs dry before the target, it says so plainly instead of pretending:
+
+```
+! The map ran out of new results at 214 — that is everything Google lists here.
+  Widen it: more areas, more cities, a bigger --step, or related --types.
+```
+
+Tune the grid with `--step` (tighter spacing finds more in dense cities) and `--tiles` (how far out to go).
+
 ## Sweep a whole city
 
 Comma-separate areas (and/or types) and `lacspace-leads` runs each search in turn, then **merges and de-duplicates** into a single list — sorted and filtered across the whole set:
@@ -123,6 +151,15 @@ npx lacspace-leads "coffee shop" \
 
 # Two business types at once, capped at 100 unique leads total
 npx lacspace-leads --type "gym,fitness studio" --city Pokhara --total 100 -f csv
+
+# Several cities and several areas at once — 400 in total, one Excel file per city
+npx lacspace-leads restaurants \
+  --cities "Kathmandu, Lalitpur, Bhaktapur" \
+  --areas "Baneshwor, Thamel, Patan" \
+  --target 400 --split city -f xlsx
+
+# Everyone in town who has no website yet
+npx lacspace-leads "beauty salon" --city Pokhara --target 200 --no-website --has-phone -f csv
 ```
 
 ## Search by radius

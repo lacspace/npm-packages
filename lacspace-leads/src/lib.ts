@@ -28,6 +28,18 @@ export {
   type DetailedResult,
 } from "./scrape.js";
 export { searchLeadsBatch, searchLeadsMulti, type BatchQuery, type BatchResumeHooks } from "./batch.js";
+export {
+  sweepLeads,
+  gridPoints,
+  tilesForRings,
+  ringsForTiles,
+  planNamedSteps,
+  MAX_PER_SEARCH,
+  type SweepOptions,
+  type SweepStats,
+  type SweepStep,
+} from "./sweep.js";
+export { groupLeads, groupSlug, addressMentions, SPLIT_KEYS, type SplitKey } from "./split.js";
 export { runConfig, assertConfig, type LeadsConfig } from "./config.js";
 export { serialize, toRows, computeStats, rowsToLeads } from "./export.js";
 export {

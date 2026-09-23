@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/components",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A dependency-free React component library — buttons, inputs, selects, modals, tabs, toasts, progress, badges, tables of content and 60+ more. Every colour, radius, spacing and shadow is a CSS variable you can override, light and dark themes included, accessible and server-render safe. No Tailwind required, no CSS-in-JS runtime, no peer dependencies beyond React.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -8,34 +8,87 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
-  "sideEffects": ["*.css"],
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "prebuild": "node scripts/build-css.mjs",
     "build": "npm run prebuild && tsup",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "react", "react-components", "component-library", "ui-library", "design-system",
-    "button", "input", "select", "modal", "dialog", "tabs", "toast", "tooltip",
-    "accordion", "progress", "skeleton", "badge", "avatar", "pagination",
-    "accessible", "a11y", "css-variables", "dark-mode", "themeable",
-    "headless-ui-alternative", "shadcn-alternative", "mui-alternative",
-    "zero-dependency", "typescript", "nextjs", "server-components"
+    "react",
+    "react-components",
+    "component-library",
+    "ui-library",
+    "design-system",
+    "button",
+    "input",
+    "select",
+    "modal",
+    "dialog",
+    "tabs",
+    "toast",
+    "tooltip",
+    "accordion",
+    "progress",
+    "skeleton",
+    "badge",
+    "avatar",
+    "pagination",
+    "accessible",
+    "a11y",
+    "css-variables",
+    "dark-mode",
+    "themeable",
+    "headless-ui-alternative",
+    "shadcn-alternative",
+    "mui-alternative",
+    "zero-dependency",
+    "typescript",
+    "nextjs",
+    "server-components"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/components",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "components" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "peerDependencies": { "react": ">=18", "react-dom": ">=18" },
-  "devDependencies": { "@types/react": "^18.3.12", "@types/react-dom": "^18.3.1", "react": "^18.3.1", "react-dom": "^18.3.1" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "components"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

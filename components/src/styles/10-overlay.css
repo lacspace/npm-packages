@@ -1,0 +1,388 @@
+/* ==========================================================================
+   Overlays — Backdrop, Modal, Drawer, Popover, Tooltip, Toast
+
+   Everything here is portalled to <body>, so it can rely on the viewport
+   rather than on any ancestor. Sizes live in component-scoped --lac-* custom
+   properties (--lac-modal-w, --lac-drawer-size, --lac-toast-w) so an app can
+   resize a dialog with one declaration instead of overriding a width rule.
+   ========================================================================== */
+
+.lac-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lac-z-modal);
+  display: flex;
+}
+
+.lac-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--lac-overlay);
+  animation: lac-overlay-fade var(--lac-duration) var(--lac-ease);
+}
+
+.lac-backdrop[data-blur="true"] {
+  backdrop-filter: blur(3px);
+}
+
+/* The one close control every overlay uses. */
+.lac-overlay-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lac-radius-sm);
+  background: transparent;
+  color: var(--lac-fg-faint);
+  cursor: pointer;
+  transition: background-color var(--lac-duration) var(--lac-ease),
+    color var(--lac-duration) var(--lac-ease);
+}
+
+.lac-overlay-close:hover {
+  background: var(--lac-bg-muted);
+  color: var(--lac-fg);
+}
+
+@keyframes lac-overlay-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Modal
+   -------------------------------------------------------------------------- */
+
+.lac-modal-viewport {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  padding: var(--lac-space-4);
+  overflow-y: auto;
+}
+
+.lac-modal {
+  --lac-modal-w: 520px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--lac-modal-w);
+  max-height: calc(100vh - var(--lac-space-6));
+  background: var(--lac-surface-raised);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius-lg);
+  box-shadow: var(--lac-shadow-lg);
+  animation: lac-modal-in var(--lac-duration) var(--lac-ease);
+}
+
+.lac-modal[data-size="sm"] {
+  --lac-modal-w: 380px;
+}
+.lac-modal[data-size="lg"] {
+  --lac-modal-w: 820px;
+}
+.lac-modal[data-size="full"] {
+  --lac-modal-w: none;
+  width: 100%;
+  height: calc(100vh - var(--lac-space-6));
+  max-height: none;
+}
+
+@keyframes lac-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.lac-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lac-space-3);
+  padding: var(--lac-space-4);
+  border-bottom: 1px solid var(--lac-border);
+}
+
+.lac-modal-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lac-modal-title {
+  margin: 0;
+  font-size: var(--lac-text-lg);
+  font-weight: 640;
+  line-height: 1.3;
+}
+
+.lac-modal-desc {
+  margin: var(--lac-space-1) 0 0;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-modal-body {
+  flex: 1 1 auto;
+  padding: var(--lac-space-4);
+  overflow-y: auto;
+}
+
+.lac-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--lac-space-2);
+  flex: none;
+  padding: var(--lac-space-3) var(--lac-space-4);
+  border-top: 1px solid var(--lac-border);
+  background: var(--lac-bg-subtle);
+}
+
+/* --------------------------------------------------------------------------
+   Drawer
+   -------------------------------------------------------------------------- */
+
+.lac-drawer {
+  --lac-drawer-size: 360px;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--lac-surface-raised);
+  box-shadow: var(--lac-shadow-lg);
+}
+
+.lac-drawer[data-side="left"],
+.lac-drawer[data-side="right"] {
+  top: 0;
+  bottom: 0;
+  width: var(--lac-drawer-size);
+  max-width: 100vw;
+}
+
+.lac-drawer[data-side="left"] {
+  left: 0;
+  border-right: 1px solid var(--lac-border);
+  animation: lac-drawer-left var(--lac-duration) var(--lac-ease);
+}
+
+.lac-drawer[data-side="right"] {
+  right: 0;
+  border-left: 1px solid var(--lac-border);
+  animation: lac-drawer-right var(--lac-duration) var(--lac-ease);
+}
+
+.lac-drawer[data-side="top"],
+.lac-drawer[data-side="bottom"] {
+  left: 0;
+  right: 0;
+  height: var(--lac-drawer-size);
+  max-height: 100vh;
+}
+
+.lac-drawer[data-side="top"] {
+  top: 0;
+  border-bottom: 1px solid var(--lac-border);
+  animation: lac-drawer-top var(--lac-duration) var(--lac-ease);
+}
+
+.lac-drawer[data-side="bottom"] {
+  bottom: 0;
+  border-top: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius-lg) var(--lac-radius-lg) 0 0;
+  animation: lac-drawer-bottom var(--lac-duration) var(--lac-ease);
+}
+
+.lac-drawer-body {
+  flex: 1 1 auto;
+  padding: var(--lac-space-4);
+  overflow-y: auto;
+}
+
+@keyframes lac-drawer-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes lac-drawer-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes lac-drawer-top {
+  from {
+    transform: translateY(-100%);
+  }
+}
+@keyframes lac-drawer-bottom {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Popover
+   -------------------------------------------------------------------------- */
+
+.lac-popover-anchor {
+  display: inline-flex;
+}
+
+.lac-popover-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--lac-radius);
+}
+
+.lac-popover {
+  --lac-popover-w: 260px;
+  position: fixed;
+  z-index: var(--lac-z-popover);
+  width: max-content;
+  max-width: min(var(--lac-popover-w), calc(100vw - var(--lac-space-5)));
+  padding: var(--lac-space-3);
+  background: var(--lac-surface-raised);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius);
+  box-shadow: var(--lac-shadow-lg);
+  animation: lac-overlay-fade var(--lac-duration) var(--lac-ease);
+}
+
+/* --------------------------------------------------------------------------
+   Tooltip
+   -------------------------------------------------------------------------- */
+
+.lac-tooltip-anchor {
+  display: inline-flex;
+}
+
+.lac-tooltip {
+  position: fixed;
+  z-index: var(--lac-z-popover);
+  max-width: 260px;
+  padding: var(--lac-space-1) var(--lac-space-2);
+  background: var(--lac-fg);
+  color: var(--lac-bg);
+  border-radius: var(--lac-radius-sm);
+  box-shadow: var(--lac-shadow);
+  font-size: var(--lac-text-xs);
+  line-height: 1.45;
+  /* A tip must never sit between the cursor and the control it describes. */
+  pointer-events: none;
+  animation: lac-overlay-fade var(--lac-duration) var(--lac-ease);
+}
+
+/* --------------------------------------------------------------------------
+   Toast
+   -------------------------------------------------------------------------- */
+
+.lac-toast-viewport {
+  position: fixed;
+  z-index: var(--lac-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-2);
+  padding: var(--lac-space-4);
+  max-width: 100vw;
+  /* The stack itself must not swallow clicks meant for the page behind it. */
+  pointer-events: none;
+}
+
+.lac-toast-viewport > * {
+  pointer-events: auto;
+}
+
+.lac-toast-viewport[data-position^="top"] {
+  top: 0;
+}
+.lac-toast-viewport[data-position^="bottom"] {
+  bottom: 0;
+  flex-direction: column-reverse;
+}
+.lac-toast-viewport[data-position$="left"] {
+  left: 0;
+  align-items: flex-start;
+}
+.lac-toast-viewport[data-position$="right"] {
+  right: 0;
+  align-items: flex-end;
+}
+.lac-toast-viewport[data-position$="center"] {
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.lac-toast {
+  --lac-toast-w: 360px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lac-space-3);
+  width: min(var(--lac-toast-w), calc(100vw - var(--lac-space-6)));
+  padding: var(--lac-space-3) var(--lac-space-4);
+  background: var(--lac-surface-raised);
+  border: 1px solid var(--lac-border);
+  border-left-width: 3px;
+  border-radius: var(--lac-radius);
+  box-shadow: var(--lac-shadow-lg);
+  animation: lac-toast-in var(--lac-duration) var(--lac-ease);
+}
+
+.lac-toast[data-tone="accent"] {
+  border-left-color: var(--lac-accent);
+}
+.lac-toast[data-tone="success"] {
+  border-left-color: var(--lac-success);
+}
+.lac-toast[data-tone="warning"] {
+  border-left-color: var(--lac-warning);
+}
+.lac-toast[data-tone="danger"] {
+  border-left-color: var(--lac-danger);
+}
+.lac-toast[data-tone="info"] {
+  border-left-color: var(--lac-info);
+}
+
+.lac-toast-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lac-toast-title {
+  font-weight: 620;
+  font-size: var(--lac-text-md);
+}
+
+.lac-toast-desc {
+  margin-top: 2px;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-toast-action {
+  flex: none;
+  align-self: center;
+}
+
+@keyframes lac-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

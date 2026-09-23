@@ -1,0 +1,83 @@
+{
+  "name": "@lacspace/charts",
+  "version": "1.0.0",
+  "description": "A dependency-free React chart library that draws real SVG — line, area, bar, stacked bar, donut, sparkline, gauge, heatmap, radar, funnel and candlestick. No canvas, no D3, no chart engine: every mark is an element you can style with CSS variables, and every scale is a pure exported function you can test. Server-render safe, themeable, accessible.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "prebuild": "node scripts/build-css.mjs",
+    "build": "npm run prebuild && tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "charts",
+    "chart-library",
+    "svg-charts",
+    "line-chart",
+    "bar-chart",
+    "area-chart",
+    "donut-chart",
+    "pie-chart",
+    "sparkline",
+    "gauge",
+    "heatmap",
+    "radar-chart",
+    "funnel-chart",
+    "candlestick",
+    "dataviz",
+    "data-visualization",
+    "recharts-alternative",
+    "chartjs-alternative",
+    "d3-alternative",
+    "zero-dependency",
+    "typescript",
+    "nextjs"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/components?kit=charts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "charts"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

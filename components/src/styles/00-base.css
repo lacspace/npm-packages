@@ -1,0 +1,743 @@
+/* ==========================================================================
+   @lacspace/components — one stylesheet, all tokens.
+
+   Every value a component paints with is a CSS variable, so an app can restyle
+   the whole library by redefining a handful of them — no build step, no
+   config file, no !important. Variables are namespaced --lac-* so they can
+   never collide with an app's own.
+
+   Three theme states are handled, because that is how real apps ship:
+     :root                                   → light (the complete palette)
+     @media (prefers-color-scheme: dark)      → dark, unless [data-theme="light"]
+     [data-theme="dark"]                      → dark, whatever the OS says
+   Every token is defined in the bare :root block first, so nothing is ever
+   left undefined in the un-stamped state.
+   ========================================================================== */
+
+:root {
+  /* Brand + intent ------------------------------------------------------- */
+  --lac-accent: #4d9fff;
+  --lac-accent-hover: #3d8bea;
+  --lac-accent-active: #2f78d2;
+  --lac-accent-fg: #ffffff;
+  --lac-accent-soft: rgba(77, 159, 255, 0.12);
+  --lac-accent-ring: rgba(77, 159, 255, 0.4);
+
+  --lac-success: #16a34a;
+  --lac-success-soft: rgba(22, 163, 74, 0.12);
+  --lac-warning: #d97706;
+  --lac-warning-soft: rgba(217, 119, 6, 0.14);
+  --lac-danger: #dc2626;
+  --lac-danger-hover: #c11d1d;
+  --lac-danger-soft: rgba(220, 38, 38, 0.12);
+  --lac-info: #0891b2;
+  --lac-info-soft: rgba(8, 145, 178, 0.12);
+
+  /* Surfaces + text ------------------------------------------------------ */
+  --lac-bg: #ffffff;
+  --lac-bg-subtle: #f6f8fb;
+  --lac-bg-muted: #eef2f7;
+  --lac-surface: #ffffff;
+  --lac-surface-raised: #ffffff;
+  --lac-overlay: rgba(12, 18, 28, 0.45);
+
+  --lac-fg: #0f1724;
+  --lac-fg-muted: #4a5668;
+  --lac-fg-faint: #78849a;
+  --lac-fg-on-accent: #ffffff;
+
+  --lac-border: #dbe2ec;
+  --lac-border-strong: #c3cddc;
+  --lac-border-focus: var(--lac-accent);
+
+  /* Shape + depth -------------------------------------------------------- */
+  --lac-radius-sm: 6px;
+  --lac-radius: 10px;
+  --lac-radius-lg: 14px;
+  --lac-radius-xl: 20px;
+  --lac-radius-pill: 999px;
+
+  --lac-shadow-sm: 0 1px 2px rgba(15, 23, 36, 0.06);
+  --lac-shadow: 0 4px 14px rgba(15, 23, 36, 0.09);
+  --lac-shadow-lg: 0 18px 44px rgba(15, 23, 36, 0.16);
+
+  /* Type ----------------------------------------------------------------- */
+  --lac-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --lac-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --lac-text-xs: 12px;
+  --lac-text-sm: 13px;
+  --lac-text-md: 14px;
+  --lac-text-lg: 16px;
+  --lac-text-xl: 20px;
+  --lac-leading: 1.55;
+
+  /* Space + motion ------------------------------------------------------- */
+  --lac-space-1: 4px;
+  --lac-space-2: 8px;
+  --lac-space-3: 12px;
+  --lac-space-4: 16px;
+  --lac-space-5: 24px;
+  --lac-space-6: 32px;
+
+  --lac-control-h-sm: 30px;
+  --lac-control-h-md: 38px;
+  --lac-control-h-lg: 46px;
+
+  --lac-ring-width: 3px;
+  --lac-duration: 150ms;
+  --lac-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --lac-z-popover: 1000;
+  --lac-z-modal: 1100;
+  --lac-z-toast: 1200;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lac-accent: #5aa7ff;
+    --lac-accent-hover: #74b6ff;
+    --lac-accent-active: #8cc3ff;
+    --lac-accent-soft: rgba(90, 167, 255, 0.16);
+    --lac-accent-ring: rgba(90, 167, 255, 0.45);
+
+    --lac-success: #34d399;
+    --lac-success-soft: rgba(52, 211, 153, 0.16);
+    --lac-warning: #fbbf24;
+    --lac-warning-soft: rgba(251, 191, 36, 0.16);
+    --lac-danger: #f87171;
+    --lac-danger-hover: #fca5a5;
+    --lac-danger-soft: rgba(248, 113, 113, 0.16);
+    --lac-info: #38bdf8;
+    --lac-info-soft: rgba(56, 189, 248, 0.16);
+
+    --lac-bg: #0b1119;
+    --lac-bg-subtle: #101826;
+    --lac-bg-muted: #16202f;
+    --lac-surface: #111a26;
+    --lac-surface-raised: #17222f;
+    --lac-overlay: rgba(3, 7, 12, 0.66);
+
+    --lac-fg: #eef3fa;
+    --lac-fg-muted: rgba(238, 243, 250, 0.68);
+    --lac-fg-faint: rgba(238, 243, 250, 0.45);
+    --lac-accent-fg: #06131f;
+    --lac-fg-on-accent: #06131f;
+
+    --lac-border: #26313f;
+    --lac-border-strong: #35435a;
+
+    --lac-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --lac-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    --lac-shadow-lg: 0 22px 50px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --lac-accent: #5aa7ff;
+  --lac-accent-hover: #74b6ff;
+  --lac-accent-active: #8cc3ff;
+  --lac-accent-soft: rgba(90, 167, 255, 0.16);
+  --lac-accent-ring: rgba(90, 167, 255, 0.45);
+
+  --lac-success: #34d399;
+  --lac-success-soft: rgba(52, 211, 153, 0.16);
+  --lac-warning: #fbbf24;
+  --lac-warning-soft: rgba(251, 191, 36, 0.16);
+  --lac-danger: #f87171;
+  --lac-danger-hover: #fca5a5;
+  --lac-danger-soft: rgba(248, 113, 113, 0.16);
+  --lac-info: #38bdf8;
+  --lac-info-soft: rgba(56, 189, 248, 0.16);
+
+  --lac-bg: #0b1119;
+  --lac-bg-subtle: #101826;
+  --lac-bg-muted: #16202f;
+  --lac-surface: #111a26;
+  --lac-surface-raised: #17222f;
+  --lac-overlay: rgba(3, 7, 12, 0.66);
+
+  --lac-fg: #eef3fa;
+  --lac-fg-muted: rgba(238, 243, 250, 0.68);
+  --lac-fg-faint: rgba(238, 243, 250, 0.45);
+  --lac-accent-fg: #06131f;
+  --lac-fg-on-accent: #06131f;
+
+  --lac-border: #26313f;
+  --lac-border-strong: #35435a;
+
+  --lac-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --lac-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --lac-shadow-lg: 0 22px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+.lac {
+  font-family: var(--lac-font);
+  font-size: var(--lac-text-md);
+  line-height: var(--lac-leading);
+  color: var(--lac-fg);
+  box-sizing: border-box;
+}
+
+.lac *,
+.lac *::before,
+.lac *::after {
+  box-sizing: border-box;
+}
+
+/* One focus treatment everywhere: a ring that never shifts layout and only
+   shows for keyboard users. */
+.lac:focus-visible,
+.lac :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--lac-ring-width) var(--lac-accent-ring);
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lac,
+  .lac * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ==========================================================================
+   Button
+   ========================================================================== */
+
+.lac-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lac-space-2);
+  height: var(--lac-control-h-md);
+  padding: 0 var(--lac-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--lac-radius);
+  font: inherit;
+  font-weight: 560;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color var(--lac-duration) var(--lac-ease),
+    border-color var(--lac-duration) var(--lac-ease),
+    color var(--lac-duration) var(--lac-ease),
+    transform var(--lac-duration) var(--lac-ease);
+}
+
+.lac-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.lac-btn:disabled,
+.lac-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.lac-btn[data-size="sm"] {
+  height: var(--lac-control-h-sm);
+  padding: 0 var(--lac-space-3);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-btn[data-size="lg"] {
+  height: var(--lac-control-h-lg);
+  padding: 0 var(--lac-space-5);
+  font-size: var(--lac-text-lg);
+}
+
+.lac-btn[data-variant="solid"] {
+  background: var(--lac-accent);
+  color: var(--lac-fg-on-accent);
+}
+.lac-btn[data-variant="solid"]:hover:not(:disabled) {
+  background: var(--lac-accent-hover);
+}
+
+.lac-btn[data-variant="outline"] {
+  background: transparent;
+  border-color: var(--lac-border-strong);
+  color: var(--lac-fg);
+}
+.lac-btn[data-variant="outline"]:hover:not(:disabled) {
+  background: var(--lac-bg-muted);
+  border-color: var(--lac-accent);
+}
+
+.lac-btn[data-variant="soft"] {
+  background: var(--lac-accent-soft);
+  color: var(--lac-accent);
+}
+.lac-btn[data-variant="soft"]:hover:not(:disabled) {
+  background: var(--lac-accent-ring);
+  color: var(--lac-fg-on-accent);
+}
+
+.lac-btn[data-variant="ghost"] {
+  background: transparent;
+  color: var(--lac-fg);
+}
+.lac-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--lac-bg-muted);
+}
+
+.lac-btn[data-variant="link"] {
+  background: transparent;
+  color: var(--lac-accent);
+  height: auto;
+  padding: 0;
+}
+.lac-btn[data-variant="link"]:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.lac-btn[data-tone="danger"][data-variant="solid"] {
+  background: var(--lac-danger);
+  color: #fff;
+}
+.lac-btn[data-tone="danger"][data-variant="solid"]:hover:not(:disabled) {
+  background: var(--lac-danger-hover);
+}
+.lac-btn[data-tone="danger"][data-variant="outline"] {
+  border-color: var(--lac-danger);
+  color: var(--lac-danger);
+}
+.lac-btn[data-tone="danger"][data-variant="soft"] {
+  background: var(--lac-danger-soft);
+  color: var(--lac-danger);
+}
+.lac-btn[data-tone="success"][data-variant="solid"] {
+  background: var(--lac-success);
+  color: #fff;
+}
+.lac-btn[data-tone="success"][data-variant="soft"] {
+  background: var(--lac-success-soft);
+  color: var(--lac-success);
+}
+
+.lac-btn[data-full="true"] {
+  width: 100%;
+}
+
+.lac-btn[data-icon-only="true"] {
+  padding: 0;
+  width: var(--lac-control-h-md);
+}
+.lac-btn[data-icon-only="true"][data-size="sm"] {
+  width: var(--lac-control-h-sm);
+}
+.lac-btn[data-icon-only="true"][data-size="lg"] {
+  width: var(--lac-control-h-lg);
+}
+
+.lac-btn-group {
+  display: inline-flex;
+}
+.lac-btn-group > .lac-btn {
+  border-radius: 0;
+  margin-left: -1px;
+}
+.lac-btn-group > .lac-btn:first-child {
+  border-radius: var(--lac-radius) 0 0 var(--lac-radius);
+  margin-left: 0;
+}
+.lac-btn-group > .lac-btn:last-child {
+  border-radius: 0 var(--lac-radius) var(--lac-radius) 0;
+}
+
+/* ==========================================================================
+   Spinner + Skeleton
+   ========================================================================== */
+
+.lac-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: lac-spin 0.7s linear infinite;
+  vertical-align: -0.125em;
+}
+
+@keyframes lac-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lac-skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--lac-bg-muted) 25%,
+    var(--lac-bg-subtle) 37%,
+    var(--lac-bg-muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: lac-shimmer 1.4s ease infinite;
+  border-radius: var(--lac-radius-sm);
+}
+
+@keyframes lac-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ==========================================================================
+   Surfaces: Card, Alert, Badge
+   ========================================================================== */
+
+.lac-card {
+  background: var(--lac-surface);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius-lg);
+  box-shadow: var(--lac-shadow-sm);
+  overflow: hidden;
+}
+.lac-card[data-interactive="true"] {
+  transition: box-shadow var(--lac-duration) var(--lac-ease),
+    border-color var(--lac-duration) var(--lac-ease);
+  cursor: pointer;
+}
+.lac-card[data-interactive="true"]:hover {
+  box-shadow: var(--lac-shadow);
+  border-color: var(--lac-border-strong);
+}
+.lac-card-header,
+.lac-card-footer {
+  padding: var(--lac-space-4);
+}
+.lac-card-header {
+  border-bottom: 1px solid var(--lac-border);
+}
+.lac-card-footer {
+  border-top: 1px solid var(--lac-border);
+  background: var(--lac-bg-subtle);
+}
+.lac-card-body {
+  padding: var(--lac-space-4);
+}
+.lac-card-title {
+  margin: 0;
+  font-size: var(--lac-text-lg);
+  font-weight: 640;
+}
+.lac-card-desc {
+  margin: var(--lac-space-1) 0 0;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-alert {
+  display: flex;
+  gap: var(--lac-space-3);
+  padding: var(--lac-space-3) var(--lac-space-4);
+  border: 1px solid var(--lac-border);
+  border-left-width: 3px;
+  border-radius: var(--lac-radius);
+  background: var(--lac-bg-subtle);
+  color: var(--lac-fg);
+}
+.lac-alert[data-tone="info"] {
+  border-left-color: var(--lac-info);
+  background: var(--lac-info-soft);
+}
+.lac-alert[data-tone="success"] {
+  border-left-color: var(--lac-success);
+  background: var(--lac-success-soft);
+}
+.lac-alert[data-tone="warning"] {
+  border-left-color: var(--lac-warning);
+  background: var(--lac-warning-soft);
+}
+.lac-alert[data-tone="danger"] {
+  border-left-color: var(--lac-danger);
+  background: var(--lac-danger-soft);
+}
+.lac-alert-title {
+  font-weight: 620;
+  margin: 0 0 2px;
+}
+.lac-alert-body {
+  margin: 0;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--lac-radius-pill);
+  font-size: var(--lac-text-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  background: var(--lac-bg-muted);
+  color: var(--lac-fg-muted);
+  white-space: nowrap;
+}
+.lac-badge[data-tone="accent"] {
+  background: var(--lac-accent-soft);
+  color: var(--lac-accent);
+}
+.lac-badge[data-tone="success"] {
+  background: var(--lac-success-soft);
+  color: var(--lac-success);
+}
+.lac-badge[data-tone="warning"] {
+  background: var(--lac-warning-soft);
+  color: var(--lac-warning);
+}
+.lac-badge[data-tone="danger"] {
+  background: var(--lac-danger-soft);
+  color: var(--lac-danger);
+}
+.lac-badge[data-variant="outline"] {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+.lac-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+
+.lac-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lac-label {
+  font-size: var(--lac-text-sm);
+  font-weight: 560;
+  color: var(--lac-fg);
+}
+.lac-label[data-required="true"]::after {
+  content: " *";
+  color: var(--lac-danger);
+}
+.lac-hint {
+  font-size: var(--lac-text-xs);
+  color: var(--lac-fg-faint);
+}
+.lac-error {
+  font-size: var(--lac-text-xs);
+  color: var(--lac-danger);
+}
+
+.lac-input,
+.lac-textarea,
+.lac-select {
+  width: 100%;
+  height: var(--lac-control-h-md);
+  padding: 0 var(--lac-space-3);
+  font: inherit;
+  color: var(--lac-fg);
+  background: var(--lac-surface);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius);
+  transition: border-color var(--lac-duration) var(--lac-ease),
+    box-shadow var(--lac-duration) var(--lac-ease);
+}
+.lac-textarea {
+  height: auto;
+  min-height: 84px;
+  padding: var(--lac-space-2) var(--lac-space-3);
+  resize: vertical;
+}
+.lac-input::placeholder,
+.lac-textarea::placeholder {
+  color: var(--lac-fg-faint);
+}
+.lac-input:hover:not(:disabled),
+.lac-textarea:hover:not(:disabled),
+.lac-select:hover:not(:disabled) {
+  border-color: var(--lac-border-strong);
+}
+.lac-input:disabled,
+.lac-textarea:disabled,
+.lac-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--lac-bg-muted);
+}
+.lac-input[data-invalid="true"],
+.lac-textarea[data-invalid="true"],
+.lac-select[data-invalid="true"] {
+  border-color: var(--lac-danger);
+}
+.lac-input[data-size="sm"],
+.lac-select[data-size="sm"] {
+  height: var(--lac-control-h-sm);
+  font-size: var(--lac-text-sm);
+}
+.lac-input[data-size="lg"],
+.lac-select[data-size="lg"] {
+  height: var(--lac-control-h-lg);
+  font-size: var(--lac-text-lg);
+}
+
+.lac-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.lac-input-wrap .lac-input {
+  padding-left: var(--lac-input-pad-left, var(--lac-space-3));
+  padding-right: var(--lac-input-pad-right, var(--lac-space-3));
+}
+.lac-input-affix {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  color: var(--lac-fg-faint);
+  pointer-events: none;
+}
+.lac-input-affix[data-side="start"] {
+  left: var(--lac-space-3);
+}
+.lac-input-affix[data-side="end"] {
+  right: var(--lac-space-3);
+}
+
+.lac-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--lac-space-6);
+}
+
+/* Checkbox / radio / switch ------------------------------------------------ */
+
+.lac-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--lac-space-2);
+  cursor: pointer;
+  font-size: var(--lac-text-md);
+}
+.lac-check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--lac-accent);
+  cursor: pointer;
+}
+.lac-check input:disabled {
+  cursor: not-allowed;
+}
+.lac-check[data-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lac-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  cursor: pointer;
+}
+.lac-switch-track {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: var(--lac-radius-pill);
+  background: var(--lac-border-strong);
+  transition: background-color var(--lac-duration) var(--lac-ease);
+  flex: none;
+}
+.lac-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--lac-shadow-sm);
+  transition: transform var(--lac-duration) var(--lac-ease);
+}
+.lac-switch[data-checked="true"] .lac-switch-track {
+  background: var(--lac-accent);
+}
+.lac-switch[data-checked="true"] .lac-switch-thumb {
+  transform: translateX(16px);
+}
+.lac-switch[data-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Progress
+   ========================================================================== */
+
+.lac-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--lac-radius-pill);
+  background: var(--lac-bg-muted);
+  overflow: hidden;
+}
+.lac-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lac-accent);
+  transition: width var(--lac-duration) var(--lac-ease);
+}
+.lac-progress[data-tone="success"] .lac-progress-bar {
+  background: var(--lac-success);
+}
+.lac-progress[data-tone="warning"] .lac-progress-bar {
+  background: var(--lac-warning);
+}
+.lac-progress[data-tone="danger"] .lac-progress-bar {
+  background: var(--lac-danger);
+}
+.lac-progress[data-indeterminate="true"] .lac-progress-bar {
+  width: 35% !important;
+  animation: lac-indeterminate 1.1s var(--lac-ease) infinite;
+}
+
+@keyframes lac-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.lac-ring {
+  display: inline-block;
+  transform: rotate(-90deg);
+}
+.lac-ring-track {
+  stroke: var(--lac-bg-muted);
+}
+.lac-ring-bar {
+  stroke: var(--lac-accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--lac-duration) var(--lac-ease);
+}

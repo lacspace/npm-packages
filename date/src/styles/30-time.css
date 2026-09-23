@@ -1,0 +1,65 @@
+/* ==========================================================================
+   TimePicker
+   ========================================================================== */
+
+.lac-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--lac-control-h-md, 38px);
+  padding: 0 var(--lac-space-2, 8px);
+  background: var(--lac-surface, #ffffff);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius, 10px);
+}
+
+.lac-time[data-size="sm"] {
+  height: var(--lac-control-h-sm, 30px);
+  font-size: var(--lac-text-sm, 13px);
+}
+
+.lac-time[data-size="lg"] {
+  height: var(--lac-control-h-lg, 46px);
+  font-size: var(--lac-text-lg, 16px);
+}
+
+.lac-time[data-disabled="true"] {
+  opacity: 0.6;
+}
+
+.lac-time-seg {
+  width: 2.4em;
+  padding: 2px 0;
+  border: 0;
+  border-radius: var(--lac-radius-sm, 6px);
+  background: transparent;
+  color: var(--lac-fg, #0f1724);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.lac-time-seg:hover:not(:disabled) {
+  background: var(--lac-bg-muted, #eef2f7);
+}
+
+.lac-time-sep {
+  color: var(--lac-fg-faint, #78849a);
+}
+
+.lac-time-period {
+  margin-left: var(--lac-space-1, 4px);
+  padding: 2px var(--lac-space-2, 8px);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius-sm, 6px);
+  background: var(--lac-bg-subtle, #f6f8fb);
+  color: var(--lac-fg, #0f1724);
+  font: inherit;
+  font-size: var(--lac-text-xs, 12px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lac-time-period:hover:not(:disabled) {
+  background: var(--lac-bg-muted, #eef2f7);
+}

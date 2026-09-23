@@ -1,0 +1,77 @@
+{
+  "name": "@lacspace/table",
+  "version": "1.0.0",
+  "description": "A dependency-free React data table — sorting, filtering, global search, pagination, row selection, column resizing, pinned columns, expandable rows, grouping and CSV export. The whole table engine is pure functions you can use without rendering anything, so the logic is testable and reusable. Server-render safe and themeable through CSS variables.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "prebuild": "node scripts/build-css.mjs",
+    "build": "npm run prebuild && tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "table",
+    "data-table",
+    "datagrid",
+    "react-table",
+    "sorting",
+    "filtering",
+    "pagination",
+    "row-selection",
+    "column-resizing",
+    "csv-export",
+    "tanstack-table-alternative",
+    "ag-grid-alternative",
+    "zero-dependency",
+    "typescript",
+    "nextjs",
+    "accessible"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/components?kit=table",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "table"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

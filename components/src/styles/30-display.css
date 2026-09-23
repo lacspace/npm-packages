@@ -1,0 +1,945 @@
+/* ==========================================================================
+   Data display: Avatar, Stat, Timeline, DescriptionList, EmptyState, Tag,
+   Rating, Kbd, Code, Snippet, Divider, Tree, MetricBar.
+
+   The avatar palette is the one set of tokens this family needs that the base
+   sheet does not define, so it is declared here — same --lac-* namespace, same
+   three theme states, redefinable by an app exactly like every other token.
+   ========================================================================== */
+
+:root {
+  --lac-avatar-bg-0: rgba(77, 159, 255, 0.16);
+  --lac-avatar-fg-0: #1f6fd0;
+  --lac-avatar-bg-1: rgba(139, 92, 246, 0.16);
+  --lac-avatar-fg-1: #6d38d6;
+  --lac-avatar-bg-2: rgba(236, 72, 153, 0.16);
+  --lac-avatar-fg-2: #c02a7e;
+  --lac-avatar-bg-3: rgba(239, 68, 68, 0.16);
+  --lac-avatar-fg-3: #c22626;
+  --lac-avatar-bg-4: rgba(217, 119, 6, 0.18);
+  --lac-avatar-fg-4: #9a5608;
+  --lac-avatar-bg-5: rgba(22, 163, 74, 0.16);
+  --lac-avatar-fg-5: #13803c;
+  --lac-avatar-bg-6: rgba(13, 148, 136, 0.16);
+  --lac-avatar-fg-6: #0c7a71;
+  --lac-avatar-bg-7: rgba(100, 116, 139, 0.18);
+  --lac-avatar-fg-7: #46536b;
+
+  --lac-avatar-size-xs: 24px;
+  --lac-avatar-size-sm: 32px;
+  --lac-avatar-size-md: 40px;
+  --lac-avatar-size-lg: 56px;
+  --lac-avatar-size-xl: 72px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lac-avatar-bg-0: rgba(90, 167, 255, 0.22);
+    --lac-avatar-fg-0: #9cc9ff;
+    --lac-avatar-bg-1: rgba(167, 139, 250, 0.22);
+    --lac-avatar-fg-1: #c9b6ff;
+    --lac-avatar-bg-2: rgba(244, 114, 182, 0.22);
+    --lac-avatar-fg-2: #f9a8d4;
+    --lac-avatar-bg-3: rgba(248, 113, 113, 0.22);
+    --lac-avatar-fg-3: #fca5a5;
+    --lac-avatar-bg-4: rgba(251, 191, 36, 0.22);
+    --lac-avatar-fg-4: #fcd34d;
+    --lac-avatar-bg-5: rgba(52, 211, 153, 0.22);
+    --lac-avatar-fg-5: #6ee7b7;
+    --lac-avatar-bg-6: rgba(45, 212, 191, 0.22);
+    --lac-avatar-fg-6: #5eead4;
+    --lac-avatar-bg-7: rgba(148, 163, 184, 0.24);
+    --lac-avatar-fg-7: #cbd5e1;
+  }
+}
+
+:root[data-theme="dark"] {
+  --lac-avatar-bg-0: rgba(90, 167, 255, 0.22);
+  --lac-avatar-fg-0: #9cc9ff;
+  --lac-avatar-bg-1: rgba(167, 139, 250, 0.22);
+  --lac-avatar-fg-1: #c9b6ff;
+  --lac-avatar-bg-2: rgba(244, 114, 182, 0.22);
+  --lac-avatar-fg-2: #f9a8d4;
+  --lac-avatar-bg-3: rgba(248, 113, 113, 0.22);
+  --lac-avatar-fg-3: #fca5a5;
+  --lac-avatar-bg-4: rgba(251, 191, 36, 0.22);
+  --lac-avatar-fg-4: #fcd34d;
+  --lac-avatar-bg-5: rgba(52, 211, 153, 0.22);
+  --lac-avatar-fg-5: #6ee7b7;
+  --lac-avatar-bg-6: rgba(45, 212, 191, 0.22);
+  --lac-avatar-fg-6: #5eead4;
+  --lac-avatar-bg-7: rgba(148, 163, 184, 0.24);
+  --lac-avatar-fg-7: #cbd5e1;
+}
+
+/* Visually hidden, still announced. Used for status dots, counters and copy
+   confirmations, where the meaning is carried by colour or a symbol. */
+.lac-vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Avatar
+   ========================================================================== */
+
+.lac-avatar {
+  --lac-avatar-size: var(--lac-avatar-size-md);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--lac-avatar-size);
+  height: var(--lac-avatar-size);
+  border-radius: var(--lac-radius-pill);
+  background: var(--lac-avatar-bg-7);
+  color: var(--lac-avatar-fg-7);
+  font-size: calc(var(--lac-avatar-size) * 0.38);
+  font-weight: 640;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  user-select: none;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.lac-avatar[data-size="xs"] { --lac-avatar-size: var(--lac-avatar-size-xs); }
+.lac-avatar[data-size="sm"] { --lac-avatar-size: var(--lac-avatar-size-sm); }
+.lac-avatar[data-size="md"] { --lac-avatar-size: var(--lac-avatar-size-md); }
+.lac-avatar[data-size="lg"] { --lac-avatar-size: var(--lac-avatar-size-lg); }
+.lac-avatar[data-size="xl"] { --lac-avatar-size: var(--lac-avatar-size-xl); }
+
+.lac-avatar[data-shape="square"] {
+  border-radius: var(--lac-radius);
+}
+
+.lac-avatar[data-color="0"] { background: var(--lac-avatar-bg-0); color: var(--lac-avatar-fg-0); }
+.lac-avatar[data-color="1"] { background: var(--lac-avatar-bg-1); color: var(--lac-avatar-fg-1); }
+.lac-avatar[data-color="2"] { background: var(--lac-avatar-bg-2); color: var(--lac-avatar-fg-2); }
+.lac-avatar[data-color="3"] { background: var(--lac-avatar-bg-3); color: var(--lac-avatar-fg-3); }
+.lac-avatar[data-color="4"] { background: var(--lac-avatar-bg-4); color: var(--lac-avatar-fg-4); }
+.lac-avatar[data-color="5"] { background: var(--lac-avatar-bg-5); color: var(--lac-avatar-fg-5); }
+.lac-avatar[data-color="6"] { background: var(--lac-avatar-bg-6); color: var(--lac-avatar-fg-6); }
+.lac-avatar[data-color="7"] { background: var(--lac-avatar-bg-7); color: var(--lac-avatar-fg-7); }
+
+.lac-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The image sits on top of the initials, so a failed load simply reveals what
+   was already painted underneath — no swap, no layout shift. */
+.lac-avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.lac-avatar-status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--lac-avatar-size) * 0.28);
+  height: calc(var(--lac-avatar-size) * 0.28);
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--lac-surface);
+  background: var(--lac-fg-faint);
+}
+.lac-avatar-status[data-status="online"] { background: var(--lac-success); }
+.lac-avatar-status[data-status="busy"] { background: var(--lac-danger); }
+.lac-avatar-status[data-status="away"] { background: var(--lac-warning); }
+.lac-avatar-status[data-status="offline"] { background: var(--lac-fg-faint); }
+
+.lac-avatar-group {
+  display: inline-flex;
+  align-items: center;
+}
+.lac-avatar-group > * {
+  margin-left: -8px;
+  box-shadow: 0 0 0 2px var(--lac-surface);
+  border-radius: var(--lac-radius-pill);
+}
+.lac-avatar-group > *:first-child {
+  margin-left: 0;
+}
+/* Stack the first face on top by walking z-index down the row. */
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(1) { z-index: 6; }
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(2) { z-index: 5; }
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(3) { z-index: 4; }
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(4) { z-index: 3; }
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(5) { z-index: 2; }
+.lac-avatar-group[data-first-on-top="true"] > *:nth-child(n + 6) { z-index: 1; }
+
+.lac-avatar-more {
+  background: var(--lac-bg-muted);
+  color: var(--lac-fg-muted);
+  font-size: calc(var(--lac-avatar-size) * 0.32);
+}
+
+/* ==========================================================================
+   Stat
+   ========================================================================== */
+
+.lac-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-1);
+  min-width: 0;
+}
+.lac-stat-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+  font-weight: 560;
+}
+.lac-stat-icon {
+  display: inline-flex;
+  color: var(--lac-fg-faint);
+}
+.lac-stat-value {
+  font-size: var(--lac-text-xl);
+  font-weight: 680;
+  line-height: 1.2;
+  color: var(--lac-fg);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.lac-stat-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  min-height: var(--lac-text-lg);
+  font-size: var(--lac-text-sm);
+}
+.lac-stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  color: var(--lac-fg-muted);
+}
+.lac-stat-delta[data-tone="success"] { color: var(--lac-success); }
+.lac-stat-delta[data-tone="danger"] { color: var(--lac-danger); }
+.lac-stat-compare {
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+}
+.lac-stat-spark {
+  margin-top: var(--lac-space-2);
+  min-width: 0;
+}
+
+/* ==========================================================================
+   Timeline
+   ========================================================================== */
+
+.lac-timeline {
+  --lac-timeline-marker: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lac-timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--lac-timeline-marker) 1fr;
+  gap: var(--lac-space-3);
+  padding-bottom: var(--lac-space-4);
+}
+.lac-timeline-item:last-child,
+.lac-timeline-item[data-last="true"] {
+  padding-bottom: 0;
+}
+
+/* The connector runs from under the marker to the bottom of the row, so rows
+   of any height stay joined without measuring anything in JS. */
+.lac-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--lac-timeline-marker) / 2 - 1px);
+  top: var(--lac-timeline-marker);
+  bottom: 0;
+  width: 2px;
+  background: var(--lac-border);
+}
+.lac-timeline-item:last-child::before,
+.lac-timeline-item[data-last="true"]::before {
+  display: none;
+}
+
+.lac-timeline-marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--lac-timeline-marker);
+  height: var(--lac-timeline-marker);
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--lac-fg-faint);
+  color: var(--lac-fg-on-accent);
+  font-size: 9px;
+  line-height: 1;
+  box-shadow: 0 0 0 3px var(--lac-surface);
+}
+.lac-timeline-item[data-tone="accent"] .lac-timeline-marker { background: var(--lac-accent); }
+.lac-timeline-item[data-tone="success"] .lac-timeline-marker { background: var(--lac-success); }
+.lac-timeline-item[data-tone="warning"] .lac-timeline-marker { background: var(--lac-warning); }
+.lac-timeline-item[data-tone="danger"] .lac-timeline-marker { background: var(--lac-danger); }
+.lac-timeline-item[data-tone="info"] .lac-timeline-marker { background: var(--lac-info); }
+.lac-timeline-item[data-pending="true"] .lac-timeline-marker {
+  background: var(--lac-surface);
+  border: 2px solid var(--lac-border-strong);
+}
+
+.lac-timeline-body {
+  min-width: 0;
+  padding-bottom: 2px;
+}
+.lac-timeline-time {
+  display: block;
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+}
+.lac-timeline-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--lac-fg);
+}
+.lac-timeline-content {
+  margin-top: 2px;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+}
+
+/* Time in its own column, once the row is wide enough to hold one. */
+@media (min-width: 640px) {
+  .lac-timeline[data-layout="two-column"] .lac-timeline-item {
+    grid-template-columns: 8ch var(--lac-timeline-marker) 1fr;
+  }
+  .lac-timeline[data-layout="two-column"] .lac-timeline-item::before {
+    left: calc(8ch + var(--lac-space-3) + var(--lac-timeline-marker) / 2 - 1px);
+  }
+  .lac-timeline[data-layout="two-column"] .lac-timeline-marker {
+    order: 2;
+  }
+}
+
+/* ==========================================================================
+   DescriptionList
+   ========================================================================== */
+
+.lac-dl {
+  --lac-dl-label-w: 10rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-3);
+}
+.lac-dl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.lac-dl[data-divided="true"] .lac-dl-row {
+  padding-bottom: var(--lac-space-3);
+  border-bottom: 1px solid var(--lac-border);
+}
+.lac-dl[data-divided="true"] .lac-dl-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.lac-dl-label {
+  margin: 0;
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-sm);
+  font-weight: 560;
+}
+.lac-dl-value {
+  margin: 0;
+  color: var(--lac-fg);
+  overflow-wrap: anywhere;
+}
+
+/* Side-by-side only once there is room for two columns; below that a
+   horizontal list would wrap into something unreadable. */
+@media (min-width: 480px) {
+  .lac-dl[data-layout="horizontal"] .lac-dl-row {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--lac-space-4);
+  }
+  .lac-dl[data-layout="horizontal"] .lac-dl-label {
+    flex: none;
+    width: var(--lac-dl-label-w);
+  }
+  .lac-dl[data-layout="horizontal"] .lac-dl-value {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ==========================================================================
+   EmptyState
+   ========================================================================== */
+
+.lac-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lac-space-2);
+  padding: var(--lac-space-6) var(--lac-space-4);
+  text-align: center;
+  color: var(--lac-fg-muted);
+}
+.lac-empty[data-size="sm"] {
+  padding: var(--lac-space-4);
+  gap: var(--lac-space-1);
+}
+.lac-empty[data-size="lg"] {
+  padding: calc(var(--lac-space-6) * 2) var(--lac-space-5);
+}
+.lac-empty[data-bordered="true"] {
+  border: 1px dashed var(--lac-border-strong);
+  border-radius: var(--lac-radius-lg);
+  background: var(--lac-bg-subtle);
+}
+.lac-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--lac-text-xl);
+  color: var(--lac-fg-faint);
+  line-height: 1;
+}
+.lac-empty[data-size="lg"] .lac-empty-icon {
+  font-size: calc(var(--lac-text-xl) * 1.8);
+}
+.lac-empty-title {
+  margin: 0;
+  color: var(--lac-fg);
+  font-size: var(--lac-text-lg);
+  font-weight: 640;
+}
+.lac-empty[data-size="sm"] .lac-empty-title {
+  font-size: var(--lac-text-md);
+}
+.lac-empty-desc {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--lac-text-sm);
+  color: var(--lac-fg-muted);
+}
+.lac-empty-action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lac-space-2);
+  margin-top: var(--lac-space-2);
+}
+
+/* ==========================================================================
+   Tag + TagInput
+   ========================================================================== */
+
+.lac-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--lac-radius-pill);
+  background: var(--lac-bg-muted);
+  color: var(--lac-fg-muted);
+  font-size: var(--lac-text-xs);
+  font-weight: 600;
+  line-height: 1.6;
+}
+.lac-tag[data-size="sm"] { font-size: var(--lac-text-xs); padding: 1px 7px; }
+.lac-tag[data-size="lg"] { font-size: var(--lac-text-sm); padding: 4px 11px; }
+.lac-tag[data-tone="accent"] { background: var(--lac-accent-soft); color: var(--lac-accent); }
+.lac-tag[data-tone="success"] { background: var(--lac-success-soft); color: var(--lac-success); }
+.lac-tag[data-tone="warning"] { background: var(--lac-warning-soft); color: var(--lac-warning); }
+.lac-tag[data-tone="danger"] { background: var(--lac-danger-soft); color: var(--lac-danger); }
+.lac-tag[data-tone="info"] { background: var(--lac-info-soft); color: var(--lac-info); }
+.lac-tag[data-variant="outline"] {
+  background: transparent;
+  border-color: currentColor;
+}
+.lac-tag[data-variant="solid"] {
+  background: var(--lac-fg-muted);
+  color: var(--lac-surface);
+}
+.lac-tag[data-variant="solid"][data-tone="accent"] {
+  background: var(--lac-accent);
+  color: var(--lac-fg-on-accent);
+}
+.lac-tag[data-disabled="true"] {
+  opacity: 0.6;
+}
+.lac-tag-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lac-tag-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.lac-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: -3px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--lac-duration) var(--lac-ease),
+    background-color var(--lac-duration) var(--lac-ease);
+}
+.lac-tag-remove:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.22);
+}
+.lac-tag-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.lac-taginput {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lac-space-2);
+  min-height: var(--lac-control-h-md);
+  padding: 5px var(--lac-space-2);
+  background: var(--lac-surface);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius);
+  cursor: text;
+  transition: border-color var(--lac-duration) var(--lac-ease);
+}
+.lac-taginput:hover {
+  border-color: var(--lac-border-strong);
+}
+.lac-taginput:focus-within {
+  border-color: var(--lac-accent);
+}
+.lac-taginput[data-size="sm"] { min-height: var(--lac-control-h-sm); }
+.lac-taginput[data-size="lg"] { min-height: var(--lac-control-h-lg); }
+.lac-taginput[data-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--lac-bg-muted);
+}
+.lac-taginput-field {
+  flex: 1 1 6ch;
+  min-width: 6ch;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--lac-fg);
+  font: inherit;
+  font-size: var(--lac-text-md);
+}
+.lac-taginput-field:focus {
+  outline: none;
+  box-shadow: none;
+}
+.lac-taginput-field::placeholder {
+  color: var(--lac-fg-faint);
+}
+
+/* ==========================================================================
+   Rating
+   ========================================================================== */
+
+.lac-rating {
+  --lac-rating-size: var(--lac-text-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--lac-radius-sm);
+  color: var(--lac-warning);
+  line-height: 1;
+}
+.lac-rating[data-size="sm"] { --lac-rating-size: var(--lac-text-md); }
+.lac-rating[data-size="lg"] { --lac-rating-size: calc(var(--lac-text-xl) * 1.2); }
+.lac-rating[data-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.lac-rating:not([data-readonly="true"]):not([data-disabled="true"]) .lac-rating-item {
+  cursor: pointer;
+}
+
+.lac-rating-item {
+  position: relative;
+  display: inline-block;
+  width: var(--lac-rating-size);
+  height: var(--lac-rating-size);
+  font-size: var(--lac-rating-size);
+}
+.lac-rating-glyph {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--lac-border-strong);
+  line-height: 1;
+}
+/* The filled copy is clipped to a fraction of the glyph's width, which is what
+   makes half values work for any icon, not just a star. */
+.lac-rating-on {
+  color: inherit;
+  overflow: hidden;
+  width: 0;
+}
+
+/* ==========================================================================
+   Kbd
+   ========================================================================== */
+
+.lac-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  padding: 2px 6px;
+  border: 1px solid var(--lac-border);
+  border-bottom-width: 2px;
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-bg-subtle);
+  color: var(--lac-fg-muted);
+  font-family: var(--lac-font);
+  font-size: var(--lac-text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: var(--lac-shadow-sm);
+}
+.lac-kbd[data-size="sm"] {
+  padding: 1px 4px;
+  font-size: 11px;
+}
+.lac-kbd-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--lac-font);
+}
+.lac-kbd-sep {
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+}
+
+/* ==========================================================================
+   Code + Snippet
+   ========================================================================== */
+
+.lac-code {
+  padding: 0.12em 0.4em;
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-bg-subtle);
+  color: var(--lac-fg);
+  font-family: var(--lac-font-mono);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+.lac-code[data-size="sm"] { font-size: 0.82em; }
+.lac-code[data-tone="accent"] { color: var(--lac-accent); background: var(--lac-accent-soft); border-color: transparent; }
+.lac-code[data-tone="danger"] { color: var(--lac-danger); background: var(--lac-danger-soft); border-color: transparent; }
+.lac-code[data-tone="success"] { color: var(--lac-success); background: var(--lac-success-soft); border-color: transparent; }
+
+.lac-snippet {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lac-space-2);
+  padding: var(--lac-space-2) var(--lac-space-2) var(--lac-space-2) var(--lac-space-3);
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius);
+  background: var(--lac-bg-subtle);
+  color: var(--lac-fg);
+  font-family: var(--lac-font-mono);
+  font-size: var(--lac-text-sm);
+}
+.lac-snippet-pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font: inherit;
+}
+.lac-snippet[data-multiline="true"] .lac-snippet-pre {
+  white-space: pre;
+  line-height: var(--lac-leading);
+}
+.lac-snippet-prompt {
+  color: var(--lac-fg-faint);
+  user-select: none;
+}
+.lac-snippet-code {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.lac-snippet-copy {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--lac-border);
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-surface);
+  color: var(--lac-fg-muted);
+  font-family: var(--lac-font);
+  font-size: var(--lac-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--lac-duration) var(--lac-ease),
+    border-color var(--lac-duration) var(--lac-ease);
+}
+.lac-snippet-copy:hover {
+  color: var(--lac-fg);
+  border-color: var(--lac-border-strong);
+}
+.lac-snippet[data-state="copied"] .lac-snippet-copy {
+  color: var(--lac-success);
+  border-color: var(--lac-success);
+}
+.lac-snippet[data-state="failed"] .lac-snippet-copy {
+  color: var(--lac-warning);
+  border-color: var(--lac-warning);
+}
+
+/* ==========================================================================
+   Divider
+   ========================================================================== */
+
+.lac-divider {
+  --lac-divider-gap: var(--lac-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-3);
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+}
+.lac-divider[data-spacing="none"] { --lac-divider-gap: 0px; }
+.lac-divider[data-spacing="sm"] { --lac-divider-gap: var(--lac-space-2); }
+.lac-divider[data-spacing="lg"] { --lac-divider-gap: var(--lac-space-5); }
+
+.lac-divider[data-orientation="horizontal"] {
+  width: 100%;
+  margin: var(--lac-divider-gap) 0;
+  border-top: 1px solid var(--lac-border);
+}
+.lac-divider[data-orientation="horizontal"][data-variant="dashed"] {
+  border-top-style: dashed;
+}
+.lac-divider[data-orientation="vertical"] {
+  align-self: stretch;
+  width: 0;
+  min-height: 1em;
+  margin: 0 var(--lac-divider-gap);
+  border-left: 1px solid var(--lac-border);
+}
+.lac-divider[data-orientation="vertical"][data-variant="dashed"] {
+  border-left-style: dashed;
+}
+
+/* A labelled rule is drawn as two segments around the text instead of one
+   border, so the label never needs to know the background behind it. */
+.lac-divider[data-labelled="true"][data-orientation="horizontal"] {
+  border-top: 0;
+}
+.lac-divider[data-labelled="true"][data-orientation="horizontal"]::before,
+.lac-divider[data-labelled="true"][data-orientation="horizontal"]::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--lac-border);
+}
+.lac-divider[data-labelled="true"][data-variant="dashed"]::before,
+.lac-divider[data-labelled="true"][data-variant="dashed"]::after {
+  border-top-style: dashed;
+}
+.lac-divider[data-labelled="true"][data-align="start"]::before { flex: 0 0 var(--lac-space-5); }
+.lac-divider[data-labelled="true"][data-align="end"]::after { flex: 0 0 var(--lac-space-5); }
+.lac-divider-label {
+  flex: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ==========================================================================
+   Tree
+   ========================================================================== */
+
+.lac-tree,
+.lac-tree-group {
+  --lac-tree-indent: var(--lac-space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lac-tree-item {
+  border-radius: var(--lac-radius-sm);
+}
+.lac-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--lac-space-2);
+  border-radius: var(--lac-radius-sm);
+  color: var(--lac-fg);
+  font-size: var(--lac-text-md);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--lac-duration) var(--lac-ease);
+}
+.lac-tree-row:hover {
+  background: var(--lac-bg-muted);
+}
+.lac-tree-item[aria-selected="true"] > .lac-tree-row {
+  background: var(--lac-accent-soft);
+  color: var(--lac-accent);
+  font-weight: 600;
+}
+.lac-tree-item[data-disabled="true"] > .lac-tree-row {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lac-tree-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  flex: none;
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+  transition: transform var(--lac-duration) var(--lac-ease);
+}
+.lac-tree-caret[data-open="true"] {
+  transform: rotate(90deg);
+}
+.lac-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--lac-fg-faint);
+}
+.lac-tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   MetricBar
+   ========================================================================== */
+
+.lac-metric {
+  --lac-metric-fill: var(--lac-accent);
+  --lac-metric-h: 8px;
+  width: 100%;
+}
+.lac-metric[data-size="sm"] { --lac-metric-h: 6px; }
+.lac-metric[data-size="lg"] { --lac-metric-h: 12px; }
+.lac-metric[data-tone="success"] { --lac-metric-fill: var(--lac-success); }
+.lac-metric[data-tone="warning"] { --lac-metric-fill: var(--lac-warning); }
+.lac-metric[data-tone="danger"] { --lac-metric-fill: var(--lac-danger); }
+.lac-metric[data-tone="info"] { --lac-metric-fill: var(--lac-info); }
+.lac-metric[data-tone="default"] { --lac-metric-fill: var(--lac-fg-faint); }
+
+.lac-metric-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-3);
+}
+.lac-metric-row[data-tone="success"] { --lac-metric-fill: var(--lac-success); }
+.lac-metric-row[data-tone="warning"] { --lac-metric-fill: var(--lac-warning); }
+.lac-metric-row[data-tone="danger"] { --lac-metric-fill: var(--lac-danger); }
+.lac-metric-row[data-tone="info"] { --lac-metric-fill: var(--lac-info); }
+.lac-metric-row[data-tone="accent"] { --lac-metric-fill: var(--lac-accent); }
+
+.lac-metric-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lac-space-3);
+  margin-bottom: 5px;
+  font-size: var(--lac-text-sm);
+}
+.lac-metric-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lac-fg);
+}
+.lac-metric-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+  color: var(--lac-fg-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.lac-metric-hint,
+.lac-metric-share {
+  color: var(--lac-fg-faint);
+  font-size: var(--lac-text-xs);
+  font-weight: 500;
+}
+.lac-metric-track {
+  height: var(--lac-metric-h);
+  border-radius: var(--lac-radius-pill);
+  background: var(--lac-bg-muted);
+  overflow: hidden;
+}
+.lac-metric-bar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: var(--lac-metric-fill);
+  transition: width var(--lac-duration) var(--lac-ease);
+}

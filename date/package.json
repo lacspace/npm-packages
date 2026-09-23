@@ -1,0 +1,77 @@
+{
+  "name": "@lacspace/date",
+  "version": "1.0.0",
+  "description": "A dependency-free React date and time picker set — calendar, date picker, date-range picker, month and year pickers, time picker, date-time picker and an inline scheduler grid. Includes a pure, tested date engine (month grids, ranges, disabled rules, parsing and formatting) with no moment, no date-fns, no dayjs. Server-render safe and themeable through CSS variables.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "prebuild": "node scripts/build-css.mjs",
+    "build": "npm run prebuild && tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "date-picker",
+    "datepicker",
+    "calendar",
+    "date-range-picker",
+    "time-picker",
+    "datetime-picker",
+    "month-picker",
+    "year-picker",
+    "scheduler",
+    "react-day-picker-alternative",
+    "react-datepicker-alternative",
+    "zero-dependency",
+    "typescript",
+    "nextjs",
+    "accessible",
+    "i18n"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/components?kit=date",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "date"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

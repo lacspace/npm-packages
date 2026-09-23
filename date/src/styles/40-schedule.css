@@ -1,0 +1,116 @@
+/* ==========================================================================
+   ScheduleGrid + RelativeTime
+   ========================================================================== */
+
+.lac-sched {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-2, 8px);
+  padding: var(--lac-space-3, 12px);
+  background: var(--lac-surface, #ffffff);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius-lg, 14px);
+  overflow-x: auto;
+  --lac-sched-h: 34px;
+}
+
+.lac-sched[data-size="sm"] {
+  --lac-sched-h: 28px;
+  font-size: var(--lac-text-sm, 13px);
+}
+
+.lac-sched[data-size="lg"] {
+  --lac-sched-h: 42px;
+}
+
+.lac-sched-label {
+  font-weight: 600;
+  font-size: var(--lac-text-sm, 13px);
+  color: var(--lac-fg-muted, #4a5668);
+}
+
+.lac-sched-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: max-content;
+}
+
+.lac-sched-row {
+  display: flex;
+  gap: 2px;
+}
+
+.lac-sched-time,
+.lac-sched-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--lac-sched-h, 34px);
+  font-size: var(--lac-text-xs, 12px);
+  font-weight: 600;
+  color: var(--lac-fg-faint, #78849a);
+  white-space: nowrap;
+}
+
+.lac-sched-time {
+  width: 62px;
+  justify-content: flex-end;
+  padding-right: var(--lac-space-2, 8px);
+  font-variant-numeric: tabular-nums;
+}
+
+.lac-sched-day {
+  flex: 1;
+  min-width: 74px;
+}
+
+.lac-sched-day[data-today="true"] {
+  color: var(--lac-accent, #4d9fff);
+}
+
+.lac-sched-slot {
+  flex: 1;
+  min-width: 74px;
+  height: var(--lac-sched-h, 34px);
+  padding: 0;
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius-sm, 6px);
+  background: var(--lac-bg-subtle, #f6f8fb);
+  color: var(--lac-fg, #0f1724);
+  font: inherit;
+  font-size: var(--lac-text-xs, 12px);
+  cursor: pointer;
+  transition: background-color var(--lac-duration, 150ms) var(--lac-ease, ease);
+}
+
+.lac-sched-slot:hover:not([data-disabled="true"]) {
+  background: var(--lac-accent-soft, rgba(77, 159, 255, 0.12));
+  border-color: var(--lac-accent, #4d9fff);
+}
+
+.lac-sched-slot[data-selected="true"] {
+  background: var(--lac-accent, #4d9fff);
+  border-color: transparent;
+  color: var(--lac-fg-on-accent, #ffffff);
+  font-weight: 600;
+}
+
+.lac-sched-slot[data-disabled="true"] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--lac-bg-muted, #eef2f7),
+    var(--lac-bg-muted, #eef2f7) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* RelativeTime ------------------------------------------------------------ */
+
+.lac-relative {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

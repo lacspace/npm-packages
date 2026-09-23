@@ -2,7 +2,7 @@
   "name": "@lacspace/monorepo",
   "private": true,
   "version": "0.0.0",
-  "description": "Lacspace open-source TypeScript packages \u2014 platform SDK, Nepal toolkit, React hooks and the StockKit trading suite.",
+  "description": "Lacspace open-source TypeScript packages — platform SDK, Nepal toolkit, React hooks and the StockKit trading suite.",
   "workspaces": [
     "agent",
     "ai",
@@ -124,7 +124,11 @@
     "web-push",
     "webauthn",
     "webhooks",
-    "xlsx"
+    "xlsx",
+    "components",
+    "charts",
+    "table",
+    "date"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",

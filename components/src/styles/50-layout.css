@@ -1,0 +1,920 @@
+/* ==========================================================================
+   Layout + typography
+
+   Responsive behaviour here is done entirely in CSS. Each responsive prop
+   writes a custom property on the element (`--lac-stack-dir`,
+   `--lac-stack-dir-md`, …) and the media queries below read it, so the server
+   and the client render identical markup and nothing depends on matchMedia.
+
+   The inheritance chain is declared once per property:
+       --lac-x-sm: var(--lac-x);
+       --lac-x-md: var(--lac-x-sm);
+   Declaring the defaults on the component's own class (rather than relying on
+   a fallback inside var()) does two jobs: a breakpoint you never set inherits
+   the next smallest one, and a nested layout cannot accidentally inherit its
+   parent's value, because its own class rule re-declares it.
+
+   Breakpoints: sm 640 · md 768 · lg 1024 · xl 1280.
+   ========================================================================== */
+
+:root {
+  /* Container widths. Family-local tokens — redefine them to change every
+     page column in the app at once. */
+  --lac-container-xs: 480px;
+  --lac-container-sm: 640px;
+  --lac-container-md: 768px;
+  --lac-container-lg: 1024px;
+  --lac-container-xl: 1280px;
+  --lac-container-2xl: 1440px;
+  --lac-container-prose: 72ch;
+
+  /* Type scale above --lac-text-xl, where headings live. The fluid ones stop
+     growing at the desktop size, so nothing runs away on a wide monitor. */
+  --lac-heading-display: clamp(34px, 5vw, 48px);
+  --lac-heading-1: clamp(27px, 3.6vw, 34px);
+  --lac-heading-2: clamp(22px, 2.6vw, 27px);
+  --lac-heading-3: 22px;
+  --lac-heading-4: 18px;
+  --lac-heading-5: var(--lac-text-lg);
+  --lac-heading-6: var(--lac-text-md);
+  --lac-leading-tight: 1.22;
+
+  --lac-weight-regular: 400;
+  --lac-weight-medium: 520;
+  --lac-weight-semibold: 600;
+  --lac-weight-bold: 700;
+
+  /* Edge shadow for a scroll region, and the Highlight mark. */
+  --lac-scroll-shadow: rgba(15, 23, 36, 0.24);
+  --lac-mark-bg: var(--lac-accent-soft);
+  --lac-mark-fg: var(--lac-fg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lac-scroll-shadow: rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  --lac-scroll-shadow: rgba(0, 0, 0, 0.55);
+}
+
+/* ==========================================================================
+   Stack
+   ========================================================================== */
+
+.lac-stack {
+  --lac-stack-dir: column;
+  --lac-stack-dir-sm: var(--lac-stack-dir);
+  --lac-stack-dir-md: var(--lac-stack-dir-sm);
+  --lac-stack-dir-lg: var(--lac-stack-dir-md);
+  --lac-stack-dir-xl: var(--lac-stack-dir-lg);
+
+  --lac-stack-gap: 0px;
+  --lac-stack-gap-sm: var(--lac-stack-gap);
+  --lac-stack-gap-md: var(--lac-stack-gap-sm);
+  --lac-stack-gap-lg: var(--lac-stack-gap-md);
+  --lac-stack-gap-xl: var(--lac-stack-gap-lg);
+
+  --lac-stack-align: stretch;
+  --lac-stack-justify: flex-start;
+
+  display: flex;
+  flex-direction: var(--lac-stack-dir);
+  gap: var(--lac-stack-gap);
+  align-items: var(--lac-stack-align);
+  justify-content: var(--lac-stack-justify);
+  /* A flex child defaults to min-width:auto, which is what lets one long word
+     push a whole layout sideways. */
+  min-width: 0;
+}
+
+.lac-stack[data-inline] {
+  display: inline-flex;
+}
+
+.lac-stack[data-wrap] {
+  flex-wrap: wrap;
+}
+
+.lac-stack-divider {
+  flex: none;
+  align-self: stretch;
+  /* Stretch gives it the cross-axis size; the mins give it its 1px thickness
+     whichever way the stack happens to be flowing. */
+  min-width: 1px;
+  min-height: 1px;
+  background: var(--lac-border);
+}
+
+@media (min-width: 640px) {
+  .lac-stack {
+    flex-direction: var(--lac-stack-dir-sm);
+    gap: var(--lac-stack-gap-sm);
+  }
+}
+@media (min-width: 768px) {
+  .lac-stack {
+    flex-direction: var(--lac-stack-dir-md);
+    gap: var(--lac-stack-gap-md);
+  }
+}
+@media (min-width: 1024px) {
+  .lac-stack {
+    flex-direction: var(--lac-stack-dir-lg);
+    gap: var(--lac-stack-gap-lg);
+  }
+}
+@media (min-width: 1280px) {
+  .lac-stack {
+    flex-direction: var(--lac-stack-dir-xl);
+    gap: var(--lac-stack-gap-xl);
+  }
+}
+
+/* ==========================================================================
+   Grid
+   ========================================================================== */
+
+.lac-grid {
+  --lac-grid-cols: repeat(1, minmax(0, 1fr));
+  --lac-grid-cols-sm: var(--lac-grid-cols);
+  --lac-grid-cols-md: var(--lac-grid-cols-sm);
+  --lac-grid-cols-lg: var(--lac-grid-cols-md);
+  --lac-grid-cols-xl: var(--lac-grid-cols-lg);
+
+  --lac-grid-gap: var(--lac-space-4);
+  --lac-grid-gap-sm: var(--lac-grid-gap);
+  --lac-grid-gap-md: var(--lac-grid-gap-sm);
+  --lac-grid-gap-lg: var(--lac-grid-gap-md);
+  --lac-grid-gap-xl: var(--lac-grid-gap-lg);
+
+  --lac-grid-row-gap: var(--lac-grid-gap);
+  --lac-grid-row-gap-sm: var(--lac-grid-row-gap);
+  --lac-grid-row-gap-md: var(--lac-grid-row-gap-sm);
+  --lac-grid-row-gap-lg: var(--lac-grid-row-gap-md);
+  --lac-grid-row-gap-xl: var(--lac-grid-row-gap-lg);
+
+  --lac-grid-col-gap: var(--lac-grid-gap);
+  --lac-grid-col-gap-sm: var(--lac-grid-col-gap);
+  --lac-grid-col-gap-md: var(--lac-grid-col-gap-sm);
+  --lac-grid-col-gap-lg: var(--lac-grid-col-gap-md);
+  --lac-grid-col-gap-xl: var(--lac-grid-col-gap-lg);
+
+  --lac-grid-align: stretch;
+  --lac-grid-justify: stretch;
+
+  display: grid;
+  grid-template-columns: var(--lac-grid-cols);
+  row-gap: var(--lac-grid-row-gap);
+  column-gap: var(--lac-grid-col-gap);
+  align-items: var(--lac-grid-align);
+  justify-items: var(--lac-grid-justify);
+  min-width: 0;
+}
+
+.lac-grid[data-equal-rows] {
+  grid-auto-rows: 1fr;
+}
+
+.lac-grid-item {
+  --lac-gi-span: auto;
+  --lac-gi-span-sm: var(--lac-gi-span);
+  --lac-gi-span-md: var(--lac-gi-span-sm);
+  --lac-gi-span-lg: var(--lac-gi-span-md);
+  --lac-gi-span-xl: var(--lac-gi-span-lg);
+  --lac-gi-row-span: auto;
+  --lac-gi-col-start: auto;
+  --lac-gi-order: 0;
+
+  grid-column: var(--lac-gi-span);
+  grid-row: var(--lac-gi-row-span);
+  order: var(--lac-gi-order);
+  min-width: 0;
+}
+
+.lac-grid-item[style*="--lac-gi-col-start"] {
+  grid-column-start: var(--lac-gi-col-start);
+}
+
+@media (min-width: 640px) {
+  .lac-grid {
+    grid-template-columns: var(--lac-grid-cols-sm);
+    row-gap: var(--lac-grid-row-gap-sm);
+    column-gap: var(--lac-grid-col-gap-sm);
+  }
+  .lac-grid-item {
+    grid-column: var(--lac-gi-span-sm);
+  }
+}
+@media (min-width: 768px) {
+  .lac-grid {
+    grid-template-columns: var(--lac-grid-cols-md);
+    row-gap: var(--lac-grid-row-gap-md);
+    column-gap: var(--lac-grid-col-gap-md);
+  }
+  .lac-grid-item {
+    grid-column: var(--lac-gi-span-md);
+  }
+}
+@media (min-width: 1024px) {
+  .lac-grid {
+    grid-template-columns: var(--lac-grid-cols-lg);
+    row-gap: var(--lac-grid-row-gap-lg);
+    column-gap: var(--lac-grid-col-gap-lg);
+  }
+  .lac-grid-item {
+    grid-column: var(--lac-gi-span-lg);
+  }
+}
+@media (min-width: 1280px) {
+  .lac-grid {
+    grid-template-columns: var(--lac-grid-cols-xl);
+    row-gap: var(--lac-grid-row-gap-xl);
+    column-gap: var(--lac-grid-col-gap-xl);
+  }
+  .lac-grid-item {
+    grid-column: var(--lac-gi-span-xl);
+  }
+}
+
+/* ==========================================================================
+   Container
+   ========================================================================== */
+
+.lac-container {
+  --lac-container-gutter: var(--lac-space-4);
+  --lac-container-max: var(--lac-container-lg);
+  width: 100%;
+  max-width: var(--lac-container-max);
+  padding-inline: var(--lac-container-gutter);
+}
+
+.lac-container[data-center] {
+  margin-inline: auto;
+}
+
+.lac-container[data-size="xs"] { --lac-container-max: var(--lac-container-xs); }
+.lac-container[data-size="sm"] { --lac-container-max: var(--lac-container-sm); }
+.lac-container[data-size="md"] { --lac-container-max: var(--lac-container-md); }
+.lac-container[data-size="lg"] { --lac-container-max: var(--lac-container-lg); }
+.lac-container[data-size="xl"] { --lac-container-max: var(--lac-container-xl); }
+.lac-container[data-size="2xl"] { --lac-container-max: var(--lac-container-2xl); }
+.lac-container[data-size="prose"] { --lac-container-max: var(--lac-container-prose); }
+.lac-container[data-size="full"] { --lac-container-max: none; }
+
+/* The gutter grows with the viewport: 16px on a phone is the minimum that
+   keeps text off the bezel, and 32px stops a wide page looking edge-to-edge.
+   An explicit `gutter` prop lands in the inline style and beats all of these. */
+@media (min-width: 640px) {
+  .lac-container {
+    --lac-container-gutter: var(--lac-space-5);
+  }
+}
+@media (min-width: 1024px) {
+  .lac-container {
+    --lac-container-gutter: var(--lac-space-6);
+  }
+}
+
+/* ==========================================================================
+   Section
+   ========================================================================== */
+
+.lac-section {
+  display: block;
+}
+
+.lac-section[data-space="none"] { padding-block: 0; }
+.lac-section[data-space="sm"] { padding-block: var(--lac-space-4); }
+.lac-section[data-space="md"] { padding-block: var(--lac-space-6); }
+.lac-section[data-space="lg"] { padding-block: calc(var(--lac-space-6) * 2); }
+
+.lac-section[data-divided] {
+  border-top: 1px solid var(--lac-border);
+}
+
+.lac-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lac-space-4);
+  margin-bottom: var(--lac-space-4);
+}
+
+.lac-section-headings {
+  min-width: 0;
+}
+
+.lac-section-title {
+  margin: 0;
+}
+
+.lac-section-desc {
+  display: block;
+  margin: var(--lac-space-1) 0 0;
+}
+
+.lac-section-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  flex: none;
+}
+
+/* ==========================================================================
+   Spacer, Center, AspectRatio, Sticky
+   ========================================================================== */
+
+.lac-spacer {
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+
+.lac-spacer[data-fixed] {
+  flex: none;
+  width: var(--lac-spacer-size);
+  height: var(--lac-spacer-size);
+}
+
+.lac-spacer[data-line] {
+  flex: none;
+  align-self: stretch;
+  min-width: 1px;
+  min-height: 1px;
+  background: var(--lac-border);
+  border: 0;
+}
+
+.lac-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--lac-center-min-h, 0);
+}
+
+.lac-center[data-inline] {
+  display: inline-flex;
+}
+
+.lac-center[data-axis="horizontal"] {
+  align-items: stretch;
+}
+
+.lac-center[data-axis="vertical"] {
+  justify-content: flex-start;
+}
+
+.lac-ar {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* The padding-top box sets the height from the width; nothing inside can
+   change it, which is the whole point. */
+.lac-ar::before {
+  content: "";
+  display: block;
+  padding-top: var(--lac-ar, 56.25%);
+}
+
+.lac-ar-inner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lac-ar[data-rounded] .lac-ar-inner {
+  border-radius: var(--lac-radius-lg);
+}
+
+.lac-ar-inner > * {
+  width: 100%;
+  height: 100%;
+}
+
+.lac-ar-inner > img,
+.lac-ar-inner > video,
+.lac-ar-inner > iframe {
+  display: block;
+  object-fit: cover;
+  border: 0;
+}
+
+.lac-sticky {
+  position: sticky;
+  z-index: var(--lac-sticky-z, 1);
+}
+
+.lac-sticky[data-side="top"] {
+  top: var(--lac-sticky-offset, 0);
+}
+
+.lac-sticky[data-side="bottom"] {
+  bottom: var(--lac-sticky-offset, 0);
+}
+
+.lac-sticky[data-surface] {
+  background: var(--lac-surface);
+  backdrop-filter: saturate(180%) blur(8px);
+}
+
+/* ==========================================================================
+   ScrollArea
+   ========================================================================== */
+
+.lac-scroll {
+  /* Two shadow slots, both off until the JS measurement says otherwise. An
+     inset shadow is painted against the padding box, so it stays pinned to the
+     edge while the content scrolls underneath it. */
+  --lac-scroll-s1: 0 0 0 0 transparent;
+  --lac-scroll-s2: 0 0 0 0 transparent;
+  position: relative;
+  overflow: hidden;
+  max-height: var(--lac-scroll-max-h, none);
+  max-width: var(--lac-scroll-max-w, none);
+  box-shadow: inset var(--lac-scroll-s1), inset var(--lac-scroll-s2);
+  overscroll-behavior: contain;
+}
+
+.lac-scroll[data-axis="vertical"] { overflow-y: auto; }
+.lac-scroll[data-axis="horizontal"] { overflow-x: auto; }
+.lac-scroll[data-axis="both"] { overflow: auto; }
+
+.lac-scroll[data-thin] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lac-border-strong) transparent;
+}
+.lac-scroll[data-thin]::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.lac-scroll[data-thin]::-webkit-scrollbar-thumb {
+  background: var(--lac-border-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--lac-radius-pill);
+}
+.lac-scroll[data-thin]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lac-scroll[data-shadows][data-scrollable][data-axis="vertical"]:not([data-at-start]) {
+  --lac-scroll-s1: 0 11px 10px -10px var(--lac-scroll-shadow);
+}
+.lac-scroll[data-shadows][data-scrollable][data-axis="vertical"]:not([data-at-end]) {
+  --lac-scroll-s2: 0 -11px 10px -10px var(--lac-scroll-shadow);
+}
+.lac-scroll[data-shadows][data-scrollable][data-axis="both"]:not([data-at-start]) {
+  --lac-scroll-s1: 0 11px 10px -10px var(--lac-scroll-shadow);
+}
+.lac-scroll[data-shadows][data-scrollable][data-axis="both"]:not([data-at-end]) {
+  --lac-scroll-s2: 0 -11px 10px -10px var(--lac-scroll-shadow);
+}
+.lac-scroll[data-shadows][data-scrollable][data-axis="horizontal"]:not([data-at-start]) {
+  --lac-scroll-s1: 11px 0 10px -10px var(--lac-scroll-shadow);
+}
+.lac-scroll[data-shadows][data-scrollable][data-axis="horizontal"]:not([data-at-end]) {
+  --lac-scroll-s2: -11px 0 10px -10px var(--lac-scroll-shadow);
+}
+
+/* ==========================================================================
+   Panel
+   ========================================================================== */
+
+.lac-panel {
+  display: block;
+  border-radius: var(--lac-radius-lg);
+  background: var(--lac-surface);
+  border: 1px solid var(--lac-border);
+  overflow: hidden;
+}
+
+.lac-panel[data-variant="plain"] {
+  border-color: transparent;
+  background: transparent;
+  border-radius: 0;
+}
+
+.lac-panel[data-variant="subtle"] {
+  border-color: transparent;
+  background: var(--lac-bg-subtle);
+}
+
+.lac-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lac-space-3);
+  padding: var(--lac-space-3) var(--lac-space-4);
+  border-bottom: 1px solid var(--lac-border);
+}
+
+.lac-panel[data-collapsible]:not([data-open]) .lac-panel-head {
+  border-bottom-color: transparent;
+}
+
+.lac-panel-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  border-radius: var(--lac-radius-sm);
+}
+
+.lac-panel-chevron {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  color: var(--lac-fg-faint);
+  transition: transform var(--lac-duration) var(--lac-ease);
+}
+
+.lac-panel[data-open] .lac-panel-chevron {
+  transform: rotate(90deg);
+}
+
+.lac-panel-headings {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lac-panel-title {
+  font-size: var(--lac-text-md);
+  font-weight: var(--lac-weight-semibold);
+  color: var(--lac-fg);
+}
+
+.lac-panel-desc {
+  font-size: var(--lac-text-sm);
+  color: var(--lac-fg-muted);
+}
+
+.lac-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-space-2);
+  flex: none;
+}
+
+.lac-panel-body {
+  padding: var(--lac-space-4);
+}
+
+.lac-panel-body[data-flush] {
+  padding: 0;
+}
+
+.lac-panel-footer {
+  padding: var(--lac-space-3) var(--lac-space-4);
+  border-top: 1px solid var(--lac-border);
+  background: var(--lac-bg-subtle);
+}
+
+/* ==========================================================================
+   Text
+   ========================================================================== */
+
+.lac-text {
+  margin: 0;
+  font-family: var(--lac-font);
+  font-size: var(--lac-text-md);
+  line-height: var(--lac-leading);
+  color: var(--lac-fg);
+  min-width: 0;
+}
+
+.lac-text[data-size="xs"] { font-size: var(--lac-text-xs); }
+.lac-text[data-size="sm"] { font-size: var(--lac-text-sm); }
+.lac-text[data-size="md"] { font-size: var(--lac-text-md); }
+.lac-text[data-size="lg"] { font-size: var(--lac-text-lg); }
+.lac-text[data-size="xl"] { font-size: var(--lac-text-xl); }
+
+.lac-text[data-tone="default"] { color: var(--lac-fg); }
+.lac-text[data-tone="muted"] { color: var(--lac-fg-muted); }
+.lac-text[data-tone="faint"] { color: var(--lac-fg-faint); }
+.lac-text[data-tone="accent"] { color: var(--lac-accent); }
+.lac-text[data-tone="success"] { color: var(--lac-success); }
+.lac-text[data-tone="warning"] { color: var(--lac-warning); }
+.lac-text[data-tone="danger"] { color: var(--lac-danger); }
+.lac-text[data-tone="info"] { color: var(--lac-info); }
+.lac-text[data-tone="inherit"] { color: inherit; }
+
+.lac-text[data-weight="regular"] { font-weight: var(--lac-weight-regular); }
+.lac-text[data-weight="medium"] { font-weight: var(--lac-weight-medium); }
+.lac-text[data-weight="semibold"] { font-weight: var(--lac-weight-semibold); }
+.lac-text[data-weight="bold"] { font-weight: var(--lac-weight-bold); }
+
+.lac-text[data-align="start"] { text-align: start; }
+.lac-text[data-align="center"] { text-align: center; }
+.lac-text[data-align="end"] { text-align: end; }
+.lac-text[data-align="justify"] { text-align: justify; }
+
+.lac-text[data-mono] {
+  font-family: var(--lac-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lac-text[data-italic] { font-style: italic; }
+.lac-text[data-strike] { text-decoration: line-through; }
+
+.lac-text[data-caps] {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--lac-text-xs);
+  font-weight: var(--lac-weight-semibold);
+}
+
+.lac-text[data-truncate] {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lac-text[data-clamp],
+.lac-heading[data-clamp] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lac-text-lines, 2);
+  line-clamp: var(--lac-text-lines, 2);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Heading
+   ========================================================================== */
+
+.lac-heading {
+  margin: 0;
+  font-family: var(--lac-font);
+  line-height: var(--lac-leading-tight);
+  color: var(--lac-fg);
+  letter-spacing: -0.01em;
+}
+
+.lac-heading[data-size="display"] { font-size: var(--lac-heading-display); letter-spacing: -0.02em; }
+.lac-heading[data-size="1"] { font-size: var(--lac-heading-1); letter-spacing: -0.02em; }
+.lac-heading[data-size="2"] { font-size: var(--lac-heading-2); }
+.lac-heading[data-size="3"] { font-size: var(--lac-heading-3); }
+.lac-heading[data-size="4"] { font-size: var(--lac-heading-4); }
+.lac-heading[data-size="5"] { font-size: var(--lac-heading-5); }
+.lac-heading[data-size="6"] { font-size: var(--lac-heading-6); line-height: var(--lac-leading); }
+
+.lac-heading[data-tone="muted"] { color: var(--lac-fg-muted); }
+.lac-heading[data-tone="faint"] { color: var(--lac-fg-faint); }
+.lac-heading[data-tone="accent"] { color: var(--lac-accent); }
+.lac-heading[data-tone="success"] { color: var(--lac-success); }
+.lac-heading[data-tone="warning"] { color: var(--lac-warning); }
+.lac-heading[data-tone="danger"] { color: var(--lac-danger); }
+.lac-heading[data-tone="info"] { color: var(--lac-info); }
+.lac-heading[data-tone="inherit"] { color: inherit; }
+
+.lac-heading[data-weight="regular"] { font-weight: var(--lac-weight-regular); }
+.lac-heading[data-weight="medium"] { font-weight: var(--lac-weight-medium); }
+.lac-heading[data-weight="semibold"] { font-weight: var(--lac-weight-semibold); }
+.lac-heading[data-weight="bold"] { font-weight: var(--lac-weight-bold); }
+
+.lac-heading[data-align="start"] { text-align: start; }
+.lac-heading[data-align="center"] { text-align: center; }
+.lac-heading[data-align="end"] { text-align: end; }
+
+.lac-heading[data-balance] {
+  text-wrap: balance;
+}
+
+/* ==========================================================================
+   Prose — styles markup this library did not author.
+   ========================================================================== */
+
+.lac-prose {
+  color: var(--lac-fg);
+  font-size: var(--lac-text-md);
+  line-height: var(--lac-leading);
+}
+
+.lac-prose[data-size="sm"] { font-size: var(--lac-text-sm); }
+.lac-prose[data-size="lg"] { font-size: var(--lac-text-lg); }
+
+.lac-prose[data-measure] {
+  max-width: var(--lac-container-prose);
+}
+
+.lac-prose > :first-child { margin-top: 0; }
+.lac-prose > :last-child { margin-bottom: 0; }
+
+.lac-prose p,
+.lac-prose ul,
+.lac-prose ol,
+.lac-prose dl,
+.lac-prose pre,
+.lac-prose table,
+.lac-prose blockquote,
+.lac-prose figure {
+  margin: 0 0 var(--lac-space-4);
+}
+
+.lac-prose h1,
+.lac-prose h2,
+.lac-prose h3,
+.lac-prose h4,
+.lac-prose h5,
+.lac-prose h6 {
+  margin: var(--lac-space-6) 0 var(--lac-space-3);
+  line-height: var(--lac-leading-tight);
+  font-weight: var(--lac-weight-bold);
+  letter-spacing: -0.01em;
+  color: var(--lac-fg);
+}
+
+.lac-prose h1 { font-size: var(--lac-heading-1); }
+.lac-prose h2 { font-size: var(--lac-heading-2); }
+.lac-prose h3 { font-size: var(--lac-heading-3); }
+.lac-prose h4 { font-size: var(--lac-heading-4); }
+.lac-prose h5 { font-size: var(--lac-heading-5); }
+.lac-prose h6 { font-size: var(--lac-heading-6); }
+
+.lac-prose ul,
+.lac-prose ol {
+  padding-inline-start: var(--lac-space-5);
+}
+
+.lac-prose li {
+  margin: var(--lac-space-1) 0;
+}
+
+.lac-prose li::marker {
+  color: var(--lac-fg-faint);
+}
+
+.lac-prose a {
+  color: var(--lac-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lac-prose a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.lac-prose strong { font-weight: var(--lac-weight-bold); }
+
+.lac-prose code {
+  font-family: var(--lac-font-mono);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-bg-muted);
+  color: var(--lac-fg);
+}
+
+.lac-prose pre {
+  padding: var(--lac-space-3) var(--lac-space-4);
+  border-radius: var(--lac-radius);
+  background: var(--lac-bg-subtle);
+  border: 1px solid var(--lac-border);
+  overflow-x: auto;
+}
+
+.lac-prose pre code {
+  padding: 0;
+  background: none;
+  font-size: var(--lac-text-sm);
+}
+
+.lac-prose blockquote {
+  padding: var(--lac-space-1) 0 var(--lac-space-1) var(--lac-space-4);
+  border-inline-start: 3px solid var(--lac-border-strong);
+  color: var(--lac-fg-muted);
+}
+
+.lac-prose hr {
+  margin: var(--lac-space-6) 0;
+  border: 0;
+  border-top: 1px solid var(--lac-border);
+}
+
+.lac-prose img,
+.lac-prose video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--lac-radius);
+}
+
+.lac-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lac-text-sm);
+}
+
+.lac-prose th,
+.lac-prose td {
+  padding: var(--lac-space-2) var(--lac-space-3);
+  border-bottom: 1px solid var(--lac-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.lac-prose thead th {
+  background: var(--lac-bg-subtle);
+  font-weight: var(--lac-weight-semibold);
+  color: var(--lac-fg-muted);
+}
+
+.lac-prose kbd {
+  font-family: var(--lac-font-mono);
+  font-size: var(--lac-text-xs);
+  padding: 1px 6px;
+  border: 1px solid var(--lac-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-surface);
+}
+
+/* ==========================================================================
+   Blockquote, Highlight, Truncate
+   ========================================================================== */
+
+.lac-quote {
+  margin: 0;
+  padding: var(--lac-space-1) 0 var(--lac-space-1) var(--lac-space-4);
+  border-inline-start: 3px solid var(--lac-border-strong);
+  color: var(--lac-fg);
+}
+
+.lac-quote[data-tone="accent"] { border-inline-start-color: var(--lac-accent); }
+.lac-quote[data-tone="success"] { border-inline-start-color: var(--lac-success); }
+.lac-quote[data-tone="warning"] { border-inline-start-color: var(--lac-warning); }
+.lac-quote[data-tone="danger"] { border-inline-start-color: var(--lac-danger); }
+.lac-quote[data-tone="info"] { border-inline-start-color: var(--lac-info); }
+
+.lac-quote[data-variant="pull"] {
+  border-inline-start: 0;
+  padding: 0;
+  font-size: var(--lac-text-xl);
+  line-height: var(--lac-leading-tight);
+  color: var(--lac-fg);
+  text-align: center;
+}
+
+.lac-quote-body > :first-child { margin-top: 0; }
+.lac-quote-body > :last-child { margin-bottom: 0; }
+
+.lac-quote-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--lac-space-2);
+  margin-top: var(--lac-space-2);
+  font-size: var(--lac-text-sm);
+}
+
+.lac-quote-cite {
+  font-style: normal;
+  font-weight: var(--lac-weight-semibold);
+  color: var(--lac-fg);
+}
+
+.lac-quote-meta {
+  color: var(--lac-fg-faint);
+}
+
+.lac-highlight {
+  min-width: 0;
+}
+
+.lac-mark {
+  padding: 0 1px;
+  border-radius: var(--lac-radius-sm);
+  background: var(--lac-mark-bg);
+  color: var(--lac-mark-fg);
+  font-weight: var(--lac-weight-semibold);
+}
+
+.lac-highlight[data-tone="warning"] .lac-mark { background: var(--lac-warning-soft); }
+.lac-highlight[data-tone="success"] .lac-mark { background: var(--lac-success-soft); }
+
+.lac-truncate {
+  white-space: nowrap;
+}
+
+.lac-truncate[data-mono] {
+  font-family: var(--lac-font-mono);
+  font-variant-numeric: tabular-nums;
+}

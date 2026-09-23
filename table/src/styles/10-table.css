@@ -1,0 +1,848 @@
+/* ==========================================================================
+   @lacspace/table
+
+   Every value comes from the shared --lac-* design tokens, exactly as in
+   @lacspace/components — load that stylesheet too and the table inherits your
+   theme with nothing to configure.
+
+   This file never *defines* a --lac-* token, so it can never fight the kit.
+   Instead it aliases what it needs into its own --lac-table-* layer with a
+   fallback, which is what makes the package work completely alone:
+
+     --lac-table-border: var(--lac-border, #dbe2ec)
+                         ^ your token, if present   ^ sensible default if not
+
+   The aliases are re-declared for dark mode the same way the kit does it:
+   the OS preference unless [data-theme="light"] says otherwise, plus an
+   explicit [data-theme="dark"].
+   ========================================================================== */
+
+.lac-table-wrap,
+.lac-table {
+  --lac-table-bg: var(--lac-surface, #ffffff);
+  --lac-table-bg-subtle: var(--lac-bg-subtle, #f6f8fb);
+  --lac-table-bg-muted: var(--lac-bg-muted, #eef2f7);
+  --lac-table-fg: var(--lac-fg, #0f1724);
+  --lac-table-fg-muted: var(--lac-fg-muted, #4a5668);
+  --lac-table-fg-faint: var(--lac-fg-faint, #78849a);
+  --lac-table-border: var(--lac-border, #dbe2ec);
+  --lac-table-border-strong: var(--lac-border-strong, #c3cddc);
+  --lac-table-accent: var(--lac-accent, #4d9fff);
+  --lac-table-accent-soft: var(--lac-accent-soft, rgba(77, 159, 255, 0.12));
+  --lac-table-accent-ring: var(--lac-accent-ring, rgba(77, 159, 255, 0.4));
+  --lac-table-accent-fg: var(--lac-fg-on-accent, #ffffff);
+  --lac-table-success: var(--lac-success, #16a34a);
+  --lac-table-success-soft: var(--lac-success-soft, rgba(22, 163, 74, 0.12));
+  --lac-table-warning: var(--lac-warning, #d97706);
+  --lac-table-warning-soft: var(--lac-warning-soft, rgba(217, 119, 6, 0.14));
+  --lac-table-danger: var(--lac-danger, #dc2626);
+  --lac-table-danger-soft: var(--lac-danger-soft, rgba(220, 38, 38, 0.12));
+  --lac-table-info: var(--lac-info, #0891b2);
+  --lac-table-info-soft: var(--lac-info-soft, rgba(8, 145, 178, 0.12));
+  --lac-table-shadow: var(--lac-shadow-sm, 0 1px 2px rgba(15, 23, 36, 0.06));
+
+  --lac-table-radius: var(--lac-radius, 10px);
+  --lac-table-radius-sm: var(--lac-radius-sm, 6px);
+  --lac-table-radius-pill: var(--lac-radius-pill, 999px);
+  --lac-table-font: var(--lac-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  --lac-table-text-xs: var(--lac-text-xs, 12px);
+  --lac-table-text-sm: var(--lac-text-sm, 13px);
+  --lac-table-text-md: var(--lac-text-md, 14px);
+  --lac-table-space-1: var(--lac-space-1, 4px);
+  --lac-table-space-2: var(--lac-space-2, 8px);
+  --lac-table-space-3: var(--lac-space-3, 12px);
+  --lac-table-space-4: var(--lac-space-4, 16px);
+  --lac-table-space-5: var(--lac-space-5, 24px);
+  --lac-table-control-h: var(--lac-control-h-sm, 30px);
+  --lac-table-ring: var(--lac-ring-width, 3px);
+  --lac-table-duration: var(--lac-duration, 150ms);
+  --lac-table-ease: var(--lac-ease, cubic-bezier(0.32, 0.72, 0, 1));
+
+  /* Row rhythm, driven by [data-density]. */
+  --lac-table-cell-y: 10px;
+  --lac-table-cell-x: var(--lac-table-space-3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lac-table-wrap,
+  :root:not([data-theme="light"]) .lac-table {
+    --lac-table-bg: var(--lac-surface, #111a26);
+    --lac-table-bg-subtle: var(--lac-bg-subtle, #101826);
+    --lac-table-bg-muted: var(--lac-bg-muted, #16202f);
+    --lac-table-fg: var(--lac-fg, #eef3fa);
+    --lac-table-fg-muted: var(--lac-fg-muted, rgba(238, 243, 250, 0.68));
+    --lac-table-fg-faint: var(--lac-fg-faint, rgba(238, 243, 250, 0.45));
+    --lac-table-border: var(--lac-border, #26313f);
+    --lac-table-border-strong: var(--lac-border-strong, #35435a);
+    --lac-table-accent: var(--lac-accent, #5aa7ff);
+    --lac-table-accent-soft: var(--lac-accent-soft, rgba(90, 167, 255, 0.16));
+    --lac-table-accent-ring: var(--lac-accent-ring, rgba(90, 167, 255, 0.45));
+    --lac-table-accent-fg: var(--lac-fg-on-accent, #06131f);
+    --lac-table-success: var(--lac-success, #34d399);
+    --lac-table-success-soft: var(--lac-success-soft, rgba(52, 211, 153, 0.16));
+    --lac-table-warning: var(--lac-warning, #fbbf24);
+    --lac-table-warning-soft: var(--lac-warning-soft, rgba(251, 191, 36, 0.16));
+    --lac-table-danger: var(--lac-danger, #f87171);
+    --lac-table-danger-soft: var(--lac-danger-soft, rgba(248, 113, 113, 0.16));
+    --lac-table-info: var(--lac-info, #38bdf8);
+    --lac-table-info-soft: var(--lac-info-soft, rgba(56, 189, 248, 0.16));
+    --lac-table-shadow: var(--lac-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.4));
+  }
+}
+
+:root[data-theme="dark"] .lac-table-wrap,
+:root[data-theme="dark"] .lac-table {
+  --lac-table-bg: var(--lac-surface, #111a26);
+  --lac-table-bg-subtle: var(--lac-bg-subtle, #101826);
+  --lac-table-bg-muted: var(--lac-bg-muted, #16202f);
+  --lac-table-fg: var(--lac-fg, #eef3fa);
+  --lac-table-fg-muted: var(--lac-fg-muted, rgba(238, 243, 250, 0.68));
+  --lac-table-fg-faint: var(--lac-fg-faint, rgba(238, 243, 250, 0.45));
+  --lac-table-border: var(--lac-border, #26313f);
+  --lac-table-border-strong: var(--lac-border-strong, #35435a);
+  --lac-table-accent: var(--lac-accent, #5aa7ff);
+  --lac-table-accent-soft: var(--lac-accent-soft, rgba(90, 167, 255, 0.16));
+  --lac-table-accent-ring: var(--lac-accent-ring, rgba(90, 167, 255, 0.45));
+  --lac-table-accent-fg: var(--lac-fg-on-accent, #06131f);
+  --lac-table-success: var(--lac-success, #34d399);
+  --lac-table-success-soft: var(--lac-success-soft, rgba(52, 211, 153, 0.16));
+  --lac-table-warning: var(--lac-warning, #fbbf24);
+  --lac-table-warning-soft: var(--lac-warning-soft, rgba(251, 191, 36, 0.16));
+  --lac-table-danger: var(--lac-danger, #f87171);
+  --lac-table-danger-soft: var(--lac-danger-soft, rgba(248, 113, 113, 0.16));
+  --lac-table-info: var(--lac-info, #38bdf8);
+  --lac-table-info-soft: var(--lac-info-soft, rgba(56, 189, 248, 0.16));
+  --lac-table-shadow: var(--lac-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* ==========================================================================
+   Base — identical in spirit to the kit's, so loading both is harmless
+   ========================================================================== */
+
+.lac {
+  font-family: var(--lac-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  font-size: var(--lac-text-md, 14px);
+  line-height: var(--lac-leading, 1.55);
+  color: var(--lac-fg, #0f1724);
+  box-sizing: border-box;
+}
+
+.lac *,
+.lac *::before,
+.lac *::after {
+  box-sizing: border-box;
+}
+
+.lac:focus-visible,
+.lac :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--lac-ring-width, 3px) var(--lac-accent-ring, rgba(77, 159, 255, 0.4));
+  border-radius: inherit;
+}
+
+.lac-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lac,
+  .lac * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ==========================================================================
+   Frame
+   ========================================================================== */
+
+.lac-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-table-space-3);
+  color: var(--lac-table-fg);
+}
+
+.lac-table-scroll {
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--lac-table-border);
+  border-radius: var(--lac-table-radius);
+  background: var(--lac-table-bg);
+  /* Keeps a pinned column from being scrolled straight past on a trackpad. */
+  scroll-padding-inline: 44px;
+}
+
+.lac-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--lac-table-text-md);
+  color: var(--lac-table-fg);
+  background: var(--lac-table-bg);
+}
+
+.lac-table[data-layout="fixed"] {
+  table-layout: fixed;
+}
+
+.lac-table[data-density="compact"] {
+  --lac-table-cell-y: 6px;
+  font-size: var(--lac-table-text-sm);
+}
+
+.lac-table[data-density="comfortable"] {
+  --lac-table-cell-y: 14px;
+}
+
+.lac-table-caption {
+  padding: var(--lac-table-space-2) var(--lac-table-space-3);
+  text-align: start;
+  font-weight: 620;
+  color: var(--lac-table-fg);
+  caption-side: top;
+}
+
+.lac-table-caption[data-hidden="true"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Cells
+   ========================================================================== */
+
+.lac-table-th,
+.lac-table-td {
+  padding: var(--lac-table-cell-y) var(--lac-table-cell-x);
+  text-align: start;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--lac-table-border);
+  background: inherit;
+}
+
+.lac-table-th {
+  position: relative;
+  background: var(--lac-table-bg-subtle);
+  color: var(--lac-table-fg-muted);
+  font-size: var(--lac-table-text-xs);
+  font-weight: 640;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lac-table-th[data-align="center"],
+.lac-table-td[data-align="center"] {
+  text-align: center;
+}
+
+.lac-table-th[data-align="end"],
+.lac-table-td[data-align="end"] {
+  text-align: end;
+}
+
+.lac-table-td[data-numeric="true"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.lac-table[data-bordered="true"] .lac-table-th + .lac-table-th,
+.lac-table[data-bordered="true"] .lac-table-td + .lac-table-td {
+  border-left: 1px solid var(--lac-table-border);
+}
+
+.lac-table[data-sticky="true"] .lac-table-head .lac-table-th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Pinned columns ride along the horizontal scroll. The opaque background is
+   what stops the scrolled content showing through them. */
+.lac-table-th[data-pinned],
+.lac-table-td[data-pinned] {
+  position: sticky;
+  z-index: 2;
+  background: var(--lac-table-bg);
+}
+
+.lac-table-th[data-pinned] {
+  background: var(--lac-table-bg-subtle);
+  z-index: 4;
+}
+
+.lac-table-th[data-pinned="left"]::after,
+.lac-table-td[data-pinned="left"]::after,
+.lac-table-th[data-pinned="right"]::before,
+.lac-table-td[data-pinned="right"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--lac-table-border);
+}
+
+.lac-table-th[data-pinned="left"]::after,
+.lac-table-td[data-pinned="left"]::after {
+  right: 0;
+}
+
+.lac-table-th[data-pinned="right"]::before,
+.lac-table-td[data-pinned="right"]::before {
+  left: 0;
+}
+
+/* ==========================================================================
+   Rows
+   ========================================================================== */
+
+.lac-table-row {
+  background: var(--lac-table-bg);
+  transition: background-color var(--lac-table-duration) var(--lac-table-ease);
+}
+
+.lac-table[data-striped="true"] .lac-table-body .lac-table-row:nth-child(odd):not([data-detail="true"]) {
+  background: var(--lac-table-bg-subtle);
+}
+
+.lac-table[data-hoverable="true"] .lac-table-body .lac-table-row:hover {
+  background: var(--lac-table-bg-muted);
+}
+
+.lac-table-row[data-selected="true"] {
+  background: var(--lac-table-accent-soft);
+}
+
+.lac-table-row[data-clickable="true"] {
+  cursor: pointer;
+}
+
+.lac-table-row[data-detail="true"] > .lac-table-td {
+  background: var(--lac-table-bg-subtle);
+}
+
+.lac-table-detail {
+  padding: var(--lac-table-space-4);
+  color: var(--lac-table-fg-muted);
+}
+
+.lac-table-body .lac-table-row:last-child > .lac-table-td {
+  border-bottom: 0;
+}
+
+.lac-table-foot .lac-table-td {
+  background: var(--lac-table-bg-subtle);
+  font-weight: 640;
+  border-top: 1px solid var(--lac-table-border-strong);
+  border-bottom: 0;
+  position: sticky;
+  bottom: 0;
+}
+
+/* ==========================================================================
+   Header controls: sorting + resizing
+   ========================================================================== */
+
+.lac-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-1);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  border-radius: var(--lac-table-radius-sm);
+}
+
+.lac-table-sort:hover {
+  color: var(--lac-table-fg);
+}
+
+.lac-table-sort-mark {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.35;
+}
+
+.lac-table-sort[data-direction] .lac-table-sort-mark {
+  opacity: 1;
+  color: var(--lac-table-accent);
+}
+
+.lac-table-sort-order {
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: var(--lac-table-radius-pill);
+  background: var(--lac-table-accent-soft);
+  color: var(--lac-table-accent);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.lac-table-th[data-sorted] {
+  color: var(--lac-table-fg);
+}
+
+.lac-table-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+  /* The grab area is 7px wide; the visible rule is 1px of it. */
+  background: linear-gradient(to right, transparent 3px, var(--lac-table-border) 3px 4px, transparent 4px);
+  opacity: 0;
+  transition: opacity var(--lac-table-duration) var(--lac-table-ease);
+  z-index: 5;
+}
+
+.lac-table-th:hover .lac-table-resizer,
+.lac-table-resizer:focus-visible,
+.lac-table-th[data-resizing="true"] .lac-table-resizer {
+  opacity: 1;
+}
+
+.lac-table-th[data-resizing="true"] .lac-table-resizer {
+  background: linear-gradient(to right, transparent 3px, var(--lac-table-accent) 3px 4px, transparent 4px);
+}
+
+/* ==========================================================================
+   Toolbar, search, column menu
+   ========================================================================== */
+
+.lac-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+}
+
+.lac-table-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+  margin-inline-start: auto;
+}
+
+.lac-table-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 200px;
+}
+
+.lac-table-search .lac-table-input {
+  width: 100%;
+  padding-inline-end: var(--lac-table-space-5);
+}
+
+.lac-table-search-clear {
+  position: absolute;
+  inset-inline-end: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lac-table-radius-pill);
+  background: transparent;
+  color: var(--lac-table-fg-faint);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.lac-table-search-clear:hover {
+  color: var(--lac-table-fg);
+  background: var(--lac-table-bg-muted);
+}
+
+.lac-table-input {
+  height: var(--lac-table-control-h);
+  padding: 0 var(--lac-table-space-2);
+  font: inherit;
+  font-size: var(--lac-table-text-sm);
+  color: var(--lac-table-fg);
+  background: var(--lac-table-bg);
+  border: 1px solid var(--lac-table-border);
+  border-radius: var(--lac-table-radius-sm);
+  transition: border-color var(--lac-table-duration) var(--lac-table-ease);
+  max-width: 100%;
+}
+
+.lac-table-input:hover {
+  border-color: var(--lac-table-border-strong);
+}
+
+.lac-table-input::placeholder {
+  color: var(--lac-table-fg-faint);
+}
+
+.lac-table-filters .lac-table-td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  background: var(--lac-table-bg-subtle);
+}
+
+.lac-table-filters .lac-table-input {
+  width: 100%;
+  text-transform: none;
+}
+
+.lac-table-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-1);
+  height: var(--lac-table-control-h);
+  padding: 0 var(--lac-table-space-3);
+  border: 1px solid var(--lac-table-border);
+  border-radius: var(--lac-table-radius-sm);
+  background: var(--lac-table-bg);
+  color: var(--lac-table-fg);
+  font: inherit;
+  font-size: var(--lac-table-text-sm);
+  font-weight: 560;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--lac-table-duration) var(--lac-table-ease),
+    border-color var(--lac-table-duration) var(--lac-table-ease);
+}
+
+.lac-table-btn:hover:not(:disabled) {
+  background: var(--lac-table-bg-muted);
+  border-color: var(--lac-table-border-strong);
+}
+
+.lac-table-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lac-table-btn[data-current="true"] {
+  background: var(--lac-table-accent);
+  border-color: var(--lac-table-accent);
+  color: var(--lac-table-accent-fg);
+}
+
+.lac-table-btn[data-tone="danger"] {
+  color: var(--lac-table-danger);
+  border-color: var(--lac-table-danger-soft);
+}
+
+.lac-table-btn[data-tone="danger"]:hover:not(:disabled) {
+  background: var(--lac-table-danger-soft);
+}
+
+.lac-table-btn[data-size="sm"] {
+  height: 24px;
+  padding: 0 var(--lac-table-space-2);
+  font-size: var(--lac-table-text-xs);
+}
+
+.lac-table-selected-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+  padding: 0 var(--lac-table-space-2);
+  border-radius: var(--lac-table-radius-pill);
+  background: var(--lac-table-accent-soft);
+  color: var(--lac-table-accent);
+  font-size: var(--lac-table-text-sm);
+  font-weight: 600;
+}
+
+.lac-table-menu {
+  position: relative;
+}
+
+.lac-table-menu > summary {
+  list-style: none;
+  user-select: none;
+}
+
+.lac-table-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lac-table-menu-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 4px);
+  z-index: var(--lac-z-popover, 1000);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--lac-table-space-2);
+  border: 1px solid var(--lac-table-border);
+  border-radius: var(--lac-table-radius);
+  background: var(--lac-table-bg);
+  box-shadow: var(--lac-shadow, 0 4px 14px rgba(15, 23, 36, 0.09));
+}
+
+.lac-table-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+  padding: 4px 6px;
+  border-radius: var(--lac-table-radius-sm);
+  font-size: var(--lac-table-text-sm);
+  cursor: pointer;
+}
+
+.lac-table-menu-item:hover {
+  background: var(--lac-table-bg-muted);
+}
+
+.lac-table-check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--lac-table-accent);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.lac-table-expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lac-table-radius-sm);
+  background: transparent;
+  color: var(--lac-table-fg-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: transform var(--lac-table-duration) var(--lac-table-ease),
+    background-color var(--lac-table-duration) var(--lac-table-ease);
+}
+
+.lac-table-expander:hover {
+  background: var(--lac-table-bg-muted);
+  color: var(--lac-table-fg);
+}
+
+.lac-table-expander[data-open="true"] {
+  transform: rotate(90deg);
+  color: var(--lac-table-accent);
+}
+
+/* ==========================================================================
+   Pagination
+   ========================================================================== */
+
+.lac-table-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lac-table-space-3);
+  font-size: var(--lac-table-text-sm);
+  color: var(--lac-table-fg-muted);
+}
+
+.lac-table-pagination-summary {
+  font-variant-numeric: tabular-nums;
+}
+
+.lac-table-pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+}
+
+.lac-table-pagination-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-1);
+  margin-inline-start: auto;
+}
+
+.lac-table-pagination-gap {
+  padding: 0 2px;
+  color: var(--lac-table-fg-faint);
+}
+
+/* ==========================================================================
+   Cell furniture: badges, booleans, links, actions, clamped text
+   ========================================================================== */
+
+.lac-table-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--lac-table-radius-pill);
+  background: var(--lac-table-bg-muted);
+  color: var(--lac-table-fg-muted);
+  font-size: var(--lac-table-text-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.lac-table-badge[data-tone="accent"] {
+  background: var(--lac-table-accent-soft);
+  color: var(--lac-table-accent);
+}
+
+.lac-table-badge[data-tone="success"] {
+  background: var(--lac-table-success-soft);
+  color: var(--lac-table-success);
+}
+
+.lac-table-badge[data-tone="warning"] {
+  background: var(--lac-table-warning-soft);
+  color: var(--lac-table-warning);
+}
+
+.lac-table-badge[data-tone="danger"] {
+  background: var(--lac-table-danger-soft);
+  color: var(--lac-table-danger);
+}
+
+.lac-table-badge[data-tone="info"] {
+  background: var(--lac-table-info-soft);
+  color: var(--lac-table-info);
+}
+
+.lac-table-bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lac-table-fg-muted);
+}
+
+.lac-table-bool[data-on="true"] {
+  color: var(--lac-table-success);
+}
+
+.lac-table-link {
+  color: var(--lac-table-accent);
+  text-decoration: none;
+  border-radius: var(--lac-table-radius-sm);
+}
+
+.lac-table-link:hover {
+  text-decoration: underline;
+}
+
+.lac-table-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.lac-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lac-table-space-1);
+  justify-content: flex-end;
+}
+
+.lac-table-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lac-table-lines, 2);
+  line-clamp: var(--lac-table-lines, 2);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Loading + empty
+   ========================================================================== */
+
+.lac-table-skeleton {
+  display: block;
+  width: 100%;
+  height: 12px;
+  border-radius: var(--lac-table-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--lac-table-bg-muted) 25%,
+    var(--lac-table-bg-subtle) 37%,
+    var(--lac-table-bg-muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: lac-table-shimmer 1.4s ease infinite;
+}
+
+@keyframes lac-table-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.lac-table-empty {
+  padding: var(--lac-table-space-5) var(--lac-table-space-4);
+  text-align: center;
+}
+
+.lac-table-empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lac-table-space-2);
+}
+
+.lac-table-empty-icon {
+  font-size: 22px;
+  color: var(--lac-table-fg-faint);
+}
+
+.lac-table-empty-title {
+  margin: 0;
+  font-weight: 620;
+  color: var(--lac-table-fg);
+}
+
+.lac-table-empty-desc {
+  margin: 0;
+  font-size: var(--lac-table-text-sm);
+  color: var(--lac-table-fg-muted);
+}
+
+/* ==========================================================================
+   Small screens: the pager stacks rather than squeezing to nothing
+   ========================================================================== */
+
+@media (max-width: 560px) {
+  .lac-table-pagination-pages {
+    margin-inline-start: 0;
+  }
+
+  .lac-table-search {
+    min-width: 0;
+    flex: 1 1 160px;
+  }
+}

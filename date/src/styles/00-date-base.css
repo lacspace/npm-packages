@@ -1,0 +1,50 @@
+/* ==========================================================================
+   @lacspace/date — stylesheet.
+
+   Every value below is a --lac-* token with an inline fallback:
+
+       color: var(--lac-fg, #0f1724);
+
+   That is deliberate. Load @lacspace/components' stylesheet too and these
+   pickers inherit its palette and its dark mode automatically, because the
+   tokens are already defined. Load this package on its own and the fallbacks
+   carry it. What this sheet never does is *define* a --lac-* token: doing so
+   would silently override the app's theme, and a date field that ignores your
+   brand colour is a date field you have to fork.
+
+   To restyle: redefine the tokens in your own CSS, on :root or on any
+   ancestor. Nothing here uses !important and the caller's className always
+   lands last, so a plain class override wins.
+   ========================================================================== */
+
+.lac {
+  font-family: var(--lac-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  font-size: var(--lac-text-md, 14px);
+  line-height: var(--lac-leading, 1.55);
+  color: var(--lac-fg, #0f1724);
+  box-sizing: border-box;
+}
+
+.lac *,
+.lac *::before,
+.lac *::after {
+  box-sizing: border-box;
+}
+
+/* One focus treatment everywhere: a ring that never shifts layout and only
+   shows for keyboard users. */
+.lac:focus-visible,
+.lac :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--lac-ring-width, 3px) var(--lac-accent-ring, rgba(77, 159, 255, 0.4));
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lac,
+  .lac * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

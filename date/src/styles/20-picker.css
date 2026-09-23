@@ -1,0 +1,197 @@
+/* ==========================================================================
+   Field + popover
+   ========================================================================== */
+
+.lac-datepicker,
+.lac-rangepicker,
+.lac-datetimepicker {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  max-width: 320px;
+}
+
+.lac-rangepicker {
+  max-width: 380px;
+}
+
+.lac-date-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.lac-date-input {
+  width: 100%;
+  height: var(--lac-control-h-md, 38px);
+  padding: 0 64px 0 var(--lac-space-3, 12px);
+  font: inherit;
+  font-family: var(--lac-font, inherit);
+  color: var(--lac-fg, #0f1724);
+  background: var(--lac-surface, #ffffff);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius, 10px);
+  transition: border-color var(--lac-duration, 150ms) var(--lac-ease, ease);
+}
+
+.lac-date-field[data-size="sm"] .lac-date-input {
+  height: var(--lac-control-h-sm, 30px);
+  font-size: var(--lac-text-sm, 13px);
+}
+
+.lac-date-field[data-size="lg"] .lac-date-input {
+  height: var(--lac-control-h-lg, 46px);
+  font-size: var(--lac-text-lg, 16px);
+}
+
+.lac-date-input::placeholder {
+  color: var(--lac-fg-faint, #78849a);
+}
+
+.lac-date-input:hover:not(:disabled) {
+  border-color: var(--lac-border-strong, #c3cddc);
+}
+
+.lac-date-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--lac-bg-muted, #eef2f7);
+}
+
+.lac-date-input[data-invalid="true"] {
+  border-color: var(--lac-danger, #dc2626);
+}
+
+.lac-date-clear,
+.lac-date-trigger {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lac-radius-sm, 6px);
+  background: transparent;
+  color: var(--lac-fg-faint, #78849a);
+  cursor: pointer;
+}
+
+.lac-date-clear:hover,
+.lac-date-trigger:hover:not(:disabled) {
+  background: var(--lac-bg-muted, #eef2f7);
+  color: var(--lac-fg, #0f1724);
+}
+
+.lac-date-trigger {
+  right: 5px;
+}
+
+.lac-date-clear {
+  right: 34px;
+}
+
+.lac-date-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.lac-date-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--lac-z-popover, 1000);
+  background: var(--lac-surface-raised, #ffffff);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius-lg, 14px);
+  box-shadow: var(--lac-shadow-lg, 0 18px 44px rgba(15, 23, 36, 0.16));
+  padding: var(--lac-space-2, 8px);
+}
+
+.lac-date-pop[data-align="end"] {
+  left: auto;
+  right: 0;
+}
+
+.lac-date-pop .lac-cal,
+.lac-date-pop .lac-monthpick,
+.lac-date-pop .lac-yearpick {
+  border: 0;
+  background: transparent;
+  padding: var(--lac-space-1, 4px);
+}
+
+.lac-date-action {
+  height: var(--lac-control-h-sm, 30px);
+  padding: 0 var(--lac-space-3, 12px);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius, 10px);
+  background: var(--lac-surface, #ffffff);
+  color: var(--lac-fg, #0f1724);
+  font: inherit;
+  font-size: var(--lac-text-sm, 13px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lac-date-action:hover {
+  background: var(--lac-bg-muted, #eef2f7);
+}
+
+.lac-date-action[data-primary="true"] {
+  background: var(--lac-accent, #4d9fff);
+  border-color: transparent;
+  color: var(--lac-fg-on-accent, #ffffff);
+  font-weight: 600;
+}
+
+/* Range panel ------------------------------------------------------------- */
+
+.lac-range-body {
+  display: flex;
+  gap: var(--lac-space-3, 12px);
+  align-items: flex-start;
+}
+
+.lac-range-presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lac-space-1, 4px);
+  padding: var(--lac-space-2, 8px);
+  border-right: 1px solid var(--lac-border, #dbe2ec);
+  min-width: 128px;
+}
+
+.lac-range-presets .lac-date-action {
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.lac-datetime-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lac-space-3, 12px);
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .lac-range-body {
+    flex-direction: column;
+  }
+
+  .lac-range-presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--lac-border, #dbe2ec);
+    min-width: 0;
+  }
+
+  .lac-cal-months {
+    flex-direction: column;
+  }
+}

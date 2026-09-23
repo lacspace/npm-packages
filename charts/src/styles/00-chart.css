@@ -1,0 +1,306 @@
+/* ==========================================================================
+   @lacspace/charts — one stylesheet for every chart.
+
+   These are the same --lac-* tokens @lacspace/components defines, and this
+   sheet deliberately does NOT redefine them: load both packages and the charts
+   inherit your theme, light and dark, with nothing to keep in sync. Used on its
+   own, every var() here carries a fallback that matches the components default,
+   so the charts look right with no other stylesheet at all.
+
+   Restyle everything by redefining the tokens in your own CSS — or reach for
+   one of the chart-specific ones at the bottom of this block.
+   ========================================================================== */
+
+.lac-chart {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  font-family: var(--lac-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-size: var(--lac-text-md, 14px);
+  color: var(--lac-fg, #0f1724);
+  box-sizing: border-box;
+}
+
+.lac-chart[data-responsive="true"] {
+  display: block;
+  width: 100%;
+}
+
+.lac-chart-svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.lac-chart[data-responsive="true"] .lac-chart-svg {
+  width: 100%;
+  height: auto;
+}
+
+/* Grid + axes ------------------------------------------------------------- */
+
+.lac-chart-grid-line {
+  stroke: var(--lac-border, #dbe2ec);
+  stroke-width: 1;
+  fill: none;
+}
+
+.lac-chart-baseline {
+  stroke: var(--lac-border-strong, #c3cddc);
+  stroke-width: 1.5;
+}
+
+.lac-chart-axis-line {
+  stroke: var(--lac-border, #dbe2ec);
+  stroke-width: 1;
+}
+
+/* All chart text inherits from the theme, so it stays readable in dark mode. */
+.lac-chart-axis-label,
+.lac-chart-slice-label,
+.lac-chart-value-label,
+.lac-chart-funnel-conversion,
+.lac-chart-gauge-caption {
+  fill: var(--lac-fg-muted, #4a5668);
+  font-size: var(--lac-text-xs, 12px);
+  font-family: inherit;
+}
+
+.lac-chart-value-label,
+.lac-chart-slice-label {
+  font-weight: 600;
+}
+
+.lac-chart-slice-label,
+.lac-chart-funnel-label,
+.lac-chart-funnel-value {
+  fill: var(--lac-fg-on-accent, #ffffff);
+}
+
+/* Marks ------------------------------------------------------------------- */
+
+.lac-chart-line-path {
+  transition: opacity var(--lac-duration, 150ms) var(--lac-ease, ease);
+}
+
+.lac-chart-dot,
+.lac-chart-bar-shape,
+.lac-chart-slice,
+.lac-chart-cell,
+.lac-chart-candle-body,
+.lac-chart-funnel-shape,
+.lac-chart-radar-shape {
+  transition: opacity var(--lac-duration, 150ms) var(--lac-ease, ease);
+}
+
+.lac-chart-slice,
+.lac-chart-cell,
+.lac-chart-bar-shape,
+.lac-chart-funnel-shape {
+  stroke: var(--lac-chart-mark-stroke, none);
+}
+
+.lac-chart-hover-line {
+  stroke: var(--lac-border-strong, #c3cddc);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.lac-chart-funnel-label {
+  font-size: var(--lac-text-md, 14px);
+  font-weight: 620;
+}
+
+.lac-chart-funnel-value {
+  font-size: var(--lac-text-xs, 12px);
+  opacity: 0.92;
+}
+
+/* Gauge ------------------------------------------------------------------- */
+
+.lac-chart-gauge-track {
+  fill: var(--lac-bg-muted, #eef2f7);
+}
+
+.lac-chart-gauge-needle,
+.lac-chart-gauge-pivot {
+  fill: var(--lac-fg, #0f1724);
+}
+
+.lac-chart-gauge-value {
+  fill: var(--lac-fg, #0f1724);
+  font-size: var(--lac-text-xl, 20px);
+  font-weight: 680;
+}
+
+/* Centre slot (donut) ------------------------------------------------------ */
+
+.lac-chart-center,
+.lac-chart-center-text {
+  fill: var(--lac-fg, #0f1724);
+}
+
+.lac-chart-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  line-height: 1.25;
+  color: var(--lac-fg, #0f1724);
+}
+
+.lac-chart-center-text {
+  font-size: var(--lac-text-xl, 20px);
+  font-weight: 680;
+}
+
+/* Legend ------------------------------------------------------------------ */
+
+.lac-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lac-space-2, 8px) var(--lac-space-4, 16px);
+  margin: var(--lac-space-3, 12px) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--lac-text-sm, 13px);
+  color: var(--lac-fg-muted, #4a5668);
+}
+
+.lac-chart-legend[data-vertical="true"] {
+  flex-direction: column;
+}
+
+.lac-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lac-chart-legend-item[data-muted="true"] {
+  opacity: 0.45;
+}
+
+.lac-chart-legend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--lac-radius-sm, 6px);
+}
+
+.lac-chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.lac-chart-legend-value {
+  color: var(--lac-fg, #0f1724);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Colour ramp (heatmap legend) -------------------------------------------- */
+
+.lac-chart-ramp {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: var(--lac-space-3, 12px);
+  font-size: var(--lac-text-xs, 12px);
+  color: var(--lac-fg-muted, #4a5668);
+}
+
+.lac-chart-ramp-step {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.lac-chart-ramp-end {
+  margin: 0 4px;
+}
+
+/* Tooltip ----------------------------------------------------------------- */
+
+.lac-chart-tip {
+  position: absolute;
+  z-index: var(--lac-z-popover, 1000);
+  min-width: 110px;
+  padding: var(--lac-space-2, 8px) var(--lac-space-3, 12px);
+  border: 1px solid var(--lac-border, #dbe2ec);
+  border-radius: var(--lac-radius, 10px);
+  background: var(--lac-surface-raised, #ffffff);
+  box-shadow: var(--lac-shadow, 0 4px 14px rgba(15, 23, 36, 0.09));
+  color: var(--lac-fg, #0f1724);
+  font-size: var(--lac-text-sm, 13px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.lac-chart-tip-title {
+  margin-bottom: 4px;
+  font-weight: 640;
+}
+
+.lac-chart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.6;
+}
+
+.lac-chart-tip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.lac-chart-tip-label {
+  color: var(--lac-fg-muted, #4a5668);
+}
+
+.lac-chart-tip-value {
+  margin-left: auto;
+  padding-left: var(--lac-space-3, 12px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 620;
+}
+
+/* Screen-reader data table ------------------------------------------------ */
+
+.lac-chart-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Motion ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lac-chart,
+  .lac-chart * {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

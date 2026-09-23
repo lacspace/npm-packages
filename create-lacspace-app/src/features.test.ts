@@ -6,7 +6,7 @@ describe("feature registry", () => {
   it("listFeatures() returns copies of every feature (ai-chat + rag)", () => {
     const feats = listFeatures();
     const keys = feats.map((f) => f.key).sort();
-    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "captcha", "consent", "content", "email", "i18n", "notify", "payments", "push", "quality", "rag", "realtime", "search", "uploads"]);
+    expect(keys).toEqual(["ai-chat", "analytics", "auth-pages", "captcha", "consent", "content", "dataviz", "email", "i18n", "notify", "payments", "push", "quality", "rag", "realtime", "search", "ui", "uploads"]);
     // Copies — mutating the result must not touch the registry.
     feats[0]!.label = "MUTATED";
     expect(FEATURES.find((f) => f.key === feats[0]!.key)!.label).not.toBe("MUTATED");
@@ -31,6 +31,56 @@ describe("feature registry", () => {
         Object.keys(f.scripts ?? {}).length > 0;
       expect(contributes, f.key).toBe(true);
     }
+  });
+});
+
+describe("UI kit add-ons (ui + dataviz)", () => {
+  it("ui drops the showcase, the provider and the theme bridge", () => {
+    const files = generateProject({ template: "saas", features: ["ui"] });
+    expect("app/ui/page.tsx" in files).toBe(true);
+    expect("app/ui/layout.tsx" in files).toBe(true);
+    expect("app/lacspace-ui.css" in files).toBe(true);
+    expect("components/ui-provider.tsx" in files).toBe(true);
+    expect(files["package.json"]).toContain("@lacspace/components");
+  });
+
+  it("dataviz brings charts, table and date", () => {
+    const files = generateProject({ template: "dashboard", features: ["dataviz"] });
+    expect("app/insights/page.tsx" in files).toBe(true);
+    const pkg = files["package.json"]!;
+    for (const dep of ["@lacspace/charts", "@lacspace/table", "@lacspace/date", "@lacspace/components"]) {
+      expect(pkg, dep).toContain(dep);
+    }
+  });
+
+  it("the theme bridge maps the template's own tokens, so one toggle drives both", () => {
+    const css = generateProject({ template: "saas", features: ["ui"] })["app/lacspace-ui.css"]!;
+    expect(css).toContain("--lac-accent: var(--accent-to)");
+    expect(css).toContain("--lac-fg: var(--fg)");
+    expect(css).toContain("--lac-border: var(--hairline)");
+    // Raised specificity is what lets it win against the kit's own dark blocks.
+    expect(css).toContain(":root:root:root");
+  });
+
+  it("the bridge is imported after the kit, or it would not override anything", () => {
+    const layout = generateProject({ template: "saas", features: ["ui"] })["app/ui/layout.tsx"]!;
+    expect(layout.indexOf("@lacspace/components/styles.css")).toBeLessThan(layout.indexOf("lacspace-ui.css"));
+  });
+
+  it("asking for both writes one identical bridge, not two fighting copies", () => {
+    const both = generateProject({ template: "saas", features: ["ui", "dataviz"] });
+    const only = generateProject({ template: "saas", features: ["ui"] });
+    expect(both["app/lacspace-ui.css"]).toBe(only["app/lacspace-ui.css"]);
+    expect("app/ui/page.tsx" in both).toBe(true);
+    expect("app/insights/page.tsx" in both).toBe(true);
+  });
+
+  it("neither add-on touches a scaffold that did not ask for it", () => {
+    const base = generateProject({ template: "saas" });
+    expect("app/lacspace-ui.css" in base).toBe(false);
+    expect("app/ui/page.tsx" in base).toBe(false);
+    expect("app/insights/page.tsx" in base).toBe(false);
+    expect(base["package.json"]).not.toContain("@lacspace/components");
   });
 });
 

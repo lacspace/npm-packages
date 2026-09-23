@@ -2710,7 +2710,381 @@ export const FEATURES: FeatureDef[] = [
     ],
     learn: "https://developer.lacspace.com/packages/sse",
   },
+  {
+    key: "ui",
+    label: "UI components",
+    description: "The @lacspace/components library wired into this template — 96 accessible components, a theme bridge so they inherit your accent and dark mode, and a working settings page. Frontend, any template.",
+    deps: { "@lacspace/components": "^1.0.1" },
+    files: () => ({
+      "app/lacspace-ui.css": uiThemeBridge(),
+      "app/ui/layout.tsx": uiRouteLayout(),
+      "app/ui/page.tsx": uiShowcasePage(),
+      "components/ui-provider.tsx": uiProviderComponent(),
+    }),
+    nextSteps: [
+      "Run `npm run dev` and open http://localhost:3000/ui — a real form, a confirm dialog and toasts, already themed.",
+      "Use the kit anywhere: import \"@lacspace/components/styles.css\" and \"./lacspace-ui.css\" in app/layout.tsx, then wrap <body> with <UIProvider> from @/components/ui-provider.",
+      "Rebrand everything from app/lacspace-ui.css — it maps this template's accent, radius and font onto the kit's --lac-* variables, so dark mode follows your theme toggle.",
+    ],
+    learn: "https://developer.lacspace.com/components",
+  },
+  {
+    key: "dataviz",
+    label: "Charts, tables & dates",
+    description: "A working insights page from @lacspace/charts, @lacspace/table and @lacspace/date — SVG charts, a sortable/exportable data table and a date-range filter. No canvas, no D3, no grid licence. Frontend, any template.",
+    deps: {
+      "@lacspace/components": "^1.0.1",
+      "@lacspace/charts": "^1.0.0",
+      "@lacspace/table": "^1.0.0",
+      "@lacspace/date": "^1.0.0",
+    },
+    files: () => ({
+      "app/lacspace-ui.css": uiThemeBridge(),
+      "app/insights/layout.tsx": dataVizRouteLayout(),
+      "app/insights/page.tsx": dataVizPage(),
+    }),
+    nextSteps: [
+      "Run `npm run dev` and open http://localhost:3000/insights — stats, a line chart, a date-range filter and an exportable table.",
+      "Swap the sample arrays at the top of app/insights/page.tsx for your own data; everything else is already wired.",
+      "The CSV export neutralises leading =, +, - and @, so an exported cell can never run as a formula in Excel.",
+    ],
+    learn: "https://developer.lacspace.com/components#charts",
+  },
 ];
+
+/* --------------------------- feature: ui + dataviz --------------------------- */
+
+/**
+ * The bridge between this template's design tokens and the component kit's.
+ *
+ * The kit reads `--lac-*`; the scaffold defines `--accent-to`, `--bg`, `--fg`
+ * and friends, and swaps them on a `.dark` class. Mapping one onto the other
+ * means the components inherit the template's brand *and* follow its existing
+ * theme toggle, with no second theme system to keep in sync.
+ */
+const uiThemeBridge = (): string => `/* Map this app's tokens onto @lacspace/components.
+ *
+ * The kit's own dark palette lives behind \`prefers-color-scheme\` and a
+ * \`data-theme\` attribute, but this app switches themes with a \`.dark\` class on
+ * <html>. The repeated \`:root\` below is deliberate: it raises specificity just
+ * enough to win against the kit's own theme blocks, whatever the OS setting is,
+ * so the components follow YOUR toggle and never fight it.
+ *
+ * Every line here is a suggestion — change any of them and the whole kit
+ * follows. The full token list is at the top of @lacspace/components/styles.css.
+ */
+:root:root:root {
+  /* Brand */
+  --lac-accent: var(--accent-to);
+  --lac-accent-hover: var(--accent-from);
+  --lac-accent-active: var(--accent-from);
+  --lac-accent-fg: var(--on-accent);
+  --lac-accent-soft: color-mix(in oklab, var(--accent-to) 14%, transparent);
+  --lac-accent-ring: color-mix(in oklab, var(--accent-to) 38%, transparent);
+
+  /* Surfaces & text — these already swap with the .dark class, so dark mode
+     comes along for free. */
+  --lac-bg: var(--bg);
+  --lac-bg-subtle: var(--surface);
+  --lac-bg-muted: var(--panel);
+  --lac-surface: var(--surface);
+  --lac-surface-raised: var(--panel);
+  --lac-fg: var(--fg);
+  --lac-fg-muted: var(--muted);
+  --lac-fg-faint: var(--faint);
+  --lac-fg-on-accent: var(--on-accent);
+
+  /* Lines & depth */
+  --lac-border: var(--hairline);
+  --lac-border-strong: color-mix(in oklab, var(--fg) 22%, transparent);
+  --lac-shadow-sm: var(--shadow-sm);
+  --lac-shadow: var(--shadow);
+  --lac-shadow-lg: var(--shadow-lg);
+
+  /* Shape & type */
+  --lac-radius: var(--radius);
+  --lac-radius-lg: var(--radius-lg);
+  --lac-font: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+`;
+
+/** Wraps the /ui route so the showcase works with no edits to app/layout.tsx. */
+const uiRouteLayout = (): string => `import "@lacspace/components/styles.css";
+import "../lacspace-ui.css";
+import { ToastProvider } from "@lacspace/components";
+
+// Scoped to this route so the add-on needs no edits to app/layout.tsx. To use
+// the kit across the whole app, move these two imports there and wrap <body>
+// with <UIProvider> from @/components/ui-provider instead.
+export default function UILayout({ children }: { children: React.ReactNode }) {
+  return <ToastProvider>{children}</ToastProvider>;
+}
+`;
+
+/** The one line to add to app/layout.tsx when you want the kit app-wide. */
+const uiProviderComponent = (): string => `"use client";
+import { ToastProvider } from "@lacspace/components";
+
+/**
+ * Wrap <body> with this once to use the component kit across the whole app,
+ * and import the two stylesheets in app/layout.tsx:
+ *
+ *   import "@lacspace/components/styles.css";
+ *   import "./lacspace-ui.css";
+ */
+export function UIProvider({ children }: { children: React.ReactNode }) {
+  return <ToastProvider position="bottom-right">{children}</ToastProvider>;
+}
+`;
+
+const uiShowcasePage = (): string => `"use client";
+import { useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  ConfirmDialog,
+  Field,
+  Input,
+  PasswordInput,
+  Select,
+  Stack,
+  Switch,
+  useToast,
+} from "@lacspace/components";
+
+// Everything below is real: a form that validates, a dialog that waits for its
+// promise, and a toast queue — none of it styled with utility classes. The look
+// comes from app/lacspace-ui.css, which maps this template's tokens onto the kit.
+export default function UIPage() {
+  const { toast } = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const [updates, setUpdates] = useState(true);
+  const [errors, setErrors] = useState<{ email?: string }>({});
+
+  function save(form: FormData) {
+    const email = String(form.get("email") ?? "");
+    if (!email.includes("@")) {
+      setErrors({ email: "That doesn't look like an email address." });
+      return;
+    }
+    setErrors({});
+    toast({ title: "Settings saved", tone: "success" });
+  }
+
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16">
+      <Stack gap={4}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Account settings</CardTitle>
+            <CardDescription>
+              96 components from @lacspace/components — accessible, server-render safe, and
+              themed by CSS variables instead of utility classes.
+            </CardDescription>
+          </CardHeader>
+          <CardBody>
+            <form action={save}>
+              <Stack gap={3}>
+                <Field label="Work email" hint="We never share it." error={errors.email}>
+                  {({ id, describedBy, invalid }) => (
+                    <Input
+                      id={id}
+                      name="email"
+                      type="email"
+                      defaultValue="you@company.com"
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                    />
+                  )}
+                </Field>
+
+                <Field label="New password" hint="At least 12 characters.">
+                  {({ id, describedBy }) => (
+                    <PasswordInput id={id} name="password" aria-describedby={describedBy} strength />
+                  )}
+                </Field>
+
+                <Field label="Plan">
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      name="plan"
+                      defaultValue="pro"
+                      options={[
+                        { value: "free", label: "Free" },
+                        { value: "pro", label: "Pro" },
+                        { value: "team", label: "Team" },
+                      ]}
+                    />
+                  )}
+                </Field>
+
+                <Switch checked={updates} onChange={setUpdates} label="Email me about product updates" />
+
+                <Button type="submit" full>
+                  Save changes
+                </Button>
+              </Stack>
+            </form>
+          </CardBody>
+        </Card>
+
+        <Alert tone="info" title="Rebrand the whole kit from one file">
+          Open <code>app/lacspace-ui.css</code>. It maps this template&rsquo;s accent, radius and font
+          onto the kit&rsquo;s variables, so the components already match — and they follow your
+          existing dark-mode toggle.
+        </Alert>
+
+        <Card>
+          <CardBody>
+            <Stack direction="row" gap={2} align="center" wrap>
+              <Badge tone="success" dot>
+                Live
+              </Badge>
+              <Button variant="soft" onClick={() => toast("Saved to drafts")}>
+                Show a toast
+              </Button>
+              <Button tone="danger" variant="soft" onClick={() => setConfirming(true)}>
+                Delete account
+              </Button>
+            </Stack>
+          </CardBody>
+        </Card>
+      </Stack>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        tone="danger"
+        title="Delete this account?"
+        message="Everything in it goes with it. This cannot be undone."
+        confirmLabel="Delete account"
+        onConfirm={async () => {
+          // Return a promise and the button spins, blocks repeat clicks, and
+          // keeps the dialog open if it rejects — a failed delete never looks
+          // like a successful one.
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          toast({ title: "Account deleted", tone: "success" });
+        }}
+      />
+    </main>
+  );
+}
+`;
+
+const dataVizRouteLayout = (): string => `import "@lacspace/components/styles.css";
+import "@lacspace/charts/styles.css";
+import "@lacspace/table/styles.css";
+import "@lacspace/date/styles.css";
+import "../lacspace-ui.css";
+
+// Scoped to this route; move these imports to app/layout.tsx to use the kit
+// everywhere. Order matters: lacspace-ui.css maps this app's tokens onto the
+// kit, so it comes last.
+export default function InsightsLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+`;
+
+const dataVizPage = (): string => `"use client";
+import { useState } from "react";
+import { Heading, Grid, Stack, Stat, Text } from "@lacspace/components";
+import { LineChart } from "@lacspace/charts";
+import { DataTable, textColumn, badgeColumn, currencyColumn, numberColumn } from "@lacspace/table";
+import { DateRangePicker, defaultPresets } from "@lacspace/date";
+
+// Swap these three arrays for your own data — nothing else needs to change.
+const MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"];
+const REVENUE = [18, 21, 25, 24, 31, 38];
+const TARGET = [20, 22, 24, 26, 28, 30];
+
+type Account = {
+  id: string;
+  account: string;
+  plan: string;
+  seats: number;
+  mrr: number;
+};
+
+const ACCOUNTS: Account[] = [
+  { id: "1", account: "Northwind", plan: "team", seats: 42, mrr: 1890 },
+  { id: "2", account: "Umbrella", plan: "pro", seats: 12, mrr: 540 },
+  { id: "3", account: "Initech", plan: "team", seats: 68, mrr: 3060 },
+  { id: "4", account: "Hooli", plan: "free", seats: 3, mrr: 0 },
+  { id: "5", account: "Stark Industries", plan: "pro", seats: 19, mrr: 855 },
+  { id: "6", account: "Wayne Enterprises", plan: "team", seats: 51, mrr: 2295 },
+];
+
+export default function InsightsPage() {
+  const [range, setRange] = useState<unknown>(null);
+
+  return (
+    <main className="mx-auto max-w-5xl px-6 py-16">
+      <Stack gap={5}>
+        <Stack direction="row" justify="between" align="center" gap={3} wrap>
+          <div>
+            <Heading level={1}>Insights</Heading>
+            <Text tone="muted">Charts, a data table and a date filter — all zero-dependency.</Text>
+          </div>
+          <DateRangePicker
+            numberOfMonths={2}
+            presets={defaultPresets()}
+            separator=" – "
+            onChange={setRange}
+          />
+        </Stack>
+
+        <Grid columns={{ base: 1, md: 3 }} gap={3}>
+          <Stat label="MRR" value="$8,640" delta={12.4} comparison="vs last month" />
+          <Stat label="Seats" value="195" delta={6.1} comparison="vs last month" />
+          <Stat label="Churn" value="1.8%" delta={-0.3} invertDelta comparison="vs last month" />
+        </Grid>
+
+        <LineChart
+          labels={MONTHS}
+          series={[
+            { name: "Revenue", data: REVENUE, area: true },
+            { name: "Target", data: TARGET, dashed: true },
+          ]}
+          curve
+          dots
+          tooltip
+          responsive
+          dataTable
+          formatValue={(n) => "$" + n + "k"}
+        />
+
+        <DataTable<Account>
+          caption="Accounts"
+          data={ACCOUNTS}
+          getRowId={(row) => row.id}
+          columns={[
+            textColumn<Account>("account", { header: "Account", key: "account", pinned: "left" }),
+            badgeColumn<Account>("plan", {
+              header: "Plan",
+              key: "plan",
+              tones: { team: "success", pro: "info", free: "default" },
+            }),
+            numberColumn<Account>("seats", { header: "Seats", key: "seats", aggregate: "sum" }),
+            currencyColumn<Account>("mrr", { header: "MRR", key: "mrr", currency: "USD", aggregate: "sum" }),
+          ]}
+          defaultSort={[{ id: "mrr", direction: "desc" }]}
+          searchable
+          selectable
+          exportable
+          stickyHeader
+        />
+      </Stack>
+    </main>
+  );
+}
+`;
 
 /* ------------------------- feature: ai-chat (files) ------------------------- */
 

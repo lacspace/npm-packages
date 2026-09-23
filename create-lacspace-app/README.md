@@ -20,6 +20,12 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **New in v2.14 — the UI kit (18 add-ons).** The scaffold now comes with a real component layer, not just a page:
+> - **`ui`** — the **96-component `@lacspace/components` library** wired into your template: a working settings page (form validation, a confirm dialog that waits for its promise, toasts), a `<UIProvider>` for app-wide use, and a **theme bridge** that maps your template's accent, radius and font onto the kit's `--lac-*` variables — so the components match your brand and follow your existing dark-mode toggle out of the box. Frontend, any template.
+> - **`dataviz`** — a working `/insights` page from **`@lacspace/charts` + `@lacspace/table` + `@lacspace/date`**: stat cards, an SVG line chart, a date-range filter and a sortable, searchable, CSV-exportable table. No canvas, no D3, no grid licence. Frontend, any template.
+>
+> `npx create-lacspace-app my-app --template saas --with ui,dataviz`
+
 > **New in v2.12 — real-time & privacy (16 add-ons).** Two more keyless, no-vendor add-ons:
 > - **`realtime`** — live server→browser updates over **Server-Sent Events** (`@lacspace/sse`): a channel hub + a `/live` stream + a React `useSSE` feed. No WebSocket server. Full-stack.
 > - **`consent`** — **GDPR-friendly cookie consent** (`@lacspace/consent`): a drop-in `<ConsentBanner/>`, per-category choices, cookie persistence and `whenConsent()` script-gating. Frontend.
@@ -159,6 +165,8 @@ In the interactive flow, after you pick a template you're offered the same list 
 | --- | --- | --- |
 | **`ai-chat`** | A streaming chat route `app/api/chat/route.ts` + a chat UI `app/chat/page.tsx`. Reads provider config from env, runs input through a prompt-injection guard, and streams the reply. | `@lacspace/ai` `@lacspace/prompt` `@lacspace/stream` `@lacspace/providers` `@lacspace/memory` `@lacspace/moderation` |
 | **`rag`** | "Chat with your docs": `content/welcome.md`, an indexer `scripts/index-content.mjs` (+ `rag:index` script), a retrieval+rerank answer route `app/api/ask/route.ts`, and an ask UI `app/ask/page.tsx`. | `@lacspace/rag` `@lacspace/embeddings` `@lacspace/vector` `@lacspace/chunk` `@lacspace/rerank` `@lacspace/providers` `@lacspace/ai` |
+| **`ui`** | The component library, themed to your template: `app/ui/page.tsx` (a real form, a confirm dialog and toasts), `app/ui/layout.tsx`, a `<UIProvider>`, and `app/lacspace-ui.css` — the bridge that maps your tokens onto the kit's. | `@lacspace/components` |
+| **`dataviz`** | A working `/insights` page: stat cards, an SVG line chart, a date-range filter, and a sortable/searchable/exportable data table. | `@lacspace/charts` `@lacspace/table` `@lacspace/date` `@lacspace/components` |
 
 ### 🆓 Free & local by default — no API key
 

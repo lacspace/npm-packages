@@ -84,6 +84,25 @@ describe("UI kit add-ons (ui + dataviz)", () => {
   });
 });
 
+describe("accessibility: skip link", () => {
+  it("every template gives keyboard users a way past the nav", () => {
+    for (const t of ["personal", "business", "ecommerce", "saas", "blog", "docs", "dashboard", "restaurant", "marketplace"]) {
+      const files = generateProject({ template: t });
+      const layout = files["app/layout.tsx"]!;
+      expect(layout, t).toContain('href="#main"');
+      // The target needs tabIndex so focus really moves, not just the scroll.
+      expect(layout, t).toContain('<div id="main" tabIndex={-1}>');
+      expect(files["app/globals.css"], t).toContain(".skip-link");
+    }
+  });
+
+  it("the skip link is hidden until it is focused", () => {
+    const css = generateProject({ template: "saas" })["app/globals.css"]!;
+    expect(css).toContain("transform: translateY(-160%)");
+    expect(css).toContain(".skip-link:focus { transform: translateY(0); }");
+  });
+});
+
 describe("backward compatibility (strictly additive)", () => {
   it("no features === today: no ai/rag files, no LEARN.md, base deps only", () => {
     const base = generateProject({ template: "saas" });

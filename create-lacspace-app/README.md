@@ -20,6 +20,12 @@ npx create-lacspace-app my-app --template saas --fullstack
 
 You choose the *kind* of site you're building. It writes a **real Next.js 15 + React 19 + Tailwind v4 app** — not a hello-world, but a genuinely **polished, modern site**: a fluid `clamp()` type scale, tight display headings, a refined light **and** dark palette, glass chrome, soft layered shadows, a smooth logo marquee, animated counters, scroll reveals and a shimmering primary CTA — every page filled in, an SEO stack wired end-to-end, and a **26-component UI kit** you can drop in anywhere.
 
+> **Fixed in v2.14.1 — login, and a hardened API.**
+> - **Email is normalised before it is queried.** Mongoose applies `lowercase`/`trim` when it *saves*, but not to query filters — so an account registered as `Bro@Gmail.com` was stored as `bro@gmail.com` and then could not be found at login. Full-stack projects generated before this should apply the one-line change in `backend/src/validation.ts`.
+> - **The API now sends the same class of security headers as the frontend** (`@lacspace/headers`: CSP, `X-Frame-Options: DENY`, `no-referrer`, nosniff, CORP), stops advertising `X-Powered-By: Express`, and caps JSON bodies at 256kb.
+> - **`npm run typecheck` covers both workspaces.** It only ran the backend, so it reported green over an unchecked frontend.
+> - **Every template ships a skip-to-content link** (WCAG 2.4.1) — hidden until focused, and focus really moves rather than only scrolling.
+
 > **New in v2.14 — the UI kit (18 add-ons).** The scaffold now comes with a real component layer, not just a page:
 > - **`ui`** — the **96-component `@lacspace/components` library** wired into your template: a working settings page (form validation, a confirm dialog that waits for its promise, toasts), a `<UIProvider>` for app-wide use, and a **theme bridge** that maps your template's accent, radius and font onto the kit's `--lac-*` variables — so the components match your brand and follow your existing dark-mode toggle out of the box. Frontend, any template.
 > - **`dataviz`** — a working `/insights` page from **`@lacspace/charts` + `@lacspace/table` + `@lacspace/date`**: stat cards, an SVG line chart, a date-range filter and a sortable, searchable, CSV-exportable table. No canvas, no D3, no grid licence. Frontend, any template.

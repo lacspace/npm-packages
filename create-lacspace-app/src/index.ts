@@ -212,7 +212,8 @@ const pkgJson = (ctx: Ctx): string => JSON.stringify({
   name: ctx.name,
   version: "0.1.0",
   private: true,
-  scripts: { dev: "next dev", build: "next build", start: "next start", lint: "next lint" },
+  // `typecheck` so the full-stack root script can run it across both workspaces.
+  scripts: { dev: "next dev", build: "next build", start: "next start", lint: "next lint", typecheck: "tsc --noEmit" },
   dependencies: {
     next: "^15.1.0",
     react: "^19.0.0",
@@ -374,6 +375,27 @@ h1, .display { letter-spacing: -0.035em; line-height: 1.02; }
 ::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--hairline); }
 :focus-visible { outline: 2px solid var(--accent-to); outline-offset: 2px; border-radius: 6px; }
+
+/* Skip link: off-screen until it is focused, then the first thing you see.
+   The wrapper it targets carries tabIndex={-1}, so focus actually moves there
+   instead of the browser only scrolling. */
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent-to);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 0.18s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) { .skip-link { transition: none; } }
+#main:focus { outline: none; }
 
 .gradient-text {
   background: linear-gradient(115deg, var(--accent-from), var(--accent-to));
@@ -547,11 +569,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={\`\${inter.variable} \${inter.className}\`} suppressHydrationWarning>
       <body className="antialiased">
+        {/* Keyboard users land here first and can jump past the nav (WCAG 2.4.1). */}
+        <a href="#main" className="skip-link">Skip to content</a>
         {/* ✨ Dark / light / system theming with a built-in no-flash script — @lacspace/theme */}
         <ThemeProvider defaultTheme="dark">
           {/* ✨ Press ⌘K / Ctrl-K anywhere — powered by @lacspace/ui */}
           <CommandMenu />
-          ${open}{children}${close}
+          ${open}<div id="main" tabIndex={-1}>{children}</div>${close}
         </ThemeProvider>
         <script
           type="application/ld+json"
@@ -7986,7 +8010,9 @@ const rootPkgJson = (ctx: Ctx): string => JSON.stringify({
     start: 'concurrently -k -n api,web -c blue,magenta "npm:start:api" "npm:start:web"',
     "start:api": `npm run start --workspace ${scope(ctx)}/backend`,
     "start:web": `npm run start --workspace ${scope(ctx)}/frontend`,
-    typecheck: `npm run typecheck --workspace ${scope(ctx)}/backend`,
+    // Both workspaces: a gate that silently skips the frontend is worse than
+    // no gate, because it reports green over unchecked code.
+    typecheck: `npm run typecheck --workspace ${scope(ctx)}/backend && npm run typecheck --workspace ${scope(ctx)}/frontend`,
   },
   devDependencies: { concurrently: "^9.1.0" },
   engines: { node: ">=18" },
@@ -8408,6 +8434,7 @@ const backendPkgJson = (ctx: Ctx): string => {
       "@lacspace/rate-limit": "^1.2.0",
       "@lacspace/cache": "^1.1.0",
       "@lacspace/logger": "^1.0.0",
+      "@lacspace/headers": "^1.1.2",
       ...featureDeps,
       [`${scope(ctx)}/types`]: "*",
     },
@@ -8738,14 +8765,18 @@ const backendValidation = (): string => `import { v, type Infer } from "@lacspac
 // how this works: Zod-like schemas (@lacspace/validate). .parse(body) throws a
 // ValidationError on bad input, which the error middleware turns into a clean 400
 // with per-field messages.
+// Email is normalised HERE, not only in the schema. Mongoose applies
+// \`lowercase\`/\`trim\` setters when it SAVES a document, but not to query
+// filters — so \`User.findOne({ email })\` with "Bro@Gmail.com" would miss the
+// stored "bro@gmail.com", and the account would be unreachable at login.
 export const RegisterInput = v.object({
   name: v.string().min(2).max(80),
-  email: v.string().email(),
+  email: v.string().email().trim().toLowerCase(),
   password: v.string().min(8).max(200),
 });
 
 export const LoginInput = v.object({
-  email: v.string().email(),
+  email: v.string().email().trim().toLowerCase(),
   password: v.string().min(1),
 });
 
@@ -8884,19 +8915,35 @@ export default router;
 
 const backendApp = (ctx: Ctx): string => `import express from "express";
 import cors from "cors";
+import { expressSecurityHeaders } from "@lacspace/headers";
 import { env } from "./env.js";
 import { requestLogger } from "./logger.js";
 import { errorHandler } from "./middleware/error.js";
 import { registerRoutes } from "./routes/index.js";
 
-// how this works: assembles the Express app — CORS for the frontend, JSON parsing,
-// structured request logging (@lacspace/logger), a health check, all route groups
-// (see routes/index.ts), then the error handler LAST.
+// how this works: assembles the Express app — security headers, CORS for the
+// frontend, JSON parsing, structured request logging (@lacspace/logger), a health
+// check, all route groups (see routes/index.ts), then the error handler LAST.
 export function createApp(): express.Express {
   const app = express();
 
+  // Express advertises itself in every response by default; there is no reason
+  // to tell the internet what the API is built on.
+  app.disable("x-powered-by");
+
+  // The same hardening the frontend gets, tuned for an API: deny framing, send
+  // no referrer, and a CSP that allows nothing — an API returns JSON, so there
+  // is no script, style or image for a browser to load from it.
+  app.use(expressSecurityHeaders({
+    frameOptions: "DENY",
+    referrerPolicy: "no-referrer",
+    crossOriginResourcePolicy: "same-site",
+    contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+  }));
+
   app.use(cors({ origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()), credentials: true }));
-  app.use(express.json());
+  // A JSON API has no business accepting a megabyte of body by default.
+  app.use(express.json({ limit: "256kb" }));
   app.use(requestLogger); // one structured log line per request
 
   app.get("/health", (_req, res) => { res.json({ ok: true, service: "${ctx.name}-api" }); });

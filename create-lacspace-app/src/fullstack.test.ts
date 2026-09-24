@@ -196,6 +196,38 @@ describe("backend-aware add-ons (require the full-stack backend)", () => {
   });
 });
 
+describe("hardening (2.14.1)", () => {
+  const app = generateProject({ template: "saas", mode: "dynamic" });
+
+  it("normalises email so an account stays reachable at login", () => {
+    const validation = app["backend/src/validation.ts"]!;
+    // Mongoose runs `lowercase`/`trim` setters on SAVE but not on query
+    // filters, so findOne({ email }) with a differently-cased address missed
+    // the stored user entirely and login failed for the same address the
+    // person had just registered with.
+    expect(validation).toContain("v.string().email().trim().toLowerCase()");
+    expect(validation.match(/v\.string\(\)\.email\(\)\.trim\(\)\.toLowerCase\(\)/g)).toHaveLength(2);
+  });
+
+  it("typechecks BOTH workspaces, not just the backend", () => {
+    const root = JSON.parse(app["package.json"]!);
+    expect(root.scripts.typecheck).toContain("/backend");
+    expect(root.scripts.typecheck).toContain("/frontend");
+    // …and the frontend must actually have the script, or the root one errors.
+    expect(JSON.parse(app["frontend/package.json"]!).scripts.typecheck).toBe("tsc --noEmit");
+  });
+
+  it("hardens the API the same way it hardens the frontend", () => {
+    const backend = app["backend/src/app.ts"]!;
+    expect(backend).toContain('app.disable("x-powered-by")');
+    expect(backend).toContain("expressSecurityHeaders");
+    expect(backend).toContain('frameOptions: "DENY"');
+    expect(backend).toContain('limit: "256kb"');
+    // The dependency has to be declared or the install fails.
+    expect(app["backend/package.json"]).toContain("@lacspace/headers");
+  });
+});
+
 describe("recipes", () => {
   it("listRecipes / getRecipe expose the built-in recipes", () => {
     const keys = listRecipes().map((r) => r.key).sort();

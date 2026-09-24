@@ -67,7 +67,7 @@ export interface ScheduleGridProps
  */
 export const ScheduleGrid = forwardRef<HTMLDivElement, ScheduleGridProps>(function ScheduleGrid(
   {
-    startDate,
+    startDate = new Date(),
     days = 7,
     startHour = 9,
     endHour = 17,

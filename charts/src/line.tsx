@@ -90,7 +90,7 @@ function finitePoints(points: Array<Point | null>): Point[] {
  */
 export const LineChart = forwardRef<HTMLDivElement, CartesianChartProps>(function LineChart(
   {
-    series,
+    series = [],
     labels = [],
     width = 560,
     height = 280,
@@ -320,7 +320,7 @@ export interface AreaChartProps extends CartesianChartProps {
  */
 export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(function AreaChart(
   {
-    series,
+    series = [],
     labels = [],
     width = 560,
     height = 280,

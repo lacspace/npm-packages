@@ -531,7 +531,7 @@
 }
 .lac-tag-remove:hover:not(:disabled) {
   opacity: 1;
-  background: rgba(127, 127, 127, 0.22);
+  background: var(--lac-tag-remove-hover-bg);
 }
 .lac-tag-remove:disabled {
   cursor: not-allowed;

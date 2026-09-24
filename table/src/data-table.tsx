@@ -151,8 +151,8 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 export function DataTable<Row>(props: DataTableProps<Row>): JSX.Element {
   const {
     // engine options
-    data,
-    columns: columnDefs,
+    data = [],
+    columns: columnDefs = [],
     getRowId,
     locale,
     multiSort,

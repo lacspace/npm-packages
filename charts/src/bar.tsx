@@ -83,7 +83,7 @@ interface Bar {
  */
 export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarChart(
   {
-    series,
+    series = [],
     labels = [],
     width = 560,
     height = 300,

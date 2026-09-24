@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/charts",
-  "version": "1.0.0",
-  "description": "A dependency-free React chart library that draws real SVG — line, area, bar, stacked bar, donut, sparkline, gauge, heatmap, radar, funnel and candlestick. No canvas, no D3, no chart engine: every mark is an element you can style with CSS variables, and every scale is a pure exported function you can test. Server-render safe, themeable, accessible.",
+  "version": "1.1.0",
+  "description": "A dependency-free React chart library that draws real SVG \u2014 line, area, bar, stacked bar, donut, sparkline, gauge, heatmap, radar, funnel and candlestick. No canvas, no D3, no chart engine: every mark is an element you can style with CSS variables, and every scale is a pure exported function you can test. Server-render safe, themeable, accessible.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

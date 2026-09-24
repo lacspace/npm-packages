@@ -44,7 +44,7 @@ export interface FunnelChartProps extends Omit<ChartBaseProps, "margin"> {
  */
 export const FunnelChart = forwardRef<HTMLDivElement, FunnelChartProps>(function FunnelChart(
   {
-    stages,
+    stages = [],
     width = 520,
     height,
     colors,

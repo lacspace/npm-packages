@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/date",
-  "version": "1.0.0",
-  "description": "A dependency-free React date and time picker set — calendar, date picker, date-range picker, month and year pickers, time picker, date-time picker and an inline scheduler grid. Includes a pure, tested date engine (month grids, ranges, disabled rules, parsing and formatting) with no moment, no date-fns, no dayjs. Server-render safe and themeable through CSS variables.",
+  "version": "1.1.0",
+  "description": "A dependency-free React date and time picker set \u2014 calendar, date picker, date-range picker, month and year pickers, time picker, date-time picker and an inline scheduler grid. Includes a pure, tested date engine (month grids, ranges, disabled rules, parsing and formatting) with no moment, no date-fns, no dayjs. Server-render safe and themeable through CSS variables.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

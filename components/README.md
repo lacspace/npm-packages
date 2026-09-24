@@ -12,6 +12,23 @@
 
 </div>
 
+### 1.1.0 — a missing collection renders empty instead of crashing
+
+`Breadcrumbs`, `Stepper`, `CheckboxGroup`, `Combobox`, `MultiSelect`,
+`RadioGroup`, `ToggleGroup`, `MetricBar` and `Tree` used to throw
+`Cannot read properties of undefined (reading 'map')` when their `items` /
+`options` / `steps` / `nodes` prop was omitted. They now render empty. The prop
+is still required in the types — TypeScript users are told at compile time —
+but a JavaScript caller, or a page whose data has not arrived yet, is no longer
+crashed. The compound parts (`AccordionItem`, `Tab`, `TabList`, `TabPanel`)
+keep their deliberate "must be rendered inside" error, which is the useful kind.
+
+Also the last four hard-coded colours in the stylesheet became tokens, so the
+"every value is a `--lac-*` variable" promise now holds across all 122 KB:
+`--lac-fg-on-tone` (text on solid danger/success buttons — white in both themes
+on purpose, and now overridable), `--lac-switch-thumb-bg`, and
+`--lac-tag-remove-hover-bg`.
+
 > Buttons, fields, selects, sliders, comboboxes, modals, drawers, popovers, toasts, tabs, menus, avatars, timelines, trees and 80 more — **every value is a CSS variable you can redefine, every variant is a `data-*` attribute you can target**. React is the only peer dependency. Server-render safe, accessible by construction, and it pairs with [`@lacspace/charts`](https://www.npmjs.com/package/@lacspace/charts), [`@lacspace/table`](https://www.npmjs.com/package/@lacspace/table) and [`@lacspace/date`](https://www.npmjs.com/package/@lacspace/date), which share the same tokens.
 
 ## Install

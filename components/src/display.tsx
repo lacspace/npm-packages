@@ -1548,7 +1548,7 @@ function TreeBranch({
  */
 export const Tree = forwardRef<HTMLUListElement, TreeProps>(function Tree(
   {
-    nodes,
+    nodes = [],
     label,
     expandedIds,
     defaultExpandedIds = [],
@@ -1736,7 +1736,7 @@ export interface MetricBarProps extends HTMLAttributes<HTMLDivElement> {
  * into a spreadsheet.
  */
 export const MetricBar = forwardRef<HTMLDivElement, MetricBarProps>(function MetricBar(
-  { items, max, format, showShare = false, tone = "accent", size = "md", className, ...rest },
+  { items = [], max, format, showShare = false, tone = "accent", size = "md", className, ...rest },
   ref,
 ) {
   const stats = normalizeMetrics(

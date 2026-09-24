@@ -62,7 +62,7 @@ export interface PieChartProps extends Omit<ChartBaseProps, "margin"> {
  */
 export const PieChart = forwardRef<HTMLDivElement, PieChartProps>(function PieChart(
   {
-    data,
+    data = [],
     width = 320,
     height = 320,
     colors,

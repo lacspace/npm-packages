@@ -438,7 +438,7 @@ export interface TableCheckboxProps extends Omit<InputHTMLAttributes<HTMLInputEl
  * it is set through a ref callback.
  */
 export const TableCheckbox = forwardRef<HTMLInputElement, TableCheckboxProps>(
-  function TableCheckbox({ label, indeterminate = false, className, ...rest }, ref) {
+  function TableCheckbox({ label = "Select", indeterminate = false, className, ...rest }, ref) {
     const setNode = (node: HTMLInputElement | null): void => {
       if (node) node.indeterminate = indeterminate;
       if (typeof ref === "function") ref(node);
@@ -478,7 +478,7 @@ export interface TableColumnsMenuProps extends Omit<HTMLAttributes<HTMLDetailsEl
  * JavaScript or a portal — so it also renders correctly on a server.
  */
 export const TableColumnsMenu = forwardRef<HTMLDetailsElement, TableColumnsMenuProps>(
-  function TableColumnsMenu({ columns, onToggleColumn, label = "Columns", className, ...rest }, ref) {
+  function TableColumnsMenu({ columns = [], onToggleColumn, label = "Columns", className, ...rest }, ref) {
     return (
       <details {...rest} ref={ref} className={classes("lac-table-menu", className)}>
         <summary className="lac lac-table-btn">{label}</summary>

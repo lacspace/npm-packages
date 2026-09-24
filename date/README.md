@@ -1,5 +1,10 @@
 # @lacspace/date
 
+### 1.1.0 — `ScheduleGrid` starts today when no `startDate` is given
+
+It threw `Cannot read properties of undefined (reading 'getFullYear')`. A grid
+with no start date now starts on the current day.
+
 **React date and time pickers with no dependencies — and a date engine you can use on its own.** Calendar, date picker, range picker with presets, month and year pickers, time picker, date-time picker, week picker, a booking-style schedule grid and a self-updating "3 minutes ago". No moment, no date-fns, no dayjs, no Luxon.
 
 ```bash

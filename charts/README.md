@@ -12,6 +12,16 @@
 
 </div>
 
+### 1.1.0 — every chart renders empty without data instead of crashing
+
+`AreaChart`, `LineChart`, `BarChart`, `RadarChart`, `CandlestickChart`,
+`PieChart`, `DonutChart`, `SparkBars`, `Sparkline`, `FunnelChart`,
+`ChartLegend` and `ChartDataTable` threw `Cannot read properties of undefined`
+when `series` / `data` / `stages` / `items` was omitted — which is exactly the
+state a dashboard is in while its data loads. They now render an empty chart.
+`ChartAxis` with no `plot` geometry renders nothing rather than throwing on
+`plot.x1`. The props stay required in the types.
+
 > Line, area, bar, donut, sparkline, gauge, heatmap, radar, funnel and candlestick — **every mark is an element you can style, every scale is a pure function you can test**. React is the only peer dependency. Server-render safe, themed by the same `--lac-*` variables as [`@lacspace/components`](https://www.npmjs.com/package/@lacspace/components), and accessible by construction.
 
 ## Install

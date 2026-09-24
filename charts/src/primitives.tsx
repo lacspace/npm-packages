@@ -217,6 +217,9 @@ export const ChartAxis = forwardRef<SVGGElement, ChartAxisProps>(function ChartA
   { orientation, plot, ticks, line = false, labelAngle, className, ...rest },
   ref,
 ) {
+  // No plot geometry means nothing to draw — an axis outside a chart composition
+  // renders nothing instead of throwing on `plot.x1`.
+  if (!plot) return null;
   const vertical = orientation === "left" || orientation === "right";
   const anchor = orientation === "left" ? "end" : orientation === "right" ? "start" : "middle";
   const axisX = orientation === "left" ? plot.x0 : plot.x1;
@@ -287,7 +290,7 @@ export interface ChartLegendProps extends Omit<HTMLAttributes<HTMLUListElement>,
  * zooms like the rest of the page.
  */
 export const ChartLegend = forwardRef<HTMLUListElement, ChartLegendProps>(function ChartLegend(
-  { items, vertical = false, onSelect, className, ...rest },
+  { items = [], vertical = false, onSelect, className, ...rest },
   ref,
 ) {
   return (
@@ -414,7 +417,7 @@ export interface ChartDataTableProps extends HTMLAttributes<HTMLDivElement> {
  * assistive technology. Opt in with `dataTable` on any chart.
  */
 export const ChartDataTable = forwardRef<HTMLDivElement, ChartDataTableProps>(
-  function ChartDataTable({ caption, columns, rows, className, ...rest }, ref) {
+  function ChartDataTable({ caption, columns = [], rows = [], className, ...rest }, ref) {
     return (
       <div {...rest} ref={ref} className={classes("lac-chart-sr", className)}>
         <table>

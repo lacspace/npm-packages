@@ -1,5 +1,13 @@
 # @lacspace/table
 
+### 1.1.0 — empty by default, and the select checkbox is always labelled
+
+`DataTable` and `TableColumnsMenu` render an empty table / menu when `data` or
+`columns` is omitted instead of throwing on `undefined.map`. `TableCheckbox`
+now defaults its `aria-label` to "Select" — the kit owns that input, so it must
+never ship unlabelled; pass `label` for something more specific ("Select all
+rows").
+
 **A React data table with no dependencies.** Sorting, filtering, global search, pagination, row selection, column resizing, pinned columns, expandable rows, footer totals and CSV export — themeable through CSS variables, accessible, and safe to render on the server.
 
 ```bash

@@ -58,8 +58,8 @@ export interface RadarChartProps extends Omit<ChartBaseProps, "margin"> {
  */
 export const RadarChart = forwardRef<HTMLDivElement, RadarChartProps>(function RadarChart(
   {
-    axes,
-    series,
+    axes = [],
+    series = [],
     width = 340,
     height = 340,
     colors,

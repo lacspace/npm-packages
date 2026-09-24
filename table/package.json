@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/table",
-  "version": "1.0.0",
-  "description": "A dependency-free React data table — sorting, filtering, global search, pagination, row selection, column resizing, pinned columns, expandable rows, grouping and CSV export. The whole table engine is pure functions you can use without rendering anything, so the logic is testable and reusable. Server-render safe and themeable through CSS variables.",
+  "version": "1.1.0",
+  "description": "A dependency-free React data table \u2014 sorting, filtering, global search, pagination, row selection, column resizing, pinned columns, expandable rows, grouping and CSV export. The whole table engine is pure functions you can use without rendering anything, so the logic is testable and reusable. Server-render safe and themeable through CSS variables.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

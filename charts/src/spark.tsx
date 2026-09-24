@@ -45,7 +45,7 @@ export interface SparklineProps extends Omit<ChartBaseProps, "margin" | "colors"
  */
 export const Sparkline = forwardRef<HTMLDivElement, SparklineProps>(function Sparkline(
   {
-    data,
+    data = [],
     width = 120,
     height = 32,
     color,
@@ -141,7 +141,7 @@ export interface SparkBarsProps extends Omit<ChartBaseProps, "margin" | "colors"
  */
 export const SparkBars = forwardRef<HTMLDivElement, SparkBarsProps>(function SparkBars(
   {
-    data,
+    data = [],
     width = 120,
     height = 32,
     color,

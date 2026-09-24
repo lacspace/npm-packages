@@ -62,7 +62,7 @@ export interface CandlestickChartProps extends Omit<ChartBaseProps, "colors"> {
 export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps>(
   function CandlestickChart(
     {
-      data,
+      data = [],
       width = 620,
       height = 320,
       upColor = "#16a34a",

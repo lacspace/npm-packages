@@ -45,6 +45,11 @@
   --lac-fg-muted: #4a5668;
   --lac-fg-faint: #78849a;
   --lac-fg-on-accent: #ffffff;
+  /* Text on a solid danger/success button and the switch thumb are white in both
+     themes — deliberate, not an oversight — but stay overridable as tokens. */
+  --lac-fg-on-tone: #fff;
+  --lac-switch-thumb-bg: #fff;
+  --lac-tag-remove-hover-bg: rgba(127, 127, 127, 0.22);
 
   --lac-border: #dbe2ec;
   --lac-border-strong: #c3cddc;
@@ -300,7 +305,7 @@
 
 .lac-btn[data-tone="danger"][data-variant="solid"] {
   background: var(--lac-danger);
-  color: #fff;
+  color: var(--lac-fg-on-tone);
 }
 .lac-btn[data-tone="danger"][data-variant="solid"]:hover:not(:disabled) {
   background: var(--lac-danger-hover);
@@ -315,7 +320,7 @@
 }
 .lac-btn[data-tone="success"][data-variant="solid"] {
   background: var(--lac-success);
-  color: #fff;
+  color: var(--lac-fg-on-tone);
 }
 .lac-btn[data-tone="success"][data-variant="soft"] {
   background: var(--lac-success-soft);
@@ -674,7 +679,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--lac-switch-thumb-bg);
   box-shadow: var(--lac-shadow-sm);
   transition: transform var(--lac-duration) var(--lac-ease);
 }

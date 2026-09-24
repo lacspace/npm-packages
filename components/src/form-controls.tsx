@@ -1323,7 +1323,7 @@ export interface ComboboxProps
  */
 export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Combobox(
   {
-    options,
+    options = [],
     value,
     defaultValue = "",
     onChange,
@@ -1538,7 +1538,7 @@ export interface MultiSelectProps
  */
 export const MultiSelect = forwardRef<HTMLInputElement, MultiSelectProps>(function MultiSelect(
   {
-    options,
+    options = [],
     value,
     defaultValue,
     onChange,
@@ -2312,7 +2312,7 @@ export interface RadioGroupProps
  */
 export const RadioGroup = forwardRef<HTMLDivElement, RadioGroupProps>(function RadioGroup(
   {
-    options,
+    options = [],
     value,
     defaultValue = "",
     onChange,
@@ -2405,7 +2405,7 @@ export interface CheckboxGroupProps
  */
 export const CheckboxGroup = forwardRef<HTMLDivElement, CheckboxGroupProps>(function CheckboxGroup(
   {
-    options,
+    options = [],
     value,
     defaultValue,
     onChange,
@@ -2530,7 +2530,7 @@ export interface ToggleGroupProps
  */
 export const ToggleGroup = forwardRef<HTMLDivElement, ToggleGroupProps>(function ToggleGroup(
   {
-    items,
+    items = [],
     type = "single",
     value,
     defaultValue,

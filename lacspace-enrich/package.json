@@ -1,26 +1,77 @@
 {
   "name": "lacspace-enrich",
-  "version": "0.2.0",
-  "description": "Free, open-source company + contact enrichment — turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address, tech stack, DNS/SPF/DMARC/DKIM deliverability, RDAP registration, key-page discovery and email-pattern guesses — all from open sources / DNS. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
+  "version": "0.2.1",
+  "description": "Free, open-source company + contact enrichment \u2014 turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address, tech stack, DNS/SPF/DMARC/DKIM deliverability, RDAP registration, key-page discovery and email-pattern guesses \u2014 all from open sources / DNS. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
   "type": "module",
-  "bin": { "lacspace-enrich": "dist/cli.js" },
+  "bin": {
+    "lacspace-enrich": "dist/cli.js"
+  },
   "main": "./dist/lib.cjs",
   "module": "./dist/lib.js",
   "types": "./dist/lib.d.ts",
   "exports": {
-    ".": { "types": "./dist/lib.d.ts", "import": "./dist/lib.js", "require": "./dist/lib.cjs" },
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
-  "scripts": { "build": "tsup", "test": "vitest run", "typecheck": "tsc --noEmit", "prepublishOnly": "npm run build" },
-  "keywords": ["enrichment", "company-data", "contact-enrichment", "lead-enrichment", "email-finder", "email-permutator", "tech-stack", "tech-detection", "dns", "spf", "dmarc", "dkim", "rdap", "whois", "deliverability", "scraper", "cli", "typescript"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "enrichment",
+    "company-data",
+    "contact-enrichment",
+    "lead-enrichment",
+    "email-finder",
+    "email-permutator",
+    "tech-stack",
+    "tech-detection",
+    "dns",
+    "spf",
+    "dmarc",
+    "dkim",
+    "rdap",
+    "whois",
+    "deliverability",
+    "scraper",
+    "cli",
+    "typescript"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/tools/enrich",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "lacspace-enrich" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=20" },
-  "dependencies": { "lacspace-scraper": "^0.1.0" },
-  "devDependencies": { "@types/node": "^20.14.0", "tsup": "^8.0.0", "typescript": "^5.5.0", "vitest": "^2.0.0" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "lacspace-enrich"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "lacspace-scraper": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

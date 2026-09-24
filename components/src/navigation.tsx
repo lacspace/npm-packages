@@ -799,7 +799,7 @@ export interface BreadcrumbsProps extends Omit<HTMLAttributes<HTMLElement>, "onC
  */
 export const Breadcrumbs = forwardRef<HTMLElement, BreadcrumbsProps>(function Breadcrumbs(
   {
-    items,
+    items = [],
     maxItems = 0,
     itemsBeforeCollapse = 1,
     itemsAfterCollapse = 1,
@@ -1089,7 +1089,7 @@ export interface StepperProps extends Omit<HTMLAttributes<HTMLElement>, "onChang
  */
 export const Stepper = forwardRef<HTMLElement, StepperProps>(function Stepper(
   {
-    steps,
+    steps = [],
     active,
     defaultActive = 0,
     onChange,

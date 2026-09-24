@@ -12,6 +12,18 @@
 
 </div>
 
+### 1.1.1 — `verify` never throws, and repeats score honestly
+
+- A stored hash with `i=0` reached PBKDF2 and threw "iterations cannot be
+  zero". A stored hash is data, not a contract: a corrupted or hostile row must
+  fail the login, never crash it. `verify()` returns `false` for any malformed
+  hash now.
+- `estimateStrength("aaaaaaaaaaaaaaaa")` scored **3 of 4** with 67 bits — the
+  estimator flagged the repeat and then applied a flat 8-bit penalty. Repeated
+  characters and blocks are now scored on their compressed form (one instance
+  plus the count), so they land where they belong. Non-repeating passwords are
+  scored exactly as before.
+
 > Hash and verify passwords with **PBKDF2-HMAC-SHA256** (600,000 iterations by default, per OWASP) over Web Crypto — correct and isomorphic. Self-describing PHC string, constant-time verify, rehash detection and a strength estimator. Never store plaintext.
 
 - 🔒 `hash` / `verify` (constant-time) with a portable `$pbkdf2-sha256$…` string

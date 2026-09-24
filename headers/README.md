@@ -12,6 +12,17 @@
 
 </div>
 
+### 1.3.0 — CSP keywords are quoted for you, and `parseCsp` follows the spec
+
+- **`csp({ defaultSrc: ["self"] })` emitted `default-src self`.** Unquoted,
+  `self` is a *hostname* in CSP — that policy allows a host called "self" and
+  blocks the site's own origin; `script-src none` allows a host called "none".
+  Known keywords, `nonce-…` and `sha256-…` sources are now single-quoted
+  however they were written. Already-quoted input is byte-identical.
+- **`parseCsp` kept the last of a duplicated directive.** CSP3 §6.6.1.2 says
+  the **first** is enforced, so the parser described a policy the browser does
+  not apply. First wins now.
+
 > A tiny, framework-agnostic Helmet: strict security response headers (HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, COOP) and a **typed CSP builder**. Get a plain headers object for Express/Hono/Fastify, or a Next.js `headers()` config.
 
 - 🛡️ `securityHeaders()` — sensible strict defaults (+ COOP/COEP/CORP, Reporting-Endpoints, report-only)

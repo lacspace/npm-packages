@@ -12,6 +12,16 @@
 
 </div>
 
+### 1.2.0 — the lock engages on the `maxAttempts`-th failure
+
+`lockout({ maxAttempts: 3 })` used to lock on the **fourth** `record()`. The
+third returned `remaining: 0` beside `locked: false` — zero attempts left, yet
+not locked — and every attacker got one free extra guess. Three strikes now
+means out, which is how this README always read, how `@lacspace/mfa` counts in
+the same kit, and what the status object was already claiming. Backoff is
+unchanged: base delay on the first lock, doubling after, capped at `maxDelayMs`.
+This is a security-tightening behaviour change, hence the minor bump.
+
 > Stop credential-stuffing and brute force at the door. Track failed attempts per key (user, email, IP), lock after N strikes with **exponential backoff**, auto-expire the window, and reset on success. In-memory store built in; implement `LockStore` for Redis/Mongo.
 
 - 🔒 `record` / `check` / `reset` with a clear `LockStatus`

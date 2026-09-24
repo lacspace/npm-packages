@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/jwt",
-  "version": "1.4.0",
-  "description": "JSON Web Tokens (HS/RS/ES/EdDSA) with JWKS-by-kid key rotation, strict expiry/issuer/audience/subject/jti checks + secure random & CSRF tokens. Isomorphic over Web Crypto — Node, edge, browser.",
+  "version": "1.4.1",
+  "description": "JSON Web Tokens (HS/RS/ES/EdDSA) with JWKS-by-kid key rotation, strict expiry/issuer/audience/subject/jti checks + secure random & CSRF tokens. Isomorphic over Web Crypto \u2014 Node, edge, browser.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -1,16 +1,20 @@
 import { test, expect } from "vitest";
 import { lockout, Lockout, MemoryLockStore } from "./index";
 
-test("locks after maxAttempts is exceeded, with exponential backoff", async () => {
+// This test used to assert that the THIRD failure of `maxAttempts: 3` was
+// "== max, still allowed" and the lock engaged on the fourth. That granted
+// every attacker one free extra guess and contradicted the README ("lock after
+// N strikes"), the status object (`remaining: 0` beside `locked: false`) and
+// @lacspace/mfa's counting in the same kit. Three strikes means out.
+test("locks on the maxAttempts-th failure, with exponential backoff", async () => {
   const guard = lockout({ maxAttempts: 3, baseDelayMs: 1_000, maxDelayMs: 10_000 });
   expect((await guard.record("u")).locked).toBe(false); // 1
   expect((await guard.record("u")).locked).toBe(false); // 2
-  expect((await guard.record("u")).locked).toBe(false); // 3 (== max, still allowed)
-  const s4 = await guard.record("u"); // 4 → lock (base)
-  expect(s4.locked).toBe(true);
-  expect(s4.retryAfterMs).toBe(1_000);
-  const s5 = await guard.record("u"); // 5 → 2× base
-  expect(s5.retryAfterMs).toBe(2_000);
+  const s3 = await guard.record("u"); // 3 == max → lock (base)
+  expect(s3.locked).toBe(true);
+  expect(s3.retryAfterMs).toBe(1_000);
+  const s4 = await guard.record("u"); // 4 → 2× base
+  expect(s4.retryAfterMs).toBe(2_000);
 });
 
 test("remaining counts down and reset clears state", async () => {

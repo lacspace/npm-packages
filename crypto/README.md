@@ -12,6 +12,14 @@
 
 </div>
 
+### 1.2.1 — `fromBase64url` accepts padded input
+
+base64url makes `=` optional (RFC 4648 §5) and some encoders emit it.
+Re-padding an already-padded string produced an invalid length and threw a
+raw `DOMException` out of `atob`. Every padding variant decodes now. Also
+documented: the two-argument `randomInt(min, max)` has an exclusive `max`,
+like Node's `crypto.randomInt`.
+
 > A thin, correct layer over the **Web Crypto API** — no hand-rolled crypto. Authenticated **AES-256-GCM**, PBKDF2 key derivation, SHA-256/384/512, HMAC, secure random and constant-time compare. Same code on Node 18+, edge, browsers and React Native. Encrypt database fields, S3 payloads, cookies and tokens.
 
 - 🔐 `encrypt` / `decrypt` — AES-256-GCM (authenticated: tampering is rejected)
@@ -136,6 +144,7 @@ randomString(24);                            // 24-char URL-safe base62 token
 randomString(6, "0123456789");               // custom alphabet (unbiased)
 randomUUID();                                // RFC-4122 v4 UUID
 randomInt(6);                                // unbiased int in [0, 6)
+randomInt(1, 7);                             // unbiased int in [1, 7) — max is exclusive, like Node's crypto.randomInt
 randomInt(100, 200);                         // unbiased int in [100, 200)
 ```
 

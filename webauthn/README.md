@@ -12,6 +12,14 @@
 
 </div>
 
+### 1.2.1 — `expectedOrigin` is normalised
+
+`expectedOrigin: "https://example.com/"` — a trailing slash from an `APP_URL`,
+or a capitalised host — rejected every sign-in with "origin mismatch". The
+configured origin is now compared as a canonical origin (scheme, host, port),
+so those forms match. `https://evil.com`, `http://`, subdomains and
+look-alike hosts still do not.
+
 > Everything for passwordless / biometric auth in one small package: **browser ceremony helpers**, **server challenge & options builders**, and **real assertion verification** (ES256/RS256/Ed25519) over Web Crypto — including the fiddly ES256 DER→P1363 conversion and a compact CBOR/COSE parser that extracts the public key at registration.
 
 > **New in 1.2.0** — additive & fully backward compatible: **Ed25519 (COSE −8)** verification alongside ES256/RS256 · **passkey-sync flags** on every verified result (`backupEligible` **BE**, `backupState` **BS**, `userPresent` **UP**, `userVerified` **UV**) plus the **`aaguid`** and echoed **`transports`** · **UV / resident-key policy** (`requireUserVerification`, `requireResidentKey`) · richer `allow/excludeCredentials` descriptors carrying `transports` · new helpers `readAuthenticatorData`, `parseAuthenticatorFlags`, `formatAaguid`.

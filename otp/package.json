@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/otp",
-  "version": "1.2.0",
-  "description": "TOTP & HOTP two-factor auth, Google Authenticator compatible — generate secrets, compute/verify codes, parse/build otpauth:// QR URIs and issue single-use recovery codes. Built on Web Crypto: runs on Node, edge and browser. Zero-dependency, isomorphic.",
+  "version": "1.2.1",
+  "description": "TOTP & HOTP two-factor auth, Google Authenticator compatible \u2014 generate secrets, compute/verify codes, parse/build otpauth:// QR URIs and issue single-use recovery codes. Built on Web Crypto: runs on Node, edge and browser. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

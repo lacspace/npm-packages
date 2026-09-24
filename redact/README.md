@@ -12,6 +12,12 @@
 
 </div>
 
+### 1.1.1 — AWS access key IDs are redacted
+
+`AKIAIOSFODNN7EXAMPLE` passed straight through `redactString`: the pattern
+required a separator after the prefix, and AWS keys have none. `AKIA`, `ASIA`
+and the other IAM prefixes are caught now, in strings and inside objects.
+
 > The last line of defence against leaking secrets into CloudWatch, Mongo logs or your error tracker. Masks values by **sensitive key name** (`password`, `token`, `authorization`…) and by **pattern** (JWTs, API keys, emails, credit cards, IPs) — deeply, on strings and objects.
 
 - 🕵️ `redact()` — deep, clones input, masks keys + patterns

@@ -390,11 +390,26 @@ export interface VerifyRegistrationInput {
 }
 
 /** Verify a registration response and extract the credential's public key. */
+/**
+ * Compare the authenticator's origin with the configured one after normalising
+ * the CONFIGURED side: `expectedOrigin` is developer config and routinely comes
+ * from an `APP_URL` with a trailing slash or a capitalised host. The
+ * authenticator always serialises a canonical origin, so a strict `!==` turned
+ * `https://example.com/` into "origin mismatch" on every sign-in.
+ */
+function originMatches(actual: unknown, expected: string): boolean {
+  if (typeof actual !== "string") return false;
+  const norm = (o: string): string => {
+    try { return new URL(o).origin; } catch { return o.replace(/\/+$/, ""); }
+  };
+  return actual === expected || norm(actual) === norm(expected);
+}
+
 export async function verifyRegistration(input: VerifyRegistrationInput): Promise<RegistrationResult> {
   const clientData = JSON.parse(dec.decode(fromBase64url(input.clientDataJSON)));
   if (clientData.type !== "webauthn.create") throw new Error("unexpected clientData type");
   if (clientData.challenge !== input.expectedChallenge) throw new Error("challenge mismatch");
-  if (clientData.origin !== input.expectedOrigin) throw new Error("origin mismatch");
+  if (!originMatches(clientData.origin, input.expectedOrigin)) throw new Error("origin mismatch");
 
   const att = cborDecode(fromBase64url(input.attestationObject)) as Map<string, CborValue>;
   const authData = parseAuthData(att.get("authData") as Uint8Array);
@@ -456,7 +471,7 @@ export async function verifyAuthentication(input: VerifyAuthenticationInput): Pr
   const clientData = JSON.parse(dec.decode(fromBase64url(input.clientDataJSON)));
   if (clientData.type !== "webauthn.get") throw new Error("unexpected clientData type");
   if (clientData.challenge !== input.expectedChallenge) throw new Error("challenge mismatch");
-  if (clientData.origin !== input.expectedOrigin) throw new Error("origin mismatch");
+  if (!originMatches(clientData.origin, input.expectedOrigin)) throw new Error("origin mismatch");
 
   const authDataBytes = fromBase64url(input.authenticatorData);
   const authData = parseAuthData(authDataBytes);

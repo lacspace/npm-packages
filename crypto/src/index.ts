@@ -46,7 +46,12 @@ export function toBase64url(bytes: Uint8Array): string {
 }
 
 export function fromBase64url(s: string): Uint8Array {
-  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  // Strip any padding the caller included before re-padding: base64url makes
+  // `=` optional (RFC 4648 §5) and some encoders emit it. Re-padding a string
+  // that already carried padding produced an invalid length and surfaced as a
+  // raw DOMException from atob instead of a decode error.
+  const raw = s.replace(/=+$/, "");
+  const b64 = raw.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((raw.length + 3) % 4);
   if (typeof atob !== "undefined") {
     const bin = atob(b64);
     const out = new Uint8Array(bin.length);

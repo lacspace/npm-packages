@@ -125,7 +125,14 @@ export function estimateStrength(password: string): StrengthEstimate {
   if (hasRepeat(password)) {
     patterns.push("repeat");
     suggestions.push("Avoid repeated characters or repeated blocks.");
-    entropy -= 8;
+    // A flat 8-bit penalty let "aaaaaaaaaaaaaaaa" keep 67 bits and score 3 of 4.
+    // Repetition carries roughly the entropy of ONE instance plus the count, so
+    // estimate on the compressed form: the smallest repeating block if the whole
+    // string is one, otherwise the string with runs of a character collapsed.
+    const block = /^(.{2,}?)\1+$/.exec(password)?.[1];
+    const collapsed = block ?? password.replace(/(.)\1{2,}/g, "$1");
+    const repeats = Math.max(1, password.length / collapsed.length);
+    entropy = Math.min(entropy, collapsed.length * Math.log2(poolSize(password)) + Math.log2(repeats));
   }
   if (hasKeyboardRun(password)) {
     patterns.push("keyboard");

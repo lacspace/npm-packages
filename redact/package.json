@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/redact",
-  "version": "1.1.0",
-  "description": "Redact secrets & PII from strings and objects before logging — masks sensitive keys and patterns (JWTs, API keys, emails, Luhn-checked cards, SSNs, phones, IBANs, IPs, AWS/GitHub/Slack/Stripe keys, private keys). Deep, cycle-safe object redaction with partial masking & custom patterns. Zero-dependency, isomorphic.",
+  "version": "1.1.1",
+  "description": "Redact secrets & PII from strings and objects before logging \u2014 masks sensitive keys and patterns (JWTs, API keys, emails, Luhn-checked cards, SSNs, phones, IBANs, IPs, AWS/GitHub/Slack/Stripe keys, private keys). Deep, cycle-safe object redaction with partial masking & custom patterns. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

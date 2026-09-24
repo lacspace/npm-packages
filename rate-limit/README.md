@@ -12,6 +12,11 @@
 
 </div>
 
+### 1.2.1 — `ipKeyFromRequest` reads proxy headers in any case
+
+`{ "X-Forwarded-For": … }` resolved to `"unknown"`, so every client behind such
+a proxy shared one rate-limit bucket. Header names are case-insensitive.
+
 > Three algorithms over a **pluggable store** (in-memory built in; implement one interface for Redis/Upstash). Returns standard IETF `RateLimit-*` headers. Drop it into any Express/Fastify route, Next.js Route Handler, middleware or edge function.
 
 - 🎛️ `fixed` · `sliding` (log) · `token-bucket` · **`leaky-bucket`** · **weighted sliding-window counter** algorithms

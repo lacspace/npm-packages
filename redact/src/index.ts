@@ -35,7 +35,11 @@ const PATTERNS: Pattern[] = [
   { name: "email", re: /([a-zA-Z0-9._%+-])[a-zA-Z0-9._%+-]*(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, replace: (m) => m.replace(/^(.)(.*)(@.*)$/, (_x, a, _b, c) => `${a}${MASK}${c}`) },
   { name: "creditCard", re: /\b(?:\d[ -]?){13,19}\b/g, replace: (m) => maskMiddle(m.replace(/\D/g, ""), 0, 4) },
   { name: "bearer", re: /Bearer\s+[A-Za-z0-9._~+/=-]+/gi, replace: () => "Bearer [REDACTED]" },
-  { name: "apiKey", re: /\b(?:sk|pk|rk|lac|ghp|xox[baprs]|AKIA)[_-][A-Za-z0-9_-]{8,}\b/g, replace: (m) => m.slice(0, 6) + MASK },
+  { name: "apiKey", re: /\b(?:sk|pk|rk|lac|ghp|xox[baprs])[_-][A-Za-z0-9_-]{8,}\b/g, replace: (m) => m.slice(0, 6) + MASK },
+  // AWS access key IDs have NO separator after the prefix (AKIAIOSFODNN7EXAMPLE),
+  // so the pattern above, which required `AKIA[_-]`, let every one of them
+  // through. Same prefix list as the awsAccessKey detector.
+  { name: "awsAccessKey", re: /\b(?:AKIA|ASIA|AROA|AIDA|AGPA|ANPA|ANVA|AIPA)[0-9A-Z]{16}\b/g, replace: (m) => m.slice(0, 4) + MASK },
   { name: "ipv4", re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, replace: (m) => m.replace(/\.\d+$/, ".•••") },
 ];
 

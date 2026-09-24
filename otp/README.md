@@ -12,6 +12,15 @@
 
 </div>
 
+### 1.2.1 — algorithm names accepted with or without the dash
+
+The Key URI spec — and this package's own `keyuri()` — spell it `SHA1` /
+`SHA256`; Web Crypto wants `SHA-1` / `SHA-256`. Passing the URI spelling used to
+surface a raw "Unrecognized algorithm name". Both forms, any case, are
+accepted now; an unsupported algorithm gets a clear error naming the three
+that are. Verified against every RFC 4226 and RFC 6238 test vector, now kept as
+permanent tests.
+
 > Generate secrets, compute & verify **TOTP** (RFC 6238) and **HOTP** (RFC 4226) codes, and build the `otpauth://` URI you turn into a QR code. Built on the **Web Crypto API**, so the same code runs on **Node 18+, edge runtimes and the browser** — no `crypto` polyfills, no native deps. Verified against the official RFC test vectors.
 
 - 🔐 `totp` / `hotp` + `verifyTotp` / `verifyHotp` (timing-safe, clock-drift window)

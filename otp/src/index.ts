@@ -12,6 +12,20 @@
 
 export type OtpAlgorithm = "SHA-1" | "SHA-256" | "SHA-512";
 
+/**
+ * Accept the spellings people actually meet — `SHA1` from an otpauth URI (the
+ * Key URI spec writes it without the dash, and so does this package's own
+ * keyuri()), `sha256` from a config file — and hand Web Crypto the one form it
+ * understands. The type still guides TypeScript users to the canonical names;
+ * this stops a JavaScript caller getting a raw "Unrecognized algorithm name".
+ */
+function normalizeAlgorithm(alg: string | undefined): OtpAlgorithm {
+  if (!alg) return "SHA-1";
+  const m = /^sha-?(1|256|512)$/i.exec(alg.trim());
+  if (!m) throw new Error(`unsupported OTP algorithm "${alg}" (use SHA-1, SHA-256 or SHA-512)`);
+  return `SHA-${m[1]}` as OtpAlgorithm;
+}
+
 export interface OtpOptions {
   /** Number of digits in the code (default 6). */
   digits?: number;
@@ -119,7 +133,7 @@ function truncate(hash: Uint8Array, digits: number): string {
 /** Compute an HOTP code for a given counter. */
 export async function hotp(secret: string, counter: number, opts: OtpOptions = {}): Promise<string> {
   const digits = opts.digits ?? 6;
-  const algorithm = opts.algorithm ?? "SHA-1";
+  const algorithm = normalizeAlgorithm(opts.algorithm);
   const hash = await hmac(algorithm, base32Decode(secret), counterBytes(counter));
   return truncate(hash, digits);
 }
@@ -160,7 +174,7 @@ export async function verifyTotp(
   const now = opts.timestamp ?? Date.now();
   const base = Math.floor(now / 1000 / period);
   const digits = opts.digits ?? 6;
-  const algorithm = opts.algorithm ?? "SHA-1";
+  const algorithm = normalizeAlgorithm(opts.algorithm);
   const key = base32Decode(secret);
   const clean = token.replace(/\s/g, "");
   for (let offset = -window; offset <= window; offset++) {

@@ -38,7 +38,12 @@ export function parseCsp(policy: string): CspPolicy {
     const tokens = segment.trim().split(/\s+/).filter(Boolean);
     const name = tokens[0];
     if (!name) continue;
-    out[name.toLowerCase()] = tokens.slice(1);
+    // CSP3 §6.6.1.2: when a directive name repeats, the FIRST occurrence is
+    // enforced and later ones are ignored. This kept the last, so parseCsp()
+    // described a policy the browser does not apply.
+    const key = name.toLowerCase();
+    if (key in out) continue;
+    out[key] = tokens.slice(1);
   }
   return out;
 }

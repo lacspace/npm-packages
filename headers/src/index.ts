@@ -21,6 +21,24 @@ export function reportingEndpoints(endpoints: Record<string, string>): string {
 }
 
 /** Build a Content-Security-Policy header value from typed directives. */
+/**
+ * CSP keywords must be single-quoted. Unquoted, `self` is a HOSTNAME — so
+ * `default-src self` allows a host called "self" and blocks the site's own
+ * origin, and `script-src none` allows a host called "none". A source list
+ * that reads correctly but means something else is the worst kind of policy
+ * bug, so known keywords are quoted here whichever way they were written.
+ */
+const CSP_KEYWORDS = new Set([
+  "self", "none", "unsafe-inline", "unsafe-eval", "unsafe-hashes", "strict-dynamic",
+  "report-sample", "wasm-unsafe-eval", "inline-speculation-rules",
+]);
+function quoteKeyword(v: string): string {
+  const bare = v.trim();
+  if (CSP_KEYWORDS.has(bare.toLowerCase())) return `'${bare.toLowerCase()}'`;
+  if (/^(nonce-|sha(256|384|512)-)/i.test(bare) && !bare.startsWith("'")) return `'${bare}'`;
+  return bare;
+}
+
 export function csp(directives: CspDirectives): string {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(directives)) {
@@ -29,7 +47,7 @@ export function csp(directives: CspDirectives): string {
     else if (value === false) continue;
     else {
       const list = Array.isArray(value) ? value : [value];
-      parts.push(`${name} ${list.join(" ")}`);
+      parts.push(`${name} ${list.map((v) => quoteKeyword(String(v))).join(" ")}`);
     }
   }
   return parts.join("; ");

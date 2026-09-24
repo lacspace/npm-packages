@@ -12,6 +12,13 @@
 
 </div>
 
+### 1.4.1 — `extractBearer` reads headers in any case
+
+HTTP header names are case-insensitive (RFC 9110 §5.1). Node lowercases
+`req.headers`, but a hand-built object or another framework may not, and
+`extractBearer({ Authorization: "Bearer …" })` returned no token at all. The
+same applies to the named cookie.
+
 > Sign and verify **HS · RS · ES · EdDSA** JWTs over Web Crypto with strict expiry / not-before / issuer / audience / subject / jti checks and constant-time signature comparison. Isomorphic — runs on edge and workers where the `jsonwebtoken` package can't. Plus JWKS-by-`kid` key rotation, opaque and CSRF tokens.
 
 - 🎟️ `sign` / `verify` / `decode` with typed claims

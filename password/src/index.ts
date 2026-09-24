@@ -36,14 +36,23 @@ export async function verify(password: string, stored: string): Promise<boolean>
   const m = stored.match(/^\$pbkdf2-sha256\$i=(\d+)\$([^$]+)\$([^$]+)$/);
   if (!m) return false;
   const iterations = parseInt(m[1]!, 10);
-  const salt = fromBase64url(m[2]!);
-  const expected = fromBase64url(m[3]!);
-  const derived = await deriveBits(password, salt, {
-    iterations,
-    hash: "SHA-256",
-    length: expected.length,
-  });
-  return constantTimeEqual(derived, expected);
+  // A stored hash is data, not a contract: a corrupted or hostile row must fail
+  // the login, never crash it. `i=0` reached deriveBits and threw; a malformed
+  // salt or digest would have thrown out of the base64url decoder the same way.
+  if (!Number.isFinite(iterations) || iterations < 1) return false;
+  try {
+    const salt = fromBase64url(m[2]!);
+    const expected = fromBase64url(m[3]!);
+    if (!expected.length) return false;
+    const derived = await deriveBits(password, salt, {
+      iterations,
+      hash: "SHA-256",
+      length: expected.length,
+    });
+    return constantTimeEqual(derived, expected);
+  } catch {
+    return false;
+  }
 }
 
 /** Current PBKDF2 params to compare a stored hash against, for {@link needsRehash}. */

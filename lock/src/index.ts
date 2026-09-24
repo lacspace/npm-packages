@@ -120,8 +120,13 @@ export class Lockout {
   }
 
   private lockDuration(attempts: number): number {
-    // maxAttempts failures are allowed; locking begins once they're exceeded.
-    const over = attempts - this.maxAttempts;
+    // The lock engages ON the maxAttempts-th failure: `maxAttempts: 5` means five
+    // strikes and you are out, which is how the README reads, how a user reads
+    // it, and how @lacspace/mfa's evaluateLockout() in the same kit counts. It
+    // used to engage one failure LATER, which granted every attacker a free
+    // extra guess and left status() reporting `remaining: 0` next to
+    // `locked: false` — zero attempts left, yet not locked.
+    const over = attempts - this.maxAttempts + 1;
     if (over < 1) return 0;
     return Math.min(this.maxDelayMs, this.baseDelayMs * 2 ** (over - 1));
   }

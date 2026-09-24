@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/headers",
-  "version": "1.2.0",
-  "description": "Secure HTTP headers & a typed Content-Security-Policy builder — HSTS, CSP nonces/hashes, Permissions-Policy, COOP/COEP/CORP, Reporting-Endpoints, report-only + strict/API presets. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
+  "version": "1.3.0",
+  "description": "Secure HTTP headers & a typed Content-Security-Policy builder \u2014 HSTS, CSP nonces/hashes, Permissions-Policy, COOP/COEP/CORP, Reporting-Endpoints, report-only + strict/API presets. Framework-agnostic + Next.js. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -454,7 +454,14 @@ function readHeader(src: HeadersLike, name: string): string | undefined {
   const h: unknown = (src as { headers?: unknown }).headers ?? src;
   if (h && typeof (h as Headers).get === "function") return (h as Headers).get(name) ?? undefined;
   const rec = h as Record<string, string | string[] | undefined>;
-  const v = rec[name] ?? rec[lower];
+  // Header names are case-insensitive (RFC 9110 §5.1). Node lowercases them in
+  // req.headers, but a hand-built object or another framework may not, and
+  // `{ Authorization: "Bearer …" }` used to come back as no token at all.
+  let v = rec[name] ?? rec[lower];
+  if (v === undefined) {
+    const key = Object.keys(rec).find((k) => k.toLowerCase() === lower);
+    if (key !== undefined) v = rec[key];
+  }
   return Array.isArray(v) ? v[0] : v ?? undefined;
 }
 

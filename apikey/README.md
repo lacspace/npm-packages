@@ -12,6 +12,11 @@
 
 </div>
 
+### 1.3.1 — `extractApiKey` reads headers in any case
+
+`{ "X-Api-Key": … }` and `{ Authorization: "Bearer …" }` returned no key;
+header names are case-insensitive (RFC 9110 §5.1).
+
 > Generate prefixed, high-entropy keys (e.g. `lac_live_…`), return the **SHA-256 hash** to store and the **last 4** to display, and verify in **constant time**. You never persist the raw key — exactly how Stripe/GitHub-style keys work.
 
 > **New in 1.3.0** — a storage-agnostic key-record toolkit: public `fingerprint`/`maskKey` labels, hierarchical `hasScope` (`billing:*`), `isExpired`, `rotateApiKey` with a grace window, `isRevoked`/revocation lists, and `verifyKeyAgainst` (tells you *which* stored key matched, so you can update last-used). All additive — every 1.x export is unchanged.

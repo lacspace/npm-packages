@@ -84,7 +84,10 @@ function cdata(s: string): string {
 function toDate(d?: string | Date): Date {
   if (d instanceof Date) return d;
   if (typeof d === "string") return new Date(d);
-  return new Date(0);
+  // No date at all -> an invalid Date, so validDate() reports null and the
+  // caller omits the element. This returned the epoch, which stamped
+  // `Thu, 01 Jan 1970 00:00:00 GMT` on the pubDate of every dateless item.
+  return new Date(NaN);
 }
 
 /** Parse to a Date, returning null for invalid inputs (so callers can omit the field instead of throwing). */
@@ -101,10 +104,21 @@ function iso(d: Date): string {
   return d.toISOString();
 }
 
-function latest(feed: FeedOptions, items: FeedItem[]): Date {
-  if (feed.updated) return toDate(feed.updated);
+/**
+ * When the feed itself last changed: an explicit `feed.updated`, else the
+ * newest item date. Returns undefined when neither is known, so callers can
+ * omit the field instead of asserting a timestamp we do not have.
+ *
+ * This used to fall back to `new Date(0)`, which published
+ * `Thu, 01 Jan 1970 00:00:00 GMT` on any feed with no dated items — a brand
+ * new feed, or one whose items carry no dates. Feed validators flag that and
+ * readers treat the channel as decades stale. An unparseable `feed.updated`
+ * reached the same epoch by a second route, via `toDate`.
+ */
+function latest(feed: FeedOptions, items: FeedItem[]): Date | undefined {
+  if (feed.updated) return validDate(feed.updated) ?? undefined;
   const dates = items.map((i) => toDate(i.date).getTime()).filter((t) => t > 0);
-  return dates.length ? new Date(Math.max(...dates)) : new Date(0);
+  return dates.length ? new Date(Math.max(...dates)) : undefined;
 }
 
 function mediaList(m?: MediaContent | MediaContent[]): MediaContent[] {
@@ -163,8 +177,11 @@ export function rss(feed: FeedOptions, items: FeedItem[]): string {
     `    <title>${esc(feed.title)}</title>`,
     `    <link>${esc(feed.link)}</link>`,
     `    <description>${esc(feed.description ?? feed.title)}</description>`,
-    `    <lastBuildDate>${rfc822(validDate(latest(feed, items)) ?? new Date(0))}</lastBuildDate>`,
   ];
+  // Optional in RSS 2.0 — an absent lastBuildDate is correct when we cannot
+  // date the channel; a wrong one is not. See latest().
+  const built = latest(feed, items);
+  if (built) head.push(`    <lastBuildDate>${rfc822(built)}</lastBuildDate>`);
   if (feed.language) head.push(`    <language>${esc(feed.language)}</language>`);
   if (feed.copyright) head.push(`    <copyright>${esc(feed.copyright)}</copyright>`);
   if (feed.feedUrl)
@@ -193,6 +210,11 @@ export function rss(feed: FeedOptions, items: FeedItem[]): string {
 
 /** Build an Atom 1.0 feed. */
 export function atom(feed: FeedOptions, items: FeedItem[]): string {
+  // Atom requires exactly one <updated> on the feed AND on every entry
+  // (RFC 4287 4.2.15), so unlike RSS these cannot be omitted. Resolve one
+  // value up front: it dates the feed and backstops any undated entry, which
+  // keeps the output stable between requests instead of drifting with the clock.
+  const feedUpdated = latest(feed, items) ?? new Date();
   const entries = items
     .map((it) => {
       const parts = [
@@ -200,8 +222,7 @@ export function atom(feed: FeedOptions, items: FeedItem[]): string {
         `    <link href="${esc(it.link)}" />`,
         `    <id>${esc(it.id ?? it.link)}</id>`,
       ];
-      const updated = validDate(it.date);
-      if (updated) parts.push(`    <updated>${iso(updated)}</updated>`);
+      parts.push(`    <updated>${iso(validDate(it.date) ?? feedUpdated)}</updated>`);
       if (it.author) parts.push(`    <author><name>${esc(it.author)}</name></author>`);
       for (const c of it.categories ?? []) parts.push(`    <category term="${esc(c)}" />`);
       if (it.content) parts.push(`    <content type="html">${cdata(it.content)}</content>`);
@@ -224,7 +245,7 @@ export function atom(feed: FeedOptions, items: FeedItem[]): string {
     `  <id>${esc(feed.id ?? feed.link)}</id>\n` +
     `  <link href="${esc(feed.link)}" />\n` +
     (feed.feedUrl ? `  <link href="${esc(feed.feedUrl)}" rel="self" />\n` : "") +
-    `  <updated>${iso(validDate(latest(feed, items)) ?? new Date(0))}</updated>\n` +
+    `  <updated>${iso(feedUpdated)}</updated>\n` +
     (feed.author ? `  <author><name>${esc(feed.author)}</name></author>\n` : "") +
     (feed.generator ? `  <generator>${esc(feed.generator)}</generator>\n` : "") +
     (feed.description ? `  <subtitle>${esc(feed.description)}</subtitle>\n` : "") +
@@ -450,8 +471,11 @@ export function podcastRss(feed: PodcastFeed, episodes: PodcastEpisode[]): strin
     `    <title>${esc(feed.title)}</title>`,
     `    <link>${esc(feed.link)}</link>`,
     `    <description>${esc(feed.description ?? feed.title)}</description>`,
-    `    <lastBuildDate>${rfc822(validDate(latest(feed, episodes)) ?? new Date(0))}</lastBuildDate>`,
   ];
+  // Optional in RSS 2.0 — an absent lastBuildDate is correct when we cannot
+  // date the channel; a wrong one is not. See latest().
+  const built = latest(feed, episodes);
+  if (built) head.push(`    <lastBuildDate>${rfc822(built)}</lastBuildDate>`);
   if (feed.language) head.push(`    <language>${esc(feed.language)}</language>`);
   if (feed.copyright) head.push(`    <copyright>${esc(feed.copyright)}</copyright>`);
   if (feed.feedUrl)

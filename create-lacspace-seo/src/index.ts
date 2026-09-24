@@ -223,9 +223,10 @@ export function GET() {
 const ogTemplate = (): string => `import { ImageResponse } from "next/og";
 import { site } from "@/lib/site";
 
-export const runtime = "edge";
-
 // Served at /og?title=... — dynamic Open Graph card, no design tool needed.
+// Runs on the default Node runtime: next/og works on both, and Next 16
+// deprecated \`runtime = "edge"\` — which also opted this route out of static
+// generation, so every card was rendered on demand instead of once at build.
 export function GET(req: Request) {
   const title = new URL(req.url).searchParams.get("title") ?? site.config.name;
   return new ImageResponse(

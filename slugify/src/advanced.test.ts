@@ -57,7 +57,10 @@ test("slugifyPath preserves slashes", () => {
 test("slugifyFilename preserves the extension", () => {
   expect(slugifyFilename("My File.PDF")).toBe("my-file.pdf");
   expect(slugifyFilename("Résumé (final).docx")).toBe("resume-final.docx");
-  expect(slugifyFilename("archive.tar.gz")).toBe("archive-tar.gz");
+  // Was asserted as `archive-tar.gz`: splitting at the last dot turned a tarball
+  // into a .gz of something called "archive-tar". Compound extensions are kept
+  // whole now — see compound-ext.test.ts.
+  expect(slugifyFilename("archive.tar.gz")).toBe("archive.tar.gz");
   expect(slugifyFilename("no-extension")).toBe("no-extension");
   expect(slugifyFilename(".env")).toBe("env");
 });

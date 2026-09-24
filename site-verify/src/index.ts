@@ -123,7 +123,12 @@ export function verificationFile(
 ): VerificationFile {
   switch (provider) {
     case "google": {
-      const name = token.endsWith(".html") ? token : `google${token}.html`;
+      // Search Console hands out `google<code>.html`. Accept the bare code, the
+      // full filename, or the filename without its extension, and rebuild from
+      // the code. Checking only for `.html` produced `googlegoogle<code>.html`
+      // whenever the extension was left off — a file that never verifies.
+      const code = token.replace(/^google/, "").replace(/\.html$/, "");
+      const name = `google${code}.html`;
       return { path: `/${name}`, content: `google-site-verification: ${name}`, contentType: "text/html" };
     }
     case "bing":
@@ -133,10 +138,14 @@ export function verificationFile(
         contentType: "application/xml",
       };
     case "yandex": {
-      const name = token.startsWith("yandex_") ? token : `yandex_${token}.html`;
+      // Mirror image of the Google bug: this checked only for the prefix, so
+      // `yandex_<code>` shipped with NO .html extension, and the prefixed token
+      // went into the meta tag where Yandex expects the bare code.
+      const code = token.replace(/^yandex_/, "").replace(/\.html$/, "");
+      const name = `yandex_${code}.html`;
       return {
         path: `/${name}`,
-        content: `<html><head><meta name="yandex-verification" content="${token}" /></head><body>Verification: ${token}</body></html>`,
+        content: `<html><head><meta name="yandex-verification" content="${code}" /></head><body>Verification: ${code}</body></html>`,
         contentType: "text/html",
       };
     }

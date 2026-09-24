@@ -12,6 +12,17 @@
 
 </div>
 
+### 1.3.1 — `verificationFile()` accepts the token however you paste it
+
+Search Console hands out `google<code>.html`; Yandex hands out
+`yandex_<code>.html`. Pasting either **without the extension** — the most
+natural thing to do — produced a file that never verifies and gave no error:
+`google<code>` became `/googlegoogle<code>.html`, and `yandex_<code>` shipped
+with no `.html` at all and put the prefixed token into the meta tag where
+Yandex expects the bare code. Both branches now normalise the way the Baidu
+branch always did: bare code, full filename, or filename without extension all
+produce the same correct file, and the builder is idempotent on its own output.
+
 > One typed input → verification `<meta>` tags, a Next.js `verification` metadata object, or the file-based verification content — for **Google Search Console, Bing Webmaster, Yandex, Baidu, Pinterest, Ahrefs, Facebook** and any custom provider. Stop hunting for the right meta `name`.
 
 - 🏷️ `verificationMeta()` / `verificationMetaHtml()`

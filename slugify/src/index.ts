@@ -196,13 +196,39 @@ export function slugifyPath(path: string, opts: SlugOptions = {}): string {
  * @example slugifyFilename("My File.PDF") // "my-file.pdf"
  * @example slugifyFilename("Résumé (final).docx") // "resume-final.docx"
  */
+/**
+ * Two-part extensions that must be kept whole. Splitting at the last dot turned
+ * `archive.tar.gz` into `archive-tar.gz` and `types.d.ts` into `types-d.ts`,
+ * which changes what the file IS (no longer a tarball; no longer a declaration
+ * file) — not just what it is called.
+ */
+const COMPOUND_EXTENSIONS = [
+  "tar.gz", "tar.bz2", "tar.xz", "tar.zst", "tar.lz",
+  "d.ts", "d.mts", "d.cts",
+  "min.js", "min.mjs", "min.css",
+  "test.ts", "test.tsx", "test.js", "test.jsx", "test.mjs",
+  "spec.ts", "spec.tsx", "spec.js", "spec.jsx", "spec.mjs",
+];
+
+/** Index of the dot that starts the extension, honouring compound extensions. */
+function extensionStart(name: string): number {
+  const lower = name.toLowerCase();
+  for (const ext of COMPOUND_EXTENSIONS) {
+    if (lower.endsWith("." + ext) && lower.length > ext.length + 1) {
+      return lower.length - ext.length - 1;
+    }
+  }
+  return name.lastIndexOf(".");
+}
+
 export function slugifyFilename(name: string, opts: SlugOptions = {}): string {
-  const dot = name.lastIndexOf(".");
+  const dot = extensionStart(name);
   // No extension, or a dotfile like ".env" → slugify the whole thing.
   if (dot <= 0) return slugify(name, opts);
   const lower = opts.lower ?? true;
   const base = slugify(name.slice(0, dot), opts) || (opts.fallback ?? "file");
-  let ext = name.slice(dot + 1).replace(/[^a-zA-Z0-9]+/g, "");
+  // Keep the dots of a compound extension; strip everything else non-alphanumeric.
+  let ext = name.slice(dot + 1).replace(/[^a-zA-Z0-9.]+/g, "").replace(/^\.+|\.+$/g, "");
   if (lower) ext = ext.toLowerCase();
   return ext ? `${base}.${ext}` : base;
 }

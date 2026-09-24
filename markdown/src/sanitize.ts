@@ -43,9 +43,37 @@ const DEFAULT_ATTRS = ["href", "src", "alt", "title", "id", "class", "align", "t
 // Elements whose entire contents must be discarded, not just the tags.
 const VOID_CONTENT = ["script", "style", "iframe", "object", "embed", "noscript", "template"];
 
-/** Reject dangerous URL schemes (mirrors the renderer's own `safeUrl`). */
+// The few named entities that matter for smuggling a scheme past a check.
+const NAMED_ENTITIES: Record<string, string> = {
+  colon: ":", tab: "\t", newline: "\n", nbsp: "\u00a0",
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+};
+
+/**
+ * Decode HTML character references the way a browser does before it parses an
+ * attribute as a URL. One pass only, which is also what the browser does: a
+ * double-encoded `&amp;#106;` decodes to the literal text `&#106;`, which the
+ * URL parser then leaves alone, so it is not a scheme and needs no second pass.
+ */
+function decodeEntities(s: string): string {
+  return s.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));?/gi, (m, hex: string | undefined, dec: string | undefined, name: string | undefined) => {
+    if (hex) return String.fromCodePoint(parseInt(hex, 16));
+    if (dec) return String.fromCodePoint(parseInt(dec, 10));
+    return NAMED_ENTITIES[name!.toLowerCase()] ?? m;
+  });
+}
+
+/**
+ * Reject dangerous URL schemes (mirrors the renderer's own `safeUrl`).
+ *
+ * The check runs on the DECODED value. It used to run on the raw attribute, so
+ * `href="&#106;avascript:alert(1)"` passed: its first character is `&`, which
+ * is not a scheme, yet the browser decodes the reference before parsing the URL
+ * and executes `javascript:`. Numeric (decimal and hex, with or without the
+ * semicolon) and `&colon;` all reached the same place.
+ */
 function safeAttrUrl(url: string): string {
-  const stripped = url.replace(/[\x00-\x20\x7F]/g, "");
+  const stripped = decodeEntities(url).replace(/[\x00-\x20\x7F]/g, "");
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(stripped);
   if (scheme) {
     const allowed = ["http", "https", "mailto", "tel"];
@@ -79,8 +107,15 @@ export function sanitizeHtml(html: string, options: SanitizeOptions = {}): strin
   // 2. Remove HTML comments (can hide conditional-comment scripts).
   out = out.replace(/<!--[\s\S]*?-->/g, "");
 
-  // 3. Walk every remaining tag.
-  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (_m, slash: string, name: string, attrs: string) => {
+  // 3. Walk every remaining tag — and neutralise anything tag-shaped that is
+  //    NOT a well-formed tag. The first alternative matches a complete tag with
+  //    balanced quotes. When it cannot (an unbalanced quote means no closing
+  //    `>` is reachable), the second alternative matches the lone `<` and it is
+  //    escaped, so the fragment renders as text. Before this, such a fragment
+  //    fell through the regex UNTOUCHED: `<img src="x onerror=alert(1)>` came
+  //    out byte-for-byte, and a browser's forgiving parser ran the handler.
+  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>|<(?=[a-zA-Z\/!?])/g, (_m, slash: string | undefined, name: string | undefined, attrs: string | undefined) => {
+    if (name === undefined) return "&lt;"; // the malformed-fragment alternative
     const tag = name.toLowerCase();
     if (!allowedTags.has(tag)) return ""; // drop the tag markup, keep surrounding text
     if (slash) return `</${tag}>`;
@@ -89,7 +124,7 @@ export function sanitizeHtml(html: string, options: SanitizeOptions = {}): strin
     const kept: string[] = [];
     const attrRe = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
     let a: RegExpExecArray | null;
-    while ((a = attrRe.exec(attrs)) !== null) {
+    while ((a = attrRe.exec(attrs ?? "")) !== null) {
       const attr = a[1]!.toLowerCase();
       const value = a[3] ?? a[4] ?? a[5] ?? "";
       if (/^on/.test(attr)) continue; // event handlers

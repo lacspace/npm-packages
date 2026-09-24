@@ -11,6 +11,16 @@
 
 </div>
 
+### 1.2.1 — two ways `parse()` silently returned wrong data
+
+- **The BOM Excel writes on every export was left in the first header.** So
+  `row.name` was `undefined` for every Excel-written file — the key was
+  `"\uFEFFname"`. Stripped now, in `parse()` and `parseAuto()`.
+- **A quote in the middle of a field swallowed the rest of the file.** RFC 4180
+  quotes a field in full, so a quote may only open one at the field's start;
+  `5" tall` mid-field is a literal character. It was treated as an opener, and
+  every following row was absorbed into one unterminated field. Now literal.
+
 > CSV looks trivial and then eats you alive: commas inside quotes, quotes inside quotes, newlines inside cells, CRLF, BOM. This handles the RFC 4180 edge cases correctly, returns typed row objects, and stringifies with minimal quoting — in a few hundred bytes.
 
 - ✅ Full RFC 4180: quoted fields, `""` escaping, embedded newlines, CRLF

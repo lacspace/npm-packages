@@ -11,6 +11,24 @@
 
 </div>
 
+### 1.1.1 — security: two `sanitizeHtml` bypasses closed
+
+Both let a browser execute what the sanitizer had approved. If you sanitize
+untrusted HTML with this package, update.
+
+- **Entity-encoded schemes.** The scheme check ran on the raw attribute, so
+  `href="&#106;avascript:alert(1)"` passed — its first character is `&`, which
+  is not a scheme — yet the browser decodes the reference before parsing the
+  URL and executes `javascript:`. Decimal, hex (with or without the `;`),
+  `&colon;` and `&Tab;` all reached the same place. The check now runs on the
+  decoded value, one pass, which is also what the browser does: a
+  double-encoded `&amp;#106;` decodes to literal text and is correctly left alone.
+- **Unbalanced quotes.** `<img src="x onerror=alert(1)>` cannot match a
+  well-formed tag, so it fell through the sanitizer **untouched**, and a
+  browser's forgiving parser ran the handler. Anything tag-shaped that is not
+  a well-formed tag is now escaped to text. A well-formed tag whose attribute
+  contains `>` (`title="a>b"`) still round-trips intact.
+
 > Everything a blog or docs page needs — headings with anchor ids, nested & task lists, fenced code, blockquotes, GFM tables, images and links — rendering to clean HTML with **source HTML escaped by default**. No dependencies, isomorphic.
 
 - ✍️ Headings (anchor ids), nested & task lists, fenced code, blockquotes, **GFM tables**, strikethrough

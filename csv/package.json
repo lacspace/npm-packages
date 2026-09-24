@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/csv",
-  "version": "1.2.0",
-  "description": "Correct, RFC 4180 CSV parsing & stringifying — quoted fields, escaped quotes, newlines in cells, CRLF, custom delimiters, type coercion, column mapping, chunked/streaming parse and typed row objects. Zero-dependency, isomorphic.",
+  "version": "1.2.1",
+  "description": "Correct, RFC 4180 CSV parsing & stringifying \u2014 quoted fields, escaped quotes, newlines in cells, CRLF, custom delimiters, type coercion, column mapping, chunked/streaming parse and typed row objects. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/site-verify",
-  "version": "1.3.0",
-  "description": "Search-engine site verification — meta tags, Next.js verification metadata and file tokens for Google Search Console, Bing, Yandex, Baidu, Pinterest, Ahrefs, Facebook & more. Zero-dependency, isomorphic.",
+  "version": "1.3.1",
+  "description": "Search-engine site verification \u2014 meta tags, Next.js verification metadata and file tokens for Google Search Console, Bing, Yandex, Baidu, Pinterest, Ahrefs, Facebook & more. Zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

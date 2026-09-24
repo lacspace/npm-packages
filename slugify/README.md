@@ -12,6 +12,15 @@
 
 </div>
 
+### 1.2.1 — `slugifyFilename()` keeps compound extensions whole
+
+It split at the last dot, so `archive.tar.gz` became `archive-tar.gz` and
+`types.d.ts` became `types-d.ts` — which changes what the file *is* to anything
+that inspects the name, not just what it is called. `.tar.{gz,bz2,xz,zst,lz}`,
+`.d.{ts,mts,cts}`, `.min.{js,mjs,css}` and `.test/.spec.{ts,tsx,js,jsx,mjs}` are
+now recognised. A dotted base that is not one of these (`my.photo.jpg` →
+`my-photo.jpg`) slugifies exactly as before.
+
 > Transliterates common diacritics (`é → e`), strips the rest, collapses separators, truncates on word boundaries, and can **guarantee uniqueness** against existing slugs. Perfect for article/product URLs.
 
 - ✂️ `slugify()` with `lower` / `separator` / `maxLength` / `strict` / `locale` / custom `replace`

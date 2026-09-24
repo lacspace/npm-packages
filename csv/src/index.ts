@@ -28,6 +28,10 @@ export interface ParseOptions {
 export function parse(text: string, opts: { header: false } & ParseOptions): string[][];
 export function parse<T = Row>(text: string, opts?: { header?: true } & ParseOptions): T[];
 export function parse(text: string, opts: ParseOptions = {}): unknown {
+  // Excel prefixes every CSV it exports with a byte-order mark. Left in place it
+  // becomes part of the first header, so `row.name` was undefined for every file
+  // Excel ever wrote — the key was "\uFEFFname".
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   const delimiter = opts.delimiter ?? ",";
   const useHeader = opts.header ?? true;
   const skipEmpty = opts.skipEmpty ?? true;
@@ -65,7 +69,11 @@ export function parse(text: string, opts: ParseOptions = {}): unknown {
       }
       continue;
     }
-    if (ch === 34) { inQuotes = true; fieldWasQuoted = true; continue; }
+    // A quote opens a quoted field only at the START of the field (RFC 4180:
+    // quoted fields are quoted in full). One that turns up mid-field — `5" tall`
+    // — is a literal character. Treating it as an opener swallowed every
+    // following row of the file into one unterminated field.
+    if (ch === 34 && field === "") { inQuotes = true; fieldWasQuoted = true; continue; }
     if (ch === d) { pushField(); continue; }
     if (ch === 13) { if (text.charCodeAt(i + 1) === 10) i++; pushRecord(); continue; }
     if (ch === 10) { pushRecord(); continue; }

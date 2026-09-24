@@ -8,7 +8,7 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
-import { assertUrlCount } from "./validate";
+import { assertUrlCount, clampPriority, formatLastmod, isValidChangefreq } from "./validate";
 
 export {
   SITEMAP_MAX_URLS,
@@ -80,14 +80,20 @@ function esc(s: string): string {
 }
 
 function w3c(date: string | Date): string {
-  if (date instanceof Date) return date.toISOString();
-  return date;
+  // Delegate so an Invalid Date reports which field and package is at fault,
+  // instead of V8's bare "Invalid time value".
+  return formatLastmod(date);
 }
 
 function urlBlock(u: SitemapUrl): string {
   const parts = [`    <loc>${esc(u.loc)}</loc>`];
   if (u.lastmod) parts.push(`    <lastmod>${esc(w3c(u.lastmod))}</lastmod>`);
-  if (u.changefreq) parts.push(`    <changefreq>${u.changefreq}</changefreq>`);
+  // Only the seven spec values are valid here. Emitting anything else made the
+  // whole file fail validation, so an unrecognised value is dropped: the URL is
+  // still listed, just without a crawl-frequency hint.
+  if (u.changefreq && isValidChangefreq(u.changefreq)) {
+    parts.push(`    <changefreq>${u.changefreq}</changefreq>`);
+  }
   if (u.priority !== undefined) {
     const p = Math.max(0, Math.min(1, u.priority));
     parts.push(`    <priority>${p.toFixed(1)}</priority>`);
@@ -140,23 +146,36 @@ export interface SitemapOptions {
    */
   stylesheet?: string;
   /**
-   * When set, throw a clear `RangeError` if `urls.length` exceeds this cap
-   * (the sitemaps.org max is 50,000). Off by default — existing behaviour is
-   * unchanged unless you opt in. Use {@link splitSitemaps} for larger sets.
+   * Cap to enforce instead of the sitemaps.org max of 50,000 (values above it
+   * are themselves capped at 50,000). Use {@link splitSitemaps} for larger sets.
    */
   maxUrls?: number;
+  /**
+   * Skip the URL-count check entirely and emit an oversized file.
+   *
+   * The 50,000 cap is enforced by default because Google rejects the whole file
+   * past it — emitting 50,001 URLs produced an artifact no crawler would read.
+   * Only set this when the sitemap is for a consumer that has no such limit.
+   * @default false
+   */
+  allowOversize?: boolean;
 }
 
 /** Build a single sitemap.xml document. */
 export function sitemap(urls: SitemapUrl[], opts?: SitemapOptions): string {
-  if (opts?.maxUrls !== undefined) assertUrlCount(urls.length, opts.maxUrls);
+  // sitemaps.org caps a single file at 50,000 URLs and Google rejects the WHOLE
+  // file past it, so this is checked by default now — silently emitting 50,001
+  // URLs produced an artifact no crawler would read. Pass `allowOversize: true`
+  // to keep the old behaviour for a non-crawler consumer.
+  if (!opts?.allowOversize) assertUrlCount(urls.length, opts?.maxUrls);
   const pi = opts?.stylesheet
     ? `\n<?xml-stylesheet type="text/xsl" href="${esc(opts.stylesheet)}"?>`
     : "";
+  const body = urls.map(urlBlock).join("\n");
   return (
     `<?xml version="1.0" encoding="UTF-8"?>${pi}\n<urlset ${NS}>\n` +
-    urls.map(urlBlock).join("\n") +
-    `\n</urlset>`
+    (body ? body + "\n" : "") +
+    `</urlset>`
   );
 }
 
@@ -170,7 +189,11 @@ export function sitemapIndex(sitemaps: { loc: string; lastmod?: string | Date }[
         }\n  </sitemap>`,
     )
     .join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</sitemapindex>`;
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    (body ? body + "\n" : "") +
+    `</sitemapindex>`
+  );
 }
 
 export interface SplitOptions {
@@ -212,11 +235,14 @@ export interface NextSitemapEntry {
 /** Convert entries to the shape Next.js `sitemap.ts` expects (`MetadataRoute.Sitemap`). */
 export function toNextSitemap(urls: SitemapUrl[]): NextSitemapEntry[] {
   return urls.map((u) => {
+    // Same rules as the XML path. These used to pass straight through, so the
+    // identical input produced <priority>1.0</priority> in XML but handed Next
+    // an out-of-range 1.7, and an invalid changefreq reached Next's metadata.
     const entry: NextSitemapEntry = {
       url: u.loc,
       lastModified: u.lastmod,
-      changeFrequency: u.changefreq,
-      priority: u.priority,
+      changeFrequency: u.changefreq && isValidChangefreq(u.changefreq) ? u.changefreq : undefined,
+      priority: u.priority === undefined ? undefined : clampPriority(u.priority),
     };
     if (u.alternates?.length) {
       entry.alternates = {

@@ -18,6 +18,25 @@
 - 🖼️ image / 🎬 video / 📰 news extensions · 🌐 hreflang alternates
 - ✂️ `splitSitemaps()` auto-shards big sets into an index
 - ▲ `toNextSitemap()` for `app/sitemap.ts`
+
+### 1.4.0 — the 50,000-URL cap is now enforced by default
+
+`sitemap()` throws a `RangeError` past 50,000 URLs instead of returning an
+oversized file. sitemaps.org makes 50,000 a hard limit and Google rejects the
+**whole file** beyond it, so the old behaviour was a silent total failure: valid
+XML, no error, zero indexed pages. The error names `splitSitemaps()` as the fix.
+
+```ts
+sitemap(urls)                          // throws past 50,000
+sitemap(urls, { allowOversize: true }) // old behaviour, for non-crawler consumers
+splitSitemaps(urls, { baseUrl })       // what you almost always want
+```
+
+Also in 1.4.0: an unrecognised `changefreq` is dropped rather than emitted
+(seven legal values invalidated the file otherwise), and `toNextSitemap()` now
+clamps `priority` and filters `changefreq` exactly as the XML path always did —
+the same input used to yield `<priority>1.0</priority>` in XML but hand Next an
+out-of-range `1.7`.
 - ✅ `clampPriority` / `isValidChangefreq` / `formatLastmod` / `assertUrlCount` validators
 - ⚡ Zero dependencies · 🌍 isomorphic · 📦 ESM + CJS · fully typed
 

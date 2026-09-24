@@ -283,20 +283,56 @@ function matchLength(pattern: string, path: string): number {
 }
 
 /**
- * Test whether a URL/path is crawlable per parsed robots rules for a user-agent
- * (longest-match wins; ties favour Allow, per Google's spec).
+ * The longest `User-agent` token in this group that applies to `ua`, ignoring
+ * the `*` wildcard. Length is the specificity: RFC 9309 2.2.1 says a crawler
+ * obeys the group with the MOST specific token, not the first one that matches.
+ */
+function tokenSpecificity(group: ParsedRobots["groups"][number], ua: string): number {
+  let best = -1;
+  for (const a of group.userAgents) {
+    if (a === "*") continue;
+    const tok = a.toLowerCase();
+    if (tok && ua.includes(tok)) best = Math.max(best, tok.length);
+  }
+  return best;
+}
+
+/**
+ * Test whether a URL/path is crawlable per parsed robots rules for a user-agent.
+ * Path matching follows Google's spec (`*` wildcard, `$` end-anchor,
+ * longest-match wins, ties favour Allow).
+ *
+ * Group selection follows RFC 9309 2.2.1, which has two parts that are easy to
+ * get wrong and both used to be:
+ *   1. The MOST SPECIFIC matching token wins, not the first. Picking the first
+ *      made `Googlebot-News` inherit a `Googlebot` group that happened to be
+ *      listed above its own, reporting pages as blocked that it may crawl.
+ *   2. Records sharing a token are MERGED. Taking only the first meant a second
+ *      `User-agent: *` block was silently ignored, reporting pages as crawlable
+ *      that robots.txt disallows.
+ * Both errors answered a question about someone else's site wrongly, so they
+ * are fixed together here.
  */
 export function isAllowed(urlOrPath: string, parsed: ParsedRobots, userAgent = "*"): boolean {
   const path = pathOf(urlOrPath);
   const ua = userAgent.toLowerCase();
-  let group =
-    parsed.groups.find((g) => g.userAgents.some((a) => a !== "*" && ua.includes(a.toLowerCase()))) ??
-    parsed.groups.find((g) => g.userAgents.includes("*"));
-  if (!group) return true;
+
+  const scored = parsed.groups.map((g) => ({ g, spec: tokenSpecificity(g, ua) }));
+  const best = Math.max(-1, ...scored.map((s) => s.spec));
+  // Every group at the winning specificity applies; a specific token beats `*`
+  // entirely, and only when nothing specific matches do the `*` groups apply.
+  const groups =
+    best >= 0
+      ? scored.filter((s) => s.spec === best).map((s) => s.g)
+      : parsed.groups.filter((g) => g.userAgents.includes("*"));
+  if (!groups.length) return true;
+
   let allow = -1;
   let disallow = -1;
-  for (const p of group.allow) allow = Math.max(allow, matchLength(p, path));
-  for (const p of group.disallow) disallow = Math.max(disallow, matchLength(p, path));
+  for (const group of groups) {
+    for (const p of group.allow) allow = Math.max(allow, matchLength(p, path));
+    for (const p of group.disallow) disallow = Math.max(disallow, matchLength(p, path));
+  }
   if (disallow === -1) return true;
   return allow >= disallow;
 }

@@ -12,6 +12,21 @@
 
 </div>
 
+### 1.4.1 — `isAllowed()` now picks the right group
+
+Two RFC 9309 §2.2.1 rules were wrong, and both made `isAllowed()` answer
+incorrectly about a real site:
+
+- **The most specific `User-agent` wins, not the first.** `Googlebot-News` used
+  to inherit a `Googlebot` group listed above its own, reporting pages as
+  blocked that it may crawl. Results no longer depend on declaration order.
+- **Records sharing a user-agent are merged.** A second `User-agent: *` block
+  was silently ignored, reporting pages as crawlable that `robots.txt`
+  disallows.
+
+Path matching (`*`, `$`, longest-match-wins, ties favour `Allow`) was already
+correct against Google's full spec table and is now covered by tests.
+
 > Typed per-user-agent rules, `Sitemap:` / `Host:` / `Crawl-delay:`, a **parser**, Next.js `robots.ts` output — and a one-liner to **block AI crawlers** (GPTBot, ClaudeBot, CCBot, Google-Extended, PerplexityBot…).
 
 - 🤖 `robots()` builder · `parseRobots()` parser · `isAllowed()` matcher

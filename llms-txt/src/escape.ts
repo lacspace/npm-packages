@@ -17,3 +17,13 @@
 export function escapeLlmsText(s: string): string {
   return s.replace(/([\\\[\]()])/g, "\\$1");
 }
+
+/**
+ * Reverse {@link escapeLlmsText} — turn `\[`, `\]`, `\(`, `\)` and `\\` back
+ * into the literal character. {@link parseLlmsTxt} needs this to read a link
+ * whose title was escaped on the way out; without it the writer and the parser
+ * disagree about their own format.
+ */
+export function unescapeLlmsText(s: string): string {
+  return s.replace(/\\([\\[\]()])/g, "$1");
+}

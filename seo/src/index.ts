@@ -316,7 +316,9 @@ export function product(o: ProductInput): Json {
 }
 
 export function breadcrumb(items: { name: string; url: string }[]): Json {
-  return {
+  // clean() drops an empty itemListElement. Asserting a BreadcrumbList with no
+  // items is invalid structured data, and Search Console reports it as an error.
+  return clean({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: items.map((it, i) => ({
@@ -325,11 +327,12 @@ export function breadcrumb(items: { name: string; url: string }[]): Json {
       name: it.name,
       item: it.url,
     })),
-  };
+  });
 }
 
 export function faqPage(items: { question: string; answer: string }[]): Json {
-  return {
+  // Same rule: no questions means no FAQPage content to assert.
+  return clean({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: items.map((it) => ({
@@ -337,7 +340,7 @@ export function faqPage(items: { question: string; answer: string }[]): Json {
       name: it.question,
       acceptedAnswer: { "@type": "Answer", text: it.answer },
     })),
-  };
+  });
 }
 
 export interface SoftwareAppInput {
@@ -690,7 +693,10 @@ export function itemList(items: ItemListEntry[], opts: ItemListInput = {}): Json
     name: opts.name,
     url: opts.url,
     description: opts.description,
-    numberOfItems: items.length,
+    // Undefined rather than 0 for an empty list, so the node carries no content
+    // and the render helpers can drop it. `numberOfItems: 0` alongside no
+    // itemListElement is a list asserting that it has nothing.
+    numberOfItems: items.length || undefined,
     itemListElement: items.map((it, i) =>
       clean({
         "@type": "ListItem",
@@ -743,7 +749,9 @@ export interface QAItem {
  * suggested answers per question). Distinct from {@link faqPage}.
  */
 export function qaPage(items: QAItem[]): Json {
-  return {
+  // clean() was applied to each question but not to the page, so an empty list
+  // still produced `mainEntity: []`.
+  return clean({
     "@context": "https://schema.org",
     "@type": "QAPage",
     mainEntity: items.map((it) =>
@@ -754,7 +762,7 @@ export function qaPage(items: QAItem[]): Json {
         suggestedAnswer: it.suggestedAnswers?.map((t) => ({ "@type": "Answer", text: t })),
       }),
     ),
-  };
+  });
 }
 
 export interface ImageObjectInput {
@@ -868,15 +876,29 @@ export function webPage(o: WebPageInput): Json {
  * {@link jsonLdScript}.
  * @example graph(organization(...), website(...), breadcrumb(...))
  */
-export function graph(...nodes: Json[]): Json {
-  return {
+/**
+ * True when a node carries nothing but its own identity — `@context`/`@type`
+ * and no content. A builder handed an empty collection returns one of these,
+ * and emitting it puts a schema on the page that asserts nothing, which
+ * Google's structured-data report flags.
+ */
+function isEmptyNode(n: Json): boolean {
+  return Object.keys(n).every((k) => k === "@context" || k === "@type");
+}
+
+export function graph(...nodes: (Json | null | undefined | false)[]): Json {
+  // Falsy entries are accepted so a conditional node reads naturally at the
+  // call site — `graph(organization(), isArticle && article(...))` — and
+  // content-free nodes are dropped rather than padding the graph.
+  const kept = nodes.filter((n): n is Json => Boolean(n) && !isEmptyNode(n as Json));
+  return clean({
     "@context": "https://schema.org",
-    "@graph": nodes.map((n) => {
+    "@graph": kept.map((n) => {
       const copy = { ...n };
       delete copy["@context"];
       return copy;
     }),
-  };
+  });
 }
 
 function titleize(segment: string): string {
@@ -920,9 +942,21 @@ export function jsonLd(data: Json | Json[]): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-/** A complete `<script type="application/ld+json">…</script>` string. */
+/**
+ * A complete `<script type="application/ld+json">…</script>` string, or `""`
+ * when there is nothing worth emitting.
+ *
+ * Content-free nodes are dropped and an array is filtered, so a page that
+ * renders `jsonLdScript(faqPage(post.faqs))` for a post with no FAQs ships no
+ * tag at all instead of an empty `FAQPage` that Search Console reports as an
+ * error. {@link jsonLd} is the low-level stringifier and always stringifies
+ * whatever it is given.
+ */
 export function jsonLdScript(data: Json | Json[]): string {
-  return `<script type="application/ld+json">${jsonLd(data)}</script>`;
+  const nodes = (Array.isArray(data) ? data : [data]).filter((n) => n && !isEmptyNode(n));
+  if (!nodes.length) return "";
+  const payload = Array.isArray(data) ? nodes : nodes[0]!;
+  return `<script type="application/ld+json">${jsonLd(payload)}</script>`;
 }
 
 /* ================================================================== *

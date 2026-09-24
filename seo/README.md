@@ -12,6 +12,29 @@
 
 </div>
 
+### 1.9.0 — no more schemas that assert an empty list
+
+`breadcrumb([])`, `faqPage([])`, `qaPage([])` and `graph()` emitted
+`itemListElement: []` / `mainEntity: []` / `@graph: []` — invalid structured
+data that Google's report flags as an error. It was reachable in ordinary code:
+`faqPage(post.faqs)` on a post with no FAQs. These four bypassed the `clean()`
+helper every other builder in the package already used to drop empty arrays;
+now they don't, and `itemList([])` no longer claims `numberOfItems: 0`.
+
+`jsonLdScript()` returns `""` when there is nothing worth emitting, so such a
+page ships **no tag at all** rather than a hollow one. `jsonLd()` is unchanged —
+it stays the low-level stringifier and always stringifies what you give it.
+
+`graph()` also drops content-free nodes and now accepts falsy entries, so a
+conditional node reads naturally:
+
+```ts
+graph(organization(org), isArticle && article(post))
+```
+
+An empty list that carries authored content — `itemList([], { name: "Shelf" })`
+— still emits, because it does say something.
+
 > Build valid **schema.org** JSON-LD and Next.js App Router **`Metadata`** objects with typed one-liners. Autocomplete instead of guesswork; no malformed rich-results markup.
 
 - 🏷️ `seoMetadata()` → a Next `Metadata` object (title, description, canonical, OG, Twitter)

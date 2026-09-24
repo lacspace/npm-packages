@@ -12,6 +12,26 @@
 
 </div>
 
+### 1.5.0 — link text is escaped by default, and multi-line summaries survive
+
+Two bugs that both **lost content** from the file an LLM reads:
+
+- **A title containing `[` or `]` dropped the whole link.** Escaping was opt-in,
+  so the default output for an ordinary title was `- [Guide [v2]](/g)` — not a
+  parseable Markdown link. `parseLlmsTxt()` read it as *no link at all*, and the
+  page silently vanished. Escaping is now **on by default**; it only ever touches
+  `\ [ ] ( )`, so titles without them are byte-for-byte unchanged. Pass
+  `{ escape: false }` for the old behaviour.
+- **A multi-line `summary` became two fields.** `> ${summary}` quoted only the
+  first line, so the rest fell out of the blockquote and parsed back as
+  `details`. Every line is quoted now.
+
+`parseLlmsTxt()` learned to read escaped link text (the old regex stopped at the
+first `]`), and **`unescapeLlmsText()`** is exported as the exact inverse of
+`escapeLlmsText()`. `llmsTxt()` → `parseLlmsTxt()` now round-trips exactly for
+brackets, parens, backslashes, notes, the `## Optional` block and multi-line
+summaries. Older hand-written unescaped files still parse.
+
 > `llms.txt` is a Markdown file at your site root that gives LLMs a curated map of your most useful pages; `llms-full.txt` inlines the full content so a model can read everything in one request. This builds (and parses) both — the SEO layer for the AI era.
 
 - 📄 `llmsTxt()` — H1 title, blockquote summary, linked sections, `## Optional` block

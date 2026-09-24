@@ -9,7 +9,7 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
-import { escapeLlmsText } from "./escape";
+import { escapeLlmsText, unescapeLlmsText } from "./escape";
 
 export interface LlmsLink {
   title: string;
@@ -59,10 +59,23 @@ export interface LlmsTxtOptions {
   sort?: LinkSort;
   /**
    * Escape the Markdown link characters `\ [ ] ( )` in link titles/notes so a
-   * title like `A [beta]` cannot break the surrounding `[...](...)`. Off by
-   * default — the default output is unchanged. See {@link escapeLlmsText}.
+   * title like `A [beta]` cannot break the surrounding `[...](...)`.
+   *
+   * **On by default.** It used to be opt-in, which meant the default output was
+   * broken for an ordinary title: `- [Guide [v2]](/g)` is not a parseable
+   * Markdown link, and parseLlmsTxt() read it as NO LINK AT ALL — the page
+   * silently vanished from the file an LLM reads. Escaping only ever touches
+   * `\ [ ] ( )`, so titles without them are byte-for-byte unchanged.
+   *
+   * Set `false` for the old behaviour. See {@link escapeLlmsText}.
+   * @default true
    */
   escape?: boolean;
+}
+
+/** Quote every line, so a multi-line summary stays inside the blockquote. */
+function blockquote(text: string): string[] {
+  return text.split("\n").map((line) => `> ${line}`);
 }
 
 function sortLinks(links: LlmsLink[], sort?: LinkSort): LlmsLink[] {
@@ -85,11 +98,13 @@ function sortLinks(links: LlmsLink[], sort?: LinkSort): LlmsLink[] {
  * });
  */
 export function llmsTxt(doc: LlmsDoc, opts: LlmsTxtOptions = {}): string {
-  const esc = opts.escape ? escapeLlmsText : (s: string) => s;
+  const esc = opts.escape === false ? (s: string) => s : escapeLlmsText;
   const renderLink = (l: LlmsLink) =>
     `- [${esc(l.title)}](${l.url})${l.notes ? `: ${esc(l.notes)}` : ""}`;
   const out: string[] = [`# ${doc.title}`];
-  if (doc.summary) out.push("", `> ${doc.summary}`);
+  // Every line needs its own "> ", or a multi-line summary leaves the
+  // blockquote after line one and parseLlmsTxt() reads the rest as `details`.
+  if (doc.summary) out.push("", ...blockquote(doc.summary));
   if (doc.details) out.push("", doc.details.trim());
   for (const section of doc.sections) {
     out.push("", `## ${section.title}`, "");
@@ -123,7 +138,9 @@ export interface LlmsFullDoc {
 /** Render an `llms-full.txt` document with the full content inlined. */
 export function llmsFullTxt(doc: LlmsFullDoc): string {
   const out: string[] = [`# ${doc.title}`];
-  if (doc.summary) out.push("", `> ${doc.summary}`);
+  // Every line needs its own "> ", or a multi-line summary leaves the
+  // blockquote after line one and parseLlmsTxt() reads the rest as `details`.
+  if (doc.summary) out.push("", ...blockquote(doc.summary));
   for (const section of doc.sections) {
     out.push("", "---", "", `## ${section.title}`);
     if (section.url) out.push("", `Source: ${section.url}`);
@@ -138,14 +155,19 @@ export function parseLlmsTxt(txt: string): LlmsDoc {
   const doc: LlmsDoc = { title: "", sections: [] };
   let current: LlmsSection | null = null;
   const detailBuf: string[] = [];
-  const linkRe = /^-\s*\[([^\]]+)\]\(([^)]+)\)\s*(?::\s*(.*))?$/;
+  // `(?:[^\]\\]|\\.)*` lets an escaped \] sit inside the title. The old
+  // `[^\]]+` stopped at the first ], so an escaped title matched nothing and
+  // the link was silently dropped from the parsed document.
+  const linkRe = /^-\s*\[((?:[^\]\\]|\\.)*)\]\(([^)]+)\)\s*(?::\s*(.*))?$/;
 
   for (const raw of lines) {
     const line = raw.trimEnd();
     if (line.startsWith("# ")) {
       doc.title = line.slice(2).trim();
     } else if (line.startsWith("> ")) {
-      doc.summary = (doc.summary ? doc.summary + " " : "") + line.slice(2).trim();
+      // Join with a newline, not a space, so a multi-line summary survives
+      // the round trip exactly as written.
+      doc.summary = (doc.summary ? doc.summary + "\n" : "") + line.slice(2).trim();
     } else if (line.startsWith("## ")) {
       const heading = line.slice(3).trim();
       if (heading === "Optional") {
@@ -159,7 +181,11 @@ export function parseLlmsTxt(txt: string): LlmsDoc {
       }
     } else if (current && linkRe.test(line)) {
       const m = line.match(linkRe)!;
-      current.links.push({ title: m[1]!, url: m[2]!, notes: m[3]?.trim() || undefined });
+      current.links.push({
+        title: unescapeLlmsText(m[1]!),
+        url: m[2]!,
+        notes: m[3]?.trim() ? unescapeLlmsText(m[3].trim()) : undefined,
+      });
     } else if (!current && line && !line.startsWith("#")) {
       detailBuf.push(line);
     }
@@ -357,6 +383,6 @@ export function llmsFullTxtResponse(doc: LlmsFullDoc, init: ResponseInit = {}): 
 
 /* ------------------------------ new in 1.4 ------------------------------ */
 
-export { escapeLlmsText } from "./escape";
+export { escapeLlmsText, unescapeLlmsText } from "./escape";
 export * from "./pages";
 export * from "./validate";

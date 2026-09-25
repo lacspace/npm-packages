@@ -1,0 +1,84 @@
+{
+  "name": "lacspace-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that gives AI agents (Claude Code, Claude Desktop, Cursor, VS Code, Windsurf) the Lacspace tools: fetch and scrape pages, crawl sites, extract PDF/DOCX/PPTX/EPUB, audit SEO, enrich domains, check uptime and TLS, validate emails, find leads. One command, no API keys.",
+  "type": "module",
+  "bin": {
+    "lacspace-mcp": "dist/cli.js"
+  },
+  "main": "./dist/lib.cjs",
+  "module": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agents",
+    "claude",
+    "claude-code",
+    "cursor",
+    "scraper",
+    "crawler",
+    "pdf",
+    "seo-audit",
+    "domain-enrichment",
+    "uptime",
+    "email-validation",
+    "lead-generation",
+    "cli",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/tools/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "lacspace-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@lacspace/email-validate": "^1.2.0",
+    "@lacspace/email-verify": "^1.2.0",
+    "@lacspace/webhooks": "^1.2.0",
+    "lacspace-enrich": "^0.2.2",
+    "lacspace-extract": "^0.2.2",
+    "lacspace-inspect": "^0.2.1",
+    "lacspace-leads": "^1.7.2",
+    "lacspace-scraper": "^0.2.2"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

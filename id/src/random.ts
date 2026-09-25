@@ -31,3 +31,11 @@ export function unbiasedIndex(max: number): number {
     if (buf[0]! < threshold) return buf[0]! % max;
   }
 }
+
+/** A millisecond timestamp that fits the 48-bit field of UUIDv7 and ULID. */
+export function checkTime(time: number, fn: string): number {
+  if (typeof time !== "number" || !Number.isFinite(time) || time < 0 || time >= 2 ** 48) {
+    throw new RangeError(`${fn}: time must be a millisecond timestamp in [0, 2^48), got ${time}`);
+  }
+  return Math.floor(time);
+}

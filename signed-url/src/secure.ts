@@ -21,6 +21,7 @@
  *
  * Built on the same @lacspace/crypto primitives — no new dependencies.
  */
+import { canonicalize, type LegacySignatureOption } from "./canonical";
 import { hmac, hmacVerify, toBase64url, fromBase64url, randomBytes, toHex } from "@lacspace/crypto";
 import type {
   Secret,
@@ -298,7 +299,7 @@ export interface SecureSignUrlOptions extends SecureSignOptions {
   expParam?: string;
 }
 
-export interface SecureVerifyUrlOptions extends SecureVerifyOptions {
+export interface SecureVerifyUrlOptions extends SecureVerifyOptions, LegacySignatureOption {
   sigParam?: string;
   expParam?: string;
 }
@@ -311,14 +312,6 @@ const BIND_IP_PARAM = "bi";
 const BIND_PREFIX_PARAM = "bp";
 const CLAIMS_PARAM = "cl";
 
-/** Canonical string to sign: origin + path + sorted query (excluding the sig param). */
-function canonicalize(u: URL, sigParam: string): string {
-  const params = [...u.searchParams.entries()]
-    .filter(([k]) => k !== sigParam)
-    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  const qs = params.map(([k, v]) => `${k}=${v}`).join("&");
-  return `${u.origin}${u.pathname}?${qs}`;
-}
 
 /**
  * Like {@link signUrl}, with optional key rotation, binding, a nonce and signed
@@ -388,7 +381,10 @@ export async function verifySecureUrl(
   const secret = resolveVerifyKey(keyId, opts);
   if (secret === undefined) return { valid: false, reason: "unknown-key" };
 
-  const okSig = await hmacVerify(secret, canonicalize(u, sigParam), sigBytes, opts.algorithm ?? "SHA-256");
+  const alg = opts.algorithm ?? "SHA-256";
+  const okSig =
+    (await hmacVerify(secret, canonicalize(u, sigParam), sigBytes, alg)) ||
+    (opts.acceptLegacySignatures === true && (await hmacVerify(secret, canonicalize(u, sigParam, true), sigBytes, alg)));
   if (!okSig) return { valid: false, reason: "bad-signature" };
 
   let expiresAt: number | undefined;

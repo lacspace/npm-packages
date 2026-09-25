@@ -12,6 +12,8 @@
  * Node, edge runtimes and browsers.
  */
 import { hmac, toHex, constantTimeEqual, randomBytes } from "@lacspace/crypto";
+import { signStandardWebhook } from "./standard";
+import { assertDeliverableUrl } from "./ssrf";
 
 export type SignAlgorithm = "SHA-256" | "SHA-384" | "SHA-512";
 export type Secret = string | Uint8Array;
@@ -190,6 +192,7 @@ type FetchLike = (url: string, init: {
   headers: Record<string, string>;
   body: string;
   signal?: AbortSignal;
+  redirect?: "follow" | "manual" | "error";
 }) => Promise<{ ok: boolean; status: number }>;
 
 export interface DeliverOptions {
@@ -218,6 +221,21 @@ export interface DeliverOptions {
   retryStatuses?: (status: number) => boolean;
   /** Called once per attempt with its outcome — useful for logging/metrics. */
   onAttempt?: (attempt: AttemptResult) => void;
+  /**
+   * Signature scheme. `"standard-webhooks"` signs per the Standard Webhooks spec
+   * (`v1,<base64>` over `id.timestamp.body`, secret `whsec_…`) so receivers using
+   * Svix / standardwebhooks libraries verify it. Default `"lacspace"` keeps the
+   * `t=…,v1=<hex>` signature this package has always sent.
+   */
+  scheme?: "lacspace" | "standard-webhooks";
+  /**
+   * Refuse private, loopback and link-local destinations, and don't follow
+   * redirects (a redirect could lead inside). Turn on whenever the URL comes
+   * from a customer. Cloud metadata addresses are refused regardless.
+   */
+  blockPrivateNetworks?: boolean;
+  /** With `blockPrivateNetworks`, resolve the hostname and refuse private IPs, e.g. `(h) => dns.promises.resolve(h)`. */
+  resolveHost?: (hostname: string) => Promise<string[]>;
 }
 
 /** Outcome of a single delivery attempt (see {@link DeliverResult.log}). */
@@ -276,7 +294,19 @@ export async function deliver(url: string, payload: unknown, opts: DeliverOption
     "idempotency-key": idempotencyKey,
     ...opts.headers,
   };
-  if (opts.secret) headers["webhook-signature"] = await sign(body, { secret: opts.secret, timestamp: t, algorithm: opts.algorithm });
+  if (opts.secret) {
+    headers["webhook-signature"] =
+      opts.scheme === "standard-webhooks"
+        ? await signStandardWebhook(body, { secret: opts.secret, id, timestamp: t })
+        : await sign(body, { secret: opts.secret, timestamp: t, algorithm: opts.algorithm });
+  }
+
+  try {
+    await assertDeliverableUrl(url, opts);
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return { ok: false, attempts: 0, idempotencyKey, id, error, log: [] };
+  }
 
   let attempts = 0;
   let lastStatus: number | undefined;
@@ -299,7 +329,9 @@ export async function deliver(url: string, payload: unknown, opts: DeliverOption
       timer = setTimeout(() => ac.abort(), timeoutMs);
     }
     try {
-      const res = await doFetch(url, { method: "POST", headers, body, signal });
+      const init: Parameters<FetchLike>[1] = { method: "POST", headers, body, signal };
+      if (opts.blockPrivateNetworks) init.redirect = "manual";
+      const res = await doFetch(url, init);
       if (timer) clearTimeout(timer);
       lastStatus = res.status;
       if (res.ok) {
@@ -413,3 +445,14 @@ export {
   EndpointRegistry,
 } from "./registry";
 export type { Endpoint } from "./registry";
+
+export {
+  signStandardWebhook,
+  standardWebhookHeaders,
+  verifyStandardWebhook,
+  standardWebhookKey,
+  type StandardSecret,
+  type StandardSignOptions,
+  type StandardVerifyOptions,
+} from "./standard";
+export { assertDeliverableUrl, isPrivateAddress, isMetadataAddress, type UrlGuardOptions } from "./ssrf";

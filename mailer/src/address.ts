@@ -38,7 +38,12 @@ export function toAddress(input: string | Address): Address {
  */
 export function parseAddress(input: string): Address {
   const m = input.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
-  if (m) return { name: m[1]!.replace(/^"|"$/g, ""), address: m[2]!.trim() };
+  if (m) {
+    const raw = m[1]!;
+    const quoted = /^".*"$/.test(raw);
+    const name = quoted ? raw.slice(1, -1).replace(/\\(.)/g, "$1") : raw;
+    return { name, address: m[2]!.trim() };
+  }
   return { address: input.trim() };
 }
 
@@ -78,16 +83,20 @@ export function toList(input?: AddressInput): Address[] {
  * Format an {@link Address} as a header value. Display names with special
  * characters are quoted; non-ASCII names are RFC 2047 encoded-word encoded.
  */
+// RFC 5322 §3.2.3 "specials": a display name containing any of them must be a
+// quoted-string, or "Team: Sales <a@x>" reads as the start of an address group.
+const SPECIALS = /[()<>[\]:;@\\,."]/;
+
 export function formatAddress(a: Address): string {
   if (!a.name) return a.address;
-  const needsQuote = /[",;<>@]/.test(a.name);
-  const name = needsQuote ? `"${a.name.replace(/"/g, '\\"')}"` : a.name;
-  return /[^\x20-\x7e]/.test(a.name) ? `${encodeWord(a.name)} <${a.address}>` : `${name} <${a.address}>`;
+  if (/[^\x20-\x7e]/.test(a.name)) return `${encodeWord(a.name)} <${a.address}>`;
+  const name = SPECIALS.test(a.name) ? `"${a.name.replace(/[\\"]/g, "\\$&")}"` : a.name;
+  return `${name} <${a.address}>`;
 }
 
 /** Format a list of addresses as a single comma-separated header value. */
 export function formatAddressList(list: Array<string | Address>): string {
-  return list.map((a) => formatAddress(toAddress(a))).join(", ");
+  return foldList(list.map((a) => formatAddress(toAddress(a))));
 }
 
 /* ------------------------------ validation ------------------------------ */
@@ -117,7 +126,25 @@ export function invalidAddresses(inputs: AddressInput): string[] {
  * content as base64 so it survives 7-bit transports (subjects, display names).
  */
 export function encodeWord(str: string): string {
-  return `=?UTF-8?B?${Buffer.from(str, "utf8").toString("base64")}?=`;
+  // RFC 2047 §2: an encoded-word is at most 75 characters. 45 UTF-8 bytes
+  // base64-encode to 60, plus the 12-character wrapper = 72. Longer text becomes
+  // several words, split between characters (never inside one), separated by
+  // folding whitespace, which decoders drop when joining adjacent words.
+  const words: string[] = [];
+  let chunk = "";
+  let bytes = 0;
+  for (const ch of str) {
+    const n = Buffer.byteLength(ch, "utf8");
+    if (bytes + n > 45 && chunk) {
+      words.push(chunk);
+      chunk = "";
+      bytes = 0;
+    }
+    chunk += ch;
+    bytes += n;
+  }
+  if (chunk || !words.length) words.push(chunk);
+  return words.map((w) => `=?UTF-8?B?${Buffer.from(w, "utf8").toString("base64")}?=`).join("\r\n ");
 }
 
 /** Public alias of {@link encodeWord}. */
@@ -125,5 +152,47 @@ export const encodeMimeWord = encodeWord;
 
 /** Encode a header value only if it contains non-ASCII characters. */
 export function encodeHeader(value: string): string {
-  return /[^\x20-\x7e]/.test(value) ? encodeWord(value) : value;
+  if (/[^\x20-\x7e]/.test(value)) return encodeWord(value);
+  return foldText(value);
+}
+
+/**
+ * Fold an unstructured ASCII header value at spaces so lines stay near 78
+ * characters (RFC 5322 §2.1.1 limits them to 998). A single word too long to
+ * fold is encoded instead, since encoded words can be split anywhere.
+ */
+export function foldText(value: string, first = 69): string {
+  if (value.length <= first) return value;
+  const out: string[] = [];
+  let line = "";
+  let limit = first;
+  for (const word of value.split(/(?= )/)) {
+    if (line && line.length + word.length > limit) {
+      out.push(line);
+      line = word;
+      limit = 77;
+    } else line += word;
+  }
+  out.push(line);
+  if (out.some((l) => l.length > 997)) return encodeWord(value);
+  return out.join("\r\n");
+}
+
+/** Join formatted addresses, starting a new folded line before one would overflow. */
+export function foldList(items: string[], first = 72): string {
+  let out = "";
+  let lineLen = 0;
+  let limit = first;
+  items.forEach((item, i) => {
+    const piece = i === 0 ? item : `, ${item}`;
+    if (i > 0 && lineLen + piece.length > limit) {
+      out += ",\r\n " + item;
+      lineLen = item.length + 1;
+      limit = 77;
+    } else {
+      out += piece;
+      lineLen += piece.length;
+    }
+  });
+  return out;
 }

@@ -21,6 +21,22 @@
 - 🅱️ Bold headers, column widths, multiple sheets
 - 📦 Output `Uint8Array` — stream it, download it, save it · zero deps · isomorphic
 
+## What's new in 1.4.0
+
+- **Decompression-bomb protection.** The reader used to inflate every file inside
+  the archive with no limit, so a 300 KB upload with one highly compressed entry
+  allocated over 300 MB. At DEFLATE's ~1000:1 ratio, a few MB was enough to take
+  a server down. Now only the parts the reader parses are inflated (workbook,
+  styles, shared strings, the sheets), and they share a byte budget:
+  `readWorkbook(bytes, { maxUncompressedBytes })`, also accepted by `xlsxToJson`
+  and `xlsxToCsv`. The default is 512 MiB. Set it much lower for user uploads. Past
+  the budget, reading stops with an `XlsxReadError`.
+- **1904 date system.** Workbooks saved with the 1904 date system, the default in
+  older Excel for Mac, used to come back 4 years and 1 day early. They read
+  correctly now.
+- **Dates before 1 March 1900** match Excel, which counts a 29 February 1900 that
+  never existed. Both reading and writing handle it.
+
 ## Install
 
 ```bash

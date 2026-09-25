@@ -23,6 +23,25 @@
 
 > **New in 1.2.0** — a fluent [`createMessage()`](#compose-with-the-message-builder) MIME builder (inline CID images, alternatives, custom headers), exported [address helpers](#address-utilities) (`parseAddress` / `formatAddress` / `isValidEmail` + RFC 2047 `encodeMimeWord`), non-network [`createMemoryTransport()` / `createJsonTransport()`](#test-friendly-transports) for tests, [`sendBatch()`](#batch-sending-with-retry) with a concurrency cap + injectable retry/backoff, and [`htmlToText()` / `previewText()`](#htmltext-helpers) helpers. All additive — every 1.1.x API is unchanged.
 
+## What's new in 1.2.1
+
+Every message now stays inside the RFC limits that strict mail servers and spam
+filters enforce. Checked by parsing the output with Python's `email` package.
+
+- **Long headers are folded.** A long subject went out as one line, and a big
+  recipient list as one `To:` line; RFC 5322 forbids lines over 998 characters.
+  They now fold near 78.
+- **Encoded words are at most 75 characters** (RFC 2047). A long non-ASCII subject
+  used to become one 485-character word. It is now several words, split between
+  characters, never inside one.
+- **Display names are quoted when RFC 5322 requires it.** `Team: Sales` used to go
+  out unquoted, and a colon there starts an address group. Backslashes are escaped.
+- **Attachment filenames can't add parameters.** A `"` in a filename used to close
+  the quotes, so `report".pdf"; x-evil="1` smuggled a parameter in. Quotes and
+  backslashes are escaped now.
+- **Non-ASCII filenames are encoded.** `报告 résumé.pdf` used to go out as raw 8-bit
+  bytes. It now carries an encoded word plus the standard RFC 2231 `filename*`.
+
 ## Install
 
 ```bash

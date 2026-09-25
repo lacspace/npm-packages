@@ -9,7 +9,7 @@
  */
 
 import { aoaToXlsx, readWorkbook, XlsxReadError } from "./index";
-import type { CellValue, ReadCell, ReadSheet, SheetOptions } from "./index";
+import type { CellValue, ReadCell, ReadOptions, ReadSheet, SheetOptions } from "./index";
 
 /* ------------------------------ options ------------------------------ */
 
@@ -171,9 +171,9 @@ export function csvToXlsx(csv: string, opts: CsvToXlsxOptions = {}): Uint8Array 
  */
 export async function xlsxToCsv(
   input: Uint8Array | ArrayBuffer | ArrayBufferView,
-  opts: XlsxToCsvOptions = {},
+  opts: XlsxToCsvOptions & ReadOptions = {},
 ): Promise<string> {
-  const wb = await readWorkbook(input);
+  const wb = await readWorkbook(input, opts);
   let sheet: ReadSheet | undefined;
   if (typeof opts.sheet === "number") sheet = wb.sheets[opts.sheet];
   else if (typeof opts.sheet === "string") sheet = wb.sheet(opts.sheet);

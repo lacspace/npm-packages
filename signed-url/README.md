@@ -22,6 +22,23 @@
 - 🪄 `magicLink()` / `readMagicLink()` helpers for passwordless auth
 - ⚡ Isomorphic — Node, edge runtimes & browsers · 📦 ESM + CJS · fully typed
 
+## What's new in 1.2.0 — security fix, upgrade recommended
+
+- **Signed URLs could be extended with extra parameters.** The signature covered
+  the query with its values *decoded* and joined as-is, so `?name=x%26role%3Dadmin`
+  (one parameter) and `?name=x&role=admin` (two) signed identically. If a user
+  could get a value of their choosing into a signed link (a filename, a search
+  term, a return path), they could turn it into parameters of their choosing and
+  the signature still verified. Affects `signUrl`/`verifyUrl` and
+  `signSecureUrl`/`verifySecureUrl`; tokens and magic links were not affected.
+  Keys and values are now percent-encoded before signing, so each URL has
+  exactly one signed form.
+- **Existing links:** a link whose parameter values only use letters, digits and
+  `-_.!~*'()` signs the same as before and keeps verifying. A link whose values
+  contain spaces, non-ASCII text or other symbols stops verifying. Pass
+  `acceptLegacySignatures: true` to `verifyUrl`/`verifySecureUrl` until those
+  links expire. That flag also re-opens the hole above, so remove it afterwards.
+
 ## Install
 
 ```bash

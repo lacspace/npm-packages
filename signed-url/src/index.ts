@@ -14,6 +14,7 @@
  *
  * Built on @lacspace/crypto (Web Crypto) — never hand-rolled cryptography.
  */
+import { canonicalize, type LegacySignatureOption } from "./canonical";
 import { hmac, hmacVerify, toBase64url, fromBase64url } from "@lacspace/crypto";
 
 export type SignAlgorithm = "SHA-256" | "SHA-384" | "SHA-512";
@@ -157,19 +158,11 @@ export interface SignUrlOptions extends SignOptions {
   expParam?: string;
 }
 
-export interface VerifyUrlOptions extends VerifyOptions {
+export interface VerifyUrlOptions extends VerifyOptions, LegacySignatureOption {
   sigParam?: string;
   expParam?: string;
 }
 
-/** Canonical string to sign: origin + path + sorted query (excluding the sig param). */
-function canonicalize(u: URL, sigParam: string): string {
-  const params = [...u.searchParams.entries()]
-    .filter(([k]) => k !== sigParam)
-    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  const qs = params.map(([k, v]) => `${k}=${v}`).join("&");
-  return `${u.origin}${u.pathname}?${qs}`;
-}
 
 /**
  * Append an expiring HMAC signature to a URL — self-hosted presigned URLs for
@@ -222,7 +215,10 @@ export async function verifyUrl(url: string, opts: VerifyUrlOptions): Promise<Ve
     return { valid: false, reason: "malformed" };
   }
 
-  const okSig = await hmacVerify(opts.secret, canonicalize(u, sigParam), sigBytes, opts.algorithm ?? "SHA-256");
+  const alg = opts.algorithm ?? "SHA-256";
+  const okSig =
+    (await hmacVerify(opts.secret, canonicalize(u, sigParam), sigBytes, alg)) ||
+    (opts.acceptLegacySignatures === true && (await hmacVerify(opts.secret, canonicalize(u, sigParam, true), sigBytes, alg)));
   if (!okSig) return { valid: false, reason: "bad-signature" };
 
   const expStr = u.searchParams.get(expParam);
@@ -303,3 +299,5 @@ export type {
   ConsumeNonceOptions,
   ConsumeNonceResult,
 } from "./secure";
+
+export type { LegacySignatureOption } from "./canonical";

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/id",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Every ID kind you need — UUID v4/v7, ULID, cuid2, Snowflake, Nano-ID, base62/base58 and Stripe-style prefixed ids. Custom alphabets with unbiased sampling, time-sortable + decodeTime. Cryptographically random (Web Crypto), zero-dependency, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

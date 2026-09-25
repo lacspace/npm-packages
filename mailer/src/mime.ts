@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 
 import type { Address, Attachment, Mail } from "./index";
 
-import { assertNoCRLF, encodeHeader, formatAddress, toAddress, toList } from "./address";
+import { assertNoCRLF, encodeHeader, encodeWord, foldList, formatAddress, toAddress, toList } from "./address";
 
 /** Fold a base64 string into RFC-2045 76-column lines. */
 export function wrap76(b64: string): string {
@@ -41,6 +41,34 @@ function attachmentBuffer(att: Attachment): Buffer {
   return Buffer.from(att.content, att.encoding ?? "utf8");
 }
 
+/**
+ * A quoted filename parameter. `\` and `"` are escaped so a filename can't close
+ * the quotes and add parameters. Non-ASCII names use an encoded word, which
+ * Gmail, Outlook and Apple Mail all read in this position.
+ */
+function fileParam(name: string): string {
+  if (/[^\x20-\x7e]/.test(name)) return `"${encodeWord(name).replace(/\r\n /g, " ")}"`;
+  return `"${name.replace(/[\\"]/g, "\\$&")}"`;
+}
+
+/** RFC 2231 `filename*` for non-ASCII names, the standard form, which wins where supported. */
+function rfc2231(name: string): string[] {
+  if (!/[^\x20-\x7e]/.test(name)) return [];
+  const pct = Array.from(Buffer.from(name, "utf8"), (b) =>
+    /[A-Za-z0-9!#$&+.^_`|~-]/.test(String.fromCharCode(b)) ? String.fromCharCode(b) : "%" + b.toString(16).toUpperCase().padStart(2, "0"),
+  ).join("");
+  // Continuations (filename*0*, filename*1*, …) keep every line short.
+  const parts = pct.match(/(%[0-9A-F]{2}|[^%]){1,60}/g) ?? [];
+  if (parts.length === 1) return [`filename*=UTF-8''${parts[0]}`];
+  return parts.map((p, i) => `filename*${i}*=${i === 0 ? "UTF-8''" : ""}${p}`);
+}
+
+/** `Header: value; a=1; b=2` on one line when it fits in 78, else one parameter per folded line. */
+function params(head: string, list: string[]): string {
+  const one = [head, ...list].join("; ");
+  return one.length <= 78 && !one.includes("\r\n") ? one : [head, ...list].join(";\r\n ");
+}
+
 /** Render one attachment/inline MIME part. */
 function attachmentPart(att: Attachment): string {
   assertNoCRLF(att.filename, "attachment filename");
@@ -48,9 +76,9 @@ function attachmentPart(att: Attachment): string {
   const type = assertNoCRLF(att.contentType ?? "application/octet-stream", "attachment content type");
   const disposition = att.cid ? "inline" : (att.contentDisposition ?? "attachment");
   const lines = [
-    `Content-Type: ${type}; name="${att.filename}"`,
+    params(`Content-Type: ${type}`, [`name=${fileParam(att.filename)}`]),
     `Content-Transfer-Encoding: base64`,
-    `Content-Disposition: ${disposition}; filename="${att.filename}"`,
+    params(`Content-Disposition: ${disposition}`, [`filename=${fileParam(att.filename)}`, ...rfc2231(att.filename)]),
   ];
   if (att.cid) lines.push(`Content-ID: <${assertNoCRLF(att.cid, "attachment cid")}>`);
   return `${lines.join("\r\n")}\r\n\r\n${wrap76(buf.toString("base64"))}`;
@@ -92,8 +120,8 @@ export function buildMime(mail: Mail, from: Address, messageId: string): string 
   const headers: string[] = [];
 
   headers.push(`From: ${formatAddress(from)}`);
-  headers.push(`To: ${to.map(formatAddress).join(", ")}`);
-  if (cc.length) headers.push(`Cc: ${cc.map(formatAddress).join(", ")}`);
+  headers.push(`To: ${foldList(to.map(formatAddress))}`);
+  if (cc.length) headers.push(`Cc: ${foldList(cc.map(formatAddress))}`);
   if (mail.replyTo) headers.push(`Reply-To: ${formatAddress(toAddress(mail.replyTo))}`);
   headers.push(`Subject: ${encodeHeader(assertNoCRLF(mail.subject, "subject"))}`);
   headers.push(`Date: ${rfc2822Date(new Date())}`);

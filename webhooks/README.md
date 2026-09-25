@@ -22,6 +22,28 @@
 
 > **New in 1.1.0** — a typed [event envelope](#event-envelope--routing) (`createEvent`), an exactly-once consumer helper (`processOnce`), a pure [endpoint registry](#event-envelope--routing) (`routeEvent` / `EndpointRegistry`) that computes which endpoints receive an event, and a per-attempt delivery `log` + `onAttempt` callback on `deliver`. All additive — every existing export is unchanged.
 
+## What's new in 1.2.0
+
+- **Standard Webhooks support**: the scheme used by OpenAI, Svix, Resend, Clerk
+  and Supabase. `verifyStandardWebhook(rawBody, request.headers, { secret })` checks
+  their webhooks, and `deliver(url, event, { secret, scheme: "standard-webhooks" })`
+  sends ones their libraries accept. Checked against the spec's published
+  signature, and both ways against the official `standardwebhooks` package.
+- **Heads-up if your receiver uses a Standard Webhooks library.** `deliver()` has
+  always used the Standard Webhooks header *names* with this package's own
+  `t=…,v1=<hex>` signature, which those libraries reject. Pass
+  `scheme: "standard-webhooks"`. The default is unchanged so existing receivers
+  that use this package's `verify()` keep working.
+- **Protection against server-side request forgery (SSRF).** `deliver()` now always
+  refuses cloud metadata addresses such as `169.254.169.254`, where AWS, GCP and
+  Azure hand out credentials. When the URL comes from a customer, add
+  `blockPrivateNetworks: true`. That refuses localhost, private, link-local and
+  unique-local targets however they're written (`2130706433`, `0x7f.1`,
+  `[::ffff:…]`), and stops following redirects. Add
+  `resolveHost: (h) => dns.promises.resolve(h)` to also refuse public names that
+  resolve inside. A refused URL returns `{ ok: false, attempts: 0, error }`, and
+  nothing is sent.
+
 ## Install
 
 ```bash

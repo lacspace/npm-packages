@@ -1,4 +1,4 @@
-import { getRandom } from "./random";
+import { getRandom, checkTime } from "./random";
 
 /**
  * ULID — a 26-character, Crockford base32, lexicographically sortable id:
@@ -51,7 +51,8 @@ let lastRand: number[] = [];
  * millisecond the random component is incremented so ids keep sorting.
  */
 export function ulid(now?: number): string {
-  let time = now ?? Date.now();
+  // The ULID spec: anything past 7ZZZZZZZZZ (2^48 − 1 ms) must be rejected.
+  let time = checkTime(now ?? Date.now(), "ulid");
   let rand: number[];
   if (time <= lastTime) {
     // Same ms, or the clock went backwards: keep the last timestamp and bump

@@ -6,6 +6,8 @@
  * v7 within the same millisecond, zero-dependency and isomorphic.
  */
 
+import { checkTime } from "./random";
+
 function getRandom(bytes: Uint8Array): Uint8Array {
   const c = (globalThis as { crypto?: Crypto }).crypto;
   if (!c || typeof c.getRandomValues !== "function") {
@@ -45,8 +47,11 @@ let v7Counter = 0;
  * friendly, still globally unique. Monotonic within the same millisecond.
  */
 export function uuidv7(now?: number): string {
-  let time = now ?? Date.now();
-  if (time === lastV7Time) {
+  let time = checkTime(now ?? Date.now(), "uuidv7");
+  if (time <= lastV7Time) {
+    // Same ms, a clock that stepped back, or a borrowed ms still ahead of the
+    // caller's time: stay on the latest timestamp so ids never sort backwards.
+    time = lastV7Time;
     v7Counter++;
     // rand_a is only 12 bits (0..4095). If we exhaust the counter within a
     // single millisecond, borrow from the next ms so ordering stays monotonic

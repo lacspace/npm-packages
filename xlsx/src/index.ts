@@ -109,7 +109,12 @@ export function columnLetter(index: number): string {
 }
 
 const EPOCH_OFFSET = 25569; // days between 1899-12-30 and 1970-01-01
-const toSerial = (d: Date): number => d.getTime() / 86400000 + EPOCH_OFFSET;
+const toSerial = (d: Date): number => {
+  const serial = d.getTime() / 86400000 + EPOCH_OFFSET;
+  // Before 1 March 1900 Excel's serials are one lower than the epoch implies
+  // (it counts a 29 Feb 1900 that never existed from serial 60 on).
+  return serial >= 2 && serial < 61 ? serial - 1 : serial;
+};
 
 /**
  * A live Excel formula in a cell. `f` is the formula without a leading `=`
@@ -411,8 +416,23 @@ const u32le = (b: Uint8Array, o: number): number =>
 
 /* ------------------------------ deflate ------------------------------ */
 
-/** Inflate a raw-DEFLATE blob using the Web-standard DecompressionStream. */
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+/** Shared decompression allowance for one workbook read. */
+interface Budget {
+  left: number;
+  limit: number;
+}
+
+function spend(budget: Budget, n: number, name: string): void {
+  budget.left -= n;
+  if (budget.left < 0) {
+    throw new XlsxReadError(
+      `Workbook expands past maxUncompressedBytes (${budget.limit} bytes) while reading "${name}" — refusing a possible zip bomb`,
+    );
+  }
+}
+
+/** Inflate a raw-DEFLATE blob using the Web-standard DecompressionStream, stopping at the budget. */
+async function inflateRaw(data: Uint8Array, budget: Budget, name: string): Promise<Uint8Array> {
   const DS: typeof DecompressionStream | undefined = (globalThis as { DecompressionStream?: typeof DecompressionStream })
     .DecompressionStream;
   if (typeof DS !== "function") {
@@ -423,18 +443,24 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   const ds = new DS("deflate-raw");
   const writer = ds.writable.getWriter();
   // Fire-and-forget: the reader loop below drains the output as we write.
-  void writer.write(data as unknown as BufferSource);
-  void writer.close();
+  writer.write(data as unknown as BufferSource).catch(() => {});
+  writer.close().catch(() => {});
   const reader = ds.readable.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      total += value.length;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        spend(budget, value.length, name);
+        chunks.push(value);
+        total += value.length;
+      }
     }
+  } catch (err) {
+    await reader.cancel().catch(() => {});
+    throw err;
   }
   const out = new Uint8Array(total);
   let off = 0;
@@ -448,8 +474,13 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
  * Parse a ZIP archive via its End-Of-Central-Directory + central directory
  * (robust against the exact local-header layout), returning name → bytes.
  */
-async function unzip(b: Uint8Array): Promise<Map<string, Uint8Array>> {
-  const map = new Map<string, Uint8Array>();
+interface StoredEntry {
+  method: number;
+  comp: Uint8Array;
+}
+
+function unzip(b: Uint8Array): Map<string, StoredEntry> {
+  const map = new Map<string, StoredEntry>();
 
   // Locate the EOCD record by scanning backwards (a trailing comment may push
   // it away from the very end; the comment can be up to 65535 bytes).
@@ -482,12 +513,8 @@ async function unzip(b: Uint8Array): Promise<Map<string, Uint8Array>> {
     const dataStart = localOffset + 30 + lNameLen + lExtraLen;
     const comp = b.subarray(dataStart, dataStart + compSize);
 
-    let data: Uint8Array;
-    if (method === 0) data = comp;
-    else if (method === 8) data = await inflateRaw(comp);
-    else throw new XlsxReadError(`Unsupported ZIP compression method ${method} for entry "${name}"`);
-
-    map.set(name, data);
+    // Nothing is inflated here: only the parts the reader parses are, on demand.
+    map.set(name, { method, comp });
     ptr += 46 + nameLen + extraLen + commentLen;
   }
   return map;
@@ -641,7 +668,15 @@ function isDateFormatCode(code: string): boolean {
 }
 
 const READ_EPOCH_OFFSET = 25569; // days between 1899-12-30 and 1970-01-01
-const serialToDate = (serial: number): Date => new Date(Math.round((serial - READ_EPOCH_OFFSET) * 86400000));
+const EPOCH_1904_OFFSET = 24107; // days between 1904-01-01 and 1970-01-01
+const serialToDate = (serial: number, date1904 = false): Date => {
+  if (date1904) return new Date(Math.round((serial - EPOCH_1904_OFFSET) * 86400000));
+  // Excel's 1900 system counts a 29 Feb 1900 that never existed (serial 60), so
+  // serials 1–59 sit one day later than the 1899-12-30 epoch implies.
+  // Serial 60 is that phantom day; it lands on 28 Feb.
+  if (serial >= 1 && serial < 60) serial += 1;
+  return new Date(Math.round((serial - READ_EPOCH_OFFSET) * 86400000));
+};
 
 /* ------------------------------ worksheet ------------------------------ */
 
@@ -650,6 +685,7 @@ function decodeCellValue(
   inner: string | undefined,
   shared: string[],
   dateStyles: Set<number>,
+  date1904 = false,
 ): ReadCell {
   const t = attr(attrs, "t");
   const sRaw = attr(attrs, "s");
@@ -681,11 +717,11 @@ function decodeCellValue(
   if (v === undefined || v === "") return null;
   const num = Number(v);
   if (!Number.isFinite(num)) return null;
-  return dateStyles.has(style) ? serialToDate(num) : num;
+  return dateStyles.has(style) ? serialToDate(num, date1904) : num;
 }
 
 /** Parse one worksheet XML into a dense, trailing-trimmed grid. */
-function parseSheet(xml: string, shared: string[], dateStyles: Set<number>): ReadCell[][] {
+function parseSheet(xml: string, shared: string[], dateStyles: Set<number>, date1904 = false): ReadCell[][] {
   // sheetData scope only (avoid picking up anything outside it).
   const sd = /<sheetData\b[^>]*>([\s\S]*?)<\/sheetData>/.exec(xml);
   const body = sd ? sd[1]! : "";
@@ -722,7 +758,7 @@ function parseSheet(xml: string, shared: string[], dateStyles: Set<number>): Rea
         col = cursor;
         cursor++;
       }
-      const val = decodeCellValue(cAttrs, cInner, shared, dateStyles);
+      const val = decodeCellValue(cAttrs, cInner, shared, dateStyles, date1904);
       cells.set(col, val);
       if (col > maxCol) maxCol = col;
     }
@@ -769,6 +805,19 @@ function trimGrid(grid: ReadCell[][]): ReadCell[][] {
 
 /* ------------------------------ public API ------------------------------ */
 
+/** 512 MiB: past what a JavaScript string can hold anyway, far below what exhausts a server. */
+const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
+
+/** Options for {@link readWorkbook}, {@link xlsxToJson} and `xlsxToCsv`. */
+export interface ReadOptions {
+  /**
+   * Stop with an `XlsxReadError` once the parts being read decompress past this
+   * many bytes in total. Default 512 MiB. DEFLATE compresses about 1000:1, so
+   * without a cap a 4 MB upload can expand to gigabytes. Lower it for uploads.
+   */
+  maxUncompressedBytes?: number;
+}
+
 /**
  * Read a .xlsx workbook from bytes into ordered, parsed sheets.
  * Async because DEFLATE inflation uses the Web `DecompressionStream`.
@@ -777,31 +826,46 @@ function trimGrid(grid: ReadCell[][]): ReadCell[][] {
  * const wb = await readWorkbook(await file.arrayBuffer());
  * const products = sheetToJson(wb.sheet("Products")!);
  */
-export async function readWorkbook(input: Uint8Array | ArrayBuffer | ArrayBufferView): Promise<ParsedWorkbook> {
+export async function readWorkbook(
+  input: Uint8Array | ArrayBuffer | ArrayBufferView,
+  opts: ReadOptions = {},
+): Promise<ParsedWorkbook> {
   const bytes = toU8(input);
-  const entries = await unzip(bytes);
-  const text = (name: string): string | undefined => {
-    const b = entries.get(name);
-    return b ? dec.decode(b) : undefined;
+  const entries = unzip(bytes);
+  const limit = opts.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
+  const budget: Budget = { left: limit, limit };
+  const text = async (name: string): Promise<string | undefined> => {
+    const e = entries.get(name);
+    if (!e) return undefined;
+    let b: Uint8Array;
+    if (e.method === 0) {
+      spend(budget, e.comp.length, name);
+      b = e.comp;
+    } else if (e.method === 8) b = await inflateRaw(e.comp, budget, name);
+    else throw new XlsxReadError(`Unsupported ZIP compression method ${e.method} for entry "${name}"`);
+    return dec.decode(b);
   };
 
-  const wbXml = text("xl/workbook.xml");
+  const wbXml = await text("xl/workbook.xml");
   if (!wbXml) throw new XlsxReadError("Not a valid .xlsx: xl/workbook.xml is missing");
 
-  const relMap = parseRels(text("xl/_rels/workbook.xml.rels") ?? "");
-  const shared = parseSharedStrings(text("xl/sharedStrings.xml"));
-  const dateStyles = parseDateStyles(text("xl/styles.xml"));
+  const relMap = parseRels((await text("xl/_rels/workbook.xml.rels")) ?? "");
+  const shared = parseSharedStrings(await text("xl/sharedStrings.xml"));
+  const dateStyles = parseDateStyles(await text("xl/styles.xml"));
   const defs = parseWorkbookSheets(wbXml);
+  // Workbooks saved by Excel for Mac (and some others) count days from 1904-01-01.
+  const date1904 = /<(?:\w+:)?workbookPr\b[^>]*\bdate1904\s*=\s*"(?:1|true)"/.test(wbXml);
 
   const sheets: ReadSheet[] = [];
-  defs.forEach((def, i) => {
+  for (let i = 0; i < defs.length; i++) {
+    const def = defs[i]!;
     const target = def.rid ? relMap.get(def.rid) : undefined;
-    let sheetXmlText = target ? text(resolveTarget(target)) : undefined;
+    let sheetXmlText = target ? await text(resolveTarget(target)) : undefined;
     // Fallback: positional worksheet path when the rel is missing/unmatched.
-    if (sheetXmlText === undefined) sheetXmlText = text(`xl/worksheets/sheet${i + 1}.xml`);
-    const rows = sheetXmlText ? parseSheet(sheetXmlText, shared, dateStyles) : [];
+    if (sheetXmlText === undefined) sheetXmlText = await text(`xl/worksheets/sheet${i + 1}.xml`);
+    const rows = sheetXmlText ? parseSheet(sheetXmlText, shared, dateStyles, date1904) : [];
     sheets.push({ name: def.name, rows });
-  });
+  }
 
   const sheetNames = sheets.map((s) => s.name);
   return {
@@ -867,9 +931,9 @@ export function sheetToJson(sheet: ReadSheet, opts: SheetToJsonOptions = {}): Re
  */
 export async function xlsxToJson(
   input: Uint8Array | ArrayBuffer | ArrayBufferView,
-  opts: SheetToJsonOptions = {},
+  opts: SheetToJsonOptions & ReadOptions = {},
 ): Promise<Record<string, ReadCell>[]> {
-  const wb = await readWorkbook(input);
+  const wb = await readWorkbook(input, opts);
   let sheet: ReadSheet | undefined;
   if (typeof opts.sheet === "number") sheet = wb.sheets[opts.sheet];
   else if (typeof opts.sheet === "string") sheet = wb.sheet(opts.sheet);

@@ -43,6 +43,20 @@ const nextId = snowflakeFactory({ machineId: 7 });
 nextId();                                 // "72057594037…"  (64-bit, JSON-safe string)
 ```
 
+## What's new in 1.1.1
+
+- **`uuidv7()` never sorts backwards.** Past 4,096 ids in one millisecond it
+  borrows the next millisecond, but the following call with the original time
+  used to jump back. A clock stepping backwards (an NTP correction) did the same.
+  It now stays on the latest timestamp, as `ulid()` already did.
+- **`uuidv7()` and `ulid()` reject impossible times.** A negative time, `NaN`, or
+  anything from 2^48 ms up used to produce a wrapped or zero timestamp, and for
+  ULIDs an id that `isUlid()` rejects. They throw a `RangeError` now, as the ULID
+  spec requires.
+- Checked and unchanged: version and variant bits, timestamp fields, uniqueness,
+  and an unbiased character distribution in every random generator (chi-square
+  over a million characters).
+
 ## Install
 
 ```bash

@@ -8,6 +8,12 @@ npx lacspace-inspect https://example.com
 
 **New in 0.2** — every warning/failure now comes with a **concrete fix**; audit a **whole site** with `--crawl` (per-page leaderboard + site-wide duplicate titles/descriptions + broken internal links); set **performance budgets** (`--budget`); **diff against a baseline** to fail CI on regressions; **batch** many URLs (`--input`); and export **Markdown** (`-f md`, perfect for a PR comment) or a **standalone HTML** report (`-f html`).
 
+## What's new in 0.2.1
+
+- **Runs on the current scraper engine.** The dependency range `^0.1.0` pinned
+  lacspace-scraper to 0.1.0 (0.x versions don't upgrade across minors), so every
+  engine fix since then was missing here. It now requires lacspace-scraper 0.2.2.
+
 ## Install
 
 ```bash

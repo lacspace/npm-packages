@@ -1,7 +1,7 @@
 {
   "name": "lacspace-monitor",
-  "version": "0.2.1",
-  "description": "Free, open-source change monitor \u2014 watch any web page, CSS selector, JSON API field, RSS/Atom feed, HTTP status, header, response time, SSL expiry or uptime and get told when something moves. Condition-based alerts (price drops, thresholds), Slack/Discord/Telegram/e-mail/webhook notifiers, change history and rich diffs. No API keys. Built on the lacspace-scraper engine.",
+  "version": "0.2.2",
+  "description": "Free, open-source change monitor — watch any web page, CSS selector, JSON API field, RSS/Atom feed, HTTP status, header, response time, SSL expiry or uptime and get told when something moves. Condition-based alerts (price drops, thresholds), Slack/Discord/Telegram/e-mail/webhook notifiers, change history and rich diffs. No API keys. Built on the lacspace-scraper engine.",
   "type": "module",
   "bin": {
     "lacspace-monitor": "dist/cli.js"
@@ -66,7 +66,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "lacspace-scraper": "^0.1.0"
+    "lacspace-scraper": "^0.2.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

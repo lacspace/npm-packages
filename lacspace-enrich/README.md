@@ -6,6 +6,12 @@
 npx lacspace-enrich acme.com --dns --rdap -v
 ```
 
+## What's new in 0.2.2
+
+- **Runs on the current scraper engine.** The dependency range `^0.1.0` pinned
+  lacspace-scraper to 0.1.0 (0.x versions don't upgrade across minors), so every
+  engine fix since then was missing here. It now requires lacspace-scraper 0.2.2. Company profiles no longer list dates, asset ids and SVG path data as phone numbers.
+
 ## What you get
 
 For each input, a profile with:

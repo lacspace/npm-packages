@@ -1,7 +1,7 @@
 {
   "name": "lacspace-enrich",
-  "version": "0.2.1",
-  "description": "Free, open-source company + contact enrichment \u2014 turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address, tech stack, DNS/SPF/DMARC/DKIM deliverability, RDAP registration, key-page discovery and email-pattern guesses \u2014 all from open sources / DNS. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
+  "version": "0.2.2",
+  "description": "Free, open-source company + contact enrichment — turn a domain, URL or email into a profile: name, description, logo, emails, phones, socials, address, tech stack, DNS/SPF/DMARC/DKIM deliverability, RDAP registration, key-page discovery and email-pattern guesses — all from open sources / DNS. No paid API. Batch and export to JSON/CSV/Excel. Built on the lacspace-scraper engine.",
   "type": "module",
   "bin": {
     "lacspace-enrich": "dist/cli.js"
@@ -63,7 +63,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "lacspace-scraper": "^0.1.0"
+    "lacspace-scraper": "^0.2.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

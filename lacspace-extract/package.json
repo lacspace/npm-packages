@@ -1,7 +1,7 @@
 {
   "name": "lacspace-extract",
-  "version": "0.2.1",
-  "description": "Free, open-source data extraction \u2014 pull text, tables and metadata out of PDFs, Office docs (DOCX/PPTX/EPUB), HTML pages and spreadsheets into clean JSON, NDJSON, CSV, Excel or Markdown. Zero-dependency PDF text engine (no OCR) + ZIP reader, HTML readability, page ranges and grep. No API keys.",
+  "version": "0.2.2",
+  "description": "Free, open-source data extraction — pull text, tables and metadata out of PDFs, Office docs (DOCX/PPTX/EPUB), HTML pages and spreadsheets into clean JSON, NDJSON, CSV, Excel or Markdown. Zero-dependency PDF text engine (no OCR) + ZIP reader, HTML readability, page ranges and grep. No API keys.",
   "type": "module",
   "bin": {
     "lacspace-extract": "dist/cli.js"
@@ -64,7 +64,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "lacspace-scraper": "^0.1.0"
+    "lacspace-scraper": "^0.2.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

@@ -5,7 +5,7 @@
  * is a fully deterministic, no-Intl fallback for constrained runtimes or tests,
  * and {@link parseMoney} turns a human string into raw integer minor units.
  */
-import { Money, decimalsFor } from "./index";
+import { Money, decimalsFor, type ParseMoneyOptions } from "./index";
 import { currencySymbol } from "./currency";
 
 export interface BasicFormatOptions {
@@ -57,9 +57,12 @@ export function formatBasic(m: Money, options: BasicFormatOptions = {}): string 
  * Parse a human money string into raw **integer minor units** for a currency.
  * `parseMoney("$1,234.56", "USD")` → `123456`.
  *
- * Best-effort and locale-agnostic (see the `Money.parse` note in the README):
- * whichever of `.` / `,` appears last is treated as the decimal separator.
+ * Locale-agnostic: when both `.` and `,` appear, the last one is the decimal
+ * separator; a lone separator followed by exactly three digits is a thousands
+ * separator (unless the currency has three decimals). Pass
+ * `{ decimalSeparator }` when you know the locale. Throws on malformed input
+ * instead of guessing.
  */
-export function parseMoney(input: string, currency: string): number {
-  return Money.parse(input, currency).toMinor();
+export function parseMoney(input: string, currency: string, options?: ParseMoneyOptions): number {
+  return Money.parse(input, currency, options).toMinor();
 }

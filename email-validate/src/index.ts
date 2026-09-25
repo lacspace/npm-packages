@@ -10,10 +10,27 @@
 
 /** Common free/consumer email providers. */
 export const FREE_PROVIDERS: Set<string> = new Set([
-  "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.in", "yahoo.co.uk",
-  "hotmail.com", "outlook.com", "live.com", "msn.com", "icloud.com", "me.com",
-  "aol.com", "protonmail.com", "proton.me", "zoho.com", "gmx.com", "gmx.net",
-  "yandex.com", "yandex.ru", "mail.com", "mail.ru", "rediffmail.com",
+  // Global
+  "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "rocketmail.com",
+  "hotmail.com", "outlook.com", "live.com", "msn.com", "icloud.com", "me.com", "mac.com",
+  "aol.com", "protonmail.com", "protonmail.ch", "proton.me", "pm.me", "zoho.com", "zohomail.com",
+  "gmx.com", "gmx.net", "mail.com", "tutanota.com", "tuta.io", "fastmail.com", "hey.com",
+  // Regional Yahoo / Outlook
+  "yahoo.co.in", "yahoo.co.uk", "yahoo.co.jp", "yahoo.fr", "yahoo.de", "yahoo.es", "yahoo.it",
+  "yahoo.com.br", "yahoo.com.au", "yahoo.ca", "hotmail.co.uk", "hotmail.fr", "hotmail.de",
+  "hotmail.it", "hotmail.es", "outlook.fr", "outlook.de", "outlook.jp", "live.co.uk", "live.fr",
+  // China
+  "qq.com", "foxmail.com", "163.com", "126.com", "yeah.net", "sina.com", "sina.cn", "sohu.com", "aliyun.com",
+  // Korea / Japan
+  "naver.com", "daum.net", "hanmail.net", "kakao.com", "docomo.ne.jp", "ezweb.ne.jp", "softbank.ne.jp",
+  // Russia / CIS
+  "yandex.com", "yandex.ru", "ya.ru", "mail.ru", "bk.ru", "list.ru", "inbox.ru", "rambler.ru", "ukr.net",
+  // Europe
+  "gmx.de", "gmx.at", "gmx.ch", "web.de", "t-online.de", "freenet.de", "orange.fr", "free.fr",
+  "laposte.net", "sfr.fr", "wanadoo.fr", "libero.it", "virgilio.it", "seznam.cz", "wp.pl",
+  "o2.pl", "interia.pl", "onet.pl", "btinternet.com",
+  // South Asia / LatAm / Oceania
+  "rediffmail.com", "uol.com.br", "bol.com.br", "terra.com.br", "bigpond.com", "xtra.co.nz",
 ]);
 
 /** Well-known disposable / temporary-mail domains. Extend via {@link validateEmail} options. */
@@ -46,12 +63,54 @@ const COMMON_DOMAINS = [
 
 // Pragmatic RFC-5321-ish address grammar (no comments/quoted-strings; good for real-world use).
 const LOCAL_RE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+// RFC 6531 (SMTPUTF8) local part: the same atoms, plus any Unicode letter, mark or digit.
+const UNICODE_LOCAL_RE = /^[\p{L}\p{M}\p{N}!#$%&'*+/=?^_`{|}~-]+(?:\.[\p{L}\p{M}\p{N}!#$%&'*+/=?^_`{|}~-]+)*$/u;
+// C0 controls and DEL are never part of an address. A trailing CR/LF that
+// survives into a mail header is how header injection starts.
+export const CONTROL_CHARS = /[\x00-\x1f\x7f]/;
+
+/**
+ * The ASCII (IDNA / punycode) form of a domain: `bücher.example` →
+ * `xn--bcher-kva.example`. ASCII input is returned as-is; `null` when the name
+ * can't be converted.
+ */
+export function toAsciiDomain(domain: string): string | null {
+  if (!/[^\x00-\x7f]/.test(domain)) return domain;
+  if (/[\s/?#@:[\]\\%]/.test(domain) || typeof URL === "undefined") return null;
+  // IDNA: no empty labels and no label that starts or ends with a hyphen —
+  // punycode would otherwise hide "-bücher" inside a legal-looking "xn---bcher-4ya".
+  if (domain.split(".").some((l) => l === "" || l.startsWith("-") || l.endsWith("-"))) return null;
+  try {
+    return new URL(`http://${domain}/`).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function utf8Length(s: string): number {
+  let n = 0;
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  }
+  return n;
+}
+
+/** Options for {@link isValidEmail}. */
+export interface EmailSyntaxOptions {
+  /**
+   * Accept internationalised local parts such as `müller@` or `用户@` (RFC 6531).
+   * Default `false`: they need an SMTPUTF8-capable mail path end to end.
+   * Unicode *domains* are always accepted — they have an ASCII form.
+   */
+  allowUnicodeLocal?: boolean;
+}
 // TLD is either an alphabetic label (com, org, …) or an IDN/punycode A-label
 // (e.g. `xn--p1ai`). The `.` separator stays outside every character class so
 // there is no ambiguous overlap that could cause catastrophic backtracking.
 const DOMAIN_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:xn--[A-Za-z0-9-]{2,}|[A-Za-z]{2,})$/;
 
-export interface ValidationOptions {
+export interface ValidationOptions extends EmailSyntaxOptions {
   /** Extra disposable domains to treat as disposable. */
   extraDisposable?: string[];
   /** Turn off "did you mean?" suggestions. */
@@ -82,16 +141,17 @@ function splitEmail(email: string): { local: string; domain: string } | null {
 }
 
 /** Fast boolean syntax + structure check. */
-export function isValidEmail(email: string): boolean {
-  if (typeof email !== "string") return false;
+export function isValidEmail(email: string, opts: EmailSyntaxOptions = {}): boolean {
+  if (typeof email !== "string" || CONTROL_CHARS.test(email)) return false;
   const trimmed = email.trim();
-  if (trimmed.length > 254) return false;
   const parts = splitEmail(trimmed);
   if (!parts) return false;
-  const { local, domain } = parts;
-  if (local.length > 64 || local.length === 0) return false;
-  if (domain.length > 253) return false;
-  if (!LOCAL_RE.test(local)) return false;
+  const { local } = parts;
+  const domain = toAsciiDomain(parts.domain);
+  if (domain === null) return false;
+  if (local.length === 0 || utf8Length(local) > 64) return false;
+  if (domain.length > 253 || utf8Length(local) + 1 + domain.length > 254) return false;
+  if (!LOCAL_RE.test(local) && !(opts.allowUnicodeLocal && UNICODE_LOCAL_RE.test(local))) return false;
   if (!DOMAIN_RE.test(domain)) return false;
   return true;
 }
@@ -148,7 +208,8 @@ export function normalizeEmail(email: string, opts: NormalizeOptions = {}): stri
   const parts = splitEmail(email.trim());
   if (!parts) return email.trim().toLowerCase();
   let { local } = parts;
-  const domain = parts.domain.toLowerCase();
+  // One mailbox, one key: bücher.example and xn--bcher-kva.example normalise alike.
+  const domain = (toAsciiDomain(parts.domain) ?? parts.domain).toLowerCase();
   if (lowercaseLocal) local = local.toLowerCase();
   if (domain === "gmail.com" || domain === "googlemail.com") {
     if (gmailRemoveSubaddress) local = local.split("+")[0]!;
@@ -201,10 +262,11 @@ export function suggestEmail(email: string): string | null {
 
 /** Full analysis of an email address. */
 export function validateEmail(email: string, opts: ValidationOptions = {}): ValidationResult {
-  const raw = typeof email === "string" ? email.trim() : "";
+  const original = typeof email === "string" ? email : "";
+  const raw = original.trim();
   const parts = splitEmail(raw);
 
-  if (!isValidEmail(raw) || !parts) {
+  if (!isValidEmail(original, opts) || !parts) {
     return {
       valid: false,
       normalized: null,
@@ -214,7 +276,7 @@ export function validateEmail(email: string, opts: ValidationOptions = {}): Vali
       role: false,
       free: false,
       suggestion: opts.suggestions === false ? null : suggestEmail(raw),
-      reason: "invalid syntax",
+      reason: CONTROL_CHARS.test(original) ? "control characters" : "invalid syntax",
     };
   }
 

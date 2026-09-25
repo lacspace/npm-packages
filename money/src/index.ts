@@ -16,10 +16,20 @@
  * Zero dependencies · isomorphic · fully typed.
  */
 
+import { roundMinor } from "./rounding";
+
 /** Minor-unit exponents for currencies that aren't the default 2. */
 const EXPONENTS: Record<string, number> = {
-  JPY: 0, KRW: 0, VND: 0, CLP: 0, ISK: 0, HUF: 0, XAF: 0, XOF: 0, XPF: 0, RWF: 0, UGX: 0, GNF: 0,
-  BHD: 3, KWD: 3, OMR: 3, TND: 3, IQD: 3, JOD: 3, LYD: 3,
+  // ISO 4217 exponent 0.
+  BIF: 0, CLP: 0, DJF: 0, GNF: 0, ISK: 0, JPY: 0, KMF: 0, KRW: 0, PYG: 0, RWF: 0,
+  UGX: 0, UYI: 0, VND: 0, VUV: 0, XAF: 0, XOF: 0, XPF: 0,
+  // ISO lists HUF at 2, but it has been 0 here since 1.0 and changing it would
+  // silently rescale every stored HUF amount — kept, and documented in the README.
+  HUF: 0,
+  // ISO 4217 exponent 3.
+  BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
+  // ISO 4217 exponent 4 (Chilean and Uruguayan units of account).
+  CLF: 4, UYW: 4,
 };
 
 /** How many minor units are in one major unit for a currency (e.g. 100 for USD). */
@@ -33,7 +43,85 @@ function factorFor(currency: string): number {
 
 /** Round half away from zero — the intuitive rule for money. */
 function roundHalfUp(n: number): number {
-  return n < 0 ? -Math.round(-n) : Math.round(n);
+  return roundMinor(n, "half-up");
+}
+
+/** Options for {@link Money.parse} / `parseMoney`. */
+export interface ParseMoneyOptions {
+  /**
+   * Force the decimal separator when you know the input's locale. Without it a
+   * lone separator followed by exactly three digits is read as a thousands
+   * separator unless the currency itself has three decimals (BHD, KWD, …):
+   * `"1,234"` USD → 1234.00, `"1.234"` EUR → 1234.00, `"1.234"` BHD → 1.234.
+   */
+  decimalSeparator?: "." | ",";
+}
+
+// Non-ASCII digits people actually type: Arabic-Indic, Persian, Devanagari, full-width.
+const DIGIT_BLOCKS = [0x0660, 0x06f0, 0x0966, 0xff10];
+
+function normaliseDigits(input: string): string {
+  let out = "";
+  for (const ch of input) {
+    const cp = ch.codePointAt(0)!;
+    const block = DIGIT_BLOCKS.find((b) => cp >= b && cp <= b + 9);
+    if (block !== undefined) out += String(cp - block);
+    else if (cp === 0x066b) out += "."; // Arabic decimal separator
+    else if (cp === 0x066c) out += ","; // Arabic thousands separator
+    else if (cp === 0x2212) out += "-"; // Unicode minus sign
+    else out += ch;
+  }
+  return out;
+}
+
+// Western (1,234,567) or Indian (12,34,567) digit grouping.
+const GROUPED = /^\d{1,3}(?:(?:,\d{3})+|(?:,\d{2})*,\d{3})$/;
+
+function parseMinor(input: string, currency: string, options: ParseMoneyOptions): number {
+  const fail = (why: string): never => {
+    throw new Error(`Cannot parse money from "${input}": ${why}`);
+  };
+  const text = normaliseDigits(String(input)).trim();
+  const neg = /^\(.*\)$/.test(text) || /^[^\d]*-/.test(text) || /[\d.,][^\d]*-$/.test(text);
+  const s = text.replace(/[^\d.,]/g, "");
+  if (!/\d/.test(s)) fail("no digits");
+
+  const exponent = decimalsFor(currency);
+  const dots = s.split(".").length - 1;
+  const commas = s.split(",").length - 1;
+  let dec: "." | "," | "" = options.decimalSeparator ?? "";
+  if (!dec) {
+    if (dots && commas) dec = s.lastIndexOf(".") > s.lastIndexOf(",") ? "." : ",";
+    else if (dots + commas === 1) {
+      const sep = dots ? "." : ",";
+      const after = s.length - s.indexOf(sep) - 1;
+      // Three digits after a lone separator is a thousands group — a 2-decimal
+      // currency cannot hold a third decimal — unless the currency has 3 decimals.
+      dec = after === 3 && exponent !== 3 && s.indexOf(sep) > 0 ? "" : sep;
+    }
+    // Repeated single separator ("1,234,567", "1.234.567") is grouping only.
+  }
+
+  let intPart = s;
+  let frac = "";
+  if (dec) {
+    const at = s.lastIndexOf(dec);
+    intPart = s.slice(0, at);
+    frac = s.slice(at + 1);
+    if (/[.,]/.test(frac)) fail("separator after the decimal point");
+  }
+  if (intPart === "") intPart = "0";
+  const grouped = intPart.replace(/\./g, ",");
+  if (/[.,]/.test(intPart) && !GROUPED.test(grouped)) fail("digit grouping is not 3-digit or Indian lakh style");
+  const digits = grouped.replace(/,/g, "");
+
+  // Build the minor-unit integer from the digit string itself — no float math.
+  const kept = (frac + "0".repeat(exponent)).slice(0, exponent);
+  const rest = frac.slice(exponent);
+  let minor = Number(digits + kept);
+  if (rest && rest[0]! >= "5") minor += 1; // half-up on the dropped digits
+  if (!Number.isSafeInteger(minor)) fail("amount too large");
+  return neg ? -minor : minor;
 }
 
 export class Money {
@@ -66,31 +154,11 @@ export class Money {
   }
 
   /**
-   * Parse a formatted string like "$1,234.56" or "1.234,56" (best-effort).
-   * Non-digits except the last separator group are stripped.
+   * Parse a formatted string like "$1,234.56", "1.234,56 €", "¥1,234,567" or
+   * "₹1,23,456" (best-effort, locale-agnostic — see {@link ParseMoneyOptions}).
    */
-  static parse(input: string, currency: string): Money {
-    const cleaned = input.replace(/[^\d.,-]/g, "").trim();
-    if (!cleaned) throw new Error(`Cannot parse money from "${input}"`);
-    const neg = /^-/.test(cleaned) || /-\d/.test(cleaned);
-    let s = cleaned.replace(/-/g, "");
-    // Decide the decimal separator: whichever of . or , comes last.
-    const lastDot = s.lastIndexOf(".");
-    const lastComma = s.lastIndexOf(",");
-    let decSep = "";
-    if (lastDot >= 0 && lastComma >= 0) decSep = lastDot > lastComma ? "." : ",";
-    else if (lastDot >= 0) decSep = ".";
-    else if (lastComma >= 0) decSep = ",";
-    let major: number;
-    if (decSep) {
-      const thousandsSep = decSep === "." ? "," : ".";
-      s = s.split(thousandsSep).join("");
-      major = Number(s.replace(decSep, "."));
-    } else {
-      major = Number(s);
-    }
-    if (Number.isNaN(major)) throw new Error(`Cannot parse money from "${input}"`);
-    return Money.of(neg ? -major : major, currency);
+  static parse(input: string, currency: string, options: ParseMoneyOptions = {}): Money {
+    return Money.fromMinor(parseMinor(input, currency, options), currency);
   }
 
   private assertSame(other: Money): void {

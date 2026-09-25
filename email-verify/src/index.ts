@@ -16,7 +16,7 @@
 import net from "node:net";
 import { resolveMx as dnsResolveMx } from "node:dns/promises";
 import { hostname } from "node:os";
-import { validateEmail } from "@lacspace/email-validate";
+import { validateEmail, toAsciiDomain } from "@lacspace/email-validate";
 
 export interface MxRecord {
   exchange: string;
@@ -70,6 +70,14 @@ export interface VerifyResult {
   reason?: string;
 }
 
+/** `user@müller.de` → `user@xn--mller-kva.de`; anything unconvertible is returned as-is. */
+function asciiAddress(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return email;
+  const ascii = toAsciiDomain(email.slice(at + 1));
+  return ascii ? email.slice(0, at + 1) + ascii : email;
+}
+
 /** Look up and sort a domain's MX records (best priority first). */
 export async function resolveMx(domain: string): Promise<MxRecord[]> {
   try {
@@ -87,7 +95,7 @@ export async function resolveMx(domain: string): Promise<MxRecord[]> {
 export function smtpCheck(
   email: string,
   mxHost: string,
-  opts: { fromAddress?: string; timeout?: number } = {},
+  opts: { fromAddress?: string; timeout?: number; /** SMTP port. Default 25; e.g. 1025 for a local mail catcher. */ port?: number } = {},
 ): Promise<SmtpVerdict> {
   const timeout = opts.timeout ?? 10000;
   const from = opts.fromAddress ?? `verify@${hostname() || "localhost"}`;
@@ -97,9 +105,12 @@ export function smtpCheck(
   if (/[\r\n]/.test(email) || /[\r\n]/.test(mxHost) || /[\r\n]/.test(from)) {
     return Promise.resolve("undeliverable");
   }
+  // Without SMTPUTF8 a server rejects `RCPT TO:<user@müller.de>`; the ASCII form
+  // of the domain names the same mailbox and every server accepts it.
+  email = asciiAddress(email);
 
   return new Promise((resolve) => {
-    const socket = net.connect({ host: mxHost, port: 25 });
+    const socket = net.connect({ host: mxHost, port: opts.port ?? 25 });
     socket.setEncoding("utf8");
     socket.setTimeout(timeout);
 

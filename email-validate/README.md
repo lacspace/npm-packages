@@ -23,6 +23,21 @@
 
 > **New in 1.1.0** — a stronger, superset RFC-5322 syntax check (`isValidEmailRFC5322`) that accepts **quoted local parts** and **IP-literal domains**; whole-address `isDisposableEmail()` / `isRoleAccount()` wrappers; and `normalizeEmail(email, opts?)` with per-rule toggles. All additive — every existing export is unchanged.
 
+## What's new in 1.2.0
+
+- **Control characters are rejected.** `isValidEmail("user@example.com\n")` used
+  to return `true` because the input was trimmed first. A CR, LF, tab or NUL is
+  never part of an address, and a trailing one carried into a mail header is how
+  header injection starts. Surrounding spaces are still trimmed.
+- **Unicode domains are valid.** `user@bücher.example` and `user@例え.テスト` pass,
+  checked in their ASCII (punycode) form. `normalizeEmail` maps both spellings to
+  the same key. New export: `toAsciiDomain(domain)`.
+- **Internationalised local parts are opt-in.** `isValidEmail("müller@example.com",
+  { allowUnicodeLocal: true })` accepts RFC 6531 addresses. It is off by default,
+  because the whole mail path must support SMTPUTF8. The 64 limit counts octets.
+- **`isFreeProvider` knows the world's big providers**: QQ, 163, 126, Naver, Daum,
+  GMX, web.de, T-Online, Orange, Libero, Seznam, WP, Yahoo Japan, UOL, and more.
+
 ## Install
 
 ```bash

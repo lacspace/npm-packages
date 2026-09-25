@@ -25,6 +25,23 @@
 - 📏 `metric` / `si` (`1500 → "1.5k"`), `unit`, `distance`, `weight`, `temperature`
 - ✂️ `truncateMiddle`, `initials`, `slugcase`
 
+## What's new in 1.2.0
+
+- **`plural` speaks English now.** It used to only add `-s`/`-es`, so it printed
+  "childs", "persons", "sheeps", "knifes", "mouses" and "criterions". It now knows
+  irregulars (`child → children`, `person → people`), uncountables (`sheep`,
+  `data`, `software`), `-f/-fe` (`knife → knives`), `-o` (`potato → potatoes`),
+  `-sis` (`analysis → analyses`), Latin and Greek plurals (`criterion → criteria`,
+  `cactus → cacti`) and compounds (`salesperson → salespeople`). Case is kept, and
+  already-plural words are left alone. Also exported on its own as `inflectPlural`.
+- **`compact(999_999)` is `"1.0M"`**, not `"1000.0K"`.
+- **`truncate`, `truncateMiddle` and `initials` count what people see.** They
+  measure grapheme clusters via `Intl.Segmenter`, so an emoji family, a skin-tone
+  emoji, a flag or a Devanagari conjunct is never cut in half. New export:
+  `graphemes(text)`.
+- **`titleCase("élan vital")` is `"Élan Vital"`**, not `"éLan Vital"`. Word starts
+  are found with Unicode letter classes, so Cyrillic, Greek and accented Latin work.
+
 ## Install
 
 ```bash

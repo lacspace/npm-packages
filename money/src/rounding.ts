@@ -25,6 +25,9 @@ export type RoundingMode =
  * - `floor` — toward −∞ · `ceil` — toward +∞ · `trunc` — toward zero
  */
 export function roundMinor(value: number, mode: RoundingMode = "half-up"): number {
+  // Snap binary-float noise to the nearest 15-significant-digit decimal first, so
+  // 1.005 × 100 (= 100.49999999999999) is treated as the 100.5 the caller wrote.
+  if (!Number.isInteger(value) && Number.isFinite(value)) value = Number(value.toPrecision(15));
   switch (mode) {
     case "floor":
       return Math.floor(value);

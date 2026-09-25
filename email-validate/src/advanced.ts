@@ -7,7 +7,7 @@
  * Everything here is zero-dependency, isomorphic and synchronous — NO network.
  */
 
-import { DISPOSABLE_DOMAINS, ROLE_LOCALS } from "./index";
+import { DISPOSABLE_DOMAINS, ROLE_LOCALS, CONTROL_CHARS, toAsciiDomain } from "./index";
 
 // atext (RFC 5322 §3.2.3) — the atoms allowed in an unquoted (dot-atom) local part.
 const ATEXT = "A-Za-z0-9!#$%&'*+/=?^_`{|}~-";
@@ -87,7 +87,7 @@ function isIpLiteral(inner: string): boolean {
  * Purely syntactic — it never touches the network.
  */
 export function isValidEmailRFC5322(email: string, opts: Rfc5322Options = {}): boolean {
-  if (typeof email !== "string") return false;
+  if (typeof email !== "string" || CONTROL_CHARS.test(email)) return false;
   const trimmed = email.trim();
   if (trimmed.length === 0 || trimmed.length > 254) return false;
 
@@ -112,7 +112,8 @@ export function isValidEmailRFC5322(email: string, opts: Rfc5322Options = {}): b
     if (domain.charCodeAt(domain.length - 1) !== 0x5d /* ] */) return false;
     return isIpLiteral(domain.slice(1, -1));
   }
-  return DOMAIN_DOT_ATOM.test(domain);
+  const ascii = toAsciiDomain(domain);
+  return ascii !== null && ascii.length <= 253 && DOMAIN_DOT_ATOM.test(ascii);
 }
 
 /**

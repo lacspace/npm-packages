@@ -29,6 +29,16 @@
 
 > ⚠️ **Read this.** Live SMTP verification is inherently unreliable. Many mail servers **greylist**, use **catch-all** (accept every address), or block probes outright — so `unknown` is common and a positive means *"likely deliverable"*, never a guarantee. Outbound port 25 is also blocked on many hosts (incl. most serverless/PaaS). Use it to catch obvious typos and dead domains, not as a hard gate.
 
+## What's new in 1.2.0
+
+- **Unicode domains verify correctly.** The SMTP probe used to send
+  `RCPT TO:<user@müller.de>` as typed, and a server without SMTPUTF8 rejects that,
+  so a real mailbox came back `undeliverable`. The probe now sends the ASCII form
+  (`user@xn--mller-kva.de`), which names the same mailbox. Needs
+  `@lacspace/email-validate` 1.2.0, which also started accepting Unicode domains.
+- **`smtpCheck(email, mx, { port })`**: probe a port other than 25, such as a local
+  mail catcher on 1025.
+
 ## Install
 
 ```bash

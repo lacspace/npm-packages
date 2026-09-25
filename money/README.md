@@ -78,11 +78,33 @@ convert(money(100, "USD"), "EUR", 0.92).format();     // "€92.00"
 convert(money(100, "USD"), "JPY", 150).format();      // "¥15,000"
 ```
 
-> **Note on `Money.parse()`:** parsing is **best-effort** and locale-agnostic. It
-> can misread strings where the thousands and decimal separators are ambiguous —
-> e.g. `"1,234"` is read as `1.234` (a decimal), not `1234`. For untrusted or
-> locale-specific input, prefer constructing from an explicit numeric amount
-> (`Money.of` / `Money.fromMinor`) rather than relying on `parse()`.
+> **How `parseMoney` / `Money.parse()` reads separators** (1.2.0+). When both
+> `.` and `,` appear, the last one is the decimal point. A lone separator followed
+> by exactly three digits is a thousands separator, because a two-decimal currency
+> can't carry a third decimal: `"1,234"` USD → `$1,234.00`, `"1.234"` EUR →
+> `€1,234.00`. Three-decimal currencies (BHD, KWD, …) keep it as decimals. Western
+> (`1,234,567`) and Indian (`12,34,567`) grouping both parse; anything else throws
+> rather than guessing. Arabic-Indic, Devanagari and full-width digits, accounting
+> `($5.00)` and trailing `5.00-` negatives all work. The digits are turned into
+> minor units directly — no float in between. When you know the locale, say so:
+>
+> ```ts
+> parseMoney("1,234", "USD", { decimalSeparator: "," }); // 123 (1.234 → $1.23)
+> ```
+
+## What's new in 1.2.0
+
+- **`parseMoney("$1,234", "USD")` now returns `123400`.** It used to return `123` — a
+  lone comma was read as a decimal point, so round amounts came out 1000× too
+  small. `"¥1,234,567"` and `"₹1,23,456"` used to throw; both parse now. See the
+  separator rules above, and the new `{ decimalSeparator }` option.
+- **`money(1.005, "USD")` is now `101` cents, not `100`.** `1.005 × 100` is
+  `100.49999999999999` in binary floating point; rounding now snaps to the
+  decimal you wrote first. Same fix in `roundMinor`, `multiply`, `percentage`
+  and `convert`.
+- **ISO 4217 exponents corrected** for BIF, DJF, KMF, PYG, UYI, VUV (0 decimals,
+  were 2) and CLF, UYW (4, were 2). HUF stays at 0 as before (ISO says 2) so
+  stored forint amounts don't silently rescale.
 
 ## Why minor units
 

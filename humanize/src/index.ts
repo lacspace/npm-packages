@@ -8,6 +8,9 @@
 
 /* ------------------------------ bytes ------------------------------ */
 
+import { inflectPlural } from "./inflect";
+import { graphemes } from "./text";
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
 const BYTE_UNITS_IEC = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
 
@@ -132,12 +135,21 @@ export function compact(n: number, decimals = 1): string {
   const neg = n < 0 ? "-" : "";
   const v = Math.abs(n);
   const units: [number, string][] = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
-  for (const [threshold, u] of units) {
+  const fmt = (num: number) => (num % 1 === 0 ? num.toFixed(0) : num.toFixed(decimals));
+  for (let i = 0; i < units.length; i++) {
+    const [threshold, u] = units[i]!;
     if (v >= threshold) {
       const num = v / threshold;
-      return `${neg}${(num % 1 === 0 ? num.toFixed(0) : num.toFixed(decimals))}${u}`;
+      // 999_999 / 1e3 rounds to "1000.0" — say "1.0M" instead of "1000.0K".
+      if (i > 0 && Number(fmt(num)) >= 1000) {
+        const [up, upU] = units[i - 1]!;
+        return `${neg}${fmt(v / up)}${upU}`;
+      }
+      return `${neg}${fmt(num)}${u}`;
     }
   }
+  // 999.96 with decimals=1 would print "1000.0"; hand it to the K band.
+  if (v >= 999.5 && Number(v.toFixed(0)) >= 1000) return `${neg}${fmt(v / 1e3)}K`;
   return `${neg}${v}`;
 }
 
@@ -172,9 +184,7 @@ export function plural(word: string, count: number, pluralForm?: string, opts: P
   if (count === 1) return word;
   if (pluralForm) return pluralForm;
   if (opts.rule) return opts.rule(word, count);
-  if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
-  if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
-  return `${word}s`;
+  return inflectPlural(word);
 }
 
 /** "5 items" / "1 item". */
@@ -194,18 +204,24 @@ export function list(items: string[], opts: { conjunction?: string; oxford?: boo
 
 /** Truncate to a max length with an ellipsis on a word boundary. */
 export function truncate(text: string, maxLength: number, ellipsis = "…"): string {
-  if (text.length <= maxLength) return text;
-  const cut = text.slice(0, maxLength - ellipsis.length);
+  // Measured in user-perceived characters, so an emoji family or a Devanagari
+  // conjunct is never split into broken halves.
+  const chars = graphemes(text);
+  if (chars.length <= maxLength) return text;
+  const cut = chars.slice(0, Math.max(0, maxLength - graphemes(ellipsis).length)).join("");
   const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > maxLength * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?-]+$/, "") + ellipsis;
+  return (lastSpace > 0 && graphemes(cut.slice(0, lastSpace)).length > maxLength * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?-]+$/, "") + ellipsis;
 }
 
 /** Title Case a string. */
 export function titleCase(text: string): string {
-  return text.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  // Unicode-aware word starts: "élan vital" → "Élan Vital", not "éLan Vital".
+  return text.toLowerCase().replace(/(^|[^\p{L}\p{N}'’])(\p{L})/gu, (_, pre: string, c: string) => pre + c.toUpperCase());
 }
 
 /* ------------------------------ extended API ------------------------------ */
+
+export { inflectPlural } from "./inflect";
 
 export { numberToWords, numberToOrdinalWords } from "./words";
 export { toRoman, fromRoman } from "./roman";
@@ -214,5 +230,5 @@ export {
   type MetricOptions, type UnitOptions, type TempUnit,
 } from "./units";
 export {
-  truncateMiddle, initials, slugcase, type InitialsOptions,
+  truncateMiddle, initials, slugcase, graphemes, type InitialsOptions,
 } from "./text";

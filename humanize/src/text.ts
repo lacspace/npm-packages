@@ -3,6 +3,16 @@
  */
 
 /** Combining diacritical marks (U+0300–U+036F), built without literal marks in source. */
+/**
+ * Split into user-perceived characters (grapheme clusters). Uses
+ * `Intl.Segmenter` where available, else code points (never half a surrogate).
+ */
+export function graphemes(text: string): string[] {
+  const Seg = (Intl as unknown as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment(s: string): Iterable<{ segment: string }> } }).Segmenter;
+  if (Seg) return Array.from(new Seg(undefined, { granularity: "grapheme" }).segment(text), (s) => s.segment);
+  return Array.from(text);
+}
+
 const COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
 
 /**
@@ -11,12 +21,14 @@ const COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
  * The returned string is never longer than `max`.
  */
 export function truncateMiddle(str: string, max: number, ellipsis = "…"): string {
-  if (str.length <= max) return str;
-  if (max <= ellipsis.length) return ellipsis.slice(0, Math.max(0, max));
-  const keep = max - ellipsis.length;
+  const chars = graphemes(str);
+  if (chars.length <= max) return str;
+  const dots = graphemes(ellipsis);
+  if (max <= dots.length) return dots.slice(0, Math.max(0, max)).join("");
+  const keep = max - dots.length;
   const head = Math.ceil(keep / 2);
   const tail = Math.floor(keep / 2);
-  return str.slice(0, head) + ellipsis + (tail > 0 ? str.slice(str.length - tail) : "");
+  return chars.slice(0, head).join("") + ellipsis + (tail > 0 ? chars.slice(chars.length - tail).join("") : "");
 }
 
 export interface InitialsOptions {
@@ -32,7 +44,7 @@ export function initials(name: string, opts: InitialsOptions = {}): string {
   const picked = words.length <= max
     ? words
     : [words[0]!, ...words.slice(-(max - 1))];
-  return picked.map((w) => (w[0] ?? "").toUpperCase()).join("");
+  return picked.map((w) => (graphemes(w)[0] ?? "").toUpperCase()).join("");
 }
 
 /** Slugify. `slugcase("Hello, World!")` → "hello-world". */

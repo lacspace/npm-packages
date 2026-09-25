@@ -96,6 +96,25 @@ if (!PUBLISH || pending.length === 0) process.exit(0);
 
 if (!CI && !DRY) console.log("\nnote: not running in GitHub Actions, so these publishes carry NO provenance.\n");
 
+// A fresh checkout has no dist/ anywhere, so every in-repo workspace dependency
+// of a pending package must be built first (its types and entry live in dist/).
+const pendingNames = new Set(pending.map((p) => p.name));
+const depClosure = new Map();
+const addDeps = (p) => {
+  for (const d of Object.keys({ ...p.json.dependencies, ...p.json.peerDependencies })) {
+    const dep = byName.get(d);
+    if (!dep || !dep.workspace || depClosure.has(d) || pendingNames.has(d)) continue;
+    depClosure.set(d, dep);
+    addDeps(dep);
+  }
+};
+for (const p of pending) if (p.workspace) addDeps(p);
+for (const dep of topo([...depClosure.values()])) {
+  if (!dep.json.scripts?.build || existsSync(join(ROOT, dep.dir, "dist")) && !CI) continue;
+  console.log(`\n== build dependency ${dep.name}`);
+  run("npm", ["run", "build"], join(ROOT, dep.dir));
+}
+
 const published = [];
 for (const p of pending) {
   const cwd = join(ROOT, p.dir);

@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/session",
+  "version": "1.0.0",
+  "description": "Encrypted, signed cookie sessions for any runtime — AES-256-GCM over Web Crypto, secret rotation, rolling and absolute expiry, __Host- cookie rules, a 10-minute OAuth state store and double-submit CSRF tokens. Works with Web Request/Response, Node http, Next.js, Hono, Express. Zero-dependency, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["session", "cookie-session", "encrypted-cookie", "aes-gcm", "web-crypto", "csrf", "oauth-state", "iron-session", "cookie", "auth", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/session",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "session" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" }
+}

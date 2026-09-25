@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **150+ published packages and CLIs** (131 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **150+ published packages and CLIs** (133 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -149,6 +149,8 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/mfa`](./mfa) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmfa?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/mfa) | Orchestrate multi-factor auth |
 | [`@lacspace/lock`](./lock) | [![v](https://img.shields.io/npm/v/%40lacspace%2Flock?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/lock) | Account lockout & brute-force protection |
 | [`@lacspace/redact`](./redact) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fredact?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/redact) | Redact secrets & PII from strings and objects before logging |
+| [`@lacspace/oauth`](./oauth) | [![v](https://img.shields.io/npm/v/%40lacspace%2Foauth?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/oauth) | OAuth 2.1 / OIDC social login — Google, GitHub, Microsoft, Apple + 9 more and any OIDC issuer; PKCE, nonce, ID tokens over JWKS |
+| [`@lacspace/session`](./session) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsession?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/session) | Encrypted cookie sessions (AES-256-GCM, rotation, rolling/absolute expiry, `__Host-`), OAuth state store, CSRF |
 
 ### Commerce & Ledger
 
@@ -450,7 +452,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-150+ packages and CLIs (131 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+150+ packages and CLIs (133 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

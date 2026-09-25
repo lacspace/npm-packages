@@ -1,0 +1,27 @@
+{
+  "name": "@lacspace/oauth",
+  "version": "1.0.0",
+  "description": "OAuth 2.1 / OpenID Connect client for social login — Google, GitHub, Microsoft, Apple, GitLab, Discord, Slack, LinkedIn, Facebook, X, Spotify, Twitch, Notion, and any OIDC issuer via discovery (Auth0, Okta, Keycloak, Cognito). PKCE, state, nonce, ID-token verification over JWKS, refresh, revoke, normalised profiles. Web Crypto, injectable fetch, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["oauth", "oauth2", "oidc", "openid-connect", "social-login", "sign-in-with-google", "sign-in-with-apple", "github-login", "pkce", "id-token", "jwks", "auth", "arctic", "next-auth", "zero-dependency", "isomorphic", "typescript"],
+  "dependencies": { "@lacspace/jwt": "^1.4.1" },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/oauth",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "oauth" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" }
+}

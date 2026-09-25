@@ -22,8 +22,10 @@ export interface RenderOptions {
   waitMs?: number;
   /** Auto-scroll this many passes to trigger lazy-loaded content. */
   scroll?: number;
-  /** Save a full-page PNG screenshot to this path. */
+  /** Save a PNG screenshot to this path. */
   screenshot?: string;
+  /** Capture the whole scrollable page (default) or just the 1280×900 viewport. */
+  fullPage?: boolean;
   /** Save the page as a PDF to this path (headless Chromium only). */
   pdf?: string;
 }
@@ -97,7 +99,7 @@ export async function launchSession(opts: LaunchOptions = {}): Promise<BrowserSe
         if (o.scroll && o.scroll > 0) await autoScroll(page, o.scroll);
         if (o.waitMs && o.waitMs > 0) await page.waitForTimeout(o.waitMs);
         const html = await page.content();
-        if (o.screenshot) await page.screenshot({ path: o.screenshot, fullPage: true }).catch(() => {});
+        if (o.screenshot) await page.screenshot({ path: o.screenshot, fullPage: o.fullPage ?? true }).catch(() => {});
         if (o.pdf) await page.pdf({ path: o.pdf }).catch(() => {});
         return { url: page.url(), status: resp?.status() ?? 0, html };
       } finally {

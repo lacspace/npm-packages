@@ -6,6 +6,11 @@
 npx lacspace-scraper https://example.com --auto -f json
 ```
 
+## What's new in 0.2.3
+
+- `launchSession().render(url, { screenshot, fullPage: false })` captures only the
+  viewport. Full-page stays the default.
+
 ## What's new in 0.2.2
 
 - **`extractPhones` stops reporting dates, asset ids and prices.** It read every

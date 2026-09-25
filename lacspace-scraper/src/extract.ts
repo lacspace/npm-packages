@@ -6,7 +6,7 @@
  */
 import { type ElNode, type Node, innerText, textContent, childElements, descendants } from "./html.js";
 import { queryAll, queryOne } from "./select.js";
-import { applyTransform } from "./transform.js";
+import { applyTransform, parseFieldSpec } from "./transform.js";
 import type { AutoData, AutoOptions, FieldSpec, LinkInfo, Schema, ScrapeRecord } from "./types.js";
 
 const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
@@ -48,8 +48,9 @@ export function readValue(el: ElNode, attr?: string, trim = true, base?: string)
   return URL_ATTRS.has(name) && v ? absolutize(v, base) : v;
 }
 
+// A string spec carries the same grammar as the CLI's --field: `sel@attr[] | pipe`.
 function normalizeSpec(spec: string | FieldSpec): FieldSpec {
-  return typeof spec === "string" ? { selector: spec } : spec;
+  return typeof spec === "string" ? parseFieldSpec(spec) : spec;
 }
 
 /** Resolve one schema field against a scope element. */
@@ -145,16 +146,45 @@ export function extractEmails(root: ElNode): string[] {
   return [...found];
 }
 
+// Text a reader sees: skips script/style/template/noscript, whose JSON blobs
+// and asset ids are full of digit runs that look like phone numbers.
+const HIDDEN_TAGS = new Set(["script", "style", "template", "noscript", "svg"]);
+function visibleText(node: Node): string {
+  if (node.type === "text") return node.text;
+  if (HIDDEN_TAGS.has(node.tag)) return "";
+  let out = "";
+  for (const c of node.children) out += " " + visibleText(c);
+  return out;
+}
+
+const DATE_LIKE = /^\d{4}[-./]\d{1,2}[-./]\d{1,2}$|^\d{1,2}[-./]\d{1,2}[-./]\d{4}$/;
+
+/** Does a digit string look like a phone number rather than an id, price or date? */
+function plausiblePhone(raw: string): boolean {
+  const m = raw.trim();
+  if (DATE_LIKE.test(m)) return false;
+  // Two figures from neighbouring elements ("2025   99.999"): a number is never
+  // written with a run of whitespace or a line break inside it.
+  if (/\s{2,}|[\r\n]/.test(m)) return false;
+  const digits = m.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return false;
+  // A bare run of digits with no separators is an id or a count, not a number
+  // someone would dial, unless it carries a leading +.
+  if (!/[\s().-]/.test(m) && !m.startsWith("+")) return false;
+  // Years and prices: "2024 - 2026", "1,234.56".
+  if (/^(19|20)\d{2}\s*[-–]\s*(19|20)\d{2}$/.test(m)) return false;
+  return true;
+}
+
 export function extractPhones(root: ElNode): string[] {
   const found = new Set<string>();
   for (const a of queryAll(root, 'a[href^="tel:"]')) {
     const p = (a.attrs.href ?? "").replace(/^tel:/i, "").trim();
     if (p) found.add(p);
   }
-  const text = textContent(root);
+  const text = visibleText(root);
   for (const m of text.matchAll(PHONE_RE)) {
-    const digits = m[0].replace(/[^\d]/g, "");
-    if (digits.length >= 7 && digits.length <= 15) found.add(m[0].trim());
+    if (plausiblePhone(m[0])) found.add(m[0].trim());
   }
   return [...found];
 }

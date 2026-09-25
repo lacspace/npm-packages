@@ -6,6 +6,18 @@
 npx lacspace-scraper https://example.com --auto -f json
 ```
 
+## What's new in 0.2.2
+
+- **`extractPhones` stops reporting dates, asset ids and prices.** It read every
+  digit run on the page, including JSON in `<script>` tags, so a company profile
+  could list "2025-05-30" and "33170229883731" as phone numbers. It now looks at
+  visible text only and keeps numbers with real phone punctuation or a leading `+`.
+  `tel:` links are always kept.
+- **String schema specs work through the library.** `scrape(url, { schema: { link: "a@href", price: ".price | number" } })`
+  used to return `undefined` for those fields: the library read a string as a bare
+  selector, while the CLI parsed the full `sel@attr[] | pipe` grammar. Both paths
+  now share the parser. Object specs are unchanged.
+
 ## Why it's different
 
 - **Two ways to extract** — a precise **CSS-selector schema**, or **auto-detect** (title, meta, headings, links, images, emails, phones, tables, JSON-LD, OpenGraph, feeds, readable text).

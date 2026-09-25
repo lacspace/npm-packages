@@ -68,6 +68,18 @@ describe("selectors", () => {
 
 describe("schema extraction", () => {
   const root = parseHTML(HTML);
+  // The library used to read a string spec as a bare selector, so "a@href" and
+  // ".price | number" (the documented --field grammar) came back undefined.
+  it("string specs carry @attr, [] and | pipes, like --field on the CLI", () => {
+    const rec = applySchema(root, {
+      canonical: 'link[rel="canonical"]@href',
+      links: "a@href[]",
+      title: "h1 | upper",
+    }, "https://acme.com");
+    expect(rec.canonical).toBe("https://acme.com/home");
+    expect(rec.links as string[]).toContain("https://acme.com/p/1");
+    expect(rec.title).toBe("WELCOME");
+  });
   it("applySchema — single record with attrs + all", () => {
     const rec = applySchema(root, {
       title: "h1",
@@ -90,6 +102,21 @@ describe("auto extractors", () => {
   it("emails + phones", () => {
     expect(extractEmails(root)).toContain("hello@acme.com");
     expect(extractPhones(root).some((p) => p.replace(/\D/g, "") === "97714444444")).toBe(true);
+  });
+  it("phones: ignores dates, ids, prices and script blobs; keeps tel: links and real numbers", () => {
+    const page = parseHTML(`<html><body>
+      <script>{"id":33170229883731,"updated":"2025-05-30","asset":"5683495244312"}</script>
+      <p>Call us on +1 (555) 010-9999 or 01-4444444. Founded 2019-06-15, price 1,234.56, order 600360286.</p>
+      <p>Open 2024 - 2026</p><a href="tel:+9779801234567">Call</a>
+      <div><span>2025</span> <span>99.999</span>% uptime</div>
+    </body></html>`);
+    const phones = extractPhones(page);
+    expect(phones).toContain("+1 (555) 010-9999");
+    expect(phones).toContain("01-4444444");
+    expect(phones).toContain("+9779801234567");
+    for (const bad of ["33170229883731", "2025-05-30", "5683495244312", "2019-06-15", "1,234.56", "600360286", "2024 - 2026", "2025 99.999"]) {
+      expect(phones.map((p) => p.replace(/\s/g, ""))).not.toContain(bad.replace(/\s/g, ""));
+    }
   });
   it("links absolutized, hashes/mailto skipped", () => {
     const links = extractLinks(root, "https://acme.com");

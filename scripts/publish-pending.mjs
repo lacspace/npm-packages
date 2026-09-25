@@ -111,9 +111,10 @@ for (const p of pending) {
   run("npm", pub, cwd);
   if (!DRY) {
     let live = false;
-    for (let i = 0; i < 10 && !live; i++) {
+    // A new version can take a few minutes to appear; wait up to 8.
+    for (let i = 0; i < 48 && !live; i++) {
       live = await onRegistry(p.name, p.version);
-      if (!live) await new Promise((r) => setTimeout(r, 3000));
+      if (!live) await new Promise((r) => setTimeout(r, 10_000));
     }
     if (!live) throw new Error(`${p.name}@${p.version} was published but is not visible on the registry`);
   }

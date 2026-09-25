@@ -45,6 +45,13 @@ An empty list that carries authored content — `itemList([], { name: "Shelf" })
 
 > **New in 1.8** — typed **robots directives** (`robots()` / `robotsContent()`: noarchive, max-snippet, max-image-preview, unavailable_after…), richer **Open Graph & Twitter** builders (`openGraphProduct` / `openGraphProfile` / `openGraphVideo` / `openGraphAudio`, `twitterSummaryCard` / `twitterPlayerCard` / `twitterAppCard`, and a `metaTags()` renderer), a canonical + `x-default` **`alternates()`** helper, **pagination** (`paginationLinks` / `paginationLinkTags`) and **`themeColorTags()`** head helpers, plus `dataset` / `book` / `podcastEpisode` JSON-LD builders. All additive — nothing existing changed.
 
+## What's new in 1.9.1
+
+- **Built and signed on GitHub Actions.** Starting with this release, `@lacspace/seo`
+  ships with an npm provenance attestation. npmjs.com shows which commit and
+  workflow produced the tarball, and `npm audit signatures` verifies it. No code
+  changes from 1.9.0.
+
 ## Install
 
 ```bash

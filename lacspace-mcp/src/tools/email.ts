@@ -15,6 +15,15 @@ export const validateEmailTool: ToolDefinition<{ email: string; checkMx: boolean
     required: ["email"],
     additionalProperties: false,
   },
+  outputSchema: {
+    type: "object",
+    properties: {
+      valid: { type: "boolean" }, normalized: { type: ["string", "null"] }, local: { type: ["string", "null"] }, domain: { type: ["string", "null"] },
+      disposable: { type: "boolean" }, role: { type: "boolean" }, free: { type: "boolean" }, suggestion: { type: ["string", "null"] }, reason: { type: "string" },
+      mx: { type: "object", properties: { found: { type: "boolean" }, records: { type: "array", items: { type: "string" } } } },
+    },
+    required: ["valid", "disposable", "role", "free"],
+  },
   annotations: { readOnlyHint: true, openWorldHint: true },
   async run(args) {
     const v = validateEmail(args.email);

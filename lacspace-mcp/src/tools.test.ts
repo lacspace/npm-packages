@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "./lib";
 import { startFixture } from "./fixture";
+import { getBrowser, closeBrowser } from "./tools/browser";
 
 let base = "";
 let close: () => Promise<void>;
@@ -19,7 +20,8 @@ beforeAll(async () => {
   await writeFile(join(outside, "secret.txt"), "top secret");
   await symlink(join(outside, "secret.txt"), join(sandbox, "link-out.txt"));
 });
-afterAll(async () => { await close(); await rm(sandbox, { recursive: true, force: true }); await rm(outside, { recursive: true, force: true }); });
+afterAll(async () => { await closeBrowser(); await close(); await rm(sandbox, { recursive: true, force: true }); await rm(outside, { recursive: true, force: true }); });
+const hasBrowser = await getBrowser().then(() => true, () => false);
 
 const server = () => createServer({ policy: { allowedPaths: [sandbox], timeoutMs: 5000 } });
 
@@ -79,6 +81,12 @@ describe("extract_document", () => {
     await expect(server().invoke("extract_document", { source: join(outside, "secret.txt") })).rejects.toThrow(/outside the allowed directories/);
     await expect(server().invoke("extract_document", { source: join(sandbox, "link-out.txt") })).rejects.toThrow(/outside the allowed directories/);
     await expect(server().invoke("extract_document", { source: join(sandbox, "..", "..", "etc", "passwd") })).rejects.toThrow(/not found|outside/);
+  });
+  test("a folder reported by the client as a workspace root is readable too", async () => {
+    const s = createServer({ policy: { allowedPaths: [sandbox] } });
+    s.policy.rootPaths = [outside];
+    const out = await s.invoke("extract_document", { source: join(outside, "secret.txt") });
+    expect(out.text).toContain("top secret");
   });
   test("downloads a URL to a temp file and cleans up", async () => {
     const out = await server().invoke("extract_document", { source: base + "/doc.csv" });
@@ -146,5 +154,27 @@ describe("policy", () => {
     expect([...createServer({ only: ["fetch_page", "check_site"] }).tools.keys()]).toEqual(["fetch_page", "check_site"]);
     expect(createServer({ disable: ["find_leads"] }).tools.has("find_leads")).toBe(false);
     expect(() => createServer({ only: ["nope"] })).toThrow(/unknown tool/);
+  });
+});
+
+describe("browser tools", () => {
+  test.skipIf(!hasBrowser)("screenshot_page returns a PNG the model can see", async () => {
+    const out = await server().invoke("screenshot_page", { url: base + "/" });
+    expect(out.isError).toBeUndefined();
+    expect(out.images).toHaveLength(1);
+    expect(out.images![0]!.mimeType).toBe("image/png");
+    const png = Buffer.from(out.images![0]!.data, "base64");
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(out.data).toMatchObject({ status: 200, title: "Acme Widgets" });
+  });
+  test.skipIf(!hasBrowser)("fetch_page render=true reads the rendered DOM", async () => {
+    const out = await server().invoke("fetch_page", { url: base + "/", render: true });
+    expect(out.data).toMatchObject({ title: "Acme Widgets", status: 200 });
+    expect(out.text).toContain("We make widgets");
+  });
+  test.skipIf(hasBrowser)("without a browser, screenshot_page explains how to install one", async () => {
+    const out = await server().invoke("screenshot_page", { url: base + "/" });
+    expect(out).toMatchObject({ isError: true });
+    expect(out.text).toContain("playwright install chromium");
   });
 });

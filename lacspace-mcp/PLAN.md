@@ -63,3 +63,14 @@ capability, nine tools. No resources or prompts yet; Streamable HTTP later.
    the spec'd errors for a bad tool name and bad arguments.
 4. **Release** — the usual: build → test → publish from CI with provenance;
    verify from a clean `npx` install.
+
+## 0.2.0 (shipped)
+
+Roots (`roots/list` after initialize and on `list_changed`, file URIs join the
+allowed paths), elicitation (`ctx.confirm`, resolves true when unsupported),
+progress (`ctx.progress`, sent only with a `progressToken`), image content,
+`outputSchema`, `screenshot_page`, `fetch_page render`. The server now sends
+its own requests, so the stdio loop routes responses to them. Tested with a
+scripted client (unit) and the official SDK client with roots + elicitation
+handlers and an `onprogress` callback (e2e); browser tests skip when no
+Chromium is installed (they run locally).

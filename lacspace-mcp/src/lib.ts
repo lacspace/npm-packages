@@ -18,12 +18,13 @@ export { createTools, TOOL_NAMES } from "./tools/index";
 export { validate as validateSchema, type JsonSchema } from "./schema";
 export { LineDecoder, RpcError, encode } from "./jsonrpc";
 export { checkUrl, checkPath } from "./guard";
+export { closeBrowser } from "./tools/browser";
 
 const require = createRequire(import.meta.url);
 export const VERSION: string = (require("../package.json") as { version: string }).version;
 
 export const INSTRUCTIONS =
-  "Lacspace tools for reading the web and documents. fetch_page reads one page; crawl_site reads a few linked pages; scrape pulls exact fields with CSS selectors; extract_document reads PDF/DOCX/PPTX/EPUB/HTML/CSV/XLSX files or URLs; audit_page grades SEO/social/structured-data/security with fixes; enrich_domain profiles a company from its domain; check_site reports status, redirects and TLS expiry; validate_email checks an address; find_leads searches Google Maps (needs a local Chromium, slow). All tools are read-only and need no API keys.";
+  "Lacspace tools for reading the web and documents. fetch_page reads one page (render=true for JavaScript-built pages); crawl_site reads a few linked pages; scrape pulls exact fields with CSS selectors; screenshot_page returns a picture of the rendered page; extract_document reads PDF/DOCX/PPTX/EPUB/HTML/CSV/XLSX files (under the open workspace folders or --allow-path) or URLs; audit_page grades SEO/social/structured-data/security with fixes; enrich_domain profiles a company from its domain; check_site reports status, redirects and TLS expiry; validate_email checks an address; find_leads searches Google Maps (needs a local Chromium, slow). All tools are read-only and need no API keys.";
 
 export interface CreateServerOptions {
   policy?: Partial<Policy>;

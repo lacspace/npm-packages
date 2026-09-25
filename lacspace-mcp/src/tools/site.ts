@@ -35,6 +35,15 @@ export const checkSiteTool: ToolDefinition<{ url: string; timeoutMs?: number }> 
     required: ["url"],
     additionalProperties: false,
   },
+  outputSchema: {
+    type: "object",
+    properties: {
+      url: { type: "string" }, finalUrl: { type: "string" }, up: { type: "boolean" }, status: { type: "integer" }, responseMs: { type: "integer" },
+      hops: { type: "array", items: { type: "object", properties: { url: { type: "string" }, status: { type: "integer" }, ms: { type: "integer" }, location: { type: "string" } } } },
+      error: { type: "string" }, headers: { type: "object" }, tls: { type: "object" },
+    },
+    required: ["url", "finalUrl", "up", "status", "responseMs", "hops"],
+  },
   annotations: { readOnlyHint: true, openWorldHint: true },
   async run(args, ctx) {
     const timeoutMs = args.timeoutMs ?? Math.min(ctx.policy.timeoutMs, 15_000);

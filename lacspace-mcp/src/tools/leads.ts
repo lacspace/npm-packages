@@ -29,8 +29,16 @@ export function findLeadsTool(deps: LeadsDeps = {}): ToolDefinition<{ type: stri
       required: ["type"],
       additionalProperties: false,
     },
+    outputSchema: {
+      type: "object",
+      properties: { count: { type: "integer" }, leads: { type: "array", items: { type: "object" } } },
+      required: ["count", "leads"],
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
     async run(args, ctx) {
+      if (args.details && args.limit > 30 && !(await ctx.confirm(`Search ${args.limit} leads with details? About ${Math.round(args.limit * 3 / 60)} minutes in a local browser.`))) {
+        return { text: "Lead search cancelled by the user.", isError: true };
+      }
       let lib: { scrapeLeads: ScrapeLeads };
       try {
         lib = await load();
@@ -39,7 +47,13 @@ export function findLeadsTool(deps: LeadsDeps = {}): ToolDefinition<{ type: stri
       }
       let leads: Lead[];
       try {
-        leads = await lib.scrapeLeads({ type: args.type, city: args.city, area: args.area, query: args.query, limit: args.limit, details: args.details, cleanUrls: true, dedupe: "smart", headless: true, signal: ctx.signal });
+        let found = 0;
+        leads = await lib.scrapeLeads({
+          type: args.type, city: args.city, area: args.area, query: args.query, limit: args.limit, details: args.details,
+          cleanUrls: true, dedupe: "smart", headless: true, signal: ctx.signal,
+          onLead: (lead: Lead) => { found++; ctx.progress(found, args.limit, lead.name ? `found ${lead.name}` : undefined); },
+          onProgress: (message: string) => ctx.progress(found, args.limit, message),
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const browser = /executable|browser|chromium|launch/i.test(message);

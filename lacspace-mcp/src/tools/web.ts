@@ -6,16 +6,17 @@ import {
 import type { ToolDefinition } from "../server";
 import { checkUrl } from "../guard";
 import { clip, lines, tidy } from "../format";
+import { browserAdvice, getBrowser } from "./browser";
 
 const MAX_CHARS = { type: "integer", minimum: 500, maximum: 200_000, default: 20_000, description: "Cap on the text returned to the model." } as const;
 
 export const fetchPageTool: ToolDefinition<{
-  url: string; include?: string[]; maxChars: number; headers?: Record<string, string>; timeoutMs?: number;
+  url: string; include?: string[]; maxChars: number; headers?: Record<string, string>; timeoutMs?: number; render: boolean; waitFor?: string;
 }> = {
   name: "fetch_page",
   title: "Fetch a web page",
   description:
-    "Fetch a URL and return its readable content: title, description, canonical URL, language, headings and the page text, plus (on request) links, images, tables, Open Graph tags and JSON-LD. Static HTML only, no JavaScript execution. Use this to read a page before answering questions about it.",
+    "Fetch a URL and return its readable content: title, description, canonical URL, language, headings and the page text, plus (on request) links, images, tables, Open Graph tags and JSON-LD. Static HTML by default; set render=true to load the page in a real browser when the content is built by JavaScript. Use this to read a page before answering questions about it.",
   inputSchema: {
     type: "object",
     properties: {
@@ -28,6 +29,8 @@ export const fetchPageTool: ToolDefinition<{
       maxChars: MAX_CHARS,
       headers: { type: "object", additionalProperties: { type: "string" }, description: "Extra request headers (e.g. a cookie or Accept-Language)." },
       timeoutMs: { type: "integer", minimum: 1000, maximum: 120_000, description: "Request timeout." },
+      render: { type: "boolean", default: false, description: "Load the page in a headless browser so JavaScript-rendered content is included (slower; needs a local Chromium)." },
+      waitFor: { type: "string", description: "With render: CSS selector to wait for before reading." },
     },
     required: ["url"],
     additionalProperties: false,
@@ -35,7 +38,19 @@ export const fetchPageTool: ToolDefinition<{
   annotations: { readOnlyHint: true, openWorldHint: true },
   async run(args, ctx) {
     const u = await checkUrl(args.url, ctx.policy);
-    const page = await fetchPage(u.toString(), { timeoutMs: args.timeoutMs ?? ctx.policy.timeoutMs, headers: args.headers, signal: ctx.signal });
+    let page: { url: string; status: number; ok: boolean; html: string; contentType: string };
+    if (args.render) {
+      let browser;
+      try {
+        browser = await getBrowser();
+      } catch (err) {
+        return { text: `render=true is unavailable: ${browserAdvice(err)}`, isError: true };
+      }
+      const r = await browser.render(u.toString(), { waitFor: args.waitFor, waitMs: 500, timeoutMs: args.timeoutMs ?? ctx.policy.timeoutMs });
+      page = { url: r.url, status: r.status, ok: r.status > 0 && r.status < 400, html: r.html, contentType: "text/html" };
+    } else {
+      page = await fetchPage(u.toString(), { timeoutMs: args.timeoutMs ?? ctx.policy.timeoutMs, headers: args.headers, signal: ctx.signal });
+    }
     if (!page.ok) return { text: `HTTP ${page.status} for ${page.url}`, data: { url: page.url, status: page.status }, isError: true };
     if (!/html|xml/i.test(page.contentType) && !page.html.trimStart().startsWith("<")) {
       const body = clip(page.html, args.maxChars);
@@ -89,6 +104,15 @@ export const scrapeTool: ToolDefinition<{
     required: ["url", "schema"],
     additionalProperties: false,
   },
+  outputSchema: {
+    type: "object",
+    properties: {
+      url: { type: "string" }, count: { type: "integer" }, total: { type: "integer" },
+      records: { type: "array", items: { type: "object" } },
+      errors: { type: "array", items: { type: "object", properties: { url: { type: "string" }, error: { type: "string" } } } },
+    },
+    required: ["url", "count", "total", "records", "errors"],
+  },
   annotations: { readOnlyHint: true, openWorldHint: true },
   async run(args, ctx) {
     const u = await checkUrl(args.url, ctx.policy);
@@ -128,9 +152,14 @@ export const crawlSiteTool: ToolDefinition<{
   annotations: { readOnlyHint: true, openWorldHint: true },
   async run(args, ctx) {
     const u = await checkUrl(args.url, ctx.policy);
+    if (args.limit > 50 && !(await ctx.confirm(`Crawl up to ${args.limit} pages from ${u.hostname}? This can take a few minutes.`))) {
+      return { text: "Crawl cancelled by the user.", isError: true };
+    }
+    let fetched = 0;
     const result = await crawl(u.toString(), {
       depth: args.depth, limit: args.limit, sameOrigin: args.sameOrigin, include: args.include, exclude: args.exclude,
       engine: "http", auto: { metadata: true, text: true }, timeoutMs: args.timeoutMs ?? ctx.policy.timeoutMs, signal: ctx.signal,
+      onRecord: (rec) => { fetched++; ctx.progress(fetched, args.limit, `fetched ${(rec as { url?: string }).url ?? ""}`); },
     });
     const pages = result.records.map((r) => {
       const rec = r as { url?: string; status?: number; title?: string; description?: string; text?: string };

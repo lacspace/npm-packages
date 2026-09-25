@@ -9,7 +9,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { McpError } from "@modelcontextprotocol/sdk/types.js";
+import { ElicitRequestSchema, ListRootsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { startFixture } from "./fixture";
 
 // Absolute paths, so the test also works when the monorepo runner starts it from the repo root.
@@ -19,14 +22,20 @@ const CLI = join(PKG, "dist", "cli.js");
 let base = "";
 let close: () => Promise<void>;
 let client: Client;
+let rootDir = "";
+const elicitations: string[] = [];
 
 beforeAll(async () => {
   if (!existsSync(CLI)) execFileSync("npx", ["tsup"], { stdio: "inherit", cwd: PKG });
   ({ base, close } = await startFixture());
-  client = new Client({ name: "e2e-test", version: "1.0.0" });
+  rootDir = await mkdtemp(join(tmpdir(), "mcp-root-"));
+  await writeFile(join(rootDir, "brief.md"), "# Brief\n\nShip it.\n");
+  client = new Client({ name: "e2e-test", version: "1.0.0" }, { capabilities: { roots: { listChanged: true }, elicitation: {} } });
+  client.setRequestHandler(ListRootsRequestSchema, async () => ({ roots: [{ uri: pathToFileURL(rootDir).href, name: "root" }] }));
+  client.setRequestHandler(ElicitRequestSchema, async (req) => { elicitations.push(req.params.message); return { action: "accept", content: { confirm: true } }; });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [CLI, "--allow-path", PKG], cwd: PKG, stderr: "pipe" }));
 }, 60_000);
-afterAll(async () => { await client.close(); await close(); });
+afterAll(async () => { await client.close(); await close(); await rm(rootDir, { recursive: true, force: true }); });
 
 describe("official SDK client ↔ lacspace-mcp", () => {
   test("initialize negotiated; server info and instructions present", () => {
@@ -35,9 +44,10 @@ describe("official SDK client ↔ lacspace-mcp", () => {
     expect(client.getInstructions()).toMatch(/fetch_page/);
   });
 
-  test("lists all nine tools with JSON Schema inputs", async () => {
+  test("lists all ten tools with JSON Schema inputs", async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(["fetch_page", "scrape", "crawl_site", "extract_document", "audit_page", "enrich_domain", "check_site", "validate_email", "find_leads"]);
+    expect(tools.map((t) => t.name)).toEqual(["fetch_page", "scrape", "crawl_site", "screenshot_page", "extract_document", "audit_page", "enrich_domain", "check_site", "validate_email", "find_leads"]);
+    expect(tools.find((t) => t.name === "check_site")!.outputSchema).toMatchObject({ type: "object" });
     for (const t of tools) {
       expect(t.inputSchema.type).toBe("object");
       expect((t.description ?? "").length).toBeGreaterThan(40);
@@ -70,5 +80,25 @@ describe("official SDK client ↔ lacspace-mcp", () => {
     const r = await client.callTool({ name: "fetch_page", arguments: { url: base + "/missing" } });
     expect(r.isError).toBe(true);
     expect((r.content as { text: string }[])[0]!.text).toContain("HTTP 404");
+  });
+
+  test("reads a file under the client's workspace root, which is not under cwd", async () => {
+    const r = await client.callTool({ name: "extract_document", arguments: { source: join(rootDir, "brief.md") } });
+    expect(r.isError).toBeFalsy();
+    expect((r.content as { text: string }[])[0]!.text).toContain("Ship it");
+  });
+
+  test("streams progress during a crawl when the client asks for it", async () => {
+    const seen: number[] = [];
+    const r = await client.callTool({ name: "crawl_site", arguments: { url: base + "/", depth: 1, limit: 10 } }, undefined, { onprogress: (p) => seen.push(p.progress) });
+    expect(r.isError).toBeFalsy();
+    expect(seen.length).toBeGreaterThanOrEqual(3);
+    expect(seen).toEqual([...seen].sort((a, b) => a - b));
+  });
+
+  test("asks the user before a large crawl (elicitation), then proceeds on accept", async () => {
+    const r = await client.callTool({ name: "crawl_site", arguments: { url: base + "/", depth: 0, limit: 60 } });
+    expect(r.isError).toBeFalsy();
+    expect(elicitations.some((m) => /60 pages/.test(m))).toBe(true);
   });
 });

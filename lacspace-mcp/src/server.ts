@@ -3,6 +3,7 @@
  * returns the responses to send (or nothing, for notifications). Supports the
  * `tools` capability. Spec: https://modelcontextprotocol.io/specification
  */
+import { fileURLToPath } from "node:url";
 import {
   INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR, RpcError,
   failure, isNotification, isRequest, isResponse, success,
@@ -14,11 +15,19 @@ export const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"] as c
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];
 
 /** What a tool hands back; the server turns it into an MCP `CallToolResult`. */
+export interface ToolImage {
+  /** Base64-encoded bytes. */
+  data: string;
+  mimeType: string;
+}
+
 export interface ToolOutput {
   /** Text for the model. */
   text: string;
   /** Machine-readable form, returned as `structuredContent`. */
   data?: Record<string, unknown>;
+  /** Images the model can look at (screenshots, QR codes). */
+  images?: ToolImage[];
   /** Marks a failed call (the text explains why). */
   isError?: boolean;
 }
@@ -28,6 +37,16 @@ export interface ToolContext {
   policy: Policy;
   /** Fires when the client cancels the request. */
   signal: AbortSignal;
+  /**
+   * Report progress. Sent to the client only when it asked for it (a
+   * `progressToken` on the request); otherwise a no-op.
+   */
+  progress(current: number, total?: number, message?: string): void;
+  /**
+   * Ask the user to confirm before expensive work. Resolves `true` when the
+   * client cannot ask (no elicitation support), so tools never block on it.
+   */
+  confirm(message: string): Promise<boolean>;
 }
 
 export interface ToolDefinition<A = Record<string, unknown>> {
@@ -35,6 +54,8 @@ export interface ToolDefinition<A = Record<string, unknown>> {
   title?: string;
   description: string;
   inputSchema: JsonSchema;
+  /** Shape of `structuredContent`, for clients that validate or render it. */
+  outputSchema?: JsonSchema;
   annotations?: {
     readOnlyHint?: boolean;
     destructiveHint?: boolean;
@@ -47,6 +68,8 @@ export interface ToolDefinition<A = Record<string, unknown>> {
 export interface Policy {
   /** Local directories `extract_document` may read from (resolved, real paths). */
   allowedPaths: string[];
+  /** Directories the client reported as its workspace roots (`roots/list`); allowed too. */
+  rootPaths: string[];
   /** Refuse fetching private/loopback/link-local targets and cloud metadata. */
   blockPrivate: boolean;
   /** Default per-request timeout for network tools, ms. */
@@ -64,7 +87,19 @@ export interface ServerOptions {
   log?: (message: string) => void;
 }
 
-export const DEFAULT_POLICY: Policy = { allowedPaths: [process.cwd()], blockPrivate: false, timeoutMs: 30_000 };
+export const DEFAULT_POLICY: Policy = { allowedPaths: [process.cwd()], rootPaths: [], blockPrivate: false, timeoutMs: 30_000 };
+
+interface ClientCapabilities {
+  roots?: { listChanged?: boolean };
+  elicitation?: Record<string, unknown>;
+  sampling?: Record<string, unknown>;
+}
+
+interface Pending {
+  resolve: (v: unknown) => void;
+  reject: (e: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
 
 export class McpServer {
   readonly name: string;
@@ -75,9 +110,13 @@ export class McpServer {
   readonly tools = new Map<string, ToolDefinition>();
   private readonly log: (message: string) => void;
   private readonly inFlight = new Map<string, AbortController>();
+  private sender: ((message: unknown) => void) | undefined;
+  private readonly pendingOut = new Map<number, Pending>();
+  private nextOutId = 1;
   protocolVersion: string = LATEST_PROTOCOL;
   initialized = false;
   clientInfo: { name?: string; version?: string } | undefined;
+  clientCapabilities: ClientCapabilities = {};
 
   constructor(opts: ServerOptions) {
     this.name = opts.name;
@@ -89,6 +128,55 @@ export class McpServer {
     for (const t of opts.tools) {
       if (this.tools.has(t.name)) throw new Error(`duplicate tool name: ${t.name}`);
       this.tools.set(t.name, t);
+    }
+  }
+
+  /** Give the server a way to send its own requests and notifications (set by the transport). */
+  attach(send: (message: unknown) => void): void {
+    this.sender = send;
+  }
+
+  /** Send a request to the client and await its result (roots/list, elicitation/create, …). */
+  request(method: string, params?: unknown, timeoutMs = 120_000): Promise<unknown> {
+    if (!this.sender) return Promise.reject(new Error("no transport attached"));
+    const id = this.nextOutId++;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingOut.delete(id);
+        reject(new Error(`${method}: the client did not answer within ${timeoutMs}ms`));
+      }, timeoutMs);
+      this.pendingOut.set(id, { resolve, reject, timer });
+      this.sender!({ jsonrpc: "2.0", id, method, params });
+    });
+  }
+
+  /** Send a notification to the client. */
+  notify(method: string, params?: unknown): void {
+    this.sender?.({ jsonrpc: "2.0", method, params });
+  }
+
+  /** Does the connected client support asking the user a question? */
+  get canElicit(): boolean {
+    return this.clientCapabilities.elicitation !== undefined;
+  }
+
+  /** Fetch the client's workspace roots and make them readable. */
+  async refreshRoots(): Promise<string[]> {
+    if (!this.clientCapabilities.roots) return [];
+    try {
+      const result = (await this.request("roots/list", {}, 15_000)) as { roots?: { uri: string; name?: string }[] };
+      const paths: string[] = [];
+      for (const r of result.roots ?? []) {
+        if (typeof r.uri === "string" && r.uri.startsWith("file:")) {
+          try { paths.push(fileURLToPath(r.uri)); } catch { /* not a local path */ }
+        }
+      }
+      this.policy.rootPaths = paths;
+      this.log(`roots: ${paths.length ? paths.join(", ") : "(none)"}`);
+      return paths;
+    } catch (err) {
+      this.log(`roots/list failed: ${err instanceof Error ? err.message : String(err)}`);
+      return [];
     }
   }
 
@@ -115,7 +203,17 @@ export class McpServer {
   }
 
   private async handleOne(message: unknown): Promise<JsonRpcResponse | undefined> {
-    if (isResponse(message)) return undefined; // we never send requests, so nothing to match
+    if (isResponse(message)) {
+      // An answer to one of our own requests (roots/list, elicitation/create).
+      const pending = typeof message.id === "number" ? this.pendingOut.get(message.id) : undefined;
+      if (pending) {
+        this.pendingOut.delete(message.id as number);
+        clearTimeout(pending.timer);
+        if (message.error) pending.reject(new Error(message.error.message));
+        else pending.resolve(message.result);
+      }
+      return undefined;
+    }
     if (isNotification(message)) {
       this.onNotification(message.method, message.params);
       return undefined;
@@ -136,8 +234,12 @@ export class McpServer {
   }
 
   private onNotification(method: string, params: unknown): void {
-    if (method === "notifications/initialized") this.initialized = true;
-    else if (method === "notifications/cancelled") {
+    if (method === "notifications/initialized") {
+      this.initialized = true;
+      void this.refreshRoots();
+    } else if (method === "notifications/roots/list_changed") {
+      void this.refreshRoots();
+    } else if (method === "notifications/cancelled") {
       const p = params as { requestId?: JsonRpcId } | undefined;
       const key = String(p?.requestId);
       this.inFlight.get(key)?.abort();
@@ -167,10 +269,11 @@ export class McpServer {
   }
 
   private initialize(params: unknown): unknown {
-    const p = (params ?? {}) as { protocolVersion?: unknown; clientInfo?: { name?: string; version?: string } };
+    const p = (params ?? {}) as { protocolVersion?: unknown; clientInfo?: { name?: string; version?: string }; capabilities?: ClientCapabilities };
     const requested = typeof p.protocolVersion === "string" ? p.protocolVersion : undefined;
     this.protocolVersion = requested && (PROTOCOL_VERSIONS as readonly string[]).includes(requested) ? requested : LATEST_PROTOCOL;
     this.clientInfo = p.clientInfo;
+    this.clientCapabilities = p.capabilities ?? {};
     this.log(`initialize from ${p.clientInfo?.name ?? "unknown client"} (${requested ?? "no version"}) → ${this.protocolVersion}`);
     const result: Record<string, unknown> = {
       protocolVersion: this.protocolVersion,
@@ -185,13 +288,14 @@ export class McpServer {
     return [...this.tools.values()].map((t) => {
       const entry: Record<string, unknown> = { name: t.name, description: t.description, inputSchema: t.inputSchema };
       if (t.title) entry.title = t.title;
+      if (t.outputSchema) entry.outputSchema = t.outputSchema;
       if (t.annotations) entry.annotations = t.annotations;
       return entry;
     });
   }
 
   private async callTool(params: unknown, id: JsonRpcId): Promise<unknown> {
-    const p = (params ?? {}) as { name?: unknown; arguments?: unknown };
+    const p = (params ?? {}) as { name?: unknown; arguments?: unknown; _meta?: { progressToken?: string | number } };
     if (typeof p.name !== "string") throw new RpcError(INVALID_PARAMS, "tools/call needs a string `name`");
     const tool = this.tools.get(p.name);
     if (!tool) throw new RpcError(INVALID_PARAMS, `Unknown tool: ${p.name}`);
@@ -204,7 +308,7 @@ export class McpServer {
     this.inFlight.set(key, ac);
     const started = Date.now();
     try {
-      const out = await tool.run(args, { policy: this.policy, signal: ac.signal });
+      const out = await tool.run(args, this.context(ac.signal, p._meta?.progressToken));
       this.log(`${p.name} ${out.isError ? "failed" : "ok"} in ${Date.now() - started}ms`);
       return toCallResult(out);
     } catch (err) {
@@ -222,12 +326,45 @@ export class McpServer {
     if (!tool) throw new RpcError(INVALID_PARAMS, `Unknown tool: ${name}`);
     const problems = validate(tool.inputSchema, args);
     if (problems.length) throw new RpcError(INVALID_PARAMS, `Invalid arguments for ${name}: ${problems.join("; ")}`, { problems });
-    return tool.run(applyDefaults(tool.inputSchema, args), { policy: this.policy, signal: new AbortController().signal });
+    return tool.run(applyDefaults(tool.inputSchema, args), this.context(new AbortController().signal));
+  }
+
+  private context(signal: AbortSignal, progressToken?: string | number): ToolContext {
+    return {
+      policy: this.policy,
+      signal,
+      progress: (current, total, message) => {
+        if (progressToken === undefined) return;
+        const params: Record<string, unknown> = { progressToken, progress: current };
+        if (total !== undefined) params.total = total;
+        if (message !== undefined) params.message = message;
+        this.notify("notifications/progress", params);
+      },
+      confirm: async (message) => {
+        if (!this.canElicit) return true;
+        try {
+          const r = (await this.request("elicitation/create", {
+            message,
+            requestedSchema: {
+              type: "object",
+              properties: { confirm: { type: "boolean", title: "Continue?", description: message } },
+              required: ["confirm"],
+            },
+          })) as { action?: string; content?: { confirm?: boolean } };
+          return r.action === "accept" && r.content?.confirm !== false;
+        } catch (err) {
+          this.log(`elicitation failed, proceeding: ${err instanceof Error ? err.message : String(err)}`);
+          return true;
+        }
+      },
+    };
   }
 }
 
 function toCallResult(out: ToolOutput): Record<string, unknown> {
-  const result: Record<string, unknown> = { content: [{ type: "text", text: out.text }] };
+  const content: Record<string, unknown>[] = [{ type: "text", text: out.text }];
+  for (const img of out.images ?? []) content.push({ type: "image", data: img.data, mimeType: img.mimeType });
+  const result: Record<string, unknown> = { content };
   if (out.data !== undefined) result.structuredContent = out.data;
   if (out.isError) result.isError = true;
   return result;

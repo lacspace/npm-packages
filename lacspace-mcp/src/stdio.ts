@@ -19,6 +19,8 @@ export function serveStdio(server: McpServer, opts: StdioOptions = {}): Promise<
   let pending = 0;
   let ended = false;
 
+  server.attach((message) => output.write(encode(message)));
+
   return new Promise((resolve) => {
     const finishIfDone = () => {
       if (ended && pending === 0) resolve();

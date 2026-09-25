@@ -32,10 +32,10 @@ export async function checkPath(file: string, policy: Policy): Promise<string> {
   } catch {
     throw new Error(`file not found: ${file}`);
   }
-  const roots = await Promise.all(policy.allowedPaths.map((p) => realpath(p).catch(() => resolve(p))));
+  const roots = await Promise.all([...policy.allowedPaths, ...policy.rootPaths].map((p) => realpath(p).catch(() => resolve(p))));
   const inside = roots.some((root) => real === root || real.startsWith(root.endsWith(sep) ? root : root + sep));
   if (!inside) {
-    throw new Error(`${file} is outside the allowed directories (${roots.join(", ")}); start lacspace-mcp with --allow-path <dir> to permit it`);
+    throw new Error(`${file} is outside the allowed directories (${roots.join(", ")}); open its folder in the editor or start lacspace-mcp with --allow-path <dir>`);
   }
   return real;
 }

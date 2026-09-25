@@ -1,6 +1,6 @@
 {
   "name": "lacspace-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "MCP server that gives AI agents (Claude Code, Claude Desktop, Cursor, VS Code, Windsurf) the Lacspace tools: fetch and scrape pages, crawl sites, extract PDF/DOCX/PPTX/EPUB, audit SEO, enrich domains, check uptime and TLS, validate emails, find leads. One command, no API keys.",
   "type": "module",
   "bin": {
@@ -69,7 +69,7 @@
     "lacspace-extract": "^0.2.2",
     "lacspace-inspect": "^0.2.1",
     "lacspace-leads": "^1.7.2",
-    "lacspace-scraper": "^0.2.2"
+    "lacspace-scraper": "^0.2.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1",

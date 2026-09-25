@@ -6,6 +6,7 @@ import { enrichDomainTool } from "./domain";
 import { checkSiteTool } from "./site";
 import { validateEmailTool } from "./email";
 import { findLeadsTool, type LeadsDeps } from "./leads";
+import { screenshotPageTool } from "./screenshot";
 
 export interface ToolDeps {
   leads?: LeadsDeps;
@@ -14,7 +15,7 @@ export interface ToolDeps {
 /** Every tool, in the order clients list them. */
 export function createTools(deps: ToolDeps = {}): ToolDefinition[] {
   return [
-    fetchPageTool, scrapeTool, crawlSiteTool, extractDocumentTool, auditPageTool,
+    fetchPageTool, scrapeTool, crawlSiteTool, screenshotPageTool, extractDocumentTool, auditPageTool,
     enrichDomainTool, checkSiteTool, validateEmailTool, findLeadsTool(deps.leads),
   ] as ToolDefinition[];
 }

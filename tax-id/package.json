@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/tax-id",
+  "version": "1.0.0",
+  "description": "Validate tax and business identifiers with their real checksums \u2014 EU VAT (all 27 + UK), Indian GSTIN and PAN, Australian ABN/ACN/TFN, NZ IRD, Canadian BN, US EIN, Brazilian CPF/CNPJ, Nepali PAN, Singapore UEN and more. Zero-dependency, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "vat",
+    "vat-validation",
+    "tax-id",
+    "gstin",
+    "pan",
+    "abn",
+    "ein",
+    "cnpj",
+    "cpf",
+    "tin",
+    "business-number",
+    "checksum",
+    "zero-dependency",
+    "isomorphic",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/tax-id",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "tax-id"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

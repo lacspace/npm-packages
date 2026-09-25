@@ -2,7 +2,7 @@
   "name": "@lacspace/monorepo",
   "private": true,
   "version": "0.0.0",
-  "description": "Lacspace open-source TypeScript packages — platform SDK, Nepal toolkit, React hooks and the StockKit trading suite.",
+  "description": "Lacspace open-source TypeScript packages \u2014 platform SDK, Nepal toolkit, React hooks and the StockKit trading suite.",
   "workspaces": [
     "agent",
     "ai",
@@ -128,7 +128,13 @@
     "components",
     "charts",
     "table",
-    "date"
+    "date",
+    "country",
+    "currency",
+    "iban",
+    "tax-id",
+    "phone",
+    "postal-code"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
@@ -158,7 +164,8 @@
     "build:aiapp": "npm -w @lacspace/embeddings run build && npm -w @lacspace/vector run build && npm -w @lacspace/rag run build && npm -w @lacspace/agent run build && npm -w @lacspace/memory run build && npm -w @lacspace/eval run build && npm -w @lacspace/providers run build",
     "publish:aiapp": "npm -w @lacspace/embeddings publish --access public && npm -w @lacspace/vector publish --access public && npm -w @lacspace/rag publish --access public && npm -w @lacspace/agent publish --access public && npm -w @lacspace/memory publish --access public && npm -w @lacspace/eval publish --access public && npm -w @lacspace/providers publish --access public",
     "build:webkit": "npm -w @lacspace/web-push run build && npm -w @lacspace/pwa run build && npm -w @lacspace/notify run build && npm -w @lacspace/captcha run build && npm -w @lacspace/sse run build && npm -w @lacspace/consent run build",
-    "publish:webkit": "npm -w @lacspace/web-push publish --access public && npm -w @lacspace/pwa publish --access public && npm -w @lacspace/notify publish --access public && npm -w @lacspace/captcha publish --access public && npm -w @lacspace/sse publish --access public && npm -w @lacspace/consent publish --access public"
+    "publish:webkit": "npm -w @lacspace/web-push publish --access public && npm -w @lacspace/pwa publish --access public && npm -w @lacspace/notify publish --access public && npm -w @lacspace/captcha publish --access public && npm -w @lacspace/sse publish --access public && npm -w @lacspace/consent publish --access public",
+    "build:globalkit": "npm -w @lacspace/country run build && npm -w @lacspace/currency run build && npm -w @lacspace/iban run build && npm -w @lacspace/tax-id run build && npm -w @lacspace/phone run build && npm -w @lacspace/postal-code run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

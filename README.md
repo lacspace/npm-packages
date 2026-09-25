@@ -8,7 +8,7 @@
 
 _Think · Innovate · Execute_
 
-[![packages](https://img.shields.io/badge/packages-130%2B-4d9fff)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-150%2B-4d9fff)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
 [![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
 [![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **130+ published packages and CLIs**. Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **150+ published packages and CLIs** (131 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -28,7 +28,7 @@ One monorepo, **130+ published packages and CLIs**. Most are **zero-dependency**
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 130+ packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 150+ packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -267,6 +267,81 @@ Date math, durations, timezones and time ranges — a tiny date toolkit that com
 | [`@lacspace/timezone`](./timezone) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftimezone?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/timezone) | IANA offsets & zoned↔UTC conversion via `Intl`, DST-aware, no bundled tz data |
 | [`@lacspace/interval`](./interval) | [![v](https://img.shields.io/npm/v/%40lacspace%2Finterval?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/interval) | Time ranges, merge/free-busy, date iteration & business-day math |
 
+### 🌍 Global Data Kit
+
+Reference data and validators for building for the whole world — countries, currencies, bank accounts, tax ids, phone numbers and postal codes. Cross-checked against ICU and ISO, self-verifying via real check digits.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/country`](./country) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcountry?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/country) | ISO 3166-1 countries — alpha-2/3/numeric, names + aliases, calling codes, currencies, TLDs, regions, flags |
+| [`@lacspace/currency`](./currency) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcurrency?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/currency) | ISO 4217 currencies — codes, minor units, symbols, names, fund codes, Intl-free formatting |
+| [`@lacspace/iban`](./iban) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fiban?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/iban) | IBAN validate/parse/format for every registry country (MOD 97-10) + BIC/SWIFT + ISIN |
+| [`@lacspace/tax-id`](./tax-id) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftax-id?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/tax-id) | EU VAT (27 + GB/XI), GSTIN/PAN, ABN/ACN/TFN, EIN, CPF/CNPJ, UEN and more — real checksums |
+| [`@lacspace/phone`](./phone) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fphone?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/phone) | Parse, validate and format international phone numbers — E.164, national, country detection |
+| [`@lacspace/postal-code`](./postal-code) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpostal-code?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/postal-code) | Validate and normalise postal codes for 130 countries — ZIP, postcode, PIN, CEP |
+
+### 🧩 Components Kit
+
+A dependency-free React UI kit — every colour, radius and shadow is a `--lac-*` CSS variable, light + dark themes included, server-render safe. [Browse the gallery](https://developer.lacspace.com/components).
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/components`](./components) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcomponents?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/components) | 60+ accessible React components — buttons, inputs, selects, modals, tabs, toasts, badges… |
+| [`@lacspace/charts`](./charts) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcharts?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/charts) | Real-SVG React charts — line, area, bar, donut, sparkline, gauge, heatmap, radar, candlestick |
+| [`@lacspace/table`](./table) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftable?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/table) | React data table — sort, filter, search, paginate, select, resize, pin, group, CSV export |
+| [`@lacspace/date`](./date) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fdate?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/date) | React date & time pickers — calendar, range, month/year, time, date-time, scheduler grid |
+
+### 🔔 Web Engagement Kit
+
+Keep users engaged with no vendor and no keys — push, PWA, toasts, CAPTCHA, realtime and consent.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/web-push`](./web-push) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fweb-push?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/web-push) | Web Push with pure Web Crypto (VAPID + RFC 8291) — no Firebase, no FCM account |
+| [`@lacspace/pwa`](./pwa) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpwa?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/pwa) | Generate a production service worker + web manifest, register it, drive the install prompt |
+| [`@lacspace/notify`](./notify) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnotify?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/notify) | In-app toast notifications — store, vanilla renderer and React `<Toaster/>` + `useToast` |
+| [`@lacspace/captcha`](./captcha) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcaptcha?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/captcha) | Keyless proof-of-work CAPTCHA (ALTCHA-style) — HMAC-signed challenges, drop-in widget |
+| [`@lacspace/sse`](./sse) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsse?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/sse) | Server-Sent Events hub — channels/rooms, Web-standard + Node handlers, browser client, `useSSE` |
+| [`@lacspace/consent`](./consent) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fconsent?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/consent) | GDPR cookie consent — store, banner, React binding, cookie-backed so the server can gate too |
+
+### 🧠 AI App Kit
+
+Composable, keyless building blocks for RAG, agents, evals and safety — every model, store and splitter is an injectable duck-typed interface. Pairs with the AI Kit above.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/embeddings`](./embeddings) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fembeddings?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/embeddings) | Provider-agnostic embeddings client + pure vector math (cosine, dot, top-k, mean-pool) |
+| [`@lacspace/vector`](./vector) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fvector?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/vector) | In-memory vector store — k-NN with cosine/dot/euclidean, metadata filters, JSON persistence |
+| [`@lacspace/rag`](./rag) | [![v](https://img.shields.io/npm/v/%40lacspace%2Frag?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/rag) | Index documents, retrieve and assemble prompt context from an injected embedder + store + splitter |
+| [`@lacspace/rerank`](./rerank) | [![v](https://img.shields.io/npm/v/%40lacspace%2Frerank?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/rerank) | BM25, TF-IDF, keyword overlap, Reciprocal Rank Fusion, hybrid blending and MMR diversity |
+| [`@lacspace/agent`](./agent) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fagent?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/agent) | Tool-calling / ReAct agent loop with an observable trace, `maxSteps` guard and error recovery |
+| [`@lacspace/memory`](./memory) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmemory?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/memory) | Conversation memory inside a token/message budget — sliding window + optional summariser |
+| [`@lacspace/eval`](./eval) | [![v](https://img.shields.io/npm/v/%40lacspace%2Feval?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/eval) | Evaluate LLM outputs — deterministic scorers, injectable LLM-as-judge, batch runs, pass rates |
+| [`@lacspace/moderation`](./moderation) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmoderation?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/moderation) | Content safety — PII detection/redaction, toxicity flags, prompt-injection checks, guardrails |
+| [`@lacspace/providers`](./providers) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fproviders?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/providers) | Keyless connection presets for Ollama, Groq, OpenRouter, Together, Google, Cohere, Mistral… |
+
+### 📗 Sheets Kit
+
+The engine behind LUMIFORM, Lacspace's in-house spreadsheet grid — with `@lacspace/xlsx` and `@lacspace/csv` from the Data Kit.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/formula`](./formula) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fformula?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/formula) | Safe Excel-style formula engine — 100+ functions, no `eval`, per-function reference metadata |
+| [`@lacspace/convert`](./convert) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fconvert?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/convert) | Convert JSON, NDJSON, CSV, TSV, XLSX, YAML, TOML, Markdown, HTML and SQL in one call |
+
+### 🧰 Core Runtime Kit
+
+The primitives every app reaches for — logging, typed errors, events, concurrency, scheduling and state.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/logger`](./logger) | [![v](https://img.shields.io/npm/v/%40lacspace%2Flogger?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/logger) | Structured leveled JSON logging — child loggers, redaction, pluggable transports |
+| [`@lacspace/result`](./result) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fresult?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/result) | `Result<T,E>` and `Option<T>` — errors as values, tree-shakeable tagged unions |
+| [`@lacspace/events`](./events) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fevents?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/events) | Fully type-safe event emitter / pub-sub — `once`, `waitFor`, wildcards, isolated errors |
+| [`@lacspace/queue`](./queue) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fqueue?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/queue) | Async task queue with a concurrency limit — priority, pause/resume, abort, drain |
+| [`@lacspace/scheduler`](./scheduler) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fscheduler?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/scheduler) | In-process job scheduler — interval, cron and one-shot, overlap protection, jitter |
+| [`@lacspace/machine`](./machine) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmachine?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/machine) | Tiny type-safe finite state machine — guarded transitions, actions, typed context |
+
 ### 🎨 Media Kit
 
 Generate real logos and images **without AI** — and use the official Lacspace brand. Curated JSON "brains" + deterministic geometry, not a diffusion model. [Try the Studio](https://developer.lacspace.com/tools/studio/try) · [Brand Center](https://developer.lacspace.com/tools/brand/try).
@@ -278,26 +353,53 @@ Generate real logos and images **without AI** — and use the official Lacspace 
 | [`@lacspace/brand`](./brand) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fbrand?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/brand) | The official Lacspace mark, colours & animations — installable favicon/PWA icon, React |
 | [`@lacspace/og`](./og) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fog?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/og) | Open Graph / social card generator for `next/og` and the edge |
 
-### CLIs & tools
+### 🛠️ CLIs & tools
 
-24 standalone `lacspace-*` CLIs ship here too — scraper, leads, monitor, enrich, extract, sql, cron, qr, icon, http, fake, and more. [Browse the live tools →](https://developer.lacspace.com/tools)
+29 standalone CLIs live in this repo alongside the libraries — every one keyless, local and free. [Browse the live tools →](https://developer.lacspace.com/tools) · [Use them from an AI agent with lacspace-mcp →](https://developer.lacspace.com/tools/mcp)
 
 | Package | Version | What it does |
 | --- | --- | --- |
-| [`create-lacspace-app`](./create-lacspace-app) | [![v](https://img.shields.io/npm/v/create-lacspace-app?label=%20&color=blue)](https://www.npmjs.com/package/create-lacspace-app) | Scaffold a beautiful, production-ready Next.js app — also a library |
+| [`lacspace-mcp`](./lacspace-mcp) | [![v](https://img.shields.io/npm/v/lacspace-mcp?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-mcp) | **MCP server** — gives Claude Code, Claude Desktop, Cursor, VS Code and Windsurf the Lacspace tools: fetch/scrape/crawl, extract documents, audit SEO, enrich domains, check uptime/TLS, validate emails, find leads. One command, no API keys |
+| [`create-lacspace-app`](./create-lacspace-app) | [![v](https://img.shields.io/npm/v/create-lacspace-app?label=%20&color=blue)](https://www.npmjs.com/package/create-lacspace-app) | Scaffold a beautiful, production-ready Next.js app — 9 templates, `--fullstack`, 18 add-ons — also a library |
 | [`create-lacspace-seo`](./create-lacspace-seo) | [![v](https://img.shields.io/npm/v/create-lacspace-seo?label=%20&color=blue)](https://www.npmjs.com/package/create-lacspace-seo) | Scaffold a complete SEO setup into a Next.js App Router app in seconds |
-| [`lacspace-leads`](./lacspace-leads) | [![v](https://img.shields.io/npm/v/lacspace-leads?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-leads) | Free, open-source local-business lead finder (Google Maps → JSON/CSV/Excel). `--target 500` sweeps past Google's ~120-per-search ceiling by tiling the map |
+| [`lacspace-scraper`](./lacspace-scraper) | [![v](https://img.shields.io/npm/v/lacspace-scraper?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-scraper) | Website scraper — CSS selectors or auto-extract, crawl (robots-aware), real-browser rendering, JSON/CSV/Excel |
+| [`lacspace-leads`](./lacspace-leads) | [![v](https://img.shields.io/npm/v/lacspace-leads?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-leads) | Local-business lead finder (Google Maps → JSON/CSV/Excel). `--target 500` sweeps past Google's ~120-per-search ceiling |
+| [`lacspace-monitor`](./lacspace-monitor) | [![v](https://img.shields.io/npm/v/lacspace-monitor?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-monitor) | Change, uptime & SSL monitor — pages, selectors, JSON fields, feeds; Slack/Discord/Telegram/e-mail alerts |
+| [`lacspace-enrich`](./lacspace-enrich) | [![v](https://img.shields.io/npm/v/lacspace-enrich?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-enrich) | Company + contact enrichment from a domain, URL or email — logo, socials, tech stack, DNS/SPF/DMARC, RDAP |
+| [`lacspace-extract`](./lacspace-extract) | [![v](https://img.shields.io/npm/v/lacspace-extract?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-extract) | Text, tables and metadata out of PDF, DOCX, PPTX, EPUB, HTML and spreadsheets — JSON/CSV/Excel/Markdown |
+| [`lacspace-inspect`](./lacspace-inspect) | [![v](https://img.shields.io/npm/v/lacspace-inspect?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-inspect) | One-command website audit graded A–F — SEO, meta, OG, structured data, security headers; CI budgets |
+| [`lacspace-rag`](./lacspace-rag) | [![v](https://img.shields.io/npm/v/lacspace-rag?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-rag) | Local-first RAG in one CLI — index a folder, ask grounded questions; Ollama by default |
+| [`lacspace-sql`](./lacspace-sql) | [![v](https://img.shields.io/npm/v/lacspace-sql?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-sql) | Run SQL over CSV, JSON, NDJSON and Excel files — no database |
+| [`lacspace-json`](./lacspace-json) | [![v](https://img.shields.io/npm/v/lacspace-json?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-json) | The friendly jq — query, convert (JSON/YAML/TOML/CSV/NDJSON), validate, diff, patch, merge |
+| [`lacspace-schema`](./lacspace-schema) | [![v](https://img.shields.io/npm/v/lacspace-schema?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-schema) | Infer JSON Schema from data; generate TypeScript and Zod; validate; OpenAPI components |
+| [`lacspace-fake`](./lacspace-fake) | [![v](https://img.shields.io/npm/v/lacspace-fake?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-fake) | Deterministic fake / seed data — schema-driven rows to JSON, CSV or SQL with relations |
+| [`lacspace-mock`](./lacspace-mock) | [![v](https://img.shields.io/npm/v/lacspace-mock?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-mock) | Local mock REST + GraphQL server from a JSON db or OpenAPI spec — stateful CRUD, chaos, record/replay |
+| [`lacspace-http`](./lacspace-http) | [![v](https://img.shields.io/npm/v/lacspace-http?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-http) | Terminal API client and `.http`/`.rest` runner — chain tokens, assert responses as a CI suite |
+| [`lacspace-webhook`](./lacspace-webhook) | [![v](https://img.shields.io/npm/v/lacspace-webhook?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-webhook) | Local webhook receiver, inspector and replayer — signature checks (GitHub/Stripe/Shopify/Slack/Svix) |
+| [`lacspace-har`](./lacspace-har) | [![v](https://img.shields.io/npm/v/lacspace-har?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-har) | Read `.har` exports offline — waterfalls, diffs, performance budgets, web-vitals estimates |
+| [`lacspace-size`](./lacspace-size) | [![v](https://img.shields.io/npm/v/lacspace-size?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-size) | Bundle size as raw/gzip/brotli — budgets, baselines, treemap, PR comment table |
+| [`lacspace-deps`](./lacspace-deps) | [![v](https://img.shields.io/npm/v/lacspace-deps?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-deps) | Dependency & licence auditor — licences, install size, duplicates, unused/missing, CI gate |
+| [`lacspace-license`](./lacspace-license) | [![v](https://img.shields.io/npm/v/lacspace-license?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-license) | SPDX LICENSE generator, per-file headers, THIRD-PARTY-NOTICES, CI gate |
+| [`lacspace-changelog`](./lacspace-changelog) | [![v](https://img.shields.io/npm/v/lacspace-changelog?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-changelog) | Conventional Commits → grouped CHANGELOG.md, next semver bump, release notes |
+| [`lacspace-dotenv`](./lacspace-dotenv) | [![v](https://img.shields.io/npm/v/lacspace-dotenv?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-dotenv) | Lint, diff, sync, type, run, encrypt and protect `.env` files; pre-commit hook |
+| [`lacspace-cron`](./lacspace-cron) | [![v](https://img.shields.io/npm/v/lacspace-cron?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-cron) | Explain, validate and preview cron expressions with the next N runs in any timezone |
+| [`lacspace-i18n`](./lacspace-i18n) | [![v](https://img.shields.io/npm/v/lacspace-i18n?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-i18n) | Locale-file linter — missing/unused/untranslated keys, ICU validation, JSON/YAML/.po conversion |
+| [`lacspace-icon`](./lacspace-icon) | [![v](https://img.shields.io/npm/v/lacspace-icon?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-icon) | Complete favicon, PWA and Apple-touch icon set + manifest + OG image from one PNG |
+| [`lacspace-qr`](./lacspace-qr) | [![v](https://img.shields.io/npm/v/lacspace-qr?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-qr) | Spec-correct QR codes to terminal, SVG or PNG — URL, WiFi, vCard, email, SMS, geo presets |
+| [`lacspace-svg`](./lacspace-svg) | [![v](https://img.shields.io/npm/v/lacspace-svg?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-svg) | Optimise SVGs, convert to React/Vue/Svelte/Solid components, sprite sheets |
+| [`lacspace-excel`](./lacspace-excel) | [![v](https://img.shields.io/npm/v/lacspace-excel?label=%20&color=blue)](https://www.npmjs.com/package/lacspace-excel) | JSON/CSV ⇄ .xlsx plus ready-to-fill business templates with live formulas |
 <!-- PACKAGE-TABLES:END -->
 
 ## ✨ Conventions
 
 Every `@lacspace/*` package follows the same rules, so once you've learned one you've learned them all:
 
-- **Zero runtime dependencies** (the two CLIs `create-lacspace-app` and `lacspace-leads` are the deliberate exceptions).
+- **Zero runtime dependencies** for every `@lacspace/*` library. The `lacspace-*` tools reuse each other's engines, and the browser-driving ones (`lacspace-leads`, `lacspace-scraper`, `lacspace-mcp`) need Playwright — those are the deliberate exceptions.
 - **Isomorphic** — Node, edge and browsers. Crypto is always the **Web Crypto API**, never hand-rolled. Web-Crypto packages require **Node 20+**; the rest support **Node 18+**.
 - **Dual build** — `dist/index.js` (ESM) + `dist/index.cjs` (CJS) + `dist/index.d.ts` types, from [`tsup`](https://tsup.egoist.dev).
 - **Money is integer minor units** — paisa, cents, satoshi — never a float.
 - **Immutable & serializable** where it makes sense — pure functions return new objects you can `JSON.stringify` and persist.
+- **Published with provenance** — every release is built and published by GitHub Actions with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (SLSA attestations), never from a laptop. Verify any install with `npm audit signatures`.
 
 ## 🛠️ Local development
 
@@ -311,7 +413,9 @@ npm run typecheck      # tsc over the whole monorepo
 
 Each package lives in its own folder with a `package.json`, `src/`, `tsup.config.ts` and `tsconfig.json` extending `tsconfig.base.json`. Build one with `npm run build -w <name>`.
 
-> **Note:** `lacspace-leads` lives in this repo but is **not** a zero-dep workspace member (it needs Playwright), so it is excluded from the root `workspaces`, tests and typecheck, and builds/tests independently from its own folder.
+> **Note:** the `lacspace-*` tools live in this repo but are **not** workspace members (several need Playwright), so they are excluded from the root `workspaces`, tests and typecheck, and build/test independently from their own folders.
+
+**Publishing** is CI-only: bump a `package.json` version, push to `main`, and `.github/workflows/publish.yml` runs `scripts/publish-pending.mjs`, which diffs every package against the registry and publishes what changed, dependencies first, with provenance.
 
 ## ❓ Frequently asked questions
 
@@ -346,7 +450,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-93+ packages, grouped into kits: Core, Security, SEO, React, App & Utils, Backend, Data, Commerce & Ledger, Stock, Mail, Web, the AI Kit, the Testing Kit, the Dates & Time Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, caching, rate-limiting, LLM chat & streaming, prompt engineering, token counting, RAG chunking and more.
+150+ packages and CLIs (131 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.
@@ -369,7 +473,10 @@ Many are focused, zero-dependency takes on well-known libraries (a Zod-style val
 ### The developer tools
 
 **What developer tools does Lacspace offer?**
-Twelve free, keyless tools: `lacspace-leads`, `lacspace-scraper`, `lacspace-monitor`, `lacspace-enrich`, `lacspace-extract`, `lacspace-sql`, `lacspace-inspect`, `lacspace-cron`, `lacspace-dotenv`, `lacspace-webhook`, `lacspace-har` and `lacspace-icon`.
+29 free, keyless CLIs — `lacspace-mcp` (the tools as an MCP server for Claude, Cursor and VS Code), `lacspace-scraper`, `lacspace-leads`, `lacspace-monitor`, `lacspace-enrich`, `lacspace-extract`, `lacspace-inspect`, `lacspace-rag`, `lacspace-sql`, `lacspace-json`, `lacspace-schema`, `lacspace-fake`, `lacspace-mock`, `lacspace-http`, `lacspace-webhook`, `lacspace-har`, `lacspace-size`, `lacspace-deps`, `lacspace-license`, `lacspace-changelog`, `lacspace-dotenv`, `lacspace-cron`, `lacspace-i18n`, `lacspace-icon`, `lacspace-qr`, `lacspace-svg`, `lacspace-excel`, plus `create-lacspace-app` and `create-lacspace-seo`.
+
+**Can an AI agent use the tools?**
+Yes — `npx lacspace-mcp` exposes them as an MCP server (stdio) for Claude Code, Claude Desktop, Cursor, VS Code and Windsurf: fetch, scrape, crawl, extract documents, audit SEO, enrich domains, check uptime/TLS, validate emails and find leads, with path sandboxing and SSRF guards built in.
 
 **How do I run a tool without installing it?**
 Use `npx`, e.g. `npx lacspace-inspect example.com`. Each tool's page lists its commands; you can also `npm i -g <tool>`.
@@ -381,7 +488,7 @@ Both — a command-line program and a fully-typed library sharing the same engin
 JSON, NDJSON, CSV and Excel, with a built-in converter between all four. Several also emit Markdown, HTML reports, `.ics` calendars or images.
 
 **Can I try a tool without installing anything?**
-Yes — the scraper has a hosted live tester at developer.lacspace.com/tools/scraper/try that runs in your browser exactly as it would locally.
+Yes — most tools have a hosted `/try` playground on developer.lacspace.com/tools that runs the same engine in your browser.
 
 **Do the tools send my data anywhere?**
 No — they run on your machine, use only the open web and open data, and have no telemetry or accounts.

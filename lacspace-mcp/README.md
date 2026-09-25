@@ -8,6 +8,13 @@ claude mcp add lacspace -- npx -y lacspace-mcp
 
 Then ask: *"Read https://example.com/pricing and summarise the plans"*, *"Audit the SEO of our landing page"*, *"Is api.acme.com up and when does its certificate expire?"*, *"Extract the tables from ~/reports/q3.pdf"*, *"Find 20 dentists in Berlin with websites"*.
 
+## What's new in 0.1.1
+
+- `find_leads` opens each listing by default, so phone, website, rating and
+  address are filled in (a names-only list needed `details: true` before, which
+  contradicted the tool's own description). Review-page links are no longer
+  reported as websites. Default `limit` is 10.
+
 ## Install in your client
 
 | Client | How |
@@ -32,7 +39,7 @@ The config command prints the exact JSON, including any `--allow-path` / `--bloc
 | `enrich_domain` | Company profile from a domain: name, description, logo, emails, phones, address, socials, tech stack, MX/SPF/DMARC, RDAP registration. |
 | `check_site` | Status, redirect chain, response time, server and caching headers, TLS issuer/expiry/days left. |
 | `validate_email` | Syntax, disposable, role account, free provider, typo suggestion, normalised form, MX lookup. No email is sent. |
-| `find_leads` | Google Maps businesses by type and city: rating, reviews, address, phone, website; optionally email and socials. Needs a local Chromium (`npx playwright install chromium`); 20–60 s per search. |
+| `find_leads` | Google Maps businesses by type and city: rating, reviews, address, phone, website, and email/socials when listed. Needs a local Chromium (`npx playwright install chromium`); about 30 s per 10 leads, or `details: false` for a names-only list in seconds. |
 
 Every tool returns readable text for the model and `structuredContent` (JSON) for programs. Long output is capped (`maxChars`) and says when it was cut.
 

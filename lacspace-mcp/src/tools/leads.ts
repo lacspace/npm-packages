@@ -15,7 +15,7 @@ export function findLeadsTool(deps: LeadsDeps = {}): ToolDefinition<{ type: stri
     name: "find_leads",
     title: "Find business leads on Google Maps",
     description:
-      "Search Google Maps for businesses of a type in a city or area and return name, category, rating, reviews, address, phone, website and, with details, email and social links. Keyless, but it drives a local Chromium (Chrome or Playwright's browser must be installed). Slow: expect 20–60 seconds. Use it for lead lists and local market research.",
+      "Search Google Maps for businesses of a type in a city or area and return name, rating, reviews, address, phone and website, plus email and social links when the site lists them. Keyless, but it drives a local Chromium (Chrome or Playwright's browser must be installed). Slow: about 30 seconds per 10 leads with details; set details=false for a names-only list in a few seconds. Use it for lead lists and local market research.",
     inputSchema: {
       type: "object",
       properties: {
@@ -23,8 +23,8 @@ export function findLeadsTool(deps: LeadsDeps = {}): ToolDefinition<{ type: stri
         city: { type: "string", description: "City, e.g. \"Berlin\"." },
         area: { type: "string", description: "Neighbourhood or district within the city." },
         query: { type: "string", description: "Free-form query instead of type + city." },
-        limit: { type: "integer", minimum: 1, maximum: 120, default: 20 },
-        details: { type: "boolean", default: false, description: "Open each listing for email, socials and hours (slower)." },
+        limit: { type: "integer", minimum: 1, maximum: 120, default: 10 },
+        details: { type: "boolean", default: true, description: "Open each listing for phone, website, email and socials. false = names only, much faster." },
       },
       required: ["type"],
       additionalProperties: false,
@@ -39,7 +39,7 @@ export function findLeadsTool(deps: LeadsDeps = {}): ToolDefinition<{ type: stri
       }
       let leads: Lead[];
       try {
-        leads = await lib.scrapeLeads({ type: args.type, city: args.city, area: args.area, query: args.query, limit: args.limit, details: args.details, headless: true, signal: ctx.signal });
+        leads = await lib.scrapeLeads({ type: args.type, city: args.city, area: args.area, query: args.query, limit: args.limit, details: args.details, cleanUrls: true, dedupe: "smart", headless: true, signal: ctx.signal });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const browser = /executable|browser|chromium|launch/i.test(message);

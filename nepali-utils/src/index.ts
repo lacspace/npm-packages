@@ -70,7 +70,7 @@ function twoDigitWords(n: number): string {
 }
 
 /**
- * Amount in words using the South-Asian system (Thousand, Lakh, Crore, Arab, Kharab) —
+ * Amount in words using the South-Asian system (Thousand, Lakh, Crore, Arab, Kharab, Neel, Padma) —
  * perfect for invoices. `numberToWords(1234567)` →
  * `"Twelve Lakh Thirty Four Thousand Five Hundred Sixty Seven"`.
  */
@@ -79,6 +79,8 @@ export function numberToWords(value: number): string {
   if (n === 0) return "Zero";
   const parts: string[] = [];
   const units: [number, string][] = [
+    [1e15, "Padma"],
+    [1e13, "Neel"],
     [1e11, "Kharab"],
     [1e9, "Arab"],
     [1e7, "Crore"],
@@ -89,7 +91,7 @@ export function numberToWords(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      // Hundreds are 1–9; middle units take two digits; the top (Kharab) unit can
+      // Hundreds are 1–9; middle units take two digits; the top (Padma) unit can
       // itself run into the hundreds/thousands, so render its count recursively.
       const words = size === 100 ? ONES[count]! : count >= 100 ? numberToWords(count) : twoDigitWords(count);
       parts.push(words + " " + name);
@@ -142,6 +144,8 @@ export function formatCompactNPR(amount: number, options: CompactNprOptions = {}
   const negative = amount < 0;
   const a = Math.abs(amount);
   const units: [number, string, string][] = [
+    [1e15, "Padma", "पद्म"],
+    [1e13, "Neel", "नील"],
     [1e11, "Kharab", "खरब"],
     [1e9, "Arab", "अरब"],
     [1e7, "Cr", "करोड"],
@@ -199,13 +203,23 @@ export function convertLand(value: number, from: LandUnit, to: LandUnit): number
  * ropani, so `4 daam` never appears (it is `1 paisa`) and float noise from
  * `landToSqMeters` cannot leave a unit one short.
  */
-export function sqMetersToRopani(m2: number): { ropani: number; aana: number; paisa: number; daam: number } {
+export interface LandBreakdownOptions {
+  /** Decimal places kept on the smallest unit (daam / dhur). Default `0` (whole units). */
+  decimals?: number;
+}
+
+const roundTo = (n: number, d: number) => { const f = 10 ** d; return Math.round(n * f) / f; };
+
+export function sqMetersToRopani(m2: number, options: LandBreakdownOptions = {}): { ropani: number; aana: number; paisa: number; daam: number } {
+  const d = Math.max(0, Math.min(6, Math.floor(options.decimals ?? 0)));
   const neg = m2 < 0 ? -1 : 1;
-  let daam = Math.round(Math.abs(m2) / LAND_UNIT_SQM.daam); // whole daam, nearest
-  const ropani = Math.floor(daam / 256); daam -= ropani * 256;
-  const aana = Math.floor(daam / 16); daam -= aana * 16;
-  const paisa = Math.floor(daam / 4); daam -= paisa * 4;
-  return { ropani: neg * ropani, aana: neg * aana, paisa: neg * paisa, daam: neg * daam };
+  const total = roundTo(Math.abs(m2) / LAND_UNIT_SQM.daam, d); // daam, rounded once
+  const ropani = Math.floor(total / 256 + 1e-9);
+  const aana = Math.floor((total - ropani * 256) / 16 + 1e-9);
+  const paisa = Math.floor((total - ropani * 256 - aana * 16) / 4 + 1e-9);
+  const daam = roundTo(total - ropani * 256 - aana * 16 - paisa * 4, d);
+  const z = (v: number) => (v === 0 ? 0 : neg * v);
+  return { ropani: z(ropani), aana: z(aana), paisa: z(paisa), daam: z(daam) };
 }
 
 /**
@@ -213,12 +227,15 @@ export function sqMetersToRopani(m2: number): { ropani: number; aana: number; pa
  * Rounds to the nearest whole dhur first, then carries dhur → kattha → bigha,
  * so `20 dhur` becomes `1 kattha` and `20 kattha` becomes `1 bigha`.
  */
-export function sqMetersToBigha(m2: number): { bigha: number; kattha: number; dhur: number } {
+export function sqMetersToBigha(m2: number, options: LandBreakdownOptions = {}): { bigha: number; kattha: number; dhur: number } {
+  const d = Math.max(0, Math.min(6, Math.floor(options.decimals ?? 0)));
   const neg = m2 < 0 ? -1 : 1;
-  let dhur = Math.round(Math.abs(m2) / LAND_UNIT_SQM.dhur); // whole dhur, nearest
-  const bigha = Math.floor(dhur / 400); dhur -= bigha * 400;
-  const kattha = Math.floor(dhur / 20); dhur -= kattha * 20;
-  return { bigha: neg * bigha, kattha: neg * kattha, dhur: neg * dhur };
+  const total = roundTo(Math.abs(m2) / LAND_UNIT_SQM.dhur, d); // dhur, rounded once
+  const bigha = Math.floor(total / 400 + 1e-9);
+  const kattha = Math.floor((total - bigha * 400) / 20 + 1e-9);
+  const dhur = roundTo(total - bigha * 400 - kattha * 20, d);
+  const z = (v: number) => (v === 0 ? 0 : neg * v);
+  return { bigha: z(bigha), kattha: z(kattha), dhur: z(dhur) };
 }
 
 /** `"2-3-1-0"` ropani-aana-paisa-daam from square metres. */
@@ -237,7 +254,12 @@ export function formatBigha(m2: number): string {
 
 /** Normalize a Nepali mobile to canonical `+9779XXXXXXXXX`, or null if invalid. */
 export function normalizeMobile(input: string): string | null {
-  const s = fromDevanagari(input).replace(/[\s-]/g, "").replace(/^\+?977/, "");
+  let s = fromDevanagari(input).replace(/[\s-]/g, "");
+  // Strip the country code only when a full 10-digit number follows it, so a
+  // 10-digit mobile that itself starts with 977 is not mangled.
+  const m = /^\+?977(\d{10})$/.exec(s);
+  if (m) s = m[1]!;
+  else if (s.startsWith("+")) return null;
   return /^9[678]\d{8}$/.test(s) ? `+977${s}` : null;
 }
 
@@ -274,8 +296,7 @@ export function getCarrier(input: string): Carrier {
 
 /** True for a valid Nepali mobile number (10 digits starting 96–98, optional +977). */
 export function isValidNepaliMobile(input: string): boolean {
-  const s = fromDevanagari(input).replace(/[\s-]/g, "");
-  return /^(\+?977)?9[678]\d{8}$/.test(s);
+  return normalizeMobile(input) !== null; // one rule for both, so they always agree
 }
 
 /** True for a plausible Nepal landline (area code + number, e.g. 01-4XXXXXX). */
@@ -316,6 +337,8 @@ export function numberToWordsNepali(value: number): string {
   if (n === 0) return NEPALI_0_99[0]!;
   const parts: string[] = [];
   const units: [number, string][] = [
+    [1e15, "पद्म"],
+    [1e13, "नील"],
     [1e11, "खरब"],
     [1e9, "अरब"],
     [1e7, "करोड"],
@@ -326,7 +349,7 @@ export function numberToWordsNepali(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      // NEPALI_0_99 only covers 0–99; the top (खरब) unit can exceed that, so
+      // NEPALI_0_99 only covers 0–99; the top (पद्म) unit can exceed that, so
       // render its count recursively.
       const words = count >= 100 ? numberToWordsNepali(count) : NEPALI_0_99[count]!;
       parts.push(`${words} ${name}`);
@@ -479,6 +502,9 @@ export function findDistrict(name: string): District | undefined {
 }
 
 /* ------------------------------------------------------------------------- *
+ * New in 1.4.0 — Neel/Padma scale, `{ decimals }` on land breakdowns, stricter plate
+ * grammar (province word + Pradesh/Province, province number 1–7 only), and
+ * isValidNepaliMobile ≡ normalizeMobile.
  * New in 1.3.0 — Kharab scale, "र"/"ra" rupee–paisa separator, exact land-unit
  * ratios with carry-correct ropani/bigha breakdowns, Ncell 970 + carrier status,
  * Devanagari digits in landline/PAN validators, Nepali province capitals,

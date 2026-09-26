@@ -14,6 +14,12 @@
 
 > The little things every Nepali app re-implements — done once, done right.
 
+> **New in 1.4.0** — **नील / Neel** (1e13) and **पद्म / Padma** (1e15) scales; `{ decimals }`
+> option on `sqMetersToRopani` / `sqMetersToBigha` (keep fractional daam/dhur with correct carry);
+> plates like `"Bagmati Pradesh 01-002 Pa 1234"`, `"Gandaki Province B AB 0123"`,
+> `"Pradesh No 3 …"`, and province numbers outside 1–7 now rejected; `isValidNepaliMobile`
+> now always agrees with `normalizeMobile`. Note: `numberToWords(1e13)` reads "One Neel".
+
 > **New in 1.3.0** — fixes from real-world use in a Nepali news app: **खरब / Kharab** scale
 > (1e11) in every amount-in-words and compact formatter; a **"र" / "ra"** separator
 > between rupees and paisa; **exact land-unit ratios** (1 ropani = 256 daam exactly) and

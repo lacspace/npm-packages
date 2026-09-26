@@ -58,6 +58,8 @@ export function numberToWordsNepaliRoman(value: number): string {
   if (n === 0) return ROMAN_0_99[0]!;
   const parts: string[] = [];
   const units: [number, string][] = [
+    [1e15, "Padma"],
+    [1e13, "Neel"],
     [1e11, "Kharab"],
     [1e9, "Arab"],
     [1e7, "Karod"],
@@ -128,40 +130,51 @@ export function formatNPRFromPaisa(paisa: number, options: PaisaFormatOptions = 
 
 /* --------------------------- extra validators --------------------------- */
 
-const PROVINCE_WORDS = ["province", "pradesh", "प्रदेश", "प्र", "koshi", "madhesh", "bagmati", "gandaki", "lumbini", "karnali", "sudurpashchim", "कोशी", "मधेश", "बागमती", "गण्डकी", "लुम्बिनी", "कर्णाली", "सुदूरपश्चिम"];
+const PROVINCE_NAMES = ["koshi", "madhesh", "bagmati", "gandaki", "lumbini", "karnali", "sudurpashchim", "sudurpaschim", "कोशी", "मधेश", "बागमती", "गण्डकी", "लुम्बिनी", "कर्णाली", "सुदूरपश्चिम"];
+const PROVINCE_KEYWORDS = ["province", "pradesh", "प्रदेश", "प्र"];
+const NUMBER_WORDS = ["no", "no.", "number", "नं", "नं."];
 const LETTERS = /^[A-Za-z\u0900-\u097F]{1,4}$/; // Latin or Devanagari (incl. conjuncts like "प्र")
 const DIGITS = /^\d+$/;
 
 /**
  * Loose **shape** check for a Nepali vehicle number plate. Accepts:
  * - zonal plates: `"Ba 1 Pa 1234"`, `"Ba 2 Kha 1234"`, `"बा २ ख १२३४"`, `"Ba 1-1234"`;
- * - embossed plates: `"BAGMATI B AB 0123"`, `"PROVINCE 3 B AB 0123"`, `"Pradesh 3 01 002 KHA 1234"`,
- *   `"3 B AB 0123"`, `"प्रदेश ३ ख ०१२३"`.
- * Devanagari or Latin letters, Devanagari or Arabic digits, any of space / `-` / `.` / `/`
- * as separators. Returns a boolean (shape only, not a registry lookup).
+ * - embossed / province plates: `"BAGMATI B AB 0123"`, `"Bagmati Pradesh 01-002 Pa 1234"`,
+ *   `"Gandaki Province B AB 0123"`, `"PROVINCE 3 B AB 0123"`, `"Pradesh No 3 01 002 Kha 1234"`,
+ *   `"3 B AB 0123"`, `"प्रदेश ३ ख ०१२३"`, `"बागमती प्रदेश ०१-००२ प १२३४"`.
+ * A province number, when present, must be 1–7. Devanagari or Latin letters,
+ * Devanagari or Arabic digits, any of space / `-` / `.` / `/` as separators.
+ * Returns a boolean (shape only, not a registry lookup).
  */
 export function isValidVehiclePlate(input: string): boolean {
   const s = fromDevanagari(String(input)).trim().replace(/[\s.\-/]+/g, " ").trim();
   if (!s) return false;
   const t = s.split(" ");
-  if (t.length < 2 || t.length > 6) return false;
+  if (t.length < 2 || t.length > 8) return false;
   const last = t[t.length - 1]!;
-  if (!DIGITS.test(last) || last.length < 1 || last.length > 4) return false; // serial number
+  if (!DIGITS.test(last) || last.length > 4) return false; // serial number
   const head = t.slice(0, -1);
-  // drop a leading province word / code so both forms share one grammar
   let i = 0;
-  if (PROVINCE_WORDS.includes(head[0]!.toLowerCase())) i = 1;
-  if (head[i] !== undefined && /^[1-7]$/.test(head[i]!)) i += 1; // province number
+  const low = (k: number) => (head[k] ?? "").toLowerCase();
+  let provincePrefix = false;
+  if (PROVINCE_NAMES.includes(low(i))) { i += 1; provincePrefix = true; }
+  if (PROVINCE_KEYWORDS.includes(low(i))) { i += 1; provincePrefix = true; }
+  if (provincePrefix && NUMBER_WORDS.includes(low(i))) i += 1;
+  // a single digit right after a province word, or as the very first token, is the province number
+  if (head[i] !== undefined && /^\d$/.test(head[i]!) && (provincePrefix || i === 0)) {
+    if (!/^[1-7]$/.test(head[i]!)) return false;
+    i += 1;
+    provincePrefix = true;
+  }
   const rest = head.slice(i);
-  if (rest.length === 0) return i > 0 && /^[1-7]$/.test(head[i - 1]!); // "3 0123" — province number + serial only
-  // remaining tokens: optional zone letters, optional lot digits (1–3), optional class/series letters, optional office digits (1–3)
+  if (rest.length === 0) return provincePrefix; // e.g. "3 0123", "Bagmati 1234"
   let letters = 0;
   for (const tok of rest) {
     if (LETTERS.test(tok)) letters += 1;
     else if (DIGITS.test(tok) && tok.length <= 3) continue;
     else return false;
   }
-  return letters >= 1 && letters <= 3;
+  return letters >= (provincePrefix ? 0 : 1) && letters <= 3;
 }
 
 /**

@@ -46,7 +46,7 @@ test("kharab scale in English, Nepali, Roman and compact", () => {
   expect(numberToWordsNepaliRoman(2e11)).toBe("Dui Kharab");
   expect(formatCompactNPR(2.5e11)).toBe("Rs. 2.5 Kharab");
   expect(formatCompactNPR(2.5e11, { nepali: true })).toBe("Rs. 2.5 खरब");
-  expect(numberToWords(1e13)).toBe("One Hundred Kharab");
+  expect(numberToWords(1e13)).toBe("One Neel");
 });
 
 /* 5 — plates */

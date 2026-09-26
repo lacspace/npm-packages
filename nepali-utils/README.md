@@ -14,6 +14,11 @@
 
 > The little things every Nepali app re-implements — done once, done right.
 
+> **New in 1.5.0** — `amountInWords`, `amountInWordsNepali` and `amountInWordsNepaliRoman` accept a
+> decimal string (`"99999999999999.01"`, `"Rs. 12,34,567.50"`, Devanagari digits) or exact parts
+> (`{ rupees: 99999999999999, paisa: 1 }`), so paisa stays exact beyond ~13 rupee digits; the parser is
+> exported as `splitAmount`. Number input works as before.
+
 > **1.4.1** — re-release of 1.4.0 through CI so it carries an npm provenance attestation (`npm audit signatures`). No code changes.
 
 > **New in 1.4.0** — **नील / Neel** (1e13) and **पद्म / Padma** (1e15) scales; `{ decimals }`

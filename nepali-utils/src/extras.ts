@@ -14,6 +14,8 @@ import {
   fromDevanagari,
   groupNepali,
   ungroupNepali,
+  splitAmount,
+  type AmountInput,
   PROVINCES,
   DISTRICTS,
   type Province,
@@ -79,14 +81,12 @@ export function numberToWordsNepaliRoman(value: number): string {
   return (value < 0 ? "Mainas " : "") + parts.join(" ");
 }
 
-/** `numberToWordsNepaliRoman` plus a "Rupaiyan … Matra" wrapper for invoices. */
-export function amountInWordsNepaliRoman(amount: number): string {
-  let rupees = Math.floor(Math.abs(amount));
-  let paisa = Math.round((Math.abs(amount) - rupees) * 100);
-  if (paisa === 100) { rupees += 1; paisa = 0; }
+/** `numberToWordsNepaliRoman` plus a "Rupaiyan … Matra" wrapper. Accepts a number, decimal string or `{ rupees, paisa }`. */
+export function amountInWordsNepaliRoman(amount: AmountInput): string {
+  const { rupees, paisa, negative } = splitAmount(amount);
   let out = "Rupaiyan " + numberToWordsNepaliRoman(rupees);
   if (paisa > 0) out += " ra " + numberToWordsNepaliRoman(paisa) + " Paisa";
-  return (amount < 0 ? "Mainas " : "") + out + " Matra";
+  return (negative ? "Mainas " : "") + out + " Matra";
 }
 
 /* --------------------------- integer-paisa NPR --------------------------- */

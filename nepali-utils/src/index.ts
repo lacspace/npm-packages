@@ -102,14 +102,48 @@ export function numberToWords(value: number): string {
   return (value < 0 ? "Minus " : "") + parts.join(" ");
 }
 
-/** `numberToWords` plus a "Rupees … only" wrapper for invoices. */
-export function amountInWords(amount: number): string {
-  let rupees = Math.floor(Math.abs(amount));
-  let paisa = Math.round((Math.abs(amount) - rupees) * 100);
+/**
+ * An amount for the amount-in-words helpers: a number (fine up to ~13 rupee
+ * digits), a decimal string (`"99999999999999.01"`, grouping commas allowed),
+ * or exact integer parts `{ rupees, paisa }`. Strings and parts avoid float
+ * drift, so the paisa is always exact.
+ */
+export type AmountInput = number | string | { rupees: number; paisa?: number; negative?: boolean };
+
+/** Split an {@link AmountInput} into exact integer rupees + paisa (0–99) and a sign. */
+export function splitAmount(input: AmountInput): { rupees: number; paisa: number; negative: boolean } {
+  let negative = false, rupees: number, paisa: number;
+  if (typeof input === "number") {
+    if (!Number.isFinite(input)) throw new RangeError("amount must be finite");
+    negative = input < 0;
+    const a = Math.abs(input);
+    rupees = Math.floor(a);
+    paisa = Math.round((a - rupees) * 100);
+  } else if (typeof input === "string") {
+    const m = /^\s*(-)?\s*(?:rs\.?|npr|रु\.?|रू\.?)?\s*([\d,]*)(?:\.(\d*))?\s*$/i.exec(fromDevanagari(input));
+    if (!m || (!m[2] && !m[3])) throw new RangeError(`not a decimal amount: ${input}`);
+    negative = !!m[1];
+    const intDigits = (m[2] || "0").replace(/,/g, "");
+    rupees = Number(intDigits);
+    const frac = (m[3] || "").padEnd(3, "0");
+    paisa = Number(frac.slice(0, 2)) + (Number(frac[2]) >= 5 ? 1 : 0); // round half up on the 3rd decimal
+  } else {
+    rupees = Math.trunc(Math.abs(input.rupees));
+    paisa = Math.round(Math.abs(input.paisa ?? 0));
+    negative = !!input.negative || input.rupees < 0;
+    if (paisa > 99) { rupees += Math.floor(paisa / 100); paisa %= 100; }
+  }
   if (paisa === 100) { rupees += 1; paisa = 0; }
+  if (!Number.isSafeInteger(rupees)) throw new RangeError("rupees exceed Number.MAX_SAFE_INTEGER");
+  return { rupees, paisa, negative: negative && (rupees > 0 || paisa > 0) };
+}
+
+/** `numberToWords` plus a "Rupees … only" wrapper for invoices. Accepts a number, decimal string or `{ rupees, paisa }`. */
+export function amountInWords(amount: AmountInput): string {
+  const { rupees, paisa, negative } = splitAmount(amount);
   let out = "Rupees " + numberToWords(rupees);
   if (paisa > 0) out += " and " + numberToWords(paisa) + " Paisa";
-  return (amount < 0 ? "Minus " : "") + out + " Only";
+  return (negative ? "Minus " : "") + out + " Only";
 }
 
 /** Parse a formatted NPR/Nepali-grouped string back to a number (inverse of {@link formatNPR}). */
@@ -360,14 +394,12 @@ export function numberToWordsNepali(value: number): string {
   return (value < 0 ? "माइनस " : "") + parts.join(" ");
 }
 
-/** `numberToWordsNepali` plus a "रुपैयाँ … मात्र" wrapper for Nepali invoices. */
-export function amountInWordsNepali(amount: number): string {
-  let rupees = Math.floor(Math.abs(amount));
-  let paisa = Math.round((Math.abs(amount) - rupees) * 100);
-  if (paisa === 100) { rupees += 1; paisa = 0; }
+/** `numberToWordsNepali` plus a "रुपैयाँ … मात्र" wrapper. Accepts a number, decimal string or `{ rupees, paisa }`. */
+export function amountInWordsNepali(amount: AmountInput): string {
+  const { rupees, paisa, negative } = splitAmount(amount);
   let out = "रुपैयाँ " + numberToWordsNepali(rupees);
   if (paisa > 0) out += " र " + numberToWordsNepali(paisa) + " पैसा";
-  return (amount < 0 ? "माइनस " : "") + out + " मात्र";
+  return (negative ? "माइनस " : "") + out + " मात्र";
 }
 
 export interface Province {

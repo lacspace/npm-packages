@@ -70,7 +70,7 @@ function twoDigitWords(n: number): string {
 }
 
 /**
- * Amount in words using the South-Asian system (Thousand, Lakh, Crore, Arab) —
+ * Amount in words using the South-Asian system (Thousand, Lakh, Crore, Arab, Kharab) —
  * perfect for invoices. `numberToWords(1234567)` →
  * `"Twelve Lakh Thirty Four Thousand Five Hundred Sixty Seven"`.
  */
@@ -79,6 +79,7 @@ export function numberToWords(value: number): string {
   if (n === 0) return "Zero";
   const parts: string[] = [];
   const units: [number, string][] = [
+    [1e11, "Kharab"],
     [1e9, "Arab"],
     [1e7, "Crore"],
     [1e5, "Lakh"],
@@ -88,7 +89,7 @@ export function numberToWords(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      // Hundreds are 1–9; middle units take two digits; the top (Arab) unit can
+      // Hundreds are 1–9; middle units take two digits; the top (Kharab) unit can
       // itself run into the hundreds/thousands, so render its count recursively.
       const words = size === 100 ? ONES[count]! : count >= 100 ? numberToWords(count) : twoDigitWords(count);
       parts.push(words + " " + name);
@@ -129,7 +130,7 @@ function trimNum(n: number): string {
 
 export interface CompactNprOptions {
   symbol?: string;
-  /** Use Nepali scale words (हजार/लाख/करोड/अरब). Default false (K/Lakh/Cr/Arab). */
+  /** Use Nepali scale words (हजार/लाख/करोड/अरब/खरब). Default false (K/Lakh/Cr/Arab/Kharab). */
   nepali?: boolean;
   /** Render digits in Devanagari. Default false. */
   devanagari?: boolean;
@@ -141,6 +142,7 @@ export function formatCompactNPR(amount: number, options: CompactNprOptions = {}
   const negative = amount < 0;
   const a = Math.abs(amount);
   const units: [number, string, string][] = [
+    [1e11, "Kharab", "खरब"],
     [1e9, "Arab", "अरब"],
     [1e7, "Cr", "करोड"],
     [1e5, "Lakh", "लाख"],
@@ -158,17 +160,25 @@ export function formatCompactNPR(amount: number, options: CompactNprOptions = {}
 
 export type LandUnit = "ropani" | "aana" | "paisa" | "daam" | "bigha" | "kattha" | "dhur" | "sqm" | "sqft";
 
-/** Area of one unit in square metres (hilly = ropani system, terai = bigha system). */
+const SQFT = 0.09290304; // exact: 1 international foot = 0.3048 m
+const ROPANI = 5476 * SQFT; // 508.73704704 m²
+const BIGHA = 72900 * SQFT; // 6772.631616 m²
+
+/**
+ * Area of one unit in square metres (hilly = ropani system, terai = bigha system).
+ * Every sub-unit is derived from its parent (ropani/16/64/256, bigha/20/400), so
+ * unit ratios are exact and `convertLand(1, "ropani", "daam")` is exactly 256.
+ */
 export const LAND_UNIT_SQM: Record<LandUnit, number> = {
-  ropani: 508.7369, // 5476 sq ft
-  aana: 31.79606, // ropani / 16
-  paisa: 7.949014, // ropani / 64
-  daam: 1.987254, // ropani / 256
-  bigha: 6772.631, // 72900 sq ft
-  kattha: 338.6315, // bigha / 20
-  dhur: 16.93158, // bigha / 400
+  ropani: ROPANI,
+  aana: ROPANI / 16,
+  paisa: ROPANI / 64,
+  daam: ROPANI / 256,
+  bigha: BIGHA,
+  kattha: BIGHA / 20,
+  dhur: BIGHA / 400,
   sqm: 1,
-  sqft: 0.09290304,
+  sqft: SQFT,
 };
 
 /** Total square metres from a mixed measure, e.g. `{ ropani: 2, aana: 3 }` or `{ bigha: 1, kattha: 5 }`. */
@@ -183,37 +193,32 @@ export function convertLand(value: number, from: LandUnit, to: LandUnit): number
   return (value * LAND_UNIT_SQM[from]) / LAND_UNIT_SQM[to];
 }
 
-/** Break square metres into the hilly system: `{ ropani, aana, paisa, daam }`. */
+/**
+ * Break square metres into the hilly system: `{ ropani, aana, paisa, daam }`.
+ * Rounds to the nearest whole daam first, then carries daam → paisa → aana →
+ * ropani, so `4 daam` never appears (it is `1 paisa`) and float noise from
+ * `landToSqMeters` cannot leave a unit one short.
+ */
 export function sqMetersToRopani(m2: number): { ropani: number; aana: number; paisa: number; daam: number } {
-  let rem = m2;
-  const ropani = Math.floor(rem / LAND_UNIT_SQM.ropani);
-  rem -= ropani * LAND_UNIT_SQM.ropani;
-  const aana = Math.floor(rem / LAND_UNIT_SQM.aana);
-  rem -= aana * LAND_UNIT_SQM.aana;
-  const paisa = Math.floor(rem / LAND_UNIT_SQM.paisa);
-  rem -= paisa * LAND_UNIT_SQM.paisa;
-  const daam = Math.round(rem / LAND_UNIT_SQM.daam);
-  return carryRopani({ ropani, aana, paisa, daam });
+  const neg = m2 < 0 ? -1 : 1;
+  let daam = Math.round(Math.abs(m2) / LAND_UNIT_SQM.daam); // whole daam, nearest
+  const ropani = Math.floor(daam / 256); daam -= ropani * 256;
+  const aana = Math.floor(daam / 16); daam -= aana * 16;
+  const paisa = Math.floor(daam / 4); daam -= paisa * 4;
+  return { ropani: neg * ropani, aana: neg * aana, paisa: neg * paisa, daam: neg * daam };
 }
 
-function carryRopani(r: { ropani: number; aana: number; paisa: number; daam: number }) {
-  if (r.daam >= 4) { r.paisa += Math.floor(r.daam / 4); r.daam %= 4; }
-  if (r.paisa >= 4) { r.aana += Math.floor(r.paisa / 4); r.paisa %= 4; }
-  if (r.aana >= 16) { r.ropani += Math.floor(r.aana / 16); r.aana %= 16; }
-  return r;
-}
-
-/** Break square metres into the terai system: `{ bigha, kattha, dhur }`. */
+/**
+ * Break square metres into the terai system: `{ bigha, kattha, dhur }`.
+ * Rounds to the nearest whole dhur first, then carries dhur → kattha → bigha,
+ * so `20 dhur` becomes `1 kattha` and `20 kattha` becomes `1 bigha`.
+ */
 export function sqMetersToBigha(m2: number): { bigha: number; kattha: number; dhur: number } {
-  let rem = m2;
-  const bigha = Math.floor(rem / LAND_UNIT_SQM.bigha);
-  rem -= bigha * LAND_UNIT_SQM.bigha;
-  const kattha = Math.floor(rem / LAND_UNIT_SQM.kattha);
-  rem -= kattha * LAND_UNIT_SQM.kattha;
-  const dhur = Math.round(rem / LAND_UNIT_SQM.dhur);
-  if (dhur >= 20) return { bigha: bigha + Math.floor(dhur / 20), kattha, dhur: dhur % 20 };
-  if (kattha >= 20) return { bigha: bigha + Math.floor(kattha / 20), kattha: kattha % 20, dhur };
-  return { bigha, kattha, dhur };
+  const neg = m2 < 0 ? -1 : 1;
+  let dhur = Math.round(Math.abs(m2) / LAND_UNIT_SQM.dhur); // whole dhur, nearest
+  const bigha = Math.floor(dhur / 400); dhur -= bigha * 400;
+  const kattha = Math.floor(dhur / 20); dhur -= kattha * 20;
+  return { bigha: neg * bigha, kattha: neg * kattha, dhur: neg * dhur };
 }
 
 /** `"2-3-1-0"` ropani-aana-paisa-daam from square metres. */
@@ -238,15 +243,32 @@ export function normalizeMobile(input: string): string | null {
 
 export type Carrier = "Ntc" | "Ncell" | "Smart Cell" | "UTL" | "unknown";
 
-/** Detect the carrier of a Nepali mobile number. */
+/**
+ * Three-digit mobile prefixes (after +977) per carrier. Nepal Telecom and Ncell
+ * are the only live mobile operators (2026); Smart Cell and UTL prefixes are
+ * kept so old numbers still resolve, flagged by `CARRIER_STATUS`.
+ */
+export const CARRIER_PREFIXES: Record<Exclude<Carrier, "unknown">, readonly string[]> = {
+  Ntc: ["984", "985", "986", "974", "975", "976"],
+  Ncell: ["980", "981", "982", "970"],
+  "Smart Cell": ["961", "962", "988"],
+  UTL: ["972"],
+};
+
+/** Whether a carrier still operates a mobile network (NTA licence status, 2026). */
+export const CARRIER_STATUS: Record<Exclude<Carrier, "unknown">, "active" | "defunct"> = {
+  Ntc: "active",
+  Ncell: "active",
+  "Smart Cell": "defunct",
+  UTL: "defunct",
+};
+
+/** Detect the carrier of a Nepali mobile number (see {@link CARRIER_PREFIXES}). */
 export function getCarrier(input: string): Carrier {
   const n = normalizeMobile(input);
   if (!n) return "unknown";
   const p = n.slice(4, 7); // three digits after +977
-  if (["984", "985", "986", "974", "975", "976"].includes(p)) return "Ntc";
-  if (["980", "981", "982"].includes(p)) return "Ncell";
-  if (["961", "962", "988"].includes(p)) return "Smart Cell";
-  if (p === "972") return "UTL";
+  for (const [carrier, prefixes] of Object.entries(CARRIER_PREFIXES)) if (prefixes.includes(p)) return carrier as Carrier;
   return "unknown";
 }
 
@@ -258,13 +280,13 @@ export function isValidNepaliMobile(input: string): boolean {
 
 /** True for a plausible Nepal landline (area code + number, e.g. 01-4XXXXXX). */
 export function isValidLandline(input: string): boolean {
-  const s = input.replace(/[\s-]/g, "");
+  const s = fromDevanagari(input).replace(/[\s-]/g, "");
   return /^0\d{7,9}$/.test(s);
 }
 
 /** True for a valid Nepal PAN / VAT number (9 digits). */
 export function isValidPAN(input: string): boolean {
-  return /^\d{9}$/.test(input.trim());
+  return /^\d{9}$/.test(fromDevanagari(input).trim());
 }
 
 /** True for a valid Nepal VAT number (9 digits — same format as PAN). */
@@ -294,6 +316,7 @@ export function numberToWordsNepali(value: number): string {
   if (n === 0) return NEPALI_0_99[0]!;
   const parts: string[] = [];
   const units: [number, string][] = [
+    [1e11, "खरब"],
     [1e9, "अरब"],
     [1e7, "करोड"],
     [1e5, "लाख"],
@@ -303,7 +326,7 @@ export function numberToWordsNepali(value: number): string {
   for (const [size, name] of units) {
     if (n >= size) {
       const count = Math.floor(n / size);
-      // NEPALI_0_99 only covers 0–99; the top (अरब) unit can exceed that, so
+      // NEPALI_0_99 only covers 0–99; the top (खरब) unit can exceed that, so
       // render its count recursively.
       const words = count >= 100 ? numberToWordsNepali(count) : NEPALI_0_99[count]!;
       parts.push(`${words} ${name}`);
@@ -320,7 +343,7 @@ export function amountInWordsNepali(amount: number): string {
   let paisa = Math.round((Math.abs(amount) - rupees) * 100);
   if (paisa === 100) { rupees += 1; paisa = 0; }
   let out = "रुपैयाँ " + numberToWordsNepali(rupees);
-  if (paisa > 0) out += " " + numberToWordsNepali(paisa) + " पैसा";
+  if (paisa > 0) out += " र " + numberToWordsNepali(paisa) + " पैसा";
   return (amount < 0 ? "माइनस " : "") + out + " मात्र";
 }
 
@@ -329,17 +352,19 @@ export interface Province {
   name: string;
   nameNp: string;
   capital: string;
+  /** Capital in Nepali (Devanagari). */
+  capitalNp: string;
 }
 
 /** Nepal's seven federal provinces. */
 export const PROVINCES: readonly Province[] = [
-  { number: 1, name: "Koshi", nameNp: "कोशी", capital: "Biratnagar" },
-  { number: 2, name: "Madhesh", nameNp: "मधेश", capital: "Janakpur" },
-  { number: 3, name: "Bagmati", nameNp: "बागमती", capital: "Hetauda" },
-  { number: 4, name: "Gandaki", nameNp: "गण्डकी", capital: "Pokhara" },
-  { number: 5, name: "Lumbini", nameNp: "लुम्बिनी", capital: "Deukhuri" },
-  { number: 6, name: "Karnali", nameNp: "कर्णाली", capital: "Birendranagar" },
-  { number: 7, name: "Sudurpashchim", nameNp: "सुदूरपश्चिम", capital: "Godawari" },
+  { number: 1, name: "Koshi", nameNp: "कोशी", capital: "Biratnagar", capitalNp: "विराटनगर" },
+  { number: 2, name: "Madhesh", nameNp: "मधेश", capital: "Janakpur", capitalNp: "जनकपुर" },
+  { number: 3, name: "Bagmati", nameNp: "बागमती", capital: "Hetauda", capitalNp: "हेटौँडा" },
+  { number: 4, name: "Gandaki", nameNp: "गण्डकी", capital: "Pokhara", capitalNp: "पोखरा" },
+  { number: 5, name: "Lumbini", nameNp: "लुम्बिनी", capital: "Deukhuri", capitalNp: "देउखुरी" },
+  { number: 6, name: "Karnali", nameNp: "कर्णाली", capital: "Birendranagar", capitalNp: "वीरेन्द्रनगर" },
+  { number: 7, name: "Sudurpashchim", nameNp: "सुदूरपश्चिम", capital: "Godawari", capitalNp: "गोदावरी" },
 ];
 
 export interface District {
@@ -347,6 +372,8 @@ export interface District {
   nameNp: string;
   /** Province number 1–7. */
   province: number;
+  /** Other accepted spellings/names (English or Nepali), matched by {@link findDistrict}. */
+  aliases?: readonly string[];
 }
 
 /** Nepal's 77 districts, with their province number. */
@@ -397,7 +424,7 @@ export const DISTRICTS: readonly District[] = [
   { name: "Manang", nameNp: "मनाङ", province: 4 },
   { name: "Mustang", nameNp: "मुस्ताङ", province: 4 },
   { name: "Myagdi", nameNp: "म्याग्दी", province: 4 },
-  { name: "Nawalpur", nameNp: "नवलपुर", province: 4 },
+  { name: "Nawalparasi East", nameNp: "नवलपरासी (बर्दघाट सुस्ता पूर्व)", province: 4, aliases: ["Nawalpur", "नवलपुर", "Nawalparasi (East of Bardaghat Susta)", "Nawalparasi (Bardaghat Susta East)", "Nawalparasi Purba", "नवलपरासी पूर्व"] },
   { name: "Parbat", nameNp: "पर्वत", province: 4 },
   { name: "Syangja", nameNp: "स्याङ्जा", province: 4 },
   { name: "Tanahun", nameNp: "तनहुँ", province: 4 },
@@ -406,10 +433,10 @@ export const DISTRICTS: readonly District[] = [
   { name: "Banke", nameNp: "बाँके", province: 5 },
   { name: "Bardiya", nameNp: "बर्दिया", province: 5 },
   { name: "Dang", nameNp: "दाङ", province: 5 },
-  { name: "Eastern Rukum", nameNp: "पूर्वी रुकुम", province: 5 },
+  { name: "Eastern Rukum", nameNp: "पूर्वी रुकुम", province: 5, aliases: ["Rukum East", "Rukum Purba", "रुकुम पूर्व"] },
   { name: "Gulmi", nameNp: "गुल्मी", province: 5 },
   { name: "Kapilvastu", nameNp: "कपिलवस्तु", province: 5 },
-  { name: "Parasi", nameNp: "नवलपरासी (पश्चिम)", province: 5 },
+  { name: "Nawalparasi West", nameNp: "नवलपरासी (बर्दघाट सुस्ता पश्चिम)", province: 5, aliases: ["Parasi", "परासी", "Nawalparasi (West of Bardaghat Susta)", "Nawalparasi (Bardaghat Susta West)", "Nawalparasi Paschim", "नवलपरासी पश्चिम"] },
   { name: "Palpa", nameNp: "पाल्पा", province: 5 },
   { name: "Pyuthan", nameNp: "प्युठान", province: 5 },
   { name: "Rolpa", nameNp: "रोल्पा", province: 5 },
@@ -424,7 +451,7 @@ export const DISTRICTS: readonly District[] = [
   { name: "Mugu", nameNp: "मुगु", province: 6 },
   { name: "Salyan", nameNp: "सल्यान", province: 6 },
   { name: "Surkhet", nameNp: "सुर्खेत", province: 6 },
-  { name: "Western Rukum", nameNp: "पश्चिमी रुकुम", province: 6 },
+  { name: "Western Rukum", nameNp: "पश्चिमी रुकुम", province: 6, aliases: ["Rukum West", "Rukum Paschim", "रुकुम पश्चिम"] },
   // Sudurpashchim (7)
   { name: "Achham", nameNp: "अछाम", province: 7 },
   { name: "Baitadi", nameNp: "बैतडी", province: 7 },
@@ -442,13 +469,20 @@ export function districtsByProvince(province: number): District[] {
   return DISTRICTS.filter((d) => d.province === province);
 }
 
-/** Find a district by English or Nepali name (case-insensitive). */
+/** Find a district by English or Nepali name or any alias (case-insensitive). */
 export function findDistrict(name: string): District | undefined {
-  const q = name.trim().toLowerCase();
-  return DISTRICTS.find((d) => d.name.toLowerCase() === q || d.nameNp === name.trim());
+  const raw = name.trim();
+  const q = raw.toLowerCase();
+  return DISTRICTS.find(
+    (d) => d.name.toLowerCase() === q || d.nameNp === raw || (d.aliases ?? []).some((a) => a.toLowerCase() === q),
+  );
 }
 
 /* ------------------------------------------------------------------------- *
+ * New in 1.3.0 — Kharab scale, "र"/"ra" rupee–paisa separator, exact land-unit
+ * ratios with carry-correct ropani/bigha breakdowns, Ncell 970 + carrier status,
+ * Devanagari digits in landline/PAN validators, Nepali province capitals,
+ * district aliases (official Nawalparasi East/West), embossed plate shapes.
  * New in 1.2.0 — Roman (transliterated) amount-in-words, integer-paisa NPR
  * format/parse, digit-conversion aliases, extra shape validators, and
  * province lookup helpers. See `./extras`.

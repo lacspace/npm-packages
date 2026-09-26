@@ -14,6 +14,22 @@
 
 > The little things every Nepali app re-implements — done once, done right.
 
+> **New in 1.3.0** — fixes from real-world use in a Nepali news app: **खरब / Kharab** scale
+> (1e11) in every amount-in-words and compact formatter; a **"र" / "ra"** separator
+> between rupees and paisa; **exact land-unit ratios** (1 ropani = 256 daam exactly) and
+> **carry-correct** `sqMetersToBigha` / `sqMetersToRopani` (20 dhur → 1 kattha, never
+> "4 daam"); **embossed number plates** (`"BAGMATI B AB 0123"`, `"Ba 1 Pa 1234"`,
+> `"प्रदेश ३ ख ०१२३"`) in `isValidVehiclePlate`; **Devanagari digits** in `isValidLandline`
+> / `isValidPAN`; `capitalNp` on every province; district `aliases` with the official
+> **Nawalparasi East / West (Bardaghat Susta)** names (old "Nawalpur" / "Parasi" still
+> resolve); Ncell **970** plus `CARRIER_PREFIXES` / `CARRIER_STATUS` (Smart Cell and UTL
+> marked defunct).
+>
+> ⚠️ Output changes to note when upgrading: `amountInWordsNepali(1500.5)` now reads
+> "… पाँच सय **र** पचास पैसा मात्र"; `numberToWords(1e11)` reads "One Kharab" (was
+> "One Hundred Arab"); the two Nawalparasi districts' `name` fields are now
+> "Nawalparasi East" / "Nawalparasi West" (lookups by the old names still work).
+
 > **New in 1.2.0** — transliterated (Roman) Nepali amount-in-words
 > (`numberToWordsNepaliRoman` / `amountInWordsNepaliRoman`), **integer-paisa**
 > NPR format/parse (`formatNPRFromPaisa` / `parseNPRToPaisa`, no float drift),
@@ -77,7 +93,7 @@ isValidPAN("123456789");               // true (9 digits)
 import { PROVINCES } from "@lacspace/nepali-utils";
 
 PROVINCES[2];
-// { number: 3, name: "Bagmati", nameNp: "बागमती", capital: "Hetauda" }
+// { number: 3, name: "Bagmati", nameNp: "बागमती", capital: "Hetauda", capitalNp: "हेटौँडा" }
 ```
 
 ## API
@@ -127,7 +143,7 @@ formatRopani(m2);                                      // "2-3-0-0"
 
 // Phones
 normalizeMobile("984-123 4567");                       // "+9779841234567"
-getCarrier("9801234567");                              // "Ncell"
+getCarrier("9801234567");                              // "Ncell"  (970 too; see CARRIER_PREFIXES / CARRIER_STATUS)
 
 // Money & geography
 ungroupNepali("Rs. 12,34,567.50");                     // 1234567.5
@@ -136,7 +152,7 @@ districtsByProvince(3);                                 // 13 Bagmati districts
 findDistrict("काठमाडौं")?.province;                    // 3
 
 // Invoices in Nepali
-amountInWordsNepali(1500.5);  // "रुपैयाँ एक हजार पाँच सय पचास पैसा मात्र"
+amountInWordsNepali(1500.5);  // "रुपैयाँ एक हजार पाँच सय र पचास पैसा मात्र"
 ```
 
 ## New in 1.2 — Roman words, integer-paisa NPR, more validators & lookups

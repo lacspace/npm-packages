@@ -16,7 +16,7 @@ test("amountInWords(1.999) carries paisa to rupees", () => {
 test("numberToWords(100000000000) has no 'undefined'", () => {
   const out = numberToWords(100000000000);
   expect(out).not.toContain("undefined");
-  expect(out).toBe("One Hundred Arab");
+  expect(out).toBe("One Kharab");
 });
 
 test("groupNepali preserves the sign", () => {

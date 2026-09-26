@@ -39,11 +39,11 @@ test("numberToWordsNepaliRoman small + zero + negative", () => {
 test("numberToWordsNepaliRoman handles Arab (recursion) with no undefined", () => {
   const out = numberToWordsNepaliRoman(100000000000);
   expect(out).not.toContain("undefined");
-  expect(out).toBe("Ek Saya Arab");
+  expect(out).toBe("Ek Kharab");
 });
 
 test("amountInWordsNepaliRoman wraps with Rupaiyan/Matra + paisa", () => {
-  expect(amountInWordsNepaliRoman(1500.5)).toBe("Rupaiyan Ek Hajar Panch Saya Pachas Paisa Matra");
+  expect(amountInWordsNepaliRoman(1500.5)).toBe("Rupaiyan Ek Hajar Panch Saya ra Pachas Paisa Matra");
   expect(amountInWordsNepaliRoman(2)).toBe("Rupaiyan Dui Matra");
 });
 

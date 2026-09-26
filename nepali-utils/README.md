@@ -14,6 +14,8 @@
 
 > The little things every Nepali app re-implements — done once, done right.
 
+> **1.4.1** — re-release of 1.4.0 through CI so it carries an npm provenance attestation (`npm audit signatures`). No code changes.
+
 > **New in 1.4.0** — **नील / Neel** (1e13) and **पद्म / Padma** (1e15) scales; `{ decimals }`
 > option on `sqMetersToRopani` / `sqMetersToBigha` (keep fractional daam/dhur with correct carry);
 > plates like `"Bagmati Pradesh 01-002 Pa 1234"`, `"Gandaki Province B AB 0123"`,

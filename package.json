@@ -138,7 +138,10 @@
     "session",
     "oauth",
     "condense",
-    "screen"
+    "screen",
+    "keyphrase",
+    "llm-cache",
+    "keypool"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
@@ -171,7 +174,7 @@
     "publish:webkit": "npm -w @lacspace/web-push publish --access public && npm -w @lacspace/pwa publish --access public && npm -w @lacspace/notify publish --access public && npm -w @lacspace/captcha publish --access public && npm -w @lacspace/sse publish --access public && npm -w @lacspace/consent publish --access public",
     "build:globalkit": "npm -w @lacspace/country run build && npm -w @lacspace/currency run build && npm -w @lacspace/iban run build && npm -w @lacspace/tax-id run build && npm -w @lacspace/phone run build && npm -w @lacspace/postal-code run build",
     "build:authkit": "npm -w @lacspace/session run build && npm -w @lacspace/oauth run build",
-    "build:newsroomkit": "npm -w @lacspace/condense run build && npm -w @lacspace/screen run build"
+    "build:newsroomkit": "npm -w @lacspace/condense run build && npm -w @lacspace/screen run build && npm -w @lacspace/keyphrase run build && npm -w @lacspace/llm-cache run build && npm -w @lacspace/keypool run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

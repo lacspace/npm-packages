@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/keyphrase",
+  "version": "1.0.0",
+  "description": "Extractive keyphrases, tags, hashtags, named entities and category votes — a zero-dependency RAKE + TF-IDF engine with built-in English and Nepali stopwords, Devanagari-aware, so you can stop asking an LLM to generate tags/hashtags/entities. Deterministic, isomorphic, typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["keyphrase", "keyword-extraction", "rake", "tfidf", "tags", "hashtags", "named-entity", "category", "extractive", "nepali", "devanagari", "stopwords", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/keyphrase",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "keyphrase" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

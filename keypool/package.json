@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/keypool",
+  "version": "1.0.0",
+  "description": "Provider-agnostic API-key rotation and rate-limit accounting — pool N free keys per provider, track RPM/RPD/TPM/TPD windows from response headers and 429 retry-after, round-robin among healthy keys, cool down on 429, quarantine invalid keys, and keep per-model buckets (Groq TPD is per model). pick(provider, model, estTokens) → key | null; report(key, result). Persist state via a tiny adapter so multiple processes share the pool. Zero-dependency, isomorphic, typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["api-key", "key-rotation", "rate-limit", "keypool", "round-robin", "429", "retry-after", "quota", "rpm", "tpm", "gemini", "groq", "openai", "free-tier", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/keypool",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "keypool" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

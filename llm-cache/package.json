@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/llm-cache",
+  "version": "1.0.0",
+  "description": "A content-hash cache for LLM calls — key by (model family, prompt version, normalized input) so identical requests, retries after a 429, and repeated rewrites never pay twice. Pluggable async store (in-memory LRU built in, Mongo/Redis/KV via a tiny adapter interface), TTL, stale-if-error, and a wrap() memoizer. Zero-dependency, isomorphic, typed.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["llm-cache", "cache", "memoize", "content-hash", "prompt-cache", "ttl", "lru", "openai", "gemini", "groq", "rate-limit", "429", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/llm-cache",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "llm-cache" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

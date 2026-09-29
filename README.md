@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **150+ published packages and CLIs** (135 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **150+ published packages and CLIs** (138 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -314,6 +314,9 @@ Do the expensive model's cheap work with zero-dep tools, so a free-tier key goes
 | --- | --- | --- |
 | [`@lacspace/condense`](./condense) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcondense?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/condense) | Extractive multi-source condenser — BM25 ranking, dedupe, keep numbers/quotes/entities, token budget, Devanagari-aware; cuts LLM input ~50% on overlapping sources |
 | [`@lacspace/screen`](./screen) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fscreen?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/screen) | Cheap lexical content screener / LLM admission gate — weighted multi-language lexicons, negation, gazetteer, clear/review/block; skips the model on clearly-clean or clearly-flagged text |
+| [`@lacspace/keyphrase`](./keyphrase) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fkeyphrase?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/keyphrase) | Extractive tags/hashtags/entities/category-votes (RAKE+TF-IDF), en+ne stopwords, Devanagari-aware — stop generating tags with the LLM |
+| [`@lacspace/llm-cache`](./llm-cache) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fllm-cache?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/llm-cache) | Content-hash cache for LLM calls (model family + prompt version + input); pluggable store, TTL, wrap(), stale-if-error — retries after a 429 never pay twice |
+| [`@lacspace/keypool`](./keypool) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fkeypool?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/keypool) | Provider-agnostic key rotation + RPM/RPD/TPM/TPD accounting (per model), 429 cooldown, invalid-key quarantine, shared state — N free keys act as one quota |
 
 ### 🧠 AI App Kit
 
@@ -461,7 +464,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-150+ packages and CLIs (135 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+150+ packages and CLIs (138 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

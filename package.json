@@ -136,7 +136,9 @@
     "phone",
     "postal-code",
     "session",
-    "oauth"
+    "oauth",
+    "condense",
+    "screen"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",
@@ -168,7 +170,8 @@
     "build:webkit": "npm -w @lacspace/web-push run build && npm -w @lacspace/pwa run build && npm -w @lacspace/notify run build && npm -w @lacspace/captcha run build && npm -w @lacspace/sse run build && npm -w @lacspace/consent run build",
     "publish:webkit": "npm -w @lacspace/web-push publish --access public && npm -w @lacspace/pwa publish --access public && npm -w @lacspace/notify publish --access public && npm -w @lacspace/captcha publish --access public && npm -w @lacspace/sse publish --access public && npm -w @lacspace/consent publish --access public",
     "build:globalkit": "npm -w @lacspace/country run build && npm -w @lacspace/currency run build && npm -w @lacspace/iban run build && npm -w @lacspace/tax-id run build && npm -w @lacspace/phone run build && npm -w @lacspace/postal-code run build",
-    "build:authkit": "npm -w @lacspace/session run build && npm -w @lacspace/oauth run build"
+    "build:authkit": "npm -w @lacspace/session run build && npm -w @lacspace/oauth run build",
+    "build:newsroomkit": "npm -w @lacspace/condense run build && npm -w @lacspace/screen run build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

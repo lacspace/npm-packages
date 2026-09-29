@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/screen",
+  "version": "1.0.0",
+  "description": "A cheap, zero-dependency lexical content screener and LLM admission gate — score text against your own weighted term lexicons (multi-language, with negation and proximity windows and an optional named-entity gazetteer) and get back a clear / review / block decision, so obviously-clean and obviously-flagged text never has to reach an expensive model. Deterministic, isomorphic, auditable.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["content-moderation", "lexical", "screener", "triage", "llm-gate", "admission-control", "classifier", "keyword-scoring", "negation", "gazetteer", "sensitivity", "nepali", "devanagari", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/screen",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "screen" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

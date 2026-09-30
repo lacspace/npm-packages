@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/translit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Nepali ⇄ English name transliteration and cross-script fuzzy name matching — romanize Devanagari, generate spelling variants (Poudel/Paudel), strip honorifics, and match \"Ram Chandra Poudel\" to \"रामचन्द्र पौडेल\". Plus Devanagari-aware script-ratio and language-mix analysis that ignores proper nouns and quotes. Zero-dependency, isomorphic, deterministic.",
   "type": "module",
   "main": "./dist/index.cjs",

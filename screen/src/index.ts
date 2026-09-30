@@ -6,9 +6,20 @@
  * clear / review / block decision. Deterministic and zero-dependency.
  */
 
+/** A term with optional context rules for word-sense disambiguation. */
+export interface TermRule {
+  term: string;
+  /** Score for this term (overrides the dimension weight). */
+  weight?: number;
+  /** Only count this term when one of these words appears within the context window (right sense). */
+  requiresNear?: string[];
+  /** Ignore this term when any of these words appears within the context window (wrong sense — e.g. सीमा "border" vs "limit"). */
+  excludeNear?: string[];
+}
+
 export interface DimensionSpec {
-  /** Terms/phrases that signal this dimension. Latin matched case-insensitively on word boundaries; non-Latin (e.g. Devanagari) matched as substrings. */
-  terms: string[];
+  /** Terms/phrases that signal this dimension — plain strings, or `{ term, requiresNear?, excludeNear?, weight? }` for context rules. Latin matched case-insensitively on word boundaries; non-Latin (e.g. Devanagari) matched as substrings. */
+  terms: (string | TermRule)[];
   /** Score added per matched term. Default 1. */
   weight?: number;
   /** If any single hit on this dimension appears, the decision is at least "review" (never "clear"). Good for minor / election-sensitive. */
@@ -125,15 +136,31 @@ export function createScreen(config: ScreenConfig): Screen {
   const gazBoost = config.gazetteerBoost ?? 0.5;
   const th = { clear: 0, review: 1, block: Infinity, ...(config.thresholds ?? {}) };
 
-  // Pre-split each dimension's terms into latin (token match) and substring (non-latin).
-  const dims = Object.entries(config.dimensions).map(([name, spec]) => ({
-    name,
-    weight: spec.weight ?? 1,
-    forceReview: spec.forceReview ?? false,
-    forceBlock: spec.forceBlock ?? false,
-    latin: spec.terms.filter(isLatin).map((t) => ({ term: t, words: termWords(t) })),
-    other: spec.terms.filter((t) => !isLatin(t)),
-  }));
+  const windowChars = (window + 1) * 10;
+
+  // Pre-split each dimension's terms into latin (token match) and substring (non-latin),
+  // normalizing plain strings and {term, requiresNear, excludeNear, weight} rules alike.
+  const dims = Object.entries(config.dimensions).map(([name, spec]) => {
+    const rules = spec.terms.map((t): TermRule => (typeof t === "string" ? { term: t } : t));
+    return {
+      name,
+      weight: spec.weight ?? 1,
+      forceReview: spec.forceReview ?? false,
+      forceBlock: spec.forceBlock ?? false,
+      latin: rules.filter((r) => isLatin(r.term)).map((r) => ({ rule: r, words: termWords(r.term) })),
+      other: rules.filter((r) => !isLatin(r.term)),
+    };
+  });
+
+  // A term's context rule is satisfied when its required words are near and its
+  // excluded words are not, within a character window around the hit.
+  const contextOk = (text: string, s: number, e: number, rule: TermRule): boolean => {
+    if (!rule.requiresNear && !rule.excludeNear) return true;
+    const slice = text.slice(Math.max(0, s - windowChars), e + windowChars).toLowerCase();
+    if (rule.requiresNear && !rule.requiresNear.some((k) => slice.includes(k.toLowerCase()))) return false;
+    if (rule.excludeNear && rule.excludeNear.some((k) => slice.includes(k.toLowerCase()))) return false;
+    return true;
+  };
 
   const screen = ((text: string): ScreenResult => {
     const toks = tokenize(text);
@@ -159,32 +186,39 @@ export function createScreen(config: ScreenConfig): Screen {
       let anyActive = false;
       let anyHit = false;
       // Latin multi-word phrase matching over the token stream.
-      for (const { term, words } of d.latin) {
+      for (const { rule, words } of d.latin) {
         if (words.length === 0) continue;
+        const w = rule.weight ?? d.weight;
         for (let i = 0; i + words.length <= toks.length; i++) {
           let ok = true;
           for (let j = 0; j < words.length; j++) if (toks[i + j]!.norm !== words[j]) { ok = false; break; }
           if (!ok) continue;
+          const last = toks[i + words.length - 1]!;
+          if (!contextOk(text, toks[i]!.start, last.start + last.raw.length, rule)) continue; // wrong sense — skip
           const neg = negatedNear(i) || negatedNear(i + words.length - 1);
-          hits.push({ dim: d.name, term, pos: i, weight: d.weight, negated: neg });
+          hits.push({ dim: d.name, term: rule.term, pos: i, weight: w, negated: neg });
           anyHit = true;
           if (!neg) {
-            scores[d.name]! += d.weight;
+            scores[d.name]! += w;
             anyActive = true;
           }
         }
       }
       // Non-Latin substring matching (Devanagari etc.), position by nearest token.
-      for (const term of d.other) {
+      for (const rule of d.other) {
+        const term = rule.term;
+        const w = rule.weight ?? d.weight;
         let idx = text.indexOf(term);
         while (idx !== -1) {
-          const pos = nearestToken(toks, idx);
-          const neg = pos >= 0 ? negatedNear(pos) : false;
-          hits.push({ dim: d.name, term, pos, weight: d.weight, negated: neg });
-          anyHit = true;
-          if (!neg) {
-            scores[d.name]! += d.weight;
-            anyActive = true;
+          if (contextOk(text, idx, idx + term.length, rule)) {
+            const pos = nearestToken(toks, idx);
+            const neg = pos >= 0 ? negatedNear(pos) : false;
+            hits.push({ dim: d.name, term, pos, weight: w, negated: neg });
+            anyHit = true;
+            if (!neg) {
+              scores[d.name]! += w;
+              anyActive = true;
+            }
           }
           idx = text.indexOf(term, idx + term.length);
         }

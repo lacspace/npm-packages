@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/screen",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A cheap, zero-dependency lexical content screener and LLM admission gate \u2014 score text against your own weighted term lexicons (multi-language, with negation and proximity windows and an optional named-entity gazetteer) and get back a clear / review / block decision, so obviously-clean and obviously-flagged text never has to reach an expensive model. Deterministic, isomorphic, auditable.",
   "type": "module",
   "main": "./dist/index.cjs",

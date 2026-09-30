@@ -57,6 +57,23 @@ Two boundaries decide the band: `clear` is the ceiling below which text clears, 
 
 Negation suffix patterns must include the vowel that marks the verb form. Use `"-ेन"`, `"-ैन"`, `"-एन"`, `"-िएन"`, `"-ेनन्"`, `"-ैनन्"` — **not** a bare `"-न"`. A bare consonant suffix over-matches ordinary Nepali nouns and numbers that also end in that consonant (तीन "three", निर्वाचन "election" both end in न), which would wrongly negate real hits. The tokenizer keeps combining marks (matras, virama, anusvara) inside words, so whole Devanagari words match as written.
 
+## Context rules (word-sense disambiguation)
+
+A term can carry its own context so one spelling doesn't fire on the wrong meaning. Give a term object with `requiresNear` (only count it when one of these is close) and/or `excludeNear` (ignore it when one of these is close):
+
+```ts
+dimensions: {
+  security: {
+    terms: [
+      // सीमा means "border" AND "limit"; only treat it as security near border words.
+      { term: "सीमा", requiresNear: ["नाका", "क्षेत्र", "विवाद", "सुरक्षा"], excludeNear: ["दर", "मूल्य", "रकम", "अवधि"] },
+    ],
+  },
+}
+```
+
+The window is `contextWindow` scaled to characters. A term rule may also set its own `weight`. Plain strings still work; mix them freely.
+
 ## API
 
 ```ts

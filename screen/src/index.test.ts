@@ -130,3 +130,40 @@ describe("Devanagari tokenization regression (1.0.1)", () => {
     expect(screen("आज मौसम राम्रो छ र बजार शान्त छ।").decision).toBe("clear");
   });
 });
+
+describe("context rules (1.1.0) — word-sense disambiguation", () => {
+  const cfg: ScreenConfig = {
+    dimensions: {
+      security: {
+        terms: [
+          { term: "सीमा", requiresNear: ["नाका", "क्षेत्र", "विवाद", "सुरक्षा"], excludeNear: ["दर", "मूल्य", "रकम", "अवधि"] },
+        ],
+        weight: 1,
+      },
+    },
+    thresholds: { clear: 0, review: 1 },
+  };
+  const screen = createScreen(cfg);
+
+  it("counts सीमा (border) near नाका/विवाद", () => {
+    // "सीमा नाका मा विवाद" — border-crossing dispute → security hit
+    expect(screen("सीमा नाकामा विवाद भयो।").decision).toBe("review");
+  });
+  it("ignores सीमा (limit) near दर/रकम", () => {
+    // "माथिल्लो सीमा दर" — upper limit rate → NOT security
+    expect(screen("माथिल्लो सीमा दर तोकियो।").decision).toBe("clear");
+    expect(screen("रकमको सीमा बढ्यो।").scores.security).toBe(0);
+  });
+  it("requiresNear: no required context means no hit", () => {
+    expect(screen("सीमा एक शब्द हो।").decision).toBe("clear");
+  });
+  it("Latin requiresNear/excludeNear and per-term weight", () => {
+    const c = createScreen({
+      dimensions: { risk: { terms: [{ term: "strike", requiresNear: ["workers", "union"], excludeNear: ["air", "drone"], weight: 2 }] } },
+      thresholds: { clear: 0, review: 1 },
+    });
+    expect(c("the workers went on strike today").scores.risk).toBe(2);
+    expect(c("an air strike was reported").decision).toBe("clear");
+    expect(c("a strike happened").decision).toBe("clear"); // no required context
+  });
+});

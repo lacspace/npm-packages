@@ -25,7 +25,9 @@ nameVariants("Poudel");               // ["Poudel", "Paudel", ...]
 
 ## What it does
 
-- **`matchName(a, b, { threshold?, gazetteer? })`** — compares two names across scripts and spellings. It romanizes Devanagari, strips honorifics, and scores with a phonetic key (Poudel/Paudel collapse), whole-string similarity (handles रामचन्द्र written as one token vs "Ram Chandra"), and initials/abbreviations (K.P., Bdr.). Pass a `gazetteer` to get the canonical spelling back.
+- **`matchName(a, b, { threshold?, gazetteer?, strictSibilants? })`** — compares two names across scripts and spellings. It romanizes Devanagari, strips honorifics/office titles, and applies a **per-token safety guard** (each token must agree on its consonant skeleton and syllable count) so two *different* people who share a surname never collapse into one — Sita Sharma ≠ Gita Sharma, Sushila ≠ Sushil, शाह Shah ≠ साह Sah under `strictSibilants: true`. Handles cross-script merge/split (रामचन्द्र ≡ "Ram Chandra"), spelling variants (Poudel/Paudel, Adhikary/Adhikari, देउवा/Deuba), and initials/abbreviations (K.P., Bdr.). Pass a `gazetteer` to get the canonical spelling back.
+  - ⚠️ **Check `match`, not `score`.** A pair can score above `threshold` yet return `match: false` because it failed the safety guard (they look alike but are different people). Always branch on `result.match`.
+  - `strictSibilants: true` keeps श/ष ("sh") distinct from स ("s") for callers who need साह and शाह kept apart; default is lenient (sh ≈ s, tolerant of romanization variance).
 - **`transliterate(text, { from?, to? })`** — Devanagari→Latin is a solid phonetic romanization with schwa deletion (राम → raam); Latin→Devanagari is best-effort.
 - **`nameVariants(name)`** — common spelling variants for search/matching.
 - **`stripHonorifics` / `normalizeName` / `phoneticKey`** — the building blocks, exported.

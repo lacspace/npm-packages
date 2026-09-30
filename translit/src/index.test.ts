@@ -121,6 +121,48 @@ describe("matchName — still matches the same person (1.0.1)", () => {
   });
 });
 
+describe("matchName — 1.0.2 fixes", () => {
+  it("matches -y ↔ -i / -e surname spellings (final y is a vowel)", () => {
+    for (const [a, b] of [
+      ["Biswo Raj Adhikary", "Bishwo Raj Adhikari"],
+      ["Chaudhary", "चौधरी"],
+      ["Chaudhary", "Chaudhari"],
+      ["Adhikary", "अधिकारी"],
+      ["Tiwary", "तिवारी"],
+      ["Bhandary", "Bhandari"],
+      ["Pandey", "पाण्डे"],
+      ["Upadhyay", "उपाध्याय"],
+    ] as const) {
+      expect(matchName(a, b).match, `${a} vs ${b}`).toBe(true);
+    }
+  });
+
+  it("matches through medial schwa (आरजु राणा देउवा ↔ Arzu Rana Deuba)", () => {
+    expect(matchName("Arzu Rana Deuba", "आरजु राणा देउवा").match).toBe(true);
+  });
+
+  it("strictSibilants keeps श/ष apart from स", () => {
+    // Default: lenient (sh ≈ s).
+    expect(matchName("Anil Shah", "Anil Sah").match).toBe(true);
+    // Strict: शाह (Shah) and साह (Sah) are different surnames.
+    expect(matchName("Anil Shah", "Anil Sah", { strictSibilants: true }).match).toBe(false);
+    // Strict still matches like-for-like sibilants across scripts.
+    expect(matchName("Shah", "शाह", { strictSibilants: true }).match).toBe(true);
+    expect(matchName("Anil Sah", "अनिल साह", { strictSibilants: true }).match).toBe(true);
+  });
+
+  it("does not regress the safety rejects", () => {
+    for (const [a, b] of [
+      ["Sita Sharma", "Gita Sharma"],
+      ["Ram Poudel", "Shyam Poudel"],
+      ["Gyanendra Shahi", "Gyanendra Shah"],
+      ["Sushila Karki", "Sushil Karki"],
+    ] as const) {
+      expect(matchName(a, b).match, `${a} vs ${b}`).toBe(false);
+    }
+  });
+});
+
 describe("dominantScript — safer defaults (1.0.1)", () => {
   it("does not zero out genuine Nepali prose mixed with a little English", () => {
     const text = "नेपालमा आज बजेट पेश भयो, GDP वृद्धिदर राम्रो रहेको छ र बजार सकारात्मक भयो।";

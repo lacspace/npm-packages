@@ -158,6 +158,12 @@ export interface MatchNameOptions {
   threshold?: number;
   /** Known canonical names (any script) — a hit returns that spelling as `canonical`. */
   gazetteer?: string[];
+  /**
+   * Keep the sibilants apart: श/ष ("sh") and स ("s") are treated as distinct
+   * consonants, so different Nepali surnames like शाह (Shah) and साह (Sah) do not
+   * match. Default false (lenient — sh ≈ s, tolerant of romanization variance).
+   */
+  strictSibilants?: boolean;
 }
 
 export interface MatchNameResult {
@@ -178,16 +184,17 @@ export interface MatchNameResult {
  */
 export function matchName(a: string, b: string, options: MatchNameOptions = {}): MatchNameResult {
   const threshold = options.threshold ?? 0.82;
+  const strict = options.strictSibilants ?? false;
   const na = normalizeName(a);
   const nb = normalizeName(b);
-  const m = matchNormalized(na, nb);
+  const m = matchNormalized(na, nb, strict);
   const result: MatchNameResult = { match: m.safe && m.score >= threshold, score: round(m.score), a: na, b: nb };
   if (options.gazetteer) {
     let best: { name: string; score: number } | null = null;
     for (const g of options.gazetteer) {
       const ng = normalizeName(g);
-      const ra = matchNormalized(na, ng);
-      const rb = matchNormalized(nb, ng);
+      const ra = matchNormalized(na, ng, strict);
+      const rb = matchNormalized(nb, ng, strict);
       const s = Math.max(ra.safe ? ra.score : 0, rb.safe ? rb.score : 0);
       if (!best || s > best.score) best = { name: g, score: s };
     }
@@ -210,11 +217,15 @@ function isSubsequence(short: string, long: string): boolean {
  * equivalents (व/ब/v/w/b, ज्ञ→gy/jny, sh/s, ph/f, etc.). Two tokens with different
  * consonant skeletons are different words: Sita (st) ≠ Gita (gt), Ram (rm) ≠ Shyam.
  */
-function consonantSkeleton(token: string): string {
-  let s = token.toLowerCase().replace(/[^a-z]/g, "");
+function consonantSkeleton(token: string, strict = false): string {
+  // A final "y" is the vowel "i" (Adhikary≡Adhikari, Pandey), not a consonant.
+  let s = token.toLowerCase().replace(/[^a-z]/g, "").replace(/y$/, "");
+  s = s.replace(/chh/g, "C").replace(/ch/g, "C");
+  // Sibilants: by default श/ष (sh) and स (s) collapse; with strictSibilants they stay
+  // apart (साह Sah ≠ शाह Shah) — sh maps to its own class.
+  if (strict) s = s.replace(/sh/g, "X");
+  else s = s.replace(/sh/g, "S").replace(/ss/g, "S");
   s = s
-    .replace(/chh/g, "C").replace(/ch/g, "C")
-    .replace(/sh/g, "S").replace(/ss/g, "S")
     .replace(/ph/g, "F").replace(/f/g, "F")
     .replace(/kh/g, "K").replace(/gh/g, "G")
     .replace(/th/g, "T").replace(/dh/g, "D").replace(/bh/g, "B").replace(/jh/g, "J")
@@ -233,7 +244,9 @@ function consonantSkeleton(token: string): string {
  * genuine extra vowel still shows — Shahi "ai" ≠ Shah "a", Sushila "uia" ≠ Sushil "ui".
  */
 function vowelSig(token: string): string {
-  let s = token.toLowerCase().replace(/[^a-z]/g, "").replace(/y$/, "i");
+  // Final "y": after a vowel it is a diphthong glide (-ey ≈ e, Pandey), so drop it;
+  // after a consonant it is the vowel "i" (Adhikary → adhikari).
+  let s = token.toLowerCase().replace(/[^a-z]/g, "").replace(/([aeiou])y$/, "$1").replace(/y$/, "i");
   s = s.replace(/ou|au|ow/g, "O").replace(/aa|ah/g, "A").replace(/ee|ie|ei/g, "I").replace(/oo|uu/g, "U");
   let v = "";
   for (const ch of s) {
@@ -255,11 +268,11 @@ function isInitialOf(short: string, long: string): boolean {
  * shared consonant skeleton AND matching vowel signature. This is the guard that
  * stops different people collapsing into one (Sita/Gita, Shahi/Shah, Sushila/Sushil).
  */
-function tokensMatch(x: string, y: string): boolean {
+function tokensMatch(x: string, y: string, strict = false): boolean {
   if (!x || !y) return false;
   if (x === y) return true;
   if (isInitialOf(x, y) || isInitialOf(y, x)) return true;
-  if (consonantSkeleton(x) !== consonantSkeleton(y)) return false;
+  if (consonantSkeleton(x, strict) !== consonantSkeleton(y, strict)) return false;
   const vx = vowelSig(x);
   const vy = vowelSig(y);
   if (vx === vy) return true;
@@ -291,7 +304,7 @@ interface MatchOutcome {
   safe: boolean;
 }
 
-function matchNormalized(a: string, b: string): MatchOutcome {
+function matchNormalized(a: string, b: string, strict = false): MatchOutcome {
   const pa = a.split(" ").filter(Boolean);
   const pb = b.split(" ").filter(Boolean);
   if (!pa.length || !pb.length) return { score: 0, safe: false };
@@ -315,7 +328,7 @@ function matchNormalized(a: string, b: string): MatchOutcome {
       if (s > best) {
         best = s;
         bestIdx = idx;
-        bestSafe = tokensMatch(part, lp);
+        bestSafe = tokensMatch(part, lp, strict);
       }
     });
     if (bestIdx >= 0) usedLarge.add(bestIdx);
@@ -331,13 +344,16 @@ function matchNormalized(a: string, b: string): MatchOutcome {
     // Same token count: every token must pass the per-token guard — no whole-string
     // rescue. This is what rejects Sita/Gita, Shahi/Shah, Sushila/Sushil.
     safe = allPairsSafe;
+    // A per-token-confirmed match is high-confidence — don't let noisy romanization
+    // similarity (देउवा↔Deuba, आरजु↔Arzu, शाह↔Shah) drag the score below threshold.
+    if (safe) score = Math.max(score, 0.9);
   } else {
     // Different counts (a merge/split like रामचन्द्र ↔ "Ram Chandra", or initials):
     // the FULL ordered consonant skeletons must be identical. This tolerates schwa
     // noise in romanization yet rejects a wrong or extra token (…"Paudel said" adds
     // an "sd" the other side lacks; a surname-only "Shah" lacks most consonants).
-    const ska = consonantSkeleton(pa.join(""));
-    const skb = consonantSkeleton(pb.join(""));
+    const ska = consonantSkeleton(pa.join(""), strict);
+    const skb = consonantSkeleton(pb.join(""), strict);
     const vsim = sim(vowelSig(pa.join("")), vowelSig(pb.join("")));
     const skeletonEqual = ska === skb && ska.length > 0;
     safe = skeletonEqual && vsim >= 0.6;

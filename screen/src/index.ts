@@ -66,7 +66,7 @@ interface Token {
   start: number;
 }
 
-const WORD_RE = /[\p{L}\p{N}][\p{L}\p{N}‌‍]*/gu;
+const WORD_RE = /[\p{L}\p{N}][\p{L}\p{M}\p{N}‌‍]*/gu;
 
 function tokenize(text: string): Token[] {
   const out: Token[] = [];
@@ -154,8 +154,10 @@ export function createScreen(config: ScreenConfig): Screen {
     };
 
     const activeByDim = new Map<string, boolean>();
+    const hitByDim = new Map<string, boolean>();
     for (const d of dims) {
       let anyActive = false;
+      let anyHit = false;
       // Latin multi-word phrase matching over the token stream.
       for (const { term, words } of d.latin) {
         if (words.length === 0) continue;
@@ -165,6 +167,7 @@ export function createScreen(config: ScreenConfig): Screen {
           if (!ok) continue;
           const neg = negatedNear(i) || negatedNear(i + words.length - 1);
           hits.push({ dim: d.name, term, pos: i, weight: d.weight, negated: neg });
+          anyHit = true;
           if (!neg) {
             scores[d.name]! += d.weight;
             anyActive = true;
@@ -178,6 +181,7 @@ export function createScreen(config: ScreenConfig): Screen {
           const pos = nearestToken(toks, idx);
           const neg = pos >= 0 ? negatedNear(pos) : false;
           hits.push({ dim: d.name, term, pos, weight: d.weight, negated: neg });
+          anyHit = true;
           if (!neg) {
             scores[d.name]! += d.weight;
             anyActive = true;
@@ -187,6 +191,7 @@ export function createScreen(config: ScreenConfig): Screen {
       }
       if (anyActive && entity) scores[d.name]! += gazBoost;
       activeByDim.set(d.name, anyActive);
+      hitByDim.set(d.name, anyHit);
     }
 
     let total = 0;
@@ -205,18 +210,26 @@ export function createScreen(config: ScreenConfig): Screen {
       if (total >= th.block) {
         decision = "block";
         reasons.push(`total score ${round(total)} ≥ block ${th.block}`);
-      } else if (total >= th.review) {
+      } else if (total >= th.review || total > th.clear) {
+        // `review` is the entry boundary; `clear` is the ceiling — a score above
+        // the clear ceiling can never be "clear", even below the review number.
         decision = "review";
-        reasons.push(`total score ${round(total)} ≥ review ${th.review}`);
+        reasons.push(
+          total >= th.review
+            ? `total score ${round(total)} ≥ review ${th.review}`
+            : `total score ${round(total)} > clear ceiling ${th.clear}`,
+        );
       }
+      // Force-review dimensions (minors, elections) trip on ANY mention, even a
+      // negated one — a "no minors were involved" line still deserves a look.
       for (const d of dims) {
-        if (d.forceReview && activeByDim.get(d.name) && decision === "clear") {
+        if (d.forceReview && hitByDim.get(d.name) && decision === "clear") {
           decision = "review";
           reasons.push(`${d.name}: force-review hit`);
         }
       }
     }
-    if (decision === "clear") reasons.push("below review threshold");
+    if (decision === "clear") reasons.push(`total score ${round(total)} ≤ clear ${th.clear}`);
 
     // Order hits deterministically.
     hits.sort((a, b) => a.pos - b.pos || a.dim.localeCompare(b.dim) || a.term.localeCompare(b.term));

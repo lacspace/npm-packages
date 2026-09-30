@@ -1,6 +1,6 @@
 # @lacspace/condense
 
-**Feed the LLM a fraction of the words.** Turn several articles about the same story into one short, deduplicated, token-budgeted digest that keeps the numbers, quotes and named entities — so a model only has to rewrite what matters instead of re-reading six full sources. Purely extractive, deterministic, and zero external dependencies.
+**Feed the LLM a fraction of the words.** Turn several articles about the same story into one short, deduplicated, token-budgeted digest that keeps the numbers, quotes and named entities — so a model only has to rewrite what matters instead of re-reading six full sources. Purely extractive and deterministic, with no third-party dependencies (it builds on `@lacspace/rerank` and `@lacspace/tokenizer`).
 
 Built for newsrooms, RAG context assembly, and anywhere you're paying per token to summarise overlapping documents.
 

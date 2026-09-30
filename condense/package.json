@@ -1,27 +1,67 @@
 {
   "name": "@lacspace/condense",
-  "version": "1.0.0",
-  "description": "Extractive multi-source condenser — turn several articles on the same story into one short, deduplicated, token-budgeted digest that keeps the numbers, quotes and named entities, so an LLM only has to rewrite a fraction of the text. BM25 sentence ranking, near-duplicate removal, Devanagari-aware. Zero external deps, isomorphic, deterministic.",
+  "version": "1.0.1",
+  "description": "Extractive multi-source condenser \u2014 turn several articles on the same story into one short, deduplicated, token-budgeted digest that keeps the numbers, quotes and named entities, so an LLM only has to rewrite a fraction of the text. BM25 sentence ranking, near-duplicate removal, Devanagari-aware. No third-party dependencies (built on @lacspace/rerank + tokenizer), isomorphic, deterministic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
-  "keywords": ["condense", "summarize", "extractive-summary", "multi-document", "bm25", "token-budget", "dedupe", "llm", "rag", "prompt-compression", "devanagari", "nepali", "zero-dependency", "isomorphic", "typescript"],
-  "dependencies": { "@lacspace/rerank": "^1.0.0", "@lacspace/tokenizer": "^1.1.0" },
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "condense",
+    "summarize",
+    "extractive-summary",
+    "multi-document",
+    "bm25",
+    "token-budget",
+    "dedupe",
+    "llm",
+    "rag",
+    "prompt-compression",
+    "devanagari",
+    "nepali",
+    "zero-dependency",
+    "isomorphic",
+    "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/rerank": "^1.0.0",
+    "@lacspace/tokenizer": "^1.1.0"
+  },
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/packages/condense",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "condense" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "condense"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

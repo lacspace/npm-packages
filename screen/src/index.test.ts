@@ -9,7 +9,7 @@ const config: ScreenConfig = {
     hate: { terms: ["slur-word"], weight: 3, forceBlock: true },
     election: { terms: ["election", "vote", "निर्वाचन"], weight: 1, forceReview: true },
   },
-  negations: ["no", "not", "denied", "-न", "-नन्"],
+  negations: ["no", "not", "denied", "-ेन", "-ैन", "-एन", "-िएन", "-ेनन्", "-ैनन्"],
   contextWindow: 4,
   gazetteer: ["Kathmandu", "Sher Bahadur Deuba", "काठमाडौं"],
   gazetteerBoost: 0.5,
@@ -50,10 +50,10 @@ describe("screen", () => {
 
   it("forceReview lifts a below-threshold text to review", () => {
     // A dimension that scores below the review threshold on its own.
-    const cfg: ScreenConfig = { dimensions: { minor: { terms: ["child"], weight: 0.5, forceReview: true } }, thresholds: { review: 1 } };
+    const cfg: ScreenConfig = { dimensions: { minor: { terms: ["child"], weight: 0.5, forceReview: true } }, thresholds: { clear: 0.5, review: 2 } };
     const r = screenText("A child was seen at the fair.", cfg);
-    expect(r.score).toBeLessThan(1);
-    expect(r.decision).toBe("review");
+    expect(r.score).toBeLessThanOrEqual(0.5); // at/below the clear ceiling
+    expect(r.decision).toBe("review");        // lifted by force-review, not the score
     expect(r.reasons.join(" ")).toMatch(/minor/);
   });
 
@@ -95,5 +95,38 @@ describe("screen", () => {
     const cfg: ScreenConfig = { dimensions: { vip: { terms: ["prime minister"] } }, thresholds: { review: 1 } };
     expect(screenText("The prime minister spoke.", cfg).scores.vip!).toBe(1);
     expect(screenText("The minister spoke.", cfg).scores.vip!).toBe(0);
+  });
+});
+
+describe("Devanagari tokenization regression (1.0.1)", () => {
+  const cfg: ScreenConfig = {
+    dimensions: {
+      death: { terms: ["मृत्यु", "मारिए"], weight: 1 },
+      election: { terms: ["निर्वाचन", "मतदान"], forceReview: true },
+      court: { terms: ["अदालत"], weight: 1 },
+    },
+    negations: ["-ेन", "-ैन", "-एन", "-िएन", "-ेनन्", "-ैनन्"],
+    thresholds: { clear: 0, review: 1 },
+  };
+  const screen = createScreen(cfg);
+
+  it("keeps matras inside words so full terms match (not clear)", () => {
+    // Before 1.0.1 these came back CLEAR because words split at every matra.
+    const a = screen("निर्वाचन आयोगले मिति तोक्यो।");
+    expect(a.decision).toBe("review"); // electionSensitive force-review fires
+    const b = screen("तीन जनाको मृत्यु भयो।");
+    expect(b.decision).toBe("review"); // death term scores
+    expect(b.scores.death).toBe(1);
+  });
+
+  it("suffix negation matches whole verb endings, and force-review still trips on a mention", () => {
+    // मरेनन् (did not die) is a real negation; the election mention still forces review.
+    const r = screen("निर्वाचन भएन भनी कसैले भनेन।");
+    expect(r.hits.some((h) => h.dim === "election")).toBe(true);
+    expect(r.decision).toBe("review"); // force-review on any mention, even if negated
+  });
+
+  it("a clean Nepali sentence with no listed terms stays clear", () => {
+    expect(screen("आज मौसम राम्रो छ र बजार शान्त छ।").decision).toBe("clear");
   });
 });

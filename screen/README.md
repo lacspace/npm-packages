@@ -49,6 +49,14 @@ Running an LLM sensitivity/moderation pass on every candidate item is where toke
 - **Multi-language** — Latin terms match whole words case-insensitively; Devanagari and other non-Latin terms match as substrings, positioned to the nearest token.
 - **Auditable** — `hits` and `reasons` explain every decision.
 
+## Decision thresholds
+
+Two boundaries decide the band: `clear` is the ceiling below which text clears, `block` is the floor at or above which it blocks; everything between is `review`. `review` is kept as an entry boundary for compatibility. A score **above** the `clear` ceiling is never `clear`, even below the `review` number — so `thresholds: { clear: 0 }` means *any* positive score goes to review. `forceReview` dimensions (minors, elections) trip on **any** mention, even a negated one; `forceBlock` trips on any non-negated hit.
+
+## Negation for Nepali (important)
+
+Negation suffix patterns must include the vowel that marks the verb form. Use `"-ेन"`, `"-ैन"`, `"-एन"`, `"-िएन"`, `"-ेनन्"`, `"-ैनन्"` — **not** a bare `"-न"`. A bare consonant suffix over-matches ordinary Nepali nouns and numbers that also end in that consonant (तीन "three", निर्वाचन "election" both end in न), which would wrongly negate real hits. The tokenizer keeps combining marks (matras, virama, anusvara) inside words, so whole Devanagari words match as written.
+
 ## API
 
 ```ts

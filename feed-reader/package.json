@@ -1,0 +1,27 @@
+{
+  "name": "@lacspace/feed-reader",
+  "version": "1.0.0",
+  "description": "Read the feeds you follow — parse fetched RSS 2.0, RSS 1.0 (RDF), Atom 1.0 and JSON Feed 1.1 into one normalized shape, autodiscover the feeds a web page advertises, and score each source's health (staleness vs cadence, duplicate/poisoned items, volume spikes, missing fields, fetch error rate) so a large source list prunes itself. Robots.txt respect via @lacspace/robots. The read-side complement to @lacspace/rss. Deterministic, isomorphic, zero third-party dependencies, bring-your-own-fetch.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["rss", "atom", "json-feed", "feed-parser", "feed-reader", "autodiscovery", "feed-health", "newsroom", "rss-parser", "zero-dependency", "isomorphic", "typescript"],
+  "dependencies": { "@lacspace/robots": "^1.4.0" },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/feed-reader",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "feed-reader" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

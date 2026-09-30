@@ -315,6 +315,7 @@ Deterministic building blocks for an AI newsroom — do the grounding, extractio
 | --- | --- | --- |
 | [`@lacspace/factcheck-lite`](./factcheck-lite) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffactcheck-lite?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/factcheck-lite) | Verify every number, amount, %, date (AD + Bikram Sambat) and named entity in a draft appears in the sources — catches fabricated figures without an LLM rewrite |
 | [`@lacspace/trend-detect`](./trend-detect) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrend-detect?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/trend-detect) | Burst/trending detection over your own items — z-score vs a rolling baseline, per category, en+ne; rank the writer queue by what's rising |
+| [`@lacspace/feed-reader`](./feed-reader) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffeed-reader?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/feed-reader) | Read side of `@lacspace/rss` — parse fetched RSS/Atom/RDF/JSON Feed into one shape, autodiscover a page's feeds, and score each source's health (staleness, duplicate/poisoned, spikes, error rate) so a big source list prunes itself |
 
 ### ⚡ LLM Efficiency Kit
 

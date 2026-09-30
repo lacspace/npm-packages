@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/translit",
+  "version": "1.0.0",
+  "description": "Nepali ⇄ English name transliteration and cross-script fuzzy name matching — romanize Devanagari, generate spelling variants (Poudel/Paudel), strip honorifics, and match \"Ram Chandra Poudel\" to \"रामचन्द्र पौडेल\". Plus Devanagari-aware script-ratio and language-mix analysis that ignores proper nouns and quotes. Zero-dependency, isomorphic, deterministic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["transliteration", "devanagari", "nepali", "romanization", "name-matching", "fuzzy-match", "script-ratio", "honorifics", "iast", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/translit",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "translit" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

@@ -73,6 +73,81 @@ describe("matchName — the held-story blocker", () => {
   });
 });
 
+describe("matchName — SAFETY: different people must not collapse (1.0.1)", () => {
+  const cases: [string, string][] = [
+    ["Sita Sharma", "Gita Sharma"],
+    ["Ram Poudel", "Shyam Poudel"],
+    ["Hari Prasad Sharma", "Sharmila"],
+    ["Gyanendra Shahi", "Gyanendra Shah"],
+    ["Krishna Bahadur Shahi", "Shah"],
+    ["Sushila Karki", "Sushil Karki"],
+    ["Ram Chandra Poudel", "Ram Chandra Paudel said"], // an extra trailing token must not be accepted
+  ];
+  for (const [a, b] of cases) {
+    it(`rejects "${a}" vs "${b}"`, () => {
+      expect(matchName(a, b).match).toBe(false);
+    });
+  }
+});
+
+describe("matchName — still matches the same person (1.0.1)", () => {
+  it("strips office titles before matching", () => {
+    const r = matchName("President रामचन्द्र पौडेल", "Ram Chandra Poudel");
+    expect(r.match).toBe(true);
+    expect(r.score).toBeGreaterThan(0.8);
+  });
+  it("Prime Minister / मन्त्री compounds are stripped when leading", () => {
+    expect(stripHonorifics("Prime Minister K P Sharma Oli")).toBe("K P Sharma Oli");
+    expect(stripHonorifics("अर्थमन्त्री विष्णु पौडेल")).toBe("विष्णु पौडेल");
+    expect(stripHonorifics("Chief Justice Sushila Karki")).toBe("Sushila Karki");
+    expect(stripHonorifics("Baburam Bhattarai ji")).toBe("Baburam Bhattarai");
+  });
+  it("व ≈ b: देउवा matches Deuba", () => {
+    expect(matchName("Sher Bahadur Deuba", "शेरबहादुर देउवा").match).toBe(true);
+    expect(matchName("Arzu Rana Deuba", "आर्जु राणा देउवा").match).toBe(true);
+  });
+  it("ज्ञ romanizes to gy: ज्ञानेन्द्र matches Gyanendra", () => {
+    expect(matchName("Gyanendra Shah", "ज्ञानेन्द्र शाह").match).toBe(true);
+  });
+  it("सिंह matches Singh", () => {
+    expect(devanagariToLatin("सिंह")).toBe("singh");
+    expect(matchName("Prithvi Narayan Singh", "पृथ्वी नारायण सिंह").match).toBe(true);
+  });
+  it("does not regress the canonical cross-script cases", () => {
+    expect(matchName("Ram Chandra Poudel", "रामचन्द्र पौडेल").match).toBe(true);
+    expect(matchName("Dr. K. P. Sharma Oli", "KP Sharma Oli").match).toBe(true);
+    expect(matchName("Sher Bahadur Deuba", "Sher Bdr. Deuba").match).toBe(true);
+    expect(matchName("Ram Chandra Poudel", "Sher Bahadur Deuba").match).toBe(false);
+  });
+});
+
+describe("dominantScript — safer defaults (1.0.1)", () => {
+  it("does not zero out genuine Nepali prose mixed with a little English", () => {
+    const text = "नेपालमा आज बजेट पेश भयो, GDP वृद्धिदर राम्रो रहेको छ र बजार सकारात्मक भयो।";
+    const d = dominantScript(text);
+    expect(d.adjustedRatio).toBeGreaterThan(0.5);
+    expect(d.script).toBe("devanagari");
+  });
+  it("apostrophes are not treated as quotes", () => {
+    const text = "Nepal's economy didn't shrink this year, officials said in Kathmandu.";
+    const d = dominantScript(text);
+    // The text between apostrophes must survive → still overwhelmingly Latin.
+    expect(d.script).toBe("latin");
+    expect(d.adjustedRatio).toBe(0);
+  });
+  it("gazetteer removal respects word boundaries (रु must not cut रुपैयाँ)", () => {
+    const text = "यो रुपैयाँको कारोबार नेपालमा भयो र अर्थतन्त्र बलियो भयो।";
+    const d = dominantScript(text, { gazetteer: ["रु"] });
+    // रुपैयाँ must remain Devanagari; the article stays Nepali.
+    expect(d.script).toBe("devanagari");
+  });
+  it("exposes a letters-only ratio", () => {
+    const r = scriptRatio("Nepal नेपाल");
+    expect(r.lettersRatio.devanagari).toBeCloseTo(3 / 8, 2); // 3 base letters न प ल of 8 letters
+    expect(r.mark).toBe(2); // े ा
+  });
+});
+
 describe("scriptRatio + dominantScript (#3 language-mix)", () => {
   it("counts scripts, ignoring whitespace and punctuation", () => {
     const r = scriptRatio("Nepal नेपाल 2026!");

@@ -34,6 +34,24 @@ export function devanagariToLatin(input: string): string {
   const s = input.normalize("NFC");
   for (let i = 0; i < s.length; i++) {
     let ch = s[i]!;
+    // Special conjunct ज्ञ — Nepali pronounces it "gy", not the literal "jny".
+    if (ch === "ज" && s[i + 1] === VIRAMA && s[i + 2] === "ञ") {
+      const base = "gy";
+      const j = i + 3; // position after ञ
+      const next = s[j];
+      if (next === VIRAMA) {
+        out += base;
+        i = j;
+      } else if (next !== undefined && MATRA[next] !== undefined) {
+        out += base + MATRA[next];
+        i = j;
+      } else {
+        const wordFinal = next === undefined || /\s/.test(next) || !isDevanagari(next);
+        out += wordFinal ? base : base + "a";
+        i = j - 1;
+      }
+      continue;
+    }
     // Merge a nukta into the preceding consonant (ड़ etc.) — treat as the base.
     if (s[i + 1] === NUKTA) {
       // fall through using the base consonant; skip the nukta afterward
@@ -62,7 +80,16 @@ export function devanagariToLatin(input: string): string {
       out += INDEPENDENT[ch];
       continue;
     }
-    if (ch === ANUSVARA || ch === CHANDRABINDU) {
+    if (ch === ANUSVARA) {
+      // Anusvara assimilates to the place of the following consonant: velars/glottal
+      // (क ख ग घ ह) → "ng" (सिंह → singh), labials (प फ ब भ म) → "m", else "n".
+      const nxt = s[i + 1];
+      if (nxt && /[कखगघह]/.test(nxt)) out += "ng";
+      else if (nxt && /[पफबभम]/.test(nxt)) out += "m";
+      else out += "n";
+      continue;
+    }
+    if (ch === CHANDRABINDU) {
       out += "n";
       continue;
     }

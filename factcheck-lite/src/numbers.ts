@@ -18,7 +18,7 @@ const SCALES: [RegExp, number][] = [
   [/\bthousand\b|\bhajar\b|हजार/gi, 1e3],
   [/\blakh\b|\blac\b|\blakhs\b|लाख/gi, 1e5],
   [/\bcrore\b|\bcrores\b|करोड/gi, 1e7],
-  [/\barab\b|अरब/gi, 1e9],
+  [/\barab\b|अरब|अर्ब/gi, 1e9],
   [/\bkharab\b|खर्ब|खरब/gi, 1e11],
   [/\bmillion\b|\bmn\b|मिलियन/gi, 1e6],
   [/\bbillion\b|\bbn\b|बिलियन/gi, 1e9],
@@ -26,7 +26,9 @@ const SCALES: [RegExp, number][] = [
 ];
 
 const CURRENCY: [RegExp, string][] = [
-  [/नेरु|\bNPR\b|रु(?:पैयां|\.)?|\bRs\.?\b/gi, "NPR"],
+  // रु must be its own token — never the रु inside पुरुष / गुरु — so require a
+  // non-letter/non-mark before it.
+  [/नेरु|\bNPR\b|(?<![\p{L}\p{M}])रु(?:पैयाँ|पैयां|\.)?|\bRs\.?\b/giu, "NPR"],
   [/\bINR\b|₹/g, "INR"],
   [/\bUSD\b|\bUS\$|\$/g, "USD"],
   [/\bEUR\b|€/g, "EUR"],
@@ -51,6 +53,13 @@ const NUMBER_RE = /\d[\d,]*(?:\.\d+)?/g;
 
 function parseGrouped(raw: string): number {
   return Number(raw.replace(/,/g, ""));
+}
+
+// Kill binary-float noise from scale multiplication (0.07 × 1e7 = 700000.0000000001).
+function cleanFloat(n: number): number {
+  const r = Math.round(n);
+  if (Math.abs(n - r) < 1e-6) return r;
+  return Math.round(n * 1e6) / 1e6;
 }
 
 function scaleAfter(text: string, from: number): { mult: number; end: number } {
@@ -87,12 +96,12 @@ export function extractNumeric(original: string): NumericClaim[] {
     if (!Number.isFinite(value)) continue;
     const { mult, end: scaleEnd } = scaleAfter(text, end);
     if (mult !== 1) {
-      value *= mult;
+      value = cleanFloat(value * mult);
       end = scaleEnd;
     }
     // percentage?
     const tail = text.slice(end, end + 10);
-    const pct = /^\s*(?:%|प्रतिशत|percent)/i.exec(tail);
+    const pct = /^\s*(?:%|प्रतिशत|percent|per\s*cent)/i.exec(tail);
     const currency = currencyNear(text, start, end);
     let kind: ClaimKind = "number";
     let matchEnd = end;
@@ -105,7 +114,7 @@ export function extractNumeric(original: string): NumericClaim[] {
     out.push({
       kind,
       raw: original.slice(start, matchEnd).trim(),
-      value: kind === "percentage" ? parseGrouped(m[0]) * (mult !== 1 ? mult : 1) : value,
+      value: kind === "percentage" ? cleanFloat(parseGrouped(m[0]) * (mult !== 1 ? mult : 1)) : value,
       ...(kind === "amount" && currency ? { currency } : {}),
       start,
       end: matchEnd,

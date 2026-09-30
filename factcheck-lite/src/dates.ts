@@ -19,6 +19,11 @@ const MONTHS: Record<string, number> = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+// A four-digit year at or above this is Bikram Sambat, not AD: BS runs ~56.7 years
+// ahead of AD, so a plausible news date is either AD (≤ ~2035) or BS (≥ ~2060) —
+// the two never overlap. Anything from 2050 up is BS. (BS 2083 ≈ AD 2026.)
+const BS_YEAR_MIN = 2050;
+
 /** Extract AD and Bikram Sambat dates with offsets. */
 export function extractDates(original: string): DateClaim[] {
   const text = normalizeDigits(original);
@@ -29,7 +34,7 @@ export function extractDates(original: string): DateClaim[] {
   // ISO: 2026-09-30 or 2026/09/30
   for (const m of text.matchAll(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/g)) {
     const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    push(m.index!, m.index! + m[0].length, `${y}-${pad(mo)}-${pad(d)}`, y > 2200 ? "BS" : "AD");
+    push(m.index!, m.index! + m[0].length, `${y}-${pad(mo)}-${pad(d)}`, y >= BS_YEAR_MIN ? "BS" : "AD");
   }
   // "30 September 2026" / "September 30, 2026" / "Sep 30 2026"
   for (const m of text.matchAll(/\b(\d{1,2})\s+([A-Za-z]+)\.?\s+(\d{4})\b/g)) {

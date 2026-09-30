@@ -32,6 +32,16 @@ export interface ExtractedClaims {
   entities: EntityClaim[];
 }
 
+// Title-Case words that are not named entities — calendar words and common
+// sentence openers — so they aren't flagged as unsupported "entities".
+const NON_ENTITY = new Set([
+  "january", "february", "march", "april", "may", "june", "july", "august",
+  "september", "october", "november", "december",
+  "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "the", "a", "an", "this", "that", "these", "those", "it", "he", "she", "they",
+]);
+
 function extractEntities(text: string, gazetteer: string[]): EntityClaim[] {
   const out: EntityClaim[] = [];
   const seen = new Set<string>();
@@ -39,6 +49,7 @@ function extractEntities(text: string, gazetteer: string[]): EntityClaim[] {
   for (const m of text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g)) {
     const v = m[1]!;
     if (v.length < 3) continue;
+    if (NON_ENTITY.has(v.toLowerCase())) continue; // single calendar/opener word
     const key = `${v}@${m.index}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -132,22 +143,43 @@ export function verify(article: string, sources: string[], options: VerifyOption
   const srcNumeric = numericValues(sources);
   const srcText = sources.join("\n");
   const srcTextNorm = normalizeDigits(srcText);
+  const srcDates = sources.flatMap((s) => extractDates(s));
   const mismatches: Mismatch[] = [];
   let checked = 0;
   let matched = 0;
 
-  const checkNumeric = (list: NumericClaim[], type: "number" | "amount" | "percentage") => {
+  // Source pools BY KIND — a percentage may only be supported by a percentage, and
+  // an amount only by an amount in the SAME currency. A plain number is permissive.
+  const srcPct = srcNumeric.filter((s) => s.kind === "percentage");
+  const srcAmt = srcNumeric.filter((s) => s.kind === "amount");
+  const grouped = (n: number) => n.toLocaleString("en-US");
+
+  // Numbers that sit inside a detected date span (the "01"/"15" of 2026-01-15) are
+  // parts of the date, not standalone figures — don't check them as numbers.
+  const dateSpans = claims.dates.map((d) => [d.start, d.end] as const);
+  const notInDate = (c: NumericClaim) => !dateSpans.some(([s, e]) => c.start < e && c.end > s);
+
+  const currencyOk = (claim: NumericClaim, s: { currency?: string }) =>
+    !claim.currency || !s.currency || s.currency === claim.currency;
+
+  const checkNumeric = (
+    list: NumericClaim[],
+    type: "number" | "amount" | "percentage",
+    pool: { value: number; currency?: string }[],
+    sameCurrency: boolean,
+  ) => {
     for (const c of list) {
       checked++;
-      const hit = srcNumeric.some((s) => close(s.value, c.value, tol));
+      const hit = pool.some((s) => close(s.value, c.value, tol) && (!sameCurrency || currencyOk(c, s)));
       if (hit) {
         matched++;
         continue;
       }
-      // nearest for the note
+      // nearest (same pool) for the note
       let nearest: number | undefined;
       let bestD = Infinity;
-      for (const s of srcNumeric) {
+      for (const s of pool) {
+        if (sameCurrency && !currencyOk(c, s)) continue;
         const d = Math.abs(s.value - c.value);
         if (d < bestD) {
           bestD = d;
@@ -162,23 +194,23 @@ export function verify(article: string, sources: string[], options: VerifyOption
         inArticle: true,
         inSources: false,
         ...(nearest !== undefined ? { nearest } : {}),
-        note: `${type} ${c.raw} not found in sources${nearest !== undefined ? ` (nearest ${nearest})` : ""}`,
+        note: `${type} ${c.raw} not found in sources${nearest !== undefined ? ` (nearest ${grouped(nearest)})` : ""}`,
       });
     }
   };
 
-  checkNumeric(claims.numbers, "number");
-  checkNumeric(claims.amounts, "amount");
-  checkNumeric(claims.percentages, "percentage");
+  checkNumeric(claims.numbers.filter(notInDate), "number", srcNumeric, false);
+  checkNumeric(claims.amounts.filter(notInDate), "amount", srcAmt, true);
+  checkNumeric(claims.percentages.filter(notInDate), "percentage", srcPct, false);
 
   for (const d of claims.dates) {
     checked++;
-    const norm = normalizeDigits(d.raw);
+    // A date is supported only when a source carries the SAME date (same calendar),
+    // in any format — never merely because the year appears somewhere.
     const hit =
+      srcDates.some((sd) => sd.value === d.value && sd.calendar === d.calendar) ||
       srcTextNorm.includes(d.value) ||
-      srcTextNorm.includes(norm) ||
-      // component match: year present at least
-      (d.calendar === "AD" && srcTextNorm.includes(d.value.slice(0, 4)));
+      srcTextNorm.includes(normalizeDigits(d.raw));
     if (hit) matched++;
     else
       mismatches.push({ type: "date", raw: d.raw, value: d.value, inArticle: true, inSources: false, note: `date ${d.raw} (${d.calendar}) not found in sources` });

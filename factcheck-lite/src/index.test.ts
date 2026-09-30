@@ -91,3 +91,52 @@ describe("verify — the anti-hallucination gate", () => {
     expect(verify("no facts here", []).ok).toBe(true);
   });
 });
+
+describe("factcheck-lite 1.0.1 fixes", () => {
+  it("reads अर्ब (arab) scale spelling", () => {
+    expect(extractNumeric("५ अर्ब")[0]!.value).toBe(5e9);
+    expect(extractNumeric("५ अरब")[0]!.value).toBe(5e9);
+  });
+
+  it("rounds float noise from scale multiplication", () => {
+    expect(extractNumeric("0.07 crore")[0]!.value).toBe(700000);
+    expect(verify("0.07 crore", ["7 lakh people"]).ok).toBe(true); // 700000 == 700000
+  });
+
+  it("does not read रु inside a word as currency", () => {
+    expect(extractNumeric("पुरुष ५ जना")[0]!.kind).toBe("number");
+    expect(extractNumeric("गुरु ५")[0]!.kind).toBe("number");
+    expect(extractNumeric("रु ५ मात्र")[0]).toMatchObject({ kind: "amount", currency: "NPR" });
+  });
+
+  it("accepts 'per cent' spelled with a space", () => {
+    expect(extractNumeric("5 per cent")[0]).toMatchObject({ kind: "percentage", value: 5 });
+  });
+
+  it("SAFETY: a percentage is not supported by a plain number", () => {
+    expect(verify("turnout 5%", ["5 people attended"]).ok).toBe(false);
+  });
+
+  it("SAFETY: amounts must share a currency", () => {
+    const r = verify("$120 million", ["रु १२ करोड"]);
+    expect(r.ok).toBe(false);
+    expect(r.mismatches.some((m) => m.type === "amount")).toBe(true);
+  });
+
+  it("classifies a Bikram Sambat ISO year as BS", () => {
+    expect(extractDates("2083-06-14")[0]).toMatchObject({ value: "2083-06-14", calendar: "BS" });
+    expect(extractDates("2026-09-30")[0]!.calendar).toBe("AD");
+  });
+
+  it("SAFETY: a date is not supported by the year alone, and ISO parts aren't stray numbers", () => {
+    const r = verify("The vote is on 2026-01-15.", ["Polls in 2026 were held nationwide."]);
+    expect(r.ok).toBe(false);
+    expect(r.mismatches.some((m) => m.type === "date")).toBe(true);
+    // "01" and "15" from the ISO date must not be reported as number mismatches.
+    expect(r.mismatches.some((m) => m.type === "number")).toBe(false);
+  });
+
+  it("matches the same date across formats", () => {
+    expect(verify("on September 30, 2026", ["published 2026-09-30"]).ok).toBe(true);
+  });
+});

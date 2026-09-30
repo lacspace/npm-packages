@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/trend-detect",
+  "version": "1.0.0",
+  "description": "Burst / trending-topic detection over your own stream of items — score entities and terms by how far their recent frequency departs from a rolling baseline (z-score + growth), per category, English + Nepali/Devanagari, with stopword filtering. Rank a writer queue by what's actually rising. No platform scraping, deterministic, isomorphic, zero-dependency.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["trending", "burst-detection", "z-score", "topics", "newsroom", "ranking", "nepali", "devanagari", "zero-dependency", "isomorphic", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/trend-detect",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "trend-detect" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

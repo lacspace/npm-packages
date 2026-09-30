@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **150+ published packages and CLIs** (140 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **150+ published packages and CLIs** (141 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -314,6 +314,7 @@ Deterministic building blocks for an AI newsroom — do the grounding, extractio
 | Package | Version | What it does |
 | --- | --- | --- |
 | [`@lacspace/factcheck-lite`](./factcheck-lite) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffactcheck-lite?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/factcheck-lite) | Verify every number, amount, %, date (AD + Bikram Sambat) and named entity in a draft appears in the sources — catches fabricated figures without an LLM rewrite |
+| [`@lacspace/trend-detect`](./trend-detect) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrend-detect?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/trend-detect) | Burst/trending detection over your own items — z-score vs a rolling baseline, per category, en+ne; rank the writer queue by what's rising |
 
 ### ⚡ LLM Efficiency Kit
 
@@ -473,7 +474,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-150+ packages and CLIs (140 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+150+ packages and CLIs (141 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

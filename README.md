@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **150+ published packages and CLIs** (139 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **150+ published packages and CLIs** (140 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -307,6 +307,14 @@ Keep users engaged with no vendor and no keys — push, PWA, toasts, CAPTCHA, re
 | [`@lacspace/sse`](./sse) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsse?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/sse) | Server-Sent Events hub — channels/rooms, Web-standard + Node handlers, browser client, `useSSE` |
 | [`@lacspace/consent`](./consent) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fconsent?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/consent) | GDPR cookie consent — store, banner, React binding, cookie-backed so the server can gate too |
 
+### 📰 Newsroom Kit
+
+Deterministic building blocks for an AI newsroom — do the grounding, extraction and fitting the model doesn't need to.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/factcheck-lite`](./factcheck-lite) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffactcheck-lite?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/factcheck-lite) | Verify every number, amount, %, date (AD + Bikram Sambat) and named entity in a draft appears in the sources — catches fabricated figures without an LLM rewrite |
+
 ### ⚡ LLM Efficiency Kit
 
 Do the expensive model's cheap work with zero-dep tools, so a free-tier key goes far further — feed the model less, and only when it's actually needed.
@@ -465,7 +473,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-150+ packages and CLIs (139 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+150+ packages and CLIs (140 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

@@ -33,6 +33,7 @@
     "romanization",
     "name-matching",
     "fuzzy-match",
+    "cross-script",
     "script-ratio",
     "honorifics",
     "iast",

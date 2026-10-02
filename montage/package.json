@@ -1,0 +1,29 @@
+{
+  "name": "@lacspace/montage",
+  "version": "1.0.0",
+  "description": "Compile a list of clips and stills into a platform-ready social video: an ffmpeg timeline builder with per-platform presets and safe areas (Reels/TikTok/Shorts 9:16, FB 4:5 and 1:1, YouTube 16:9), Ken Burns on stills, xfade transitions (crossfade/slide/zoom-punch/whip), Devanagari-shaped kinetic captions, lower-thirds, logo bug and progress bar. Pure deterministic command builder plus an optional low-CPU runner (nice + thread cap + ulimit -c 0). Bring your own ffmpeg; zero third-party dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "ffmpeg", "video", "montage", "timeline", "reels", "tiktok", "shorts", "ken-burns",
+    "captions", "devanagari", "newsroom", "zero-dependency", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/montage",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "montage" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

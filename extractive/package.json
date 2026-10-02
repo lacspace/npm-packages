@@ -1,0 +1,34 @@
+{
+  "name": "@lacspace/extractive",
+  "version": "1.0.0",
+  "description": "Turn a full article into a compact brief for an AI writer — extractive TextRank summary, key-facts (numbers, money, percentages, dates, named entities), headline candidates and key phrases/hashtags, for English and Nepali (sentence splitting on the danda '।', decimal-safe). Deterministic, no LLM; reuses @lacspace/keyphrase and @lacspace/factcheck-lite. Exposes a describe() command schema so an AI 'conductor' can drive it.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "summarization", "extractive", "textrank", "key-facts", "headline", "brief",
+    "nepali", "devanagari", "newsroom", "zero-dependency", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/keyphrase": "^1.0.0",
+    "@lacspace/factcheck-lite": "^1.0.1",
+    "@lacspace/trend-detect": "^1.0.0"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/extractive",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "extractive" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

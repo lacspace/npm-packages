@@ -1,0 +1,29 @@
+{
+  "name": "@lacspace/hookwriter",
+  "version": "1.0.0",
+  "description": "Deterministic platform copy from facts — hooks, titles, captions, CTAs and descriptions in many styles (question, number-led, what-it-means, contrast, breaking, how-to, quote…), English and Nepali, trimmed to each platform's character limit (YouTube/IG/TikTok/FB/X/Threads/LinkedIn/Telegram). Fills ONLY the facts you pass (never invents claims) and drops sensational phrasing; AI optional, only to fill slots. Exposes a describe() command schema for an AI 'conductor'. Zero dependencies.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "copywriting", "captions", "hooks", "social-media", "headlines", "cta", "templates",
+    "bilingual", "nepali", "newsroom", "zero-dependency", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/hookwriter",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "hookwriter" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

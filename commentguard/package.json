@@ -1,0 +1,29 @@
+{
+  "name": "@lacspace/commentguard",
+  "version": "1.0.0",
+  "description": "Comment moderation for English, romanized Nepali and Devanagari — scores spam, abuse, hate, doxxing and link-spam and returns an allow / review / flag / hide action, with PII detection (Nepali phone, email, URLs/shorteners) and FAQ auto-reply suggestions. Deterministic rules + small, extendable lexicons; a borderline flag marks gray-zone comments for an optional AI second opinion. Exposes a describe() command schema. Zero dependencies.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "moderation", "comment-moderation", "spam", "abuse", "hate-speech", "doxxing",
+    "pii", "nepali", "newsroom", "zero-dependency", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/commentguard",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "commentguard" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

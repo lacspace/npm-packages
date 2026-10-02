@@ -1,0 +1,29 @@
+{
+  "name": "@lacspace/postplan",
+  "version": "1.0.0",
+  "description": "Choose a post format (video / single image / carousel / text) per story and platform, so a feed like Facebook gets a natural mix instead of all videos. Rule-based and deterministic — platform fit, what the story can actually produce, a breaking-news nudge, and a don't-repeat-the-last-few mix penalty — with an optional cheap AI tie-break (injected llm) only when two formats are nearly tied. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "social-media", "content-planning", "format-selection", "scheduling", "newsroom",
+    "facebook", "instagram", "zero-dependency", "isomorphic", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/postplan",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "postplan" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

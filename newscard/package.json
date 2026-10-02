@@ -1,0 +1,32 @@
+{
+  "name": "@lacspace/newscard",
+  "version": "1.0.0",
+  "description": "Generate branded news image posts — headline, quote, stat, breaking-banner and carousel cards in IG portrait (1080×1350), square (1080×1080), Open Graph (1200×630) and story (1080×1920), bilingual English/Nepali with correct Devanagari shaping, rendered to PNG/WebP. Pure deterministic SVG builder plus a renderer via @resvg/resvg-js. Includes a safety-gated AI image-prompt helper that always labels output 'AI illustration' and refuses photoreal depictions of real people or events.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "social-card", "news-card", "image-generator", "svg", "og-image", "carousel",
+    "devanagari", "bilingual", "newsroom", "resvg", "typescript"
+  ],
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/newscard",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "newscard" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

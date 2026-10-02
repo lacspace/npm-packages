@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/translit",
-  "version": "1.0.3",
-  "description": "Nepali ⇄ English name transliteration and cross-script fuzzy name matching — romanize Devanagari, generate spelling variants (Poudel/Paudel), strip honorifics/office titles, and match \"Ram Chandra Poudel\" to \"रामचन्द्र पौडेल\", with a per-token safety guard so different people who share a surname (Sita vs Gita Sharma) never match. Plus Devanagari-aware script-ratio and language-mix analysis that ignores proper nouns and quotes. Zero-dependency, isomorphic, deterministic.",
+  "version": "1.0.4",
+  "description": "Nepali ⇄ English name transliteration and cross-script fuzzy name matching — romanize Devanagari, generate spelling variants (Poudel/Paudel), strip honorifics/office titles, match \"Ram Chandra Poudel\" to \"रामचन्द्र पौडेल\" with a per-token safety guard so different people who share a surname (Sita vs Gita Sharma) never match, and tell a real name from ordinary words (looksLikeName / isCommonWord) so a search box does not transliterate \"india west indies\". Plus Devanagari-aware script-ratio and language-mix analysis that ignores proper nouns and quotes. Zero-dependency, isomorphic, deterministic.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -32,6 +32,7 @@
     "nepali",
     "romanization",
     "name-matching",
+    "name-detection",
     "fuzzy-match",
     "cross-script",
     "script-ratio",

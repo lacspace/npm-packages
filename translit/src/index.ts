@@ -8,6 +8,11 @@ export {
 export type { Lang, NameVariantsOptions, MatchNameOptions, MatchNameResult } from "./names.js";
 export { scriptRatio, dominantScript } from "./script.js";
 export type { ScriptRatio, DominantScriptOptions, DominantScriptResult } from "./script.js";
+export { looksLikeName, isCommonWord } from "./classify.js";
+export type {
+  LooksLikeNameOptions, LooksLikeNameResult, IsCommonWordOptions,
+} from "./classify.js";
+export { EN_COMMON, NE_COMMON, NE_NAMES } from "./lexicon.js";
 
 export interface TransliterateOptions {
   /** Source script. Default: auto-detected. */

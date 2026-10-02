@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  devanagariToLatin, dominantScript, latinToDevanagari, matchName, nameVariants,
-  normalizeName, phoneticKey, scriptRatio, stripHonorifics, transliterate,
+  devanagariToLatin, dominantScript, isCommonWord, latinToDevanagari, looksLikeName,
+  matchName, nameVariants, normalizeName, phoneticKey, scriptRatio, stripHonorifics,
+  transliterate,
 } from "./index.js";
 
 describe("devanagariToLatin", () => {
@@ -160,6 +161,93 @@ describe("matchName — 1.0.2 fixes", () => {
     ] as const) {
       expect(matchName(a, b).match, `${a} vs ${b}`).toBe(false);
     }
+  });
+});
+
+describe("matchName — 1.0.4 strictSibilants cluster fix", () => {
+  it("strict no longer over-rejects श्र / ष्ठ clusters (Shrestha ≡ Srestha)", () => {
+    expect(matchName("Shrestha", "Srestha", { strictSibilants: true }).match).toBe(true);
+    expect(matchName("Shrestha", "श्रेष्ठ", { strictSibilants: true }).match).toBe(true);
+    expect(matchName("Ram Shrestha", "Ram Srestha", { strictSibilants: true }).match).toBe(true);
+  });
+  it("strict still keeps the ONSET distinction (शाह Shah ≠ साह Sah)", () => {
+    expect(matchName("Anil Shah", "Anil Sah", { strictSibilants: true }).match).toBe(false);
+    expect(matchName("Shah", "शाह", { strictSibilants: true }).match).toBe(true);
+  });
+  it("Latin x is the क्ष cluster: Laxmi ≡ लक्ष्मी (both modes)", () => {
+    expect(matchName("Laxmi", "लक्ष्मी").match).toBe(true);
+    expect(matchName("Laxmi", "लक्ष्मी", { strictSibilants: true }).match).toBe(true);
+    expect(matchName("Laxmi Prasad", "लक्ष्मीप्रसाद").match).toBe(true);
+  });
+  it("does not regress any safety reject in strict mode", () => {
+    for (const [a, b] of [
+      ["Sita Sharma", "Gita Sharma"],
+      ["Gyanendra Shahi", "Gyanendra Shah"],
+      ["Sushila Karki", "Sushil Karki"],
+    ] as const) {
+      expect(matchName(a, b, { strictSibilants: true }).match, `${a} vs ${b}`).toBe(false);
+    }
+  });
+});
+
+describe("isCommonWord (1.0.4)", () => {
+  it("flags ordinary English + Nepali words", () => {
+    for (const w of ["the", "news", "breaking", "west", "indies", "today"]) {
+      expect(isCommonWord(w), w).toBe(true);
+    }
+    expect(isCommonWord("र")).toBe(true); // र = "and"
+    expect(isCommonWord("समाचार")).toBe(true); // समाचार = "news"
+    expect(isCommonWord("samachar")).toBe(true);
+  });
+  it("does not flag names", () => {
+    for (const w of ["Poudel", "Shrestha", "रामचन्द्र", "Oli"]) {
+      expect(isCommonWord(w), w).toBe(false);
+    }
+  });
+  it("respects extraCommonWords and lang", () => {
+    expect(isCommonWord("foobar")).toBe(false);
+    expect(isCommonWord("foobar", { extraCommonWords: ["foobar"] })).toBe(true);
+    expect(isCommonWord("news", { lang: "ne" })).toBe(false); // en-only word, ne list asked
+  });
+});
+
+describe("looksLikeName (1.0.4)", () => {
+  it("recognizes real names", () => {
+    expect(looksLikeName("Ram Sharma").isName).toBe(true);
+    expect(looksLikeName("रामचन्द्र पौडेल").isName).toBe(true);
+    expect(looksLikeName("Sushila Karki").isName).toBe(true);
+    expect(looksLikeName("President Ram Chandra Poudel").isName).toBe(true);
+  });
+  it("rejects ordinary text a search box might type", () => {
+    expect(looksLikeName("india west indies").isName).toBe(false);
+    expect(looksLikeName("breaking news").isName).toBe(false);
+    expect(looksLikeName("the market today").isName).toBe(false);
+  });
+  it("knownNames adds recognition the bundled gazetteer lacks", () => {
+    expect(looksLikeName("zyxbq qwerty").isName).toBe(false); // lowercase unknown → neutral
+    expect(looksLikeName("zyxbq qwerty", { knownNames: ["Zyxbq Qwerty"] }).isName).toBe(true);
+  });
+  it("can run without the bundled gazetteer", () => {
+    const r = looksLikeName("Poudel", { bundled: false, knownNames: ["Poudel"] });
+    expect(r.isName).toBe(true);
+  });
+});
+
+describe("matchName — requireName gate (1.0.4)", () => {
+  it("does not change results for real names", () => {
+    expect(matchName("Ram Sharma", "राम शर्मा", { requireName: true }).match).toBe(true);
+  });
+  it("blocks a match when either side is ordinary text", () => {
+    // Without the gate these collapse (identical romanization), with it they must not.
+    const open = matchName("West", "वेस्ट");
+    expect(open.match).toBe(true);
+    const gated = matchName("West", "वेस्ट", { requireName: true });
+    expect(gated.match).toBe(false);
+    expect(gated.score).toBe(open.score); // score is unchanged; only `match` is gated
+  });
+  it("honors knownNames in the gate", () => {
+    expect(matchName("zyxbq", "zyxbq", { requireName: true }).match).toBe(false); // lowercase → not a name
+    expect(matchName("zyxbq", "zyxbq", { requireName: true, knownNames: ["zyxbq"] }).match).toBe(true);
   });
 });
 

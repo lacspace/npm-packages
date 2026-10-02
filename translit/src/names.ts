@@ -1,4 +1,5 @@
 import { devanagariToLatin, isDevanagari } from "./devanagari.js";
+import { looksLikeName } from "./classify.js";
 
 // Personal honorifics — never part of a real name, safe to drop anywhere. Latin + Devanagari.
 const HONORIFICS = new Set([
@@ -164,6 +165,14 @@ export interface MatchNameOptions {
    * match. Default false (lenient — sh ≈ s, tolerant of romanization variance).
    */
   strictSibilants?: boolean;
+  /**
+   * Require BOTH inputs to look like a person's name (via looksLikeName) before a
+   * match can be true. Stops a search box matching ordinary words ("india west
+   * indies"). The score is still returned; only `match` is gated. Default false.
+   */
+  requireName?: boolean;
+  /** Authoritative names for the `requireName` check (passed to looksLikeName). */
+  knownNames?: string[];
 }
 
 export interface MatchNameResult {
@@ -188,7 +197,12 @@ export function matchName(a: string, b: string, options: MatchNameOptions = {}):
   const na = normalizeName(a);
   const nb = normalizeName(b);
   const m = matchNormalized(na, nb, strict);
-  const result: MatchNameResult = { match: m.safe && m.score >= threshold, score: round(m.score), a: na, b: nb };
+  let match = m.safe && m.score >= threshold;
+  if (match && options.requireName) {
+    const kn = options.knownNames;
+    match = looksLikeName(a, { knownNames: kn }).isName && looksLikeName(b, { knownNames: kn }).isName;
+  }
+  const result: MatchNameResult = { match, score: round(m.score), a: na, b: nb };
   if (options.gazetteer) {
     let best: { name: string; score: number } | null = null;
     for (const g of options.gazetteer) {
@@ -219,12 +233,20 @@ function isSubsequence(short: string, long: string): boolean {
  */
 function consonantSkeleton(token: string, strict = false): string {
   // A final "y" is the vowel "i" (Adhikary≡Adhikari, Pandey), not a consonant.
-  let s = token.toLowerCase().replace(/[^a-z]/g, "").replace(/y$/, "");
+  // Latin "x" is the क्ष cluster "ks" (Laxmi ≡ लक्ष्मी "lakshmi").
+  let s = token.toLowerCase().replace(/[^a-z]/g, "").replace(/y$/, "").replace(/x/g, "ks");
   s = s.replace(/chh/g, "C").replace(/ch/g, "C");
-  // Sibilants: by default श/ष (sh) and स (s) collapse; with strictSibilants they stay
-  // apart (साह Sah ≠ शाह Shah) — sh maps to its own class.
-  if (strict) s = s.replace(/sh/g, "X");
-  else s = s.replace(/sh/g, "S").replace(/ss/g, "S");
+  // Sibilants: by default श/ष (sh) and स (s) collapse. With strictSibilants they stay
+  // apart ONLY as a syllable onset before a vowel (शाह Shah ≠ साह Sah). Inside a cluster
+  // before another consonant — श्र shr, श्व shw, ष्ठ sth, क्ष ksh — the sh/s distinction
+  // is unreliable across romanizations, so fold it there (Shrestha ≡ Srestha,
+  // Srivastava, Laxmi). [1.0.4 cluster fix: strict was over-rejecting these clusters.]
+  if (strict) {
+    s = s.replace(/sh(?=[bcdfghjklmnpqrstvwxyz])/g, "S"); // cluster → fold with स
+    s = s.replace(/sh/g, "X").replace(/ss/g, "S"); // onset-before-vowel / final → distinct
+  } else {
+    s = s.replace(/sh/g, "S").replace(/ss/g, "S");
+  }
   s = s
     .replace(/ph/g, "F").replace(/f/g, "F")
     .replace(/kh/g, "K").replace(/gh/g, "G")

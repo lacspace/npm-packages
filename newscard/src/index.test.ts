@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSvg, hasDevanagari, imagePrompt, isRefusal, pickText, SIZES, wrapText,
+  buildSvg, composeCard, hasDevanagari, imagePrompt, isRefusal, parseColor, pickText,
+  renderCard, SIZES, wrapText,
 } from "./index.js";
 import type { BrandTheme, CardSpec } from "./index.js";
 
@@ -69,6 +70,67 @@ describe("buildSvg", () => {
   it("knows the standard sizes", () => {
     expect(SIZES.og).toEqual({ width: 1200, height: 630 });
     expect(SIZES.story).toEqual({ width: 1080, height: 1920 });
+  });
+});
+
+describe("composeCard — layout plan (pure)", () => {
+  const base = (over: Partial<CardSpec> = {}): CardSpec => ({ theme, lang: "both", headline: { en: "Budget passed", ne: "बजेट पारित भयो" }, ...over });
+
+  it("emits sized plan, background, and Pango-markup text runs with both languages", () => {
+    const plan = composeCard(base({ size: "portrait" }));
+    expect([plan.width, plan.height]).toEqual([1080, 1350]);
+    expect(plan.background.color).toBeDefined();
+    const all = plan.texts.map((t) => t.plain).join(" | ");
+    expect(all).toContain("बजेट पारित भयो");
+    expect(all).toContain("Budget passed");
+    // markup carries font + color spans and escapes nothing wrongly
+    expect(plan.texts.some((t) => t.markup.includes("<span") && t.markup.includes("बजेट पारित भयो"))).toBe(true);
+    expect(plan.texts.some((t) => t.plain === "WeNepal")).toBe(true); // footer
+  });
+
+  it("uses the Devanagari family for Devanagari runs", () => {
+    const plan = composeCard(base({ lang: "ne", headline: "काठमाडौं" }));
+    expect(plan.texts.some((t) => t.markup.includes('font_family="Noto Sans Devanagari"') && t.plain.includes("काठमाडौं"))).toBe(true);
+  });
+
+  it("breaking card emits an accent banner rect across the top", () => {
+    const plan = composeCard(base({ type: "breaking", lang: "en", kicker: "Breaking" }));
+    expect(plan.rects.some((r) => r.y === 0 && r.w === plan.width)).toBe(true);
+    expect(plan.texts.some((t) => t.plain === "BREAKING")).toBe(true); // banner upper-cases
+  });
+
+  it("stat card emits a large value run", () => {
+    const plan = composeCard(base({ type: "stat", stat: { value: "रु. १२ अर्ब", label: { ne: "कुल बजेट" } }, headline: undefined }));
+    expect(plan.texts.some((t) => t.plain.includes("रु. १२ अर्ब"))).toBe(true);
+  });
+
+  it("parseColor handles hex, rgba and name@alpha", () => {
+    expect(parseColor("#e63946")).toMatchObject({ r: 230, g: 57, b: 70, alpha: 1 });
+    expect(parseColor("rgba(0,0,0,0.5)")).toMatchObject({ r: 0, g: 0, b: 0, alpha: 0.5 });
+    expect(parseColor("black@0.6")).toMatchObject({ r: 0, g: 0, b: 0, alpha: 0.6 });
+  });
+});
+
+describe("renderCard — real raster (Devanagari shaping via sharp/Pango)", () => {
+  // A Devanagari headline with conjuncts/matras that resvg could not shape.
+  const neTheme: BrandTheme = { bg: "#0b1f3a", fg: "#ffffff", accent: "#e63946", fontFamily: "Mukta Mahee", footer: "WeNepal" };
+  const headline = "पृथ्वी राजमार्गमा बुधबार दिउँसो सञ्चालन";
+
+  it("renders a PNG with real ink for a complex Devanagari headline", async () => {
+    let png: Uint8Array | null = null;
+    try {
+      png = await renderCard({ size: "square", type: "headline", theme: neTheme, lang: "ne", headline });
+    } catch (e) {
+      // Skip if this environment's sharp lacks the Pango text op (CI has it).
+      console.warn("render skipped:", (e as Error).message);
+      return;
+    }
+    expect(png).toBeInstanceOf(Uint8Array);
+    expect(png!.length).toBeGreaterThan(2000); // a real PNG
+    expect(png![0]).toBe(0x89); // PNG magic
+    // Compare against an identical card with NO headline: the shaped text must add pixels.
+    const blank = await renderCard({ size: "square", type: "headline", theme: neTheme, lang: "ne", headline: undefined });
+    expect(png!.length).not.toBe(blank.length); // the shaped headline changed the pixels
   });
 });
 

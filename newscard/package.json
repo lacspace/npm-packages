@@ -1,32 +1,63 @@
 {
   "name": "@lacspace/newscard",
-  "version": "1.0.0",
-  "description": "Generate branded news image posts — headline, quote, stat, breaking-banner and carousel cards in IG portrait (1080×1350), square (1080×1080), Open Graph (1200×630) and story (1080×1920), bilingual English/Nepali with correct Devanagari shaping, rendered to PNG/WebP. Pure deterministic SVG builder plus a renderer via @resvg/resvg-js. Includes a safety-gated AI image-prompt helper that always labels output 'AI illustration' and refuses photoreal depictions of real people or events.",
+  "version": "1.1.0",
+  "description": "Generate branded news image posts — headline, quote, stat, breaking-banner and carousel cards in IG portrait (1080×1350), square (1080×1080), Open Graph (1200×630) and story (1080×1920), bilingual English/Nepali with correct Devanagari shaping (Pango/HarfBuzz via sharp — conjuncts and matras come out right), rendered to PNG/WebP. Pure deterministic layout engine plus a sharp renderer. Includes a safety-gated AI image-prompt helper that always labels output 'AI illustration' and refuses photoreal depictions of real people or events.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
-    "social-card", "news-card", "image-generator", "svg", "og-image", "carousel",
-    "devanagari", "bilingual", "newsroom", "resvg", "typescript"
+    "social-card",
+    "news-card",
+    "image-generator",
+    "svg",
+    "og-image",
+    "carousel",
+    "devanagari",
+    "bilingual",
+    "newsroom",
+    "sharp",
+    "pango",
+    "typescript"
   ],
   "dependencies": {
-    "@resvg/resvg-js": "^2.6.2"
+    "sharp": ">=0.33.0"
   },
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/packages/newscard",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "newscard" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "newscard"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

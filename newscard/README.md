@@ -1,9 +1,11 @@
 # @lacspace/newscard
 
-**Branded news image posts — headline, quote, stat, breaking banner and carousels — bilingual, with correct Devanagari shaping.** A deterministic SVG layout engine (pure, testable) plus a renderer to PNG/WebP via `@resvg/resvg-js` (HarfBuzz shaping, embedded fonts). One brand theme in, publish-ready cards out — no LLM, no per-post design work.
+**Branded news image posts — headline, quote, stat, breaking banner and carousels — bilingual, with correct Devanagari shaping.** A deterministic layout engine (pure, testable) plus a renderer to PNG/WebP via **`sharp`**, whose Pango/HarfBuzz text path shapes complex scripts correctly — conjuncts and matras (`र्ग`, `सञ्चा`, `पृथ्वी`, `दिउँसो`) come out right. One brand theme in, publish-ready cards out — no LLM, no per-post design work.
+
+> **Why sharp, not an SVG→PNG rasterizer?** Common SVG rasterizers (incl. resvg) don't run HarfBuzz-level shaping, so Devanagari renders garbled. `newscard` lays the card out itself and draws every text run through sharp's Pango text, which shapes correctly. (newscard ≤1.0 used resvg and had this bug — fixed in 1.1.)
 
 ```bash
-npm i @lacspace/newscard   # @resvg/resvg-js comes with it (ships prebuilt binaries)
+npm i @lacspace/newscard   # sharp comes with it; its prebuilt libvips includes Pango text
 ```
 
 ```ts
@@ -34,11 +36,11 @@ Designing every post by hand (or asking an LLM to emit SVG each time) is slow an
 
 ## API
 
-### `buildSvg(spec)` → `string`  (pure)
-No native code — fully testable. The SVG carries the brand background/accent, an accent bar + kicker (or a breaking banner), the headline/quote/stat, an attribution line, and the logo + footer. Devanagari text automatically uses `fontFamilyNe`.
+### `composeCard(spec)` → `CardPlan`  (pure)
+No native code — fully testable. Returns a flat plan: `{ width, height, background, rects, texts, images }`, where each text run carries Pango markup (font family per script, size, color) and a `plain` string. This is the layout `renderCard` executes. (`buildSvg(spec)` is still exported for a quick SVG string / Latin-only previews, but the raster path uses `composeCard`, since SVG rasterizers mis-shape Devanagari.)
 
 ### `renderCard(spec, { format?, quality? })` → `Promise<Uint8Array>`  (Node)
-Rasterizes via `@resvg/resvg-js`. `format: "png"` (default) or `"webp"` (needs `sharp`). Pass `theme.fontFiles` so the renderer embeds the exact fonts and shapes Devanagari correctly — otherwise it falls back to system fonts.
+Renders the plan with `sharp`. `format: "png"` (default) or `"webp"`. Pass `theme.fontFiles` (first file) so Pango uses the exact font; otherwise it resolves `theme.fontFamily` / `fontFamilyNe` via fontconfig (system fonts). Use a Devanagari-capable family (Mukta / Noto Sans Devanagari).
 
 ### `renderCarousel(carousel, options?)` → `Promise<Uint8Array[]>`
 Renders each slide with the shared theme/size and adds `n/total` page numbers (disable with `pageNumbers: false`).

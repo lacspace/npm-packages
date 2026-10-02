@@ -91,6 +91,50 @@ export function alignWordBoundaries(tokens: Token[], segments: Segment[], bounda
   return out;
 }
 
+/**
+ * Align engine word boundaries to UNNORMALISED text (the engine was fed the raw article).
+ * Engines then emit digits as their own tokens ("१", "२४") and stall on abbreviations ("रु."
+ * → "रु" + a long gap), which is the drift source speakable removes — but when you already have
+ * such audio, this maps every raw whitespace token to a time span. Unmatched tokens (dropped by
+ * the engine, e.g. punctuation-only) inherit the surrounding span.
+ */
+export function alignRaw(text: string, boundaries: WordBoundary[]): Array<{ orig: string; start: number; end: number; startMs: number; endMs: number }> {
+  const toks: Array<{ orig: string; start: number; end: number; key: string; startMs?: number; endMs?: number }> = [];
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) toks.push({ orig: m[0], start: m.index, end: m.index + m[0].length, key: strip(m[0]) });
+  const events = boundaries.filter((b) => strip(b.text)).map((b) => ({ key: strip(b.text), start: b.offsetMs, end: b.offsetMs + b.durationMs }));
+  let ei = 0;
+  for (let ti = 0; ti < toks.length && ei < events.length; ti++) {
+    const t = toks[ti]!;
+    if (!t.key) continue;
+    let found = -1;
+    for (let k = ei; k < Math.min(events.length, ei + 4); k++) {
+      const ek = events[k]!.key;
+      if (ek === t.key || t.key.startsWith(ek) || ek.startsWith(t.key)) { found = k; break; }
+    }
+    if (found === -1) continue;
+    // An engine may split one raw token into several events ("रु." → "रु"; "१,२०,०००" → "१" "२०" "०००"): absorb
+    // following events while their concatenation is still a prefix of the token.
+    let acc = events[found]!.key, endK = found;
+    while (endK + 1 < events.length && acc.length < t.key.length && t.key.startsWith(acc + events[endK + 1]!.key)) { endK++; acc += events[endK]!.key; }
+    t.startMs = events[found]!.start;
+    t.endMs = events[endK]!.end;
+    ei = endK + 1;
+  }
+  let lastEnd = 0;
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i]!;
+    if (t.startMs === undefined) {
+      const next = toks.slice(i + 1).find((x) => x.startMs !== undefined);
+      t.startMs = lastEnd;
+      t.endMs = next ? next.startMs! : lastEnd + 200;
+    }
+    lastEnd = t.endMs!;
+  }
+  return toks.map((t) => ({ orig: t.orig, start: t.start, end: t.end, startMs: t.startMs!, endMs: t.endMs! }));
+}
+
 /** Merge aligned words back into ORIGINAL-text caption units (one entry per original token). */
 export function originalWordTimings(aligned: AlignedSegment[]): Array<{ orig: string; start: number; end: number; startMs: number; endMs: number; segment: number }> {
   const out: Array<{ orig: string; start: number; end: number; startMs: number; endMs: number; segment: number }> = [];

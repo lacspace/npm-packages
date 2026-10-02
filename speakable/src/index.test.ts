@@ -142,3 +142,29 @@ describe("segmentation, SSML, timing, alignment", () => {
     expect(describeApi().commands.map((c) => c.name)).toContain("alignWordBoundaries");
   });
 });
+
+describe("WeNepal production edge-tts fixture (ne-NP-HemkalaNeural, raw text)", async () => {
+  const fx = (await import("./fixture.edge.json", { with: { type: "json" } })).default as { text: string; events: Array<{ text: string; offsetMs: number; durationMs: number }> };
+  it("alignRaw maps every raw token incl. digit tokens and the stalled 'रु.' to engine time", async () => {
+    const { alignRaw } = await import("./index.js");
+    const a = alignRaw(fx.text, fx.events);
+    expect(a.length).toBe(fx.text.split(/\s+/).length);
+    expect(a.find((w) => w.orig === "२४")!.startMs).toBe(8712.5);
+    const ru = a.find((w) => w.orig === "रु.")!;
+    expect(ru.startMs).toBe(14337.5);
+    expect(ru.endMs).toBe(14512.5);
+    expect(a[a.length - 1]!.orig).toBe("छ।");
+    expect(a[a.length - 1]!.endMs).toBe(17700);
+    // the engine stalled 1.2 s before "१" after "रु." — visible as a gap, not a drift
+    expect(a.find((w, i) => w.orig === "१" && a[i - 1]!.orig === "रु.")!.startMs - ru.endMs).toBeGreaterThan(1000);
+  });
+  it("the same sentence through speakable has no digit/abbreviation tokens for the engine to stall on", async () => {
+    const { speakable } = await import("./index.js");
+    const r = speakable(fx.text, { lang: "ne" });
+    expect(r.text).not.toMatch(/[0-9०-९]|रु\./);
+    expect(r.text).toContain("मंसिर एक गतेदेखि");
+    expect(r.text).toContain("चौबिस घण्टा");
+    expect(r.text).toContain("एक लाख पचास हजार रुपैयाँ खर्च");
+    expect(r.segments.length).toBe(2);
+  });
+});

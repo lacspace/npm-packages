@@ -18,19 +18,22 @@ export function stillChain(
   fps: number,
   duration: number,
   motion: "in" | "out" | "none",
+  oversample = 2,
 ): string {
   const frames = Math.max(1, Math.round(duration * fps));
-  // Oversample 2× so the zoom has pixels to work with; zoom from/to by motion.
+  // Oversample so the zoom has pixels to work with; zoom from/to by motion. Step scales with fps so
+  // the move covers the same distance at 24 or 30 fps.
+  const step = (0.0012 * 30) / fps;
   const z =
     motion === "out"
-      ? "z='if(eq(on,1),1.20,max(1.001,zoom-0.0012))'"
+      ? `z='if(eq(on,1),1.20,max(1.001,zoom-${step.toFixed(5)}))'`
       : motion === "in"
-        ? "z='min(zoom+0.0012,1.20)'"
+        ? `z='min(zoom+${step.toFixed(5)},1.20)'`
         : "z=1";
   const x = "x='iw/2-(iw/zoom/2)'";
   const y = "y='ih/2-(ih/zoom/2)'";
   return (
-    `[${inLabel}]scale=${p.width * 2}:${p.height * 2},` +
+    `[${inLabel}]scale=${Math.round(p.width * oversample)}:${Math.round(p.height * oversample)},` +
     `zoompan=${z}:${x}:${y}:d=${frames}:s=${p.width}x${p.height}:fps=${fps},` +
     `setsar=1,format=yuv420p[${outLabel}]`
   );
@@ -114,6 +117,16 @@ export function lowerThird(
     );
   }
   return filters;
+}
+
+/** libass burn-in of an ASS file (from @lacspace/captionsync). */
+export function assFilter(file: string, fontsDir?: string): string {
+  return `subtitles='${escapePath(file)}'${fontsDir ? `:fontsdir='${escapePath(fontsDir)}'` : ""}`;
+}
+
+/** Resize a canvas to another preset: scale-to-cover + centre crop. */
+export function recanvas(inLabel: string, outLabel: string, to: PresetInfo): string {
+  return `[${inLabel}]scale=${to.width}:${to.height}:force_original_aspect_ratio=increase,crop=${to.width}:${to.height},setsar=1[${outLabel}]`;
 }
 
 /** An animated progress bar pinned to the bottom edge. */

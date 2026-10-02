@@ -61,3 +61,11 @@ Builds, then spawns ffmpeg under **`nice`** (default level 15) with **`ulimit -c
 
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.
+
+## 1.1 — render budget tools
+
+- **`plan(spec, { quality?, cuts?, machineFactor? })`** → `{ frames, filters, units, estimatedSeconds, breakdown:{decode,kenBurns,transitions,text,encode}, suggestions:[{change, estimatedSeconds}] }`. Estimate before rendering; pick a preset that fits your budget. Calibrate once: `machineFactor = calibrate(plan, measuredSeconds)`.
+- **`quality: "fast"`** in `BuildOptions` → `ultrafast`, crf 23, 24 fps default, 1.5× Ken Burns oversample (Ken Burns step scales with fps so the move looks the same).
+- **`prepareRenditions(spec, { outDir, height: 720 })`** → `{ jobs:[{src,out,args}], renditions }` — pre-encode each distinct clip once to a 720p mezzanine (cacheable by source), then pass `renditions` to every later build.
+- **`buildMultiCut(spec, cuts, options)`** — one ffmpeg process, N outputs: the decode + Ken Burns + xfade graph runs once, then `split` feeds per-cut canvas (`recanvas` scale/crop), captions (en/ne), lower-thirds, ASS, logo, audio track. `{ preset, output, captions?, lowerThirds?, ass?, logo?, audio?, progressBar? }` per cut.
+- **`spec.ass = { file, fontsDir }`** — burn an ASS file from `@lacspace/captionsync` with libass (needs ffmpeg built with libass): correct Devanagari shaping, karaoke, 2-line safe-area captions.

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/speakable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Engine-agnostic spoken-form normaliser for Nepali and English text-to-speech. Rewrites what TTS engines mangle before any engine sees it: numbers (unique Nepali 0–99 words, लाख/करोड scales, डेढ/अढाई/साढे idioms, decimals), Bikram Sambat and AD dates (२०८३ असोज १६ → दुई हजार त्रियासी साल असोज सोह्र गते), times (१३:३८ → दिउँसो एक बजेर अठतिस मिनेट), currency (रु. १ लाख ५० हजार / NPR 1,20,000 / $120M), percent, phone numbers and plates digit-by-digit, units, ordinals, acronyms (NEPSE → नेप्से, NRB → एन आर बी, extendable), abbreviations (डा./वि.सं./Dr.), cross-script names via @lacspace/translit with a pronunciation override dictionary. Then sentence segmentation with pauses and slower rate on numbers, SSML for edge-tts/Azure, estimated word timings, and alignment of engine WordBoundary events back to the ORIGINAL text so captions never drift. Deterministic, no AI tokens.",
   "type": "module",
   "main": "./dist/index.cjs",

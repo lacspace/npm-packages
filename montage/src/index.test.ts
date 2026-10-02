@@ -118,3 +118,73 @@ describe("buildMontage — guards", () => {
     expect(() => buildMontage(base({ segments: [] }))).toThrow();
   });
 });
+
+describe("1.1: fast quality, ASS, renditions", () => {
+  it("fast quality switches to ultrafast/crf 23/24 fps and 1.5× Ken Burns", () => {
+    const r = buildMontage(base({ segments: [{ kind: "still", src: "img.jpg", duration: 4 }] }), { quality: "fast" });
+    expect(r.args).toContain("ultrafast");
+    expect(r.args[r.args.indexOf("-crf") + 1]).toBe("23");
+    expect(r.fps).toBe(24);
+    expect(r.filter).toContain("scale=1620:2880"); // 1.5× of 1080×1920
+    const std = buildMontage(base({ segments: [{ kind: "still", src: "img.jpg", duration: 4 }] }));
+    expect(std.filter).toContain("scale=2160:3840");
+  });
+  it("burns an ASS file with libass and swaps renditions", () => {
+    const r = buildMontage(base({ ass: { file: "/tmp/c.ass", fontsDir: "/fonts" } }), { renditions: { "a.mp4": "/mez/a.720p.mp4" } });
+    expect(r.filter).toContain("subtitles='/tmp/c.ass':fontsdir='/fonts'");
+    expect(r.args.join(" ")).toContain("-i /mez/a.720p.mp4");
+    expect(r.args.join(" ")).not.toContain("-i a.mp4");
+  });
+  it("prepareRenditions emits one job per distinct clip", async () => {
+    const { prepareRenditions } = await import("./index.js");
+    const spec = base({ segments: [{ kind: "clip", src: "/stock/a.mp4", duration: 3 }, { kind: "clip", src: "/stock/a.mp4", duration: 2, start: 5 }, { kind: "still", src: "x.jpg", duration: 2 }, { kind: "clip", src: "/stock/b.mov", duration: 3 }] });
+    const r = prepareRenditions(spec, { outDir: "/mez/" });
+    expect(r.jobs.map((j) => j.out)).toEqual(["/mez/a.720p.mp4", "/mez/b.720p.mp4"]);
+    expect(r.jobs[0]!.args).toContain("scale=-2:720");
+    expect(r.renditions["/stock/b.mov"]).toBe("/mez/b.720p.mp4");
+  });
+});
+
+describe("1.1: multi-cut + plan", () => {
+  const spec = base({
+    preset: "landscape",
+    segments: [{ kind: "clip", src: "a.mp4", duration: 5 }, { kind: "still", src: "b.jpg", duration: 4 }],
+    transitions: { type: "crossfade", duration: 0.5 },
+    audio: "en.m4a",
+    logo: { src: "logo.png" },
+  });
+  it("renders en/ne/square cuts from one decode with split, per-cut captions, audio and canvas", async () => {
+    const { buildMultiCut } = await import("./index.js");
+    const r = buildMultiCut(spec, [
+      { preset: "landscape", output: "en.mp4", captions: [{ text: "Hello", start: 0, end: 2 }] },
+      { preset: "landscape", output: "ne.mp4", captions: [{ text: "नमस्ते", start: 0, end: 2 }], audio: "ne.m4a" },
+      { preset: "square", output: "sq.mp4", ass: { file: "sq.ass" } },
+    ]);
+    expect(r.filter).toContain("split=3[b0][b1][b2]");
+    expect(r.filter).toContain("[b2]scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080");
+    expect(r.filter).toContain("text='नमस्ते'");
+    expect(r.filter).toContain("subtitles='sq.ass'");
+    expect(r.filter.match(/zoompan=/g)!.length).toBe(1); // Ken Burns computed once
+    expect(r.filter.match(/xfade=/g)!.length).toBe(1);
+    const a = r.args.join(" ");
+    expect(a).toContain("-map [out0] -map 2:a"); // en.m4a is input 2
+    expect(a).toContain("-map [out1] -map 4:a"); // ne.m4a added after logo (3)
+    expect(a).toContain("-map [out2] -map 2:a");
+    expect(r.outputs.map((o: { output: string }) => o.output)).toEqual(["en.mp4", "ne.mp4", "sq.mp4"]);
+    expect(r.duration).toBe(8.5);
+    expect((a.match(/libx264/g) ?? []).length).toBe(3);
+  });
+  it("plan() estimates seconds, breaks it down and suggests cheaper options", async () => {
+    const { plan, calibrate } = await import("./index.js");
+    const p = plan(spec, { cuts: [{ preset: "square", output: "sq.mp4" }] });
+    expect(p.frames).toBe(255);
+    expect(p.estimatedSeconds).toBeGreaterThan(0);
+    expect(p.breakdown.encode).toBeGreaterThan(0);
+    expect(p.suggestions.length).toBeGreaterThan(0);
+    const fast = plan(spec, { quality: "fast", cuts: [{ preset: "square", output: "sq.mp4" }] });
+    expect(fast.estimatedSeconds).toBeLessThan(p.estimatedSeconds);
+    expect(p.suggestions.find((s) => s.change.startsWith("quality"))!.estimatedSeconds).toBe(fast.estimatedSeconds);
+    expect(calibrate(p, p.estimatedSeconds * 2)).toBe(0.5); // box is half as fast as baseline
+    expect(plan(spec, { machineFactor: 2 }).estimatedSeconds).toBeLessThan(plan(spec).estimatedSeconds);
+  });
+});

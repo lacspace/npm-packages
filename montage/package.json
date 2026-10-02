@@ -1,29 +1,61 @@
 {
   "name": "@lacspace/montage",
-  "version": "1.0.0",
-  "description": "Compile a list of clips and stills into a platform-ready social video: an ffmpeg timeline builder with per-platform presets and safe areas (Reels/TikTok/Shorts 9:16, FB 4:5 and 1:1, YouTube 16:9), Ken Burns on stills, xfade transitions (crossfade/slide/zoom-punch/whip), Devanagari-shaped kinetic captions, lower-thirds, logo bug and progress bar. Pure deterministic command builder plus an optional low-CPU runner (nice + thread cap + ulimit -c 0). Bring your own ffmpeg; zero third-party dependencies, isomorphic.",
+  "version": "1.1.0",
+  "description": "Compile a list of clips and stills into a platform-ready social video: an ffmpeg timeline builder with per-platform presets and safe areas (Reels/TikTok/Shorts 9:16, FB 4:5 and 1:1, YouTube 16:9), Ken Burns on stills, xfade transitions (crossfade/slide/zoom-punch/whip), Devanagari-shaped kinetic captions, lower-thirds, logo bug and progress bar. Pure deterministic command builder plus an optional low-CPU runner (nice + thread cap + ulimit -c 0). Bring your own ffmpeg; zero third-party dependencies, isomorphic. 1.1 adds plan() — a render-time estimator with a cost breakdown and cheaper alternatives — a fast quality mode (ultrafast, 24 fps, lighter Ken Burns), 720p renditions reused across cuts, libass ASS captions (correct Devanagari shaping via @lacspace/captionsync), and one-process multi-cut: en/ne/square/reels outputs from a single decode.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
-    "ffmpeg", "video", "montage", "timeline", "reels", "tiktok", "shorts", "ken-burns",
-    "captions", "devanagari", "newsroom", "zero-dependency", "typescript"
+    "ffmpeg",
+    "video",
+    "montage",
+    "timeline",
+    "reels",
+    "tiktok",
+    "shorts",
+    "ken-burns",
+    "captions",
+    "devanagari",
+    "newsroom",
+    "zero-dependency",
+    "typescript"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/packages/montage",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "montage" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "montage"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

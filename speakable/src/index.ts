@@ -12,7 +12,7 @@ export { RULES } from "./rules.js";
 export type { Lang, RuleContext, Rule } from "./rules.js";
 export type { WordOptions } from "./words.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 
 export interface SpeakableOptions extends PacingOptions, Omit<WordOptions, "lang"> {
   /** Output language for the voice. "auto" picks by dominant script (default). */

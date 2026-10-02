@@ -2,7 +2,7 @@ import { extractPublishedDate } from "./extract.js";
 import { textStaleness } from "./staleness.js";
 import { parseAnyDate } from "./parse.js";
 
-export type Freshness = "fresh" | "stale" | "unknown";
+export type Freshness = "fresh" | "stale" | "unknown" | "upcoming";
 
 export interface AssessFreshnessInput {
   /** Article HTML, if available (enables page-date extraction). */
@@ -69,6 +69,9 @@ export function assessFreshness(input: AssessFreshnessInput): AssessFreshnessRes
     return { verdict: "unknown", ageHours: null, reasons };
   }
   const ageHours = Math.round(((now.getTime() - ts.newestMention.getTime()) / HOUR) * 10) / 10;
+  if (ts.upcoming) {
+    return { verdict: "upcoming", ageHours, reasons };
+  }
   if (ts.stale) {
     return { verdict: "stale", ageHours, reasons };
   }
@@ -91,7 +94,7 @@ export async function assessFreshnessWithAI(input: AssessFreshnessAIInput): Prom
   const now = input.now ?? new Date();
   let raw: string;
   try {
-    raw = await input.ai(freshnessPrompt(input.text ?? ""));
+    raw = await input.ai(freshnessPrompt(input.text ?? "", { now }));
   } catch (e) {
     base.reasons.push(`ai hook failed: ${(e as Error).message}`);
     return base;
@@ -119,11 +122,15 @@ export async function assessFreshnessWithAI(input: AssessFreshnessAIInput): Prom
   return base;
 }
 
-/** A terse prompt asking an LLM for the event date + currency as compact JSON. */
-export function freshnessPrompt(text: string): string {
+/**
+ * A terse prompt asking an LLM for the event date + currency as compact JSON. Includes
+ * today's date so the model can judge "current" relative to it.
+ */
+export function freshnessPrompt(text: string, options: { now?: Date } = {}): string {
+  const today = (options.now ?? new Date()).toISOString().slice(0, 10);
   const snippet = (text ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
   return (
-    "What is the main event date of this news text, and is it current news? " +
+    `Today is ${today}. What is the main event date of this news text, and is it current news? ` +
     'Reply ONLY with JSON: {"eventDate":"YYYY-MM-DD"|null,"isCurrentNews":true|false}\n\n' +
     snippet
   );

@@ -94,11 +94,11 @@ describe("extractPublishedDate", () => {
 });
 
 describe("textStaleness", () => {
-  it("flags an article that only talks about old events", () => {
+  it("flags an article that only talks about old events (keeps day precision)", () => {
     const text = "The iPhone 11 launched on September 10, 2019 with new cameras. Pre-orders began that week in 2019.";
     const r = textStaleness(text, { now: NOW, maxAgeDays: 7 });
     expect(r.stale).toBe(true);
-    expect(iso(r.newestMention)).toBe("2019-12-31");
+    expect(iso(r.newestMention)).toBe("2019-09-10"); // the explicit day, NOT inflated to 2019-12-31
   });
   it("does not flag fresh news with historical background", () => {
     const text = "Today the central bank cut rates. The last such cut was back in 2019 during the slowdown.";
@@ -167,10 +167,69 @@ describe("assessFreshnessWithAI + freshnessPrompt", () => {
     expect(called).toBe(0);
     expect(r.verdict).toBe("fresh");
   });
-  it("freshnessPrompt is compact and asks for the JSON shape", () => {
-    const p = freshnessPrompt("<p>Some news body text.</p>");
+  it("freshnessPrompt is compact, includes today, and asks for the JSON shape", () => {
+    const p = freshnessPrompt("<p>Some news body text.</p>", { now: NOW });
     expect(p).toContain("eventDate");
     expect(p).toContain("isCurrentNews");
+    expect(p).toContain("2026-10-02"); // today is in the prompt (WeNepal ask)
     expect(p).not.toContain("<p>"); // tags stripped
+  });
+});
+
+describe("1.0.1 — WeNepal integration fixes", () => {
+  it("parses day-month-year order, filler words, Devanagari-English months, ordinals", () => {
+    expect(iso(parseAnyDate("शुक्रबार, ६ मंसिर, २०७६", { now: NOW }))).toBe("2019-11-22");
+    expect(iso(parseAnyDate("६ मङ्सिर २०७६", { now: NOW }))).toBe("2019-11-22");
+    expect(iso(parseAnyDate("२०८३ साल आश्विन १६", { now: NOW }))).toBe("2026-10-02");
+    expect(iso(parseAnyDate("16 Asoj 2083", { now: NOW }))).toBe("2026-10-02");
+    expect(iso(parseAnyDate("१ बैशाख २०८०", { now: NOW }))).toBe("2023-04-14");
+    expect(iso(parseAnyDate("सेप्टेम्बर १०, २०१९", { now: NOW }))).toBe("2019-09-10");
+    expect(iso(parseAnyDate("on 10th Sept. 2019", { now: NOW }))).toBe("2019-09-10");
+  });
+  it("keeps full time precision and treats zone-less times as Nepal time (+05:45)", () => {
+    // 13:38 NPT = 07:53 UTC
+    expect(parseAnyDate("प्रकाशित मिति: शुक्रबार, असोज १६, २०८३ १३:३८", { now: NOW })!.toISOString())
+      .toBe("2026-10-02T07:53:00.000Z");
+    // explicit zone preserved
+    expect(parseAnyDate("2026-10-01T09:15:00+05:45", { now: NOW })!.toISOString())
+      .toBe("2026-10-01T03:30:00.000Z");
+    // date-only → noon NPT = 06:15 UTC
+    expect(parseAnyDate("2019-09-10", { now: NOW })!.toISOString()).toBe("2019-09-10T06:15:00.000Z");
+    // "आज १३:३८" → today at that NPT time
+    expect(parseAnyDate("आज १३:३८", { now: NOW })!.toISOString()).toBe("2026-10-02T07:53:00.000Z");
+  });
+
+  it("extractPublishedDate ignores site chrome and reads the article's own date", () => {
+    const ict = `<header><div class="today-bar">१६ असोज २०८३, शुक्रबार <span>आज</span></div></header>
+      <article><h1>Headline</h1><p class="meta post__date">शुक्रबार, ६ मंसिर, २०७६</p><p>body</p></article>`;
+    const r = extractPublishedDate(ict, "https://ictsamachar.com/story/1897", { now: NOW });
+    expect(iso(r.publishedAt)).toBe("2019-11-22"); // NOT today's header "आज"
+    expect(r.source).toBe("byline");
+
+    const sidebar = `<aside class="sidebar"><div class="date">२०८३ असोज १६</div></aside>
+      <article><p class="post__date">शुक्रबार, ६ मंसिर, २०७६</p></article>`;
+    expect(iso(extractPublishedDate(sidebar, "", { now: NOW }).publishedAt)).toBe("2019-11-22");
+  });
+  it("reads labeled BS datetimes at full precision (Setopati / Onlinekhabar)", () => {
+    const seto = `<span class="date">प्रकाशित मिति: शुक्रबार, असोज १६, २०८३ १३:३८</span>`;
+    expect(extractPublishedDate(seto, "", { now: NOW }).publishedAt!.toISOString()).toBe("2026-10-02T07:53:00.000Z");
+    const ok = `<div class="ok-news-post-hour"><span>२०८३ असोज  १६ गते १३:१२</span></div>`;
+    expect(extractPublishedDate(ok, "", { now: NOW }).publishedAt!.toISOString()).toBe("2026-10-02T07:27:00.000Z");
+  });
+  it("the ICT bug: old article + recent feed date is still stale", () => {
+    const html = `<header><div class="today-bar">आज</div></header><article><p class="post__date">शुक्रबार, ६ मंसिर, २०७६</p></article>`;
+    const r = assessFreshness({ html, text: "body", feedDate: new Date("2026-10-01T00:00:00Z"), now: NOW, maxAgeHours: 48 });
+    expect(r.verdict).toBe("stale");
+  });
+
+  it("textStaleness flags upcoming (future) events instead of stale", () => {
+    const r = textStaleness("The summit will be held on 20 December 2026 in Kathmandu.", { now: NOW, maxAgeDays: 7 });
+    expect(r.stale).toBe(false);
+    expect(r.upcoming).toBe(true);
+    expect(iso(r.newestMention)).toBe("2026-12-20");
+  });
+  it("assessFreshness surfaces an upcoming verdict when only future dates exist", () => {
+    const r = assessFreshness({ text: "Election scheduled for 15 Mangsir 2083.", feedDate: null, now: NOW, maxAgeHours: 48 });
+    expect(r.verdict).toBe("upcoming");
   });
 });

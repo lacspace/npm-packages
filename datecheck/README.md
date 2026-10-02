@@ -35,15 +35,18 @@ Reads the date in priority order and returns the best one plus every candidate:
 - **meta tags** — `article:published_time`, `og:published_time`, `pubdate`, `date`, `dc.date`, `sailthru.date`, `parsely-pub-date`, `itemprop=datePublished`, … (0.9)
 - **`<time datetime>`** (0.8)
 - **URL patterns** — `/2019/09/10/`, `/20190910`, `-2019-09-10`, `?date=…` (0.6)
-- **visible byline / body text** (0.5 / 0.4)
+- **byline / article-date elements** — elements whose `class`/`id` or a nearby `प्रकाशित`/`Published`/`मिति` label marks the article's own date (0.7)
+- **body text** — last resort (0.4)
 
-Rejects dates before **1990** or more than ~1 day in the **future**.
+**Site chrome is ignored.** A header/sidebar "today" bar or a related-stories list never becomes the publish date — chrome containers (`<header>`/`<nav>`/`<aside>`/`<footer>` and `sidebar`/`related`/`trending`/… classes) are stripped, a concrete date always beats a relative "आज/today", and a dated `class="post__date"`/`प्रकाशित` element wins over loose body text.
+
+**Time & timezone.** Full time precision is kept. A time with an explicit zone is honored; a time with **no** zone is read as **Nepal time (+05:45)**; a date with no time is **noon Nepal time**. Rejects dates before **1990** or more than ~1 day in the **future**.
 
 ### `textStaleness(text, { now, maxAgeDays, lang? })` → `TextStalenessResult`
-`{ stale, signals, newestMention, oldestMention, confidence }`. Flags articles whose body talks only about events older than `maxAgeDays`. **Not fooled by historical background:** a single mention inside the window — or a relative "today / yesterday / आज / हिजो" — keeps it fresh.
+`{ stale, upcoming, signals, newestMention, oldestMention, confidence }`. Flags articles whose body talks only about events older than `maxAgeDays`. **Not fooled by historical background:** a single mention inside the window — or a relative "today / yesterday / आज / हिजो" — keeps it fresh. Explicit dates keep full day precision (`September 10, 2019` stays the 10th, not year-end). A piece about a **future** event sets `upcoming: true` instead of looking stale.
 
 ### `assessFreshness({ html?, text, url?, feedDate?, now?, maxAgeHours })` → `AssessFreshnessResult`
-`{ verdict: "fresh" | "stale" | "unknown", ageHours, reasons }`. Combines page date, feed date and text staleness:
+`{ verdict: "fresh" | "stale" | "unknown" | "upcoming", ageHours, reasons }`. Combines page date, feed date and text staleness:
 - a page publish/modify date is **authoritative** and outranks the feed date;
 - only when no page date exists is the feed date used;
 - only when neither exists does text staleness decide — **stale** if it reads old, **unknown** if there is no date and no signal.

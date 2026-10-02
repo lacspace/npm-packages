@@ -10,6 +10,8 @@ export interface TextStalenessOptions {
 
 export interface TextStalenessResult {
   stale: boolean;
+  /** The article's dated events are in the FUTURE (an upcoming-event piece). */
+  upcoming: boolean;
   signals: string[];
   newestMention: Date | null;
   oldestMention: Date | null;
@@ -60,28 +62,38 @@ export function textStaleness(text: string, options: TextStalenessOptions): Text
     }
   }
 
-  // 2) Explicit dates (English / ISO / BS) anywhere in the body.
-  const windows = body.match(
-    /(?:वि\.?\s*सं\.?|बि\.?\s*सं\.?)?\s*[A-Za-z०-९\d][^.?!\n]{0,24}?(?:[०-९\d]{1,4})/g,
-  ) ?? [];
+  // 2) Explicit dates (English / ISO / BS), keeping full day precision (never lumped
+  //    into the year). Each window holds a whole day+month+year so "20 December 2026"
+  //    is read as one date. Future dates are allowed so upcoming events are detected.
+  const nbody = normalizeDigits(body);
+  const DATE_WINDOWS: RegExp[] = [
+    /\d{1,2}(?:st|nd|rd|th)?\s*(?:साल\s*)?[A-Za-zऀ-ॿ]{2,14}\.?,?\s*\d{4}/g, // DMY
+    /[A-Za-zऀ-ॿ]{2,14}\.?\s*\d{1,2}(?:st|nd|rd|th)?\s*,?\s*\d{4}/g, // MDY
+    /\d{4}\s*(?:साल\s*)?[A-Za-zऀ-ॿ]{2,14}\.?\s*\d{1,2}/g, // YMD
+    /\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?/g, // ISO
+  ];
+  const windows: string[] = [];
+  for (const re of DATE_WINDOWS) windows.push(...(nbody.match(re) ?? []));
   const seen = new Set<string>();
+  const explicitYears = new Set<number>();
   for (const w of windows) {
-    const d = parseAnyDate(w, { now });
+    const d = parseAnyDate(w, { now, allowFuture: true });
     if (d) {
       const key = `${d.getTime()}`;
       if (!seen.has(key)) {
         seen.add(key);
         mentions.push({ date: d, raw: w.trim(), kind: "date" });
+        explicitYears.add(d.getUTCFullYear());
       }
     }
   }
 
-  // 3) Bare years — AD (Latin) and BS (Devanagari digits), mapped to the LATEST day of
-  //    that year so a current-year mention is not wrongly treated as old.
+  // 3) Bare years — AD (Latin) and BS (Devanagari digits). A year already covered by an
+  //    explicit date is skipped, so "September 10, 2019" stays the day, not Dec 31 2019.
   const nowYear = now.getUTCFullYear();
   for (const m of body.match(/\b(?:19|20)\d{2}\b/g) ?? []) {
     const y = Number(m);
-    if (y >= 1990 && y <= nowYear + 1) {
+    if (y >= 1990 && y <= nowYear + 1 && !explicitYears.has(y)) {
       const end = Math.min(Date.UTC(y, 11, 31), now.getTime());
       mentions.push({ date: new Date(end), raw: m, kind: "year" });
     }
@@ -90,6 +102,8 @@ export function textStaleness(text: string, options: TextStalenessOptions): Text
     const y = Number(normalizeDigits(m));
     if (y >= BS_MIN_YEAR && y <= BS_MAX_YEAR) {
       try {
+        const adYear = bsToAd(y, 1, 1).getUTCFullYear();
+        if (explicitYears.has(adYear) || explicitYears.has(adYear + 1)) continue;
         const lastMonthStart = bsToAd(y, 12, 1).getTime();
         mentions.push({ date: new Date(Math.min(lastMonthStart, now.getTime())), raw: m, kind: "year" });
       } catch {
@@ -99,30 +113,35 @@ export function textStaleness(text: string, options: TextStalenessOptions): Text
   }
 
   if (!mentions.length) {
-    return { stale: false, signals: ["no dated content found"], newestMention: null, oldestMention: null, confidence: 0.2 };
+    return { stale: false, upcoming: false, signals: ["no dated content found"], newestMention: null, oldestMention: null, confidence: 0.2 };
   }
 
   let newest = mentions[0]!.date;
   let oldest = mentions[0]!.date;
+  let newestPast: Date | null = null;
+  let hasFuture = false;
   for (const m of mentions) {
     if (m.date.getTime() > newest.getTime()) newest = m.date;
     if (m.date.getTime() < oldest.getTime()) oldest = m.date;
+    if (m.date.getTime() > now.getTime() + DAY) hasFuture = true;
+    else if (!newestPast || m.date.getTime() > newestPast.getTime()) newestPast = m.date;
   }
 
-  const recent = hasRecentRelative || newest.getTime() >= windowStart;
   const hasExplicit = mentions.some((m) => m.kind === "date");
+  const recent = hasRecentRelative || (newestPast !== null && newestPast.getTime() >= windowStart);
   const signals: string[] = [];
-  let confidence: number;
 
   if (recent) {
     signals.push(hasRecentRelative ? "relative recency marker present" : "a dated mention falls inside the window");
-    confidence = hasRecentRelative ? 0.7 : hasExplicit ? 0.8 : 0.5;
-    return { stale: false, signals, newestMention: newest, oldestMention: oldest, confidence };
+    return { stale: false, upcoming: hasFuture, signals, newestMention: newest, oldestMention: oldest, confidence: hasRecentRelative ? 0.7 : hasExplicit ? 0.8 : 0.5 };
+  }
+  if (hasFuture) {
+    signals.push("dated events are in the future — upcoming, not stale");
+    return { stale: false, upcoming: true, signals, newestMention: newest, oldestMention: oldest, confidence: hasExplicit ? 0.8 : 0.5 };
   }
 
-  const ageDays = Math.round((now.getTime() - newest.getTime()) / DAY);
+  const ageDays = Math.round((now.getTime() - (newestPast ?? newest).getTime()) / DAY);
   signals.push(`newest dated mention is ~${ageDays} days old (> ${options.maxAgeDays})`);
   if (!hasExplicit) signals.push("only bare year mentions — lower confidence");
-  confidence = hasExplicit ? 0.8 : 0.5;
-  return { stale: true, signals, newestMention: newest, oldestMention: oldest, confidence };
+  return { stale: true, upcoming: false, signals, newestMention: newest, oldestMention: oldest, confidence: hasExplicit ? 0.8 : 0.5 };
 }

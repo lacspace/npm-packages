@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/datecheck",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tell how old an article really is — extract the published/modified date from HTML (JSON-LD, meta tags, <time>, URL patterns, bylines), including Nepali Bikram Sambat dates (Devanagari digits, all month spellings, BS→AD conversion), detect body-text staleness, and return a fresh | stale | unknown freshness verdict so an undated 2019 story is never republished as today's news. Deterministic, fail-closed, zero third-party dependencies; AI only via an optional injected hook.",
   "type": "module",
   "main": "./dist/index.cjs",

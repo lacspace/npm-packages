@@ -87,19 +87,28 @@ export function wrapHeadline(text: string, size: number, maxWidth: number, maxLi
   return lines.length <= maxLines ? lines : null;
 }
 
-/** Largest size (≤ max) at which the headline wraps into ≤ maxLines. Falls back to ellipsis at min. */
-export function fitHeadline(text: string, maxWidth: number, maxSize: number, minSize: number, maxLines: number): { size: number; lines: string[] } {
+/** Pango line height for a size: Devanagari ascenders/descenders need ~1.5 em, Latin ~1.25 em. */
+export function lineHeight(size: number, text: string): number {
+  return Math.round(size * (DEV.test(text) ? 1.5 : 1.25));
+}
+
+/**
+ * Largest size (≤ max) at which the headline wraps into ≤ maxLines AND the block fits maxHeight.
+ * Falls back to the minimum size with an ellipsis.
+ */
+export function fitHeadline(text: string, maxWidth: number, maxSize: number, minSize: number, maxLines: number, maxHeight = Infinity): { size: number; lines: string[]; height: number } {
   for (let s = maxSize; s >= minSize; s -= 2) {
     const lines = wrapHeadline(text, s, maxWidth, maxLines);
-    if (lines) return { size: s, lines };
+    if (lines && lines.length * lineHeight(s, text) <= maxHeight) return { size: s, lines, height: lines.length * lineHeight(s, text) };
   }
-  const lines = wrapHeadline(text, minSize, maxWidth, maxLines) ?? [];
-  if (lines.length === maxLines || !lines.length) {
-    const fitted = fitOneLine(text, minSize, maxWidth * maxLines);
-    const w = wrapHeadline(fitted.text, minSize, maxWidth, maxLines) ?? [fitted.text];
-    return { size: minSize, lines: w.slice(0, maxLines) };
-  }
-  return { size: minSize, lines };
+  const lh = lineHeight(minSize, text);
+  const allowed = Math.max(1, Math.min(maxLines, Math.floor(maxHeight / lh)));
+  const fitted = fitOneLine(text, minSize, maxWidth * allowed);
+  let lines = wrapHeadline(fitted.text, minSize, maxWidth, allowed) ?? [fitted.text];
+  if (lines.length > allowed) lines = lines.slice(0, allowed);
+  const last = lines[lines.length - 1]!;
+  if (!last.endsWith("…") && fitted.text !== text) lines[lines.length - 1] = fitOneLine(last, minSize, maxWidth).text;
+  return { size: minSize, lines, height: lines.length * lh };
 }
 
 /** SVG gradient tile as a data URI (sharp rasterises it) — used for legibility scrims. */
@@ -130,11 +139,10 @@ export function composeThumbs(spec: ThumbSpec): ThumbVariant[] {
   const creditRun = (x: number, y: number, w: number): TextRun[] =>
     spec.credit ? [{ markup: span(theme, spec.credit, Math.round(width * 0.016), muted, "normal", 0.9), x, y, width: w, align: "left", plain: spec.credit }] : [];
   const logoRun = (x: number, y: number): ImageRun[] => (theme.logo ? [{ src: theme.logo, x, y, w: Math.round(width * 0.11), h: Math.round(width * 0.11) }] : []);
-  const headBlock = (x: number, y: number, w: number, maxLines: number, color: RGBA, sizeMax = maxHead): { texts: TextRun[]; size: number; lines: string[]; h: number } => {
-    const { size: fs, lines } = fitHeadline(headline, w, sizeMax, minHead, maxLines);
-    const lh = Math.round(fs * 1.18);
+  const headBlock = (x: number, y: number, w: number, maxLines: number, color: RGBA, sizeMax = maxHead, maxH = height - y - pad): { texts: TextRun[]; size: number; lines: string[]; h: number } => {
+    const { size: fs, lines, height: h } = fitHeadline(headline, w, sizeMax, minHead, maxLines, maxH);
     const markup = lines.map((l) => span(theme, l, fs, color)).join("\n");
-    return { texts: [{ markup, x, y, width: w, align: "left", plain: lines.join(" ") }], size: fs, lines, h: lh * lines.length };
+    return { texts: [{ markup, x, y, width: w, align: "left", plain: lines.join(" ") }], size: fs, lines, h };
   };
 
   for (const layout of want) {
@@ -149,7 +157,8 @@ export function composeThumbs(spec: ThumbSpec): ThumbVariant[] {
       images.push({ src: gradientUri(Math.round(width * 0.1), height, toHex(bg) + "@1", toHex(bg) + "@0", "right"), x: photoX, y: 0, w: Math.round(width * 0.1), h: height });
       rects.push({ x: pad, y: pad, w: Math.round(width * 0.06), h: Math.round(height * 0.012), color: accent });
       texts.push(...kickerRun(pad, pad + Math.round(height * 0.03), textW, accent));
-      hb = headBlock(pad, Math.round(height * 0.22), textW, 4, fg);
+      const logoH = theme.logo ? Math.round(width * 0.11) + pad : 0;
+      hb = headBlock(pad, Math.round(height * 0.22), textW, 4, fg, maxHead, height - Math.round(height * 0.22) - pad - logoH);
       texts.push(...hb.texts);
       texts.push(...creditRun(photoX + Math.round(width * 0.02), height - pad - Math.round(width * 0.02), width - photoX - pad));
       images.push(...logoRun(pad, height - pad - Math.round(width * 0.11)));
@@ -159,10 +168,12 @@ export function composeThumbs(spec: ThumbSpec): ThumbVariant[] {
       images.push({ src: gradientUri(width, height, "#000000@0", "#000000@0.85", "down"), x: 0, y: 0, w: width, h: height });
       if (breaking) rects.push({ x: 0, y: 0, w: width, h: Math.round(height * 0.11), color: accent });
       texts.push(...(breaking ? [{ markup: span(theme, kicker, Math.round(width * 0.034), fg), x: pad, y: Math.round(height * 0.028), width: width - pad * 2, align: "left" as const, plain: kicker }] : kickerRun(pad, Math.round(height * 0.5), width - pad * 2, accent)));
-      hb = headBlock(pad, Math.round(height * 0.56), width - pad * 2, 3, fg);
-      // Pull the block up so the last line sits above the bottom padding.
-      const y = Math.min(Math.round(height * 0.56), height - pad - hb.h - (spec.credit ? Math.round(width * 0.03) : 0));
-      hb.texts[0]!.y = y;
+      const creditH = spec.credit ? Math.round(width * 0.03) : 0;
+      const topY = breaking ? Math.round(height * 0.3) : Math.round(height * 0.4);
+      hb = headBlock(pad, topY, width - pad * 2, 3, fg, maxHead, height - topY - pad - creditH);
+      // Anchor the block to the bottom (above credit/padding) so the scrim does the work.
+      hb.texts[0]!.y = height - pad - creditH - hb.h;
+      if (!breaking && kicker) { const kr = kickerRun(pad, hb.texts[0]!.y - Math.round(height * 0.07), width - pad * 2, accent); texts.length = 0; texts.push(...kr); }
       texts.push(...hb.texts);
       texts.push(...creditRun(pad, height - pad - Math.round(width * 0.018), width - pad * 2));
       images.push(...logoRun(width - pad - Math.round(width * 0.11), pad));
@@ -171,9 +182,10 @@ export function composeThumbs(spec: ThumbSpec): ThumbVariant[] {
       // Brand background, big headline, accent band at the bottom with kicker; optional small photo tile top-right.
       const tileW = spec.image ? Math.round(width * 0.3) : 0;
       if (spec.image) images.push({ src: spec.image, x: width - pad - tileW, y: pad, w: tileW, h: Math.round(tileW * 0.75), fit: "cover", radius: Math.round(width * 0.015) });
-      hb = headBlock(pad, pad + (spec.image ? 0 : Math.round(height * 0.04)), width - pad * 2 - (spec.image ? tileW + pad : 0), 4, fg);
-      texts.push(...hb.texts);
       const bandH = Math.round(height * 0.16);
+      const topB = pad + (spec.image ? 0 : Math.round(height * 0.04));
+      hb = headBlock(pad, topB, width - pad * 2 - (spec.image ? tileW + pad : 0), 4, fg, maxHead, height - bandH - topB - pad - (spec.credit ? Math.round(width * 0.03) : 0));
+      texts.push(...hb.texts);
       rects.push({ x: 0, y: height - bandH, w: width, h: bandH, color: accent });
       texts.push({ markup: span(theme, kicker || (lang === "ne" ? "समाचार" : "NEWS"), Math.round(width * 0.03), fg), x: pad, y: height - bandH + Math.round(bandH * 0.3), width: width - pad * 2, align: "left", plain: kicker });
       images.push(...logoRun(width - pad - Math.round(width * 0.11), height - bandH + Math.round((bandH - width * 0.11) / 2)));
@@ -184,13 +196,14 @@ export function composeThumbs(spec: ThumbSpec): ThumbVariant[] {
       rects.push({ x: pad, y: pad, w: Math.round(width * 0.06), h: Math.round(height * 0.012), color: accent });
       texts.push(...kickerRun(pad, pad + Math.round(height * 0.03), width - pad * 2, accent));
       texts.push({ markup: span(theme, spec.stat, badgeSize, accent), x: pad, y: Math.round(height * 0.2), width: width - pad * 2, align: "left", plain: spec.stat });
-      hb = headBlock(pad, Math.round(height * 0.2) + badgeSize + Math.round(height * 0.05), width - pad * 2, 3, fg, Math.round(width * 0.06));
+      const yB = Math.round(height * 0.2) + Math.round(badgeSize * 1.25) + Math.round(height * 0.04);
+      hb = headBlock(pad, yB, width - pad * 2, 3, fg, Math.round(width * 0.06), height - yB - pad);
       texts.push(...hb.texts);
       images.push(...logoRun(width - pad - Math.round(width * 0.11), pad));
       out.push({ layout, plan: { width, height, background, rects, texts, images }, fontSize: hb.size, lines: hb.lines, rationale: "Number-first — best for data stories (forex, NEPSE, weather)." });
     } else if (layout === "quote" && spec.attribution) {
       texts.push({ markup: span(theme, "“", Math.round(width * 0.16), accent), x: pad, y: Math.round(height * 0.04), width: width - pad * 2, align: "left", plain: "“" });
-      hb = headBlock(pad, Math.round(height * 0.26), width - pad * 2, 3, fg, Math.round(width * 0.065));
+      hb = headBlock(pad, Math.round(height * 0.26), width - pad * 2, 3, fg, Math.round(width * 0.065), height - Math.round(height * 0.26) - pad - Math.round(height * 0.12));
       texts.push(...hb.texts);
       const attr = "— " + pick(spec.attribution, lang);
       texts.push({ markup: span(theme, attr, Math.round(width * 0.028), muted, "normal"), x: pad, y: Math.round(height * 0.26) + hb.h + Math.round(height * 0.05), width: width - pad * 2, align: "left", plain: attr });

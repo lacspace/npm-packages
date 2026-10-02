@@ -33,6 +33,10 @@ export interface ImageRun {
   y: number;
   w: number;
   h: number;
+  /** "inside" (default: letterbox within the box) or "cover" (fill + centre-crop the box). */
+  fit?: "inside" | "cover";
+  /** Corner radius in px when fit is "cover" (rounded photo tile). */
+  radius?: number;
 }
 
 export interface CardPlan {

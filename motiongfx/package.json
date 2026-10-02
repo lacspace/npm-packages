@@ -1,0 +1,31 @@
+{
+  "name": "@lacspace/motiongfx",
+  "version": "1.0.0",
+  "description": "Animated news motion graphics as pure ffmpeg filters — lower-thirds (slide/wipe/pop) coloured by category and urgency, breaking stingers (drop-in bar, flash, blinking corner badge), a scrolling ticker, a brand sting clip (logo zoom/fade over brand colour), and auto-shorts (16:9 → 9:16 with blurred, dimmed fill) — all eased with time expressions, safe-area aware per platform preset, Devanagari-ready via your font. Plugs straight into @lacspace/montage chains and multi-cut. Deterministic, no AI tokens.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "ffmpeg", "motion-graphics", "lower-third", "stinger", "ticker", "sting", "shorts", "reels", "video", "newsroom", "devanagari", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/montage": "^1.1.0"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/motiongfx",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "motiongfx" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

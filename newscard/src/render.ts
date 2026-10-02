@@ -67,8 +67,13 @@ export async function renderPlan(plan: CardPlan, options: RenderOptions = {}): P
   for (const im of plan.images) {
     try {
       const buf = await loadImage(im.src);
-      const resized = await sharp(buf).resize(Math.round(im.w), Math.round(im.h), { fit: "inside" }).png().toBuffer();
-      composites.push({ input: resized, left: Math.round(im.x), top: Math.round(im.y) });
+      const w = Math.max(1, Math.round(im.w)), h = Math.max(1, Math.round(im.h));
+      let tile = sharp(buf).resize(w, h, { fit: im.fit === "cover" ? "cover" : "inside", position: "attention" });
+      if (im.fit === "cover" && im.radius) {
+        const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" rx="${im.radius}" ry="${im.radius}"/></svg>`);
+        tile = sharp(await tile.png().toBuffer()).composite([{ input: mask, blend: "dest-in" }]);
+      }
+      composites.push({ input: await tile.png().toBuffer(), left: Math.round(im.x), top: Math.round(im.y) });
     } catch {
       /* skip a missing logo rather than fail the card */
     }

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/newscard",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Generate branded news image posts — headline, quote, stat, breaking-banner, data-table (forex/NEPSE/weather with coloured deltas, sparkline inset, source line) and carousel cards in IG portrait (1080×1350), square (1080×1080), Open Graph (1200×630) and story (1080×1920), bilingual English/Nepali with correct Devanagari shaping (Pango/HarfBuzz via sharp — conjuncts and matras come out right), rendered to PNG/WebP. Pure deterministic layout engine plus a sharp renderer. Includes a safety-gated AI image-prompt helper that always labels output 'AI illustration' and refuses photoreal depictions of real people or events.",
   "type": "module",
   "main": "./dist/index.cjs",

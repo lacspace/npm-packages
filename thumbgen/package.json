@@ -1,0 +1,31 @@
+{
+  "name": "@lacspace/thumbgen",
+  "version": "1.0.0",
+  "description": "Thumbnail variants for YouTube (1280×720), Open Graph (1200×630), square and story from a headline and an optional licensed photo — split (text + cover-cropped photo), fullbleed with legibility scrim, typographic band, number badge for data stories, and quote layouts; urgency (breaking banner) and category accent colours; headline auto-fit to 3–4 lines with correct Devanagari shaping (sharp/Pango via @lacspace/newscard); credit line, logo; a rationale per variant so an A/B bandit can pick. Deterministic, no AI tokens.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "thumbnail", "youtube-thumbnail", "og-image", "image-generator", "devanagari", "nepali", "a-b-testing", "newsroom", "sharp", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/newscard": "^1.2.1"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/thumbgen",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "thumbgen" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

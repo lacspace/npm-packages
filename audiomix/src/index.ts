@@ -1,0 +1,8 @@
+export { buildMix } from "./mix.js";
+export type { MixSpec, MixResult, Sting } from "./mix.js";
+export { runMix, extractPcm } from "./run.js";
+export type { RunOptions, RunResult } from "./run.js";
+export { detectTempo, snapToBeats } from "./tempo.js";
+export type { TempoResult, TempoOptions } from "./tempo.js";
+export { loadLibrary, parseLicence, buildAttribution, pickTrack } from "./library.js";
+export type { Track, TrackLicence, Mood, PickCriteria } from "./library.js";

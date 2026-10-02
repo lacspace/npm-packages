@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  buildAttribution, buildMix, detectTempo, parseLicence, pickTrack, snapToBeats, Track,
+  buildAttribution, buildMix, detectTempo, parseLicence, pickTrack, searchFreeMusic,
+  snapToBeats, trendingFreeMusic, Track,
 } from "./index.js";
 
 describe("library — licence parsing & attribution", () => {
@@ -92,5 +93,57 @@ describe("buildMix — ffmpeg command", () => {
     expect(r.filter).toContain("amix=inputs=1");
     expect(r.filter).not.toContain("sidechaincompress");
     expect(r.attribution).toEqual([]);
+  });
+});
+
+describe("searchFreeMusic — Jamendo (CC music)", () => {
+  const JAMENDO = {
+    results: [
+      {
+        id: "1", name: "Sunrise Drive", artist_name: "Artist A", duration: "180",
+        audio: "https://j/stream/1.mp3", audiodownload: "https://j/dl/1.mp3",
+        shareurl: "https://jamendo.com/track/1", license_ccurl: "http://creativecommons.org/licenses/by/3.0/",
+        musicinfo: { speed: "high", tags: { genres: ["electronic"], vartags: ["energetic", "happy"] } },
+      },
+      {
+        id: "2", name: "Quiet Room", artist_name: "Artist B", duration: "95",
+        audio: "https://j/stream/2.mp3", audiodownload: "https://j/dl/2.mp3",
+        shareurl: "https://jamendo.com/track/2", license_ccurl: "http://creativecommons.org/licenses/by-sa/4.0/",
+        musicinfo: { speed: "low", tags: { genres: ["ambient"], vartags: ["calm", "relax"] } },
+      },
+    ],
+  };
+  const fetchImpl = () => vi.fn(async () => ({ ok: true, status: 200, json: async () => JAMENDO })) as any;
+
+  it("normalizes tracks with CC licence + attribution and maps mood", async () => {
+    const f = fetchImpl();
+    const r = await searchFreeMusic("cid", { query: "drive", fetch: f });
+    expect(r.tracks).toHaveLength(2);
+    const t0 = r.tracks[0]!;
+    expect(t0.path).toBe("https://j/dl/1.mp3"); // ffmpeg can read the URL directly
+    expect(t0.licence.licence).toBe("CC BY 3.0");
+    expect(t0.licence.attribution).toContain("Sunrise Drive");
+    expect(t0.licence.attribution).toContain("Jamendo");
+    expect(t0.mood).toBe("energetic");
+    expect(r.tracks[1]!.mood).toBe("calm");
+    // requested client_id + search + trending order
+    const url = f.mock.calls[0][0] as string;
+    expect(url).toContain("client_id=cid");
+    expect(url).toContain("order=popularity_total");
+    expect(url).toContain("search=drive");
+  });
+
+  it("trendingFreeMusic orders by overall popularity", async () => {
+    const f = fetchImpl();
+    await trendingFreeMusic("cid", { fetch: f });
+    expect((f.mock.calls[0][0] as string)).toContain("order=popularity_total");
+  });
+
+  it("filters by mood and warns without a client_id", async () => {
+    const calm = await searchFreeMusic("cid", { mood: "calm", fetch: fetchImpl() });
+    expect(calm.tracks.every((t) => t.mood === "calm")).toBe(true);
+    const none = await searchFreeMusic("", { fetch: fetchImpl() });
+    expect(none.tracks).toEqual([]);
+    expect(none.warnings[0]).toContain("client_id");
   });
 });

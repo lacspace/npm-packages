@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/audiomix",
-  "version": "1.0.0",
-  "description": "Mix a newsroom voiceover with a music bed: sidechain-duck the music under the voice, place SFX stings, and normalize to -14 LUFS — an ffmpeg command builder plus a licensed-music library loader (each track must carry a licence sidecar; emits the attribution line) and a deterministic tempo/beat detector for beat-synced cuts. No copyrighted platform music. Bring your own ffmpeg; zero third-party dependencies.",
+  "version": "1.1.0",
+  "description": "Mix a newsroom voiceover with a music bed: sidechain-duck the music under the voice, place SFX stings, and normalize to -14 LUFS — an ffmpeg command builder plus a licensed-music library loader (local tracks with a licence sidecar) AND a free Creative-Commons music finder over the Jamendo API (bring-your-own client_id, orderable by popularity/'trending', licence + attribution per track), plus a deterministic tempo/beat detector for beat-synced cuts. Safe to bake into API uploads — unlike platform 'trending sounds', which are Content-ID-claimed. Bring your own ffmpeg; zero third-party dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -42,6 +42,17 @@ Ducking, loudness and attribution done by hand (or by LLM) every time is slow an
 - **`buildMix(spec)`** → `{ args, filter, attribution }` — pure. `spec`: `voice`, `music?`, `stings?`, `output`, `targetLUFS` (default -14), `truePeak` (default -1.5), `musicGainDb` (default -9), `duckDb` (default -12). Music is ducked under the voice with `sidechaincompress`, stings are placed with `adelay`, everything is mixed and run through `loudnorm`. `attribution` collects every licensed asset's credit, de-duplicated.
 - **`runMix(spec, options?)`** (Node) — builds and runs ffmpeg under `nice` + `ulimit -c 0`.
 
+### Free music finder (Jamendo)
+- **`searchFreeMusic(clientId, options?)`** / **`trendingFreeMusic(clientId, options?)`** → `{ tracks, warnings }` — search the **Jamendo** Creative-Commons catalog (hundreds of thousands of tracks) and get back the same `Track` shape as the local library, each with its CC licence and a ready attribution line. `options`: `query`, `mood`, `minDuration`/`maxDuration`, `order` (`trending` | `trending_month` | `popular` | `newest` | `relevance`), `limit`, `downloadableOnly` (default true), and an injectable `fetch`. The returned `track.path` is a direct audio URL that ffmpeg (and `buildMix`) reads straight away.
+
+```ts
+import { trendingFreeMusic, buildMix } from "@lacspace/audiomix";
+const { tracks } = await trendingFreeMusic(process.env.JAMENDO_CLIENT_ID!, { mood: "energetic", minDuration: 60 });
+const { args, attribution } = buildMix({ voice: "vo.wav", music: tracks[0], output: "mix.m4a" });
+```
+
+> **Why not TikTok/Reels/YouTube "trending sounds"?** Those catalogs are licensed **only inside each platform's own editor**. Bake one into an MP4 and upload it via the API and it gets **Content-ID-claimed** — muted, demonetized, or a strike on the account. For an automated pipeline, use free/CC sources like the above (Jamendo's popularity ordering is the safe analogue to "trending"), or the platforms' own *free* audio libraries. This package only surfaces licence-clean tracks.
+
 ### Tempo / beats
 - **`detectTempo(samples, sampleRate, options?)`** → `{ bpm, beats, confidence }` — energy-onset autocorrelation with a perceptual tempo prior (resolves octave errors). Pure; feed it mono PCM.
 - **`extractPcm(file, options?)`** (Node) — decode a file to mono float PCM via ffmpeg for `detectTempo`.

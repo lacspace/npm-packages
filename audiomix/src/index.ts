@@ -6,3 +6,5 @@ export { detectTempo, snapToBeats } from "./tempo.js";
 export type { TempoResult, TempoOptions } from "./tempo.js";
 export { loadLibrary, parseLicence, buildAttribution, pickTrack } from "./library.js";
 export type { Track, TrackLicence, Mood, PickCriteria } from "./library.js";
+export { searchFreeMusic, trendingFreeMusic } from "./sources.js";
+export type { MusicSearchOptions, MusicResult, MusicOrder, FetchLike } from "./sources.js";

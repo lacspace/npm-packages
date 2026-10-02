@@ -1,0 +1,33 @@
+{
+  "name": "@lacspace/trends",
+  "version": "1.0.0",
+  "description": "Trending topics and hashtags for a region from official/public sources only — Google Trends daily RSS (geo), YouTube Data API mostPopular (optional key), and Wikipedia pageviews — merged across scripts and scored (multi-source terms rank up), with story-relevance gating so you never trend-jack unrelated topics, and per-platform hashtag sets with limits + a banned/shadow-ban filter. Bring-your-own-fetch, deterministic given inputs. Reuses @lacspace/keyphrase and @lacspace/translit.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "trends", "trending", "hashtags", "google-trends", "youtube", "wikipedia-pageviews",
+    "nepal", "social-media", "newsroom", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/keyphrase": "^1.0.0",
+    "@lacspace/translit": "^1.0.4"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/trends",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "trends" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

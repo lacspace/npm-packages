@@ -1,5 +1,31 @@
 export type CardSizeName = "portrait" | "square" | "og" | "story";
-export type CardType = "headline" | "quote" | "stat" | "breaking";
+export type CardType = "headline" | "quote" | "stat" | "breaking" | "table";
+
+/** One row of a "table" card. `tone` colours the last cell (up = green, down = red). */
+export interface TableRow {
+  cells: string[];
+  tone?: "up" | "down" | "flat";
+  /** Optional small icon (data URI / URL) drawn before the first cell. */
+  icon?: string;
+}
+
+export interface TableSpec {
+  /** Column headers (optional). */
+  columns?: Localized[];
+  rows: TableRow[];
+  /** Column width ratios (default: first column 0.4, the rest equal). */
+  widths?: number[];
+}
+
+/** An inline image (e.g. a sparkline SVG data URI) placed on the card. */
+export interface ChartInset {
+  src: string;
+  /** Fractions of the card (0–1). Default: full content width, below the title block. */
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+}
 export type Lang = "en" | "ne" | "both";
 
 export interface Size {
@@ -53,6 +79,12 @@ export interface CardSpec {
   stat?: { value: string; label?: Localized };
   /** Optional background image (data URI or URL); darkened for legibility. */
   image?: string;
+  /** For type "table": a compact data table (forex, NEPSE, weather …). */
+  table?: TableSpec;
+  /** Optional inline chart/sparkline image. */
+  chart?: ChartInset;
+  /** Small source/attribution line above the footer ("Source: Nepal Rastra Bank"). */
+  note?: Localized;
 }
 
 export interface CarouselSpec {

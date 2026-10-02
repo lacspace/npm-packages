@@ -34,6 +34,21 @@ const svg = buildSvg(spec);     // pure — the SVG string, for tests or your ow
 
 Designing every post by hand (or asking an LLM to emit SVG each time) is slow and burns tokens. `newscard` encodes the house style once and stamps out correct, on-brand cards deterministically — including correct Nepali conjuncts/matras, which naive SVG→PNG paths get wrong.
 
+## Table cards (1.2.0)
+
+`type: "table"` lays out a compact data table — forex, share market, weather, AQI — with optional column headers, alternating row stripes, a coloured last cell (`tone: "up" | "down"`), per-row icons, a `chart` inset (any image/SVG data URI, e.g. a sparkline) and a `note` source line. Cells never wrap: text shrinks to fit the column, then ellipsises. `@lacspace/datacards` builds these from official Nepal data sources.
+
+```ts
+await renderCard({
+  theme, type: "table", kicker: "Forex", headline: { en: "16 Ashwin 2083 · 2 Oct 2026", ne: "२०८३ असोज १६" },
+  table: { columns: ["Currency", "Buy", "Sell", "Δ"], rows: [{ cells: ["USD", "153.81", "154.41", "+0.77"], tone: "up" }] },
+  chart: { src: sparklineDataUri, y: 0.72, h: 0.12 },
+  note: "Source: Nepal Rastra Bank",
+});
+```
+
+`renderPlan(plan)` is also exported so other packages can compose custom layouts and reuse the renderer; `fitOneLine(text, size, maxWidth)` / `estimateWidth` expose the fitting heuristic.
+
 ## API
 
 ### `composeCard(spec)` → `CardPlan`  (pure)

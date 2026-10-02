@@ -1,0 +1,39 @@
+{
+  "name": "@lacspace/datacards",
+  "version": "1.0.0",
+  "description": "Automatic data posts from official Nepal sources — Nepal Rastra Bank forex (with day-over-day deltas), FENEGOSIDA gold/silver, Nepal Oil Corporation fuel, DHM city weather forecasts + special-bulletin alerts, Department of Environment air quality (AQI from PM2.5), and injected NEPSE — each turned into a bilingual (English/Nepali, Bikram Sambat + AD dated) @lacspace/newscard table or alert card with caption, alt text, hashtags, an optional sparkline, a worth-posting gate, and a 10–15 s montage video plan. Deterministic, bring-your-own-fetch, no AI tokens.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "nepal", "forex", "nrb", "gold-price", "fuel-price", "weather", "dhm", "aqi", "nepse",
+    "data-visualization", "social-card", "newsroom", "automation", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/nepali-date": "^1.2.1",
+    "@lacspace/newscard": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@lacspace/montage": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@lacspace/montage": { "optional": true }
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/datacards",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "datacards" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

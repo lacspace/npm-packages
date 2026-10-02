@@ -157,3 +157,31 @@ describe("imagePrompt — safety", () => {
     expect(isRefusal(imagePrompt({ subject: "" }))).toBe(true);
   });
 });
+
+describe("table cards (1.2.0)", () => {
+  const theme: BrandTheme = { bg: "#0b1f3a", fg: "#ffffff", accent: "#c8102e", fontFamily: "Mukta", footer: "WeNepal" };
+  it("lays out header, rows, tones, chart inset and source note", () => {
+    const plan = composeCard({
+      theme, type: "table", size: "square", lang: "en",
+      kicker: "Forex", headline: { en: "NRB rates", ne: "विनिमय दर" },
+      table: { columns: ["Currency", "Buy", "Sell", "Δ"], rows: [
+        { cells: ["USD", "153.04", "153.64", "+0.20"], tone: "up" },
+        { cells: ["EUR", "173.88", "174.56", "-0.10"], tone: "down" },
+      ] },
+      chart: { src: "data:image/svg+xml;base64,PHN2Zy8+" },
+      note: "Source: Nepal Rastra Bank",
+    });
+    const plains = plan.texts.map((t) => t.plain);
+    expect(plains).toContain("CURRENCY");
+    expect(plains).toContain("153.04");
+    expect(plains).toContain("Source: Nepal Rastra Bank");
+    const upRun = plan.texts.find((t) => t.plain === "+0.20")!;
+    expect(upRun.markup).toContain("#22aa5a"); // green
+    expect(upRun.align).toBe("right");
+    const downRun = plan.texts.find((t) => t.plain === "-0.10")!;
+    expect(downRun.markup).toContain("#e63946");
+    expect(plan.images.some((i) => i.src.startsWith("data:image/svg"))).toBe(true);
+    // alternating row stripe + header rule
+    expect(plan.rects.length).toBeGreaterThanOrEqual(3);
+  });
+});

@@ -39,7 +39,8 @@ async function textLayer(
   return { input: buf, left: Math.round(run.x), top: Math.round(run.y) };
 }
 
-async function renderPlan(plan: CardPlan, options: RenderOptions): Promise<Uint8Array> {
+/** Render a pre-composed plan (lets other packages lay out custom cards and reuse the renderer). */
+export async function renderPlan(plan: CardPlan, options: RenderOptions = {}): Promise<Uint8Array> {
   const sharp = await loadSharp();
   const { width, height } = plan;
 

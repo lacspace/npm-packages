@@ -22,7 +22,7 @@ export interface TextRun {
   x: number;
   y: number;
   width: number;
-  align: "left" | "centre";
+  align: "left" | "centre" | "right";
   /** Raw text (no markup) — for tests/measurement. */
   plain: string;
 }
@@ -96,6 +96,29 @@ function span(theme: BrandTheme, text: string, size: number, color: RGBA, weight
   );
 }
 
+/** Rough glyph-advance estimate (px) — Devanagari runs wider than Latin at the same point size. */
+export function estimateWidth(text: string, size: number): number {
+  let w = 0;
+  for (const ch of text) {
+    if (/[ऀ-ॿ]/.test(ch)) w += /[ा-्ँ-ःॢॣ]/.test(ch) ? 0.12 : 0.62; // matras/signs mostly combine
+    else if (/[A-Z0-9]/.test(ch)) w += 0.62;
+    else if (/[ .,:;'|/-]/.test(ch)) w += 0.3;
+    else w += 0.52;
+  }
+  return w * size;
+}
+
+/** Shrink font size (min 60%) so `text` fits `maxWidth` on one line; ellipsise if it still won't. */
+export function fitOneLine(text: string, size: number, maxWidth: number): { text: string; size: number } {
+  const min = Math.round(size * 0.6);
+  let s = size;
+  while (s > min && estimateWidth(text, s) > maxWidth) s -= 1;
+  if (estimateWidth(text, s) <= maxWidth) return { text, size: s };
+  let t = text;
+  while (t.length > 1 && estimateWidth(t + "…", s) > maxWidth) t = t.slice(0, -1);
+  return { text: t.trimEnd() + "…", size: s };
+}
+
 function pick(v: Localized | undefined, lang: Lang): string[] {
   if (v === undefined) return [];
   if (typeof v === "string") return v.trim() ? [v] : [];
@@ -145,7 +168,66 @@ export function composeCard(spec: CardSpec): CardPlan {
     }
   }
 
-  if (type === "stat" && spec.stat) {
+  if (type === "table" && spec.table) {
+    // Optional title above the table.
+    const heads = pick(spec.headline, lang);
+    if (heads.length) {
+      const markup = heads.map((h) => span(theme, h, 52, fg, 800)).join("\n");
+      texts.push({ markup, x: pad, y, width: contentWidth, align: "left", plain: heads.join(" / ") });
+      y += 70 * heads.length + 36;
+    }
+    const scale = width / 1080;
+    const rowH = Math.round(64 * scale);
+    const t = spec.table;
+    const n = Math.max(1, t.rows[0]?.cells.length ?? t.columns?.length ?? 1);
+    const ratios = t.widths && t.widths.length === n ? t.widths : [0.4, ...Array(n - 1).fill(0.6 / Math.max(1, n - 1))].slice(0, n);
+    const sum = ratios.reduce((a, b) => a + b, 0);
+    const colX: number[] = [];
+    const colW: number[] = [];
+    let cx = pad;
+    for (const r of ratios) {
+      const w = Math.round((contentWidth * r) / sum);
+      colX.push(cx);
+      colW.push(w);
+      cx += w;
+    }
+    const cellText = (text: string, col: number, yy: number, size: number, color: RGBA, weight: number, boxW = colW[col]! - 12) => {
+      // One line per cell: shrink the font to fit the column, then ellipsise as a last resort.
+      const fitted = fitOneLine(text, size, boxW);
+      texts.push({ markup: span(theme, fitted.text, fitted.size, color, weight), x: colX[col]!, y: yy + Math.round((size - fitted.size) / 2), width: Math.max(10, boxW), align: col === 0 ? "left" : "right", plain: fitted.text });
+    };
+    if (t.columns?.length) {
+      t.columns.forEach((c, i) => {
+        const label = (pick(c, lang)[0] ?? "").toUpperCase();
+        if (label) cellText(label, i, y + 10, 24, muted, 700);
+      });
+      y += Math.round(rowH * 0.8);
+      rects.push({ x: pad, y, w: contentWidth, h: 3, color: { ...accent, alpha: 0.9 } });
+      y += 10;
+    }
+    const up = { r: 34, g: 170, b: 90, alpha: 1 };
+    const down = { r: 230, g: 57, b: 70, alpha: 1 };
+    t.rows.forEach((row, ri) => {
+      if (ri % 2 === 1) rects.push({ x: pad, y, w: contentWidth, h: rowH, color: { ...fg, alpha: 0.06 } });
+      let firstX = 0;
+      if (row.icon) {
+        const ih = Math.round(rowH * 0.7);
+        images.push({ src: row.icon, x: colX[0]! + 4, y: y + Math.round((rowH - ih) / 2), w: ih, h: ih });
+        firstX = ih + 14;
+      }
+      row.cells.forEach((cell, ci) => {
+        const last = ci === row.cells.length - 1;
+        const color = last && row.tone === "up" ? up : last && row.tone === "down" ? down : fg;
+        if (ci === 0 && firstX) {
+          const fitted = fitOneLine(cell, 34, colW[0]! - firstX - 12);
+          texts.push({ markup: span(theme, fitted.text, fitted.size, color, 700), x: colX[0]! + firstX, y: y + 14 + Math.round((34 - fitted.size) / 2), width: Math.max(10, colW[0]! - firstX - 12), align: "left", plain: fitted.text });
+        } else {
+          cellText(cell, ci, y + 14, 34, color, ci === 0 ? 700 : 600);
+        }
+      });
+      y += rowH;
+    });
+  } else if (type === "stat" && spec.stat) {
     const valueSize = Math.round(width * 0.2);
     texts.push({ markup: span(theme, spec.stat.value, valueSize, accent, 800), x: pad, y: Math.round(height * 0.34), width: contentWidth, align: "left", plain: spec.stat.value });
     const labels = pick(spec.stat.label, lang);
@@ -172,9 +254,25 @@ export function composeCard(spec: CardSpec): CardPlan {
     }
   }
 
+  if (spec.chart) {
+    const c = spec.chart;
+    const cw = Math.round((c.w ?? 0.85) * width);
+    const ch = Math.round((c.h ?? 0.18) * height);
+    const cxp = c.x !== undefined ? Math.round(c.x * width) : pad;
+    const cyp = c.y !== undefined ? Math.round(c.y * height) : Math.min(y + 24, height - pad - ch - 90);
+    images.push({ src: c.src, x: cxp, y: cyp, w: cw, h: ch });
+  }
   if (theme.logo) {
     const lw = Math.round(width * 0.13);
     images.push({ src: theme.logo, x: width - pad - lw, y: pad, w: lw, h: lw });
+  }
+  const notes = pick(spec.note, lang);
+  if (notes.length) {
+    const yy = height - pad - (theme.footer ? 36 + 44 : 36);
+    // One line only: bilingual notes that won't fit fall back to the first language, then shrink.
+    const joined = notes.join("  ·  ");
+    const fitted = fitOneLine(estimateWidth(joined, 26) <= contentWidth ? joined : notes[0]!, 26, contentWidth);
+    texts.push({ markup: span(theme, fitted.text, fitted.size, muted, 600), x: pad, y: yy, width: contentWidth, align: "left", plain: fitted.text });
   }
   if (theme.footer) {
     texts.push({ markup: span(theme, theme.footer, 32, muted, 600), x: pad, y: height - pad - 36, width: contentWidth, align: "left", plain: theme.footer });

@@ -1,0 +1,30 @@
+{
+  "name": "@lacspace/datecheck",
+  "version": "1.0.0",
+  "description": "Tell how old an article really is — extract the published/modified date from HTML (JSON-LD, meta tags, <time>, URL patterns, bylines), including Nepali Bikram Sambat dates (Devanagari digits, all month spellings, BS→AD conversion), detect body-text staleness, and return a fresh | stale | unknown freshness verdict so an undated 2019 story is never republished as today's news. Deterministic, fail-closed, zero third-party dependencies; AI only via an optional injected hook.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "date-extraction", "published-date", "article-date", "bikram-sambat", "nepali-date",
+    "bs-to-ad", "freshness", "staleness", "newsroom", "jsonld", "zero-dependency",
+    "isomorphic", "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/datecheck",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "datecheck" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

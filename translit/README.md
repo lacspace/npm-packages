@@ -47,5 +47,9 @@ nameVariants("Poudel");               // ["Poudel", "Paudel", ...]
 
 All deterministic and dependency-free. Romanization is phonetic (tuned for names), not strict IAST.
 
+## Script purity (1.0.5)
+
+LLM-written Devanagari sometimes carries a look-alike character from another Indic block (a Gurmukhi vowel sign ਾ U+0A3E inside "पन्छाउने"). `scriptPurity(text, "devanagari")` → `{ pure, fixed, issues, unresolved }` reports every foreign Indic character inside a Devanagari word and auto-maps the unambiguous ones (vowel signs, consonants, nukta, virama, digits, nasal signs — Indic blocks share the ISCII layout, so the mapping is by offset when the Devanagari slot has the same class). Whole words in another script (a Bengali quote) are reported but left untouched. Gate it in a writer validator: `if (!scriptPurity(text).pure) text = scriptPurity(text).fixed`.
+
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.

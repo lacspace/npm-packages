@@ -305,3 +305,22 @@ describe("latinToDevanagari", () => {
     expect(/[ऀ-ॿ]/.test(d)).toBe(true);
   });
 });
+describe("scriptPurity (1.0.5)", () => {
+  it("maps a Gurmukhi vowel sign inside a Devanagari word to Devanagari", async () => {
+    const { scriptPurity } = await import("./index.js");
+    const r = scriptPurity("पहिरो पन्छਾउने काम");
+    expect(r.pure).toBe(false);
+    expect(r.fixed).toBe("पहिरो पन्छाउने काम");
+    expect(r.issues[0]!.codePoint).toBe("U+0A3E");
+    expect(r.issues[0]!.suggested).toBe("ा");
+    expect(r.unresolved).toEqual([]);
+    expect(scriptPurity("साफ देवनागरी text 123").pure).toBe(true);
+  });
+  it("reports but does not touch a whole foreign-script word", async () => {
+    const { scriptPurity } = await import("./index.js");
+    const r = scriptPurity("नेपाल र বাংলা");
+    expect(r.pure).toBe(false);
+    expect(r.fixed).toBe("नेपाल र বাংলা");
+    expect(r.unresolved.length).toBeGreaterThan(0);
+  });
+});

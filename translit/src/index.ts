@@ -31,3 +31,5 @@ export function transliterate(text: string, options: TransliterateOptions = {}):
   if (from === to) return text;
   return to === "en" ? devanagariToLatin(text) : latinToDevanagari(text);
 }
+export { scriptPurity } from "./purity.js";
+export type { PurityResult, PurityIssue, IndicScript } from "./purity.js";

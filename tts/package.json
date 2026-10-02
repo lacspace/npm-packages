@@ -1,0 +1,31 @@
+{
+  "name": "@lacspace/tts",
+  "version": "1.0.0",
+  "description": "Engine-agnostic text-to-speech pipeline for Nepali and English newsrooms — @lacspace/speakable normalisation (numbers, BS dates, currency, acronyms, names) → edge-tts CLI (Microsoft neural voices, word-level timings from its subtitles), Piper offline voices, or any custom engine → audio plus word timings aligned back to the ORIGINAL text (engine WordBoundary events, or speakable estimates scaled to the real duration measured from the WAV/MP3 bytes without deps) → captionsync-ready segments. Voice registry (ne-NP Hemkala/Sagar, hi-IN and en-IN fallbacks, Piper ne_NP), content-hash cache. Bring your own engine binary; no bundled keys.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "tts", "text-to-speech", "edge-tts", "piper", "nepali", "devanagari", "word-timings", "captions", "voiceover", "newsroom", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/speakable": "^1.0.1"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/tts",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "tts" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

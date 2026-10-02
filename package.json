@@ -162,7 +162,10 @@
     "captionsync",
     "thumbgen",
     "motiongfx",
-    "tts"
+    "tts",
+    "explainer",
+    "quizpoll",
+    "conductor"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",

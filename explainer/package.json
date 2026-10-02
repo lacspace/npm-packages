@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/explainer",
+  "version": "1.0.0",
+  "description": "Turn an article into an explainer without an LLM — English or Nepali: title / what happened / why it matters / key numbers (shown exactly as written) / who's involved / background / what's next / CTA slides, a ready @lacspace/newscard carousel, a 30–60 s video script with scenes (voiceover ≤30 words, on-screen line, duration from word count, English stock-footage queries, overlay hints for stingers/lower-thirds/stat), FAQ pairs, category detection and hashtags. Built on TextRank (@lacspace/extractive) + keyphrase. Optional LLM polish of voiceover lines with a facts lock that rejects invented digits.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "explainer",
+    "carousel",
+    "video-script",
+    "faq",
+    "textrank",
+    "summarization",
+    "nepali",
+    "newsroom",
+    "social-media",
+    "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/extractive": "^1.0.0",
+    "@lacspace/keyphrase": "^1.0.0",
+    "@lacspace/translit": "^1.0.5"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/explainer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "explainer"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

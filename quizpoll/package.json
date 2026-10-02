@@ -1,0 +1,31 @@
+{
+  "name": "@lacspace/quizpoll",
+  "version": "1.0.0",
+  "description": "Quiz and poll items from a news article without an LLM — English or Nepali: fill-in-the-blank on figures (distractors by scaling the number exactly as written, keeping Devanagari digits, लाख/करोड scale words, decimals), fill-in-the-blank on names (distractors from the article itself), true/false (incl. a statement with a perturbed figure), opinion polls from safe templates, did-you-know cards; deterministic seeded shuffle with answer index; per-platform fit (Instagram poll 2 / quiz 4, YouTube 5, X 4, Facebook). Deterministic, no AI tokens.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": [
+    "quiz", "poll", "engagement", "social-media", "instagram", "youtube", "nepali", "newsroom", "typescript"
+  ],
+  "dependencies": {
+    "@lacspace/extractive": "^1.0.0"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/quizpoll",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "quizpoll" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

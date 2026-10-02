@@ -38,6 +38,16 @@ test("LOCK: bsToAd(2080,1,1) === AD 2023-04-14 (unchanged)", () => {
   expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2023, 4, 14]);
 });
 
+test("LOCK: Asoj 2083 has 31 days — Tula Sankranti is Kartik 1 = AD 2026-10-18", () => {
+  // Regression for a table bug: Asoj 2083 was wrongly 30 (duplicated from 2084),
+  // shifting every date from Kartik 2083 on. Verified vs Hamro Patro / @lacspace/datecheck.
+  expect(daysInBsMonth(2083, 6)).toBe(31);
+  const asoj31 = bsToAd(2083, 6, 31);
+  expect([asoj31.getFullYear(), asoj31.getMonth() + 1, asoj31.getDate()]).toEqual([2026, 10, 17]);
+  const kartik1 = bsToAd(2083, 7, 1);
+  expect([kartik1.getFullYear(), kartik1.getMonth() + 1, kartik1.getDate()]).toEqual([2026, 10, 18]);
+});
+
 /* ---- formatter tokens + Nepali digits ---- */
 
 test("formatBs default and slash pattern", () => {

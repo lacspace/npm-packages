@@ -1,3 +1,4 @@
+import { requiresAttribution } from "./library.js";
 import { Mood, Track } from "./library.js";
 
 export type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<any> }>;
@@ -15,6 +16,8 @@ export interface MusicSearchOptions {
   limit?: number;
   /** Only tracks that allow direct download (bakeable into a render). Default true. */
   downloadableOnly?: boolean;
+  /** Drop every track whose licence requires a credit (most Jamendo tracks are CC-BY). */
+  noAttributionOnly?: boolean;
   fetch?: FetchLike;
   signal?: AbortSignal;
 }
@@ -112,7 +115,13 @@ export async function searchFreeMusic(
   if (options.mood) tracks = tracks.filter((t: Track) => t.mood === options.mood);
   if (options.minDuration) tracks = tracks.filter((t: Track) => (t.duration ?? Infinity) >= options.minDuration!);
   if (options.maxDuration) tracks = tracks.filter((t: Track) => (t.duration ?? 0) <= options.maxDuration!);
-  return { tracks, warnings: [] };
+  const warnings: string[] = [];
+  if (options.noAttributionOnly) {
+    const before = tracks.length;
+    tracks = tracks.filter((t: Track) => !requiresAttribution(t.licence?.licence));
+    if (before && !tracks.length) warnings.push("all results require attribution (CC-BY) — none usable without a credit");
+  }
+  return { tracks, warnings };
 }
 
 /** Trending free music — `searchFreeMusic` ordered by overall popularity. */

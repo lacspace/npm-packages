@@ -79,7 +79,27 @@ function normalizeMood(m: unknown): Mood | undefined {
   return undefined;
 }
 
+/**
+ * Does this licence legally require crediting the author? CC-BY / BY-SA / BY-NC / BY-ND and
+ * "attribution required" do; CC0, public domain, Pixabay Content License, "royalty-free, no
+ * attribution" and owned/commissioned music do not. Unknown licences count as requiring it (fail safe).
+ */
+export function requiresAttribution(licence: string | undefined): boolean {
+  const l = (licence ?? "").toLowerCase();
+  if (!l || /unknown/.test(l)) return true;
+  if (/\bcc0\b|public domain|publicdomain|pixabay|no attribution|attribution not required|owned|commissioned|in-house|work for hire|royalty[- ]free \(no credit\)/.test(l)) return false;
+  if (/\bby\b|attribution|cc-by|cc by|creative commons/.test(l)) return true;
+  return true;
+}
+
+/** Keep only tracks that can be used with no credit line anywhere. */
+export function noAttributionTracks(tracks: Track[]): Track[] {
+  return tracks.filter((t) => !requiresAttribution(t.licence?.licence));
+}
+
 export interface PickCriteria {
+  /** Only tracks usable without any credit (see requiresAttribution). */
+  noAttributionOnly?: boolean;
   mood?: Mood;
   /** The track must be at least this long (seconds), when duration is known. */
   minDuration?: number;
@@ -89,6 +109,7 @@ export interface PickCriteria {
 
 /** Choose the best-matching track deterministically (no RNG). */
 export function pickTrack(tracks: Track[], criteria: PickCriteria = {}): Track | undefined {
+  if (criteria.noAttributionOnly) tracks = noAttributionTracks(tracks);
   const pool = tracks.filter((t) => {
     if (criteria.mood && t.mood !== criteria.mood) return false;
     if (criteria.minDuration && t.duration !== undefined && t.duration < criteria.minDuration) return false;

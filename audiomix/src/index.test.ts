@@ -147,3 +147,21 @@ describe("searchFreeMusic — Jamendo (CC music)", () => {
     expect(none.warnings[0]).toContain("client_id");
   });
 });
+
+describe("no-attribution filter (1.2.0)", async () => {
+  const { requiresAttribution, noAttributionTracks, pickTrack } = await import("./index.js");
+  it("classifies licences fail-safe and filters tracks", () => {
+    expect(requiresAttribution("CC BY 4.0")).toBe(true);
+    expect(requiresAttribution("CC BY-NC-SA 3.0")).toBe(true);
+    expect(requiresAttribution("CC0 1.0")).toBe(false);
+    expect(requiresAttribution("Pixabay Content License")).toBe(false);
+    expect(requiresAttribution("Owned by WeNepal")).toBe(false);
+    expect(requiresAttribution(undefined)).toBe(true);
+    expect(requiresAttribution("Unknown licence")).toBe(true);
+    const mk = (path: string, licence: string) => ({ path, mood: "neutral" as const, tags: [], licence: { title: path, author: "x", licence, attribution: "" } });
+    const tracks = [mk("a.mp3", "CC BY 4.0"), mk("b.mp3", "CC0 1.0"), mk("c.mp3", "Pixabay Content License")];
+    expect(noAttributionTracks(tracks as any).map((t) => t.path)).toEqual(["b.mp3", "c.mp3"]);
+    expect(pickTrack(tracks as any, { noAttributionOnly: true })!.path).toBe("b.mp3");
+    expect(pickTrack([tracks[0]] as any, { noAttributionOnly: true })).toBeUndefined();
+  });
+});

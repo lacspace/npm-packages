@@ -63,3 +63,7 @@ This package **only** uses files you pass it, and `loadLibrary` **only** surface
 
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.
+
+## No-credit music only (1.2.0)
+
+For outputs that carry no credit line anywhere: `pickTrack(tracks, { noAttributionOnly: true })`, `noAttributionTracks(tracks)`, and `searchFreeMusic(id, { noAttributionOnly: true })`. `requiresAttribution(licence)` treats CC-BY / BY-SA / BY-NC / BY-ND and unknown licences as requiring credit (fail safe); CC0, public domain, Pixabay Content License and owned/commissioned music do not. Most Jamendo tracks are CC-BY, so expect few or no Jamendo results with this filter.

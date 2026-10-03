@@ -87,3 +87,25 @@ describe("describe()", () => {
     expect(d.commands.find((c) => c.name === "summarize")!.input.required).toContain("text");
   });
 });
+
+describe("scrubSources (1.1.0)", async () => {
+  const { scrubSources, mentionsOutlet } = await import("./index.js");
+  it("removes English attributions, datelines and credit lines", () => {
+    const r = scrubSources("KATHMANDU (Reuters) - Prices rose 5%, according to the Kathmandu Post. The Himalayan Times reported that fuel will rise.\nPhoto: Getty Images\nSource: Setopati");
+    expect(r.text).toBe("KATHMANDU Prices rose 5%. Fuel will rise.");
+    expect(r.clean).toBe(true);
+    expect(r.removed.length).toBeGreaterThanOrEqual(4);
+  });
+  it("removes Nepali attributions and credits", () => {
+    const r = scrubSources("कान्तिपुरका अनुसार पेट्रोलको मूल्य बढेको छ। मूल्य १० रुपैयाँले बढेको अनलाइनखबरले जनाएको छ।\nतस्बिर: रासस");
+    expect(r.text).toBe("पेट्रोलको मूल्य बढेको छ। मूल्य १० रुपैयाँले बढेको।");
+    expect(r.clean).toBe(true);
+  });
+  it("reports names it couldn't remove; keeps own brand and common words", () => {
+    const r = scrubSources("We spoke with BBC Nepali staff. नागरिकले सडकमा प्रदर्शन गरे। WeNepal brings you this.", { keep: ["WeNepal"] });
+    expect(r.remaining).toContain("BBC Nepali");
+    expect(r.clean).toBe(false);
+    expect(r.text).toContain("नागरिकले"); // common word "citizen", not the outlet
+    expect(mentionsOutlet("Pexels photo")).toEqual(["Pexels"]);
+  });
+});

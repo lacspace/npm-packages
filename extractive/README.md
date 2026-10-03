@@ -41,3 +41,7 @@ All deterministic and Devanagari-aware. Reuses `@lacspace/keyphrase`, `@lacspace
 
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.
+
+## No third-party names (1.1.0)
+
+`scrubSources(text, { outlets?, keep? })` → `{ text, removed, remaining, clean }` strips credit lines (`Source:`, `Photo:`, `स्रोत:`, `तस्बिर:` …), datelines like `(Reuters) -`, and attribution phrases (`according to the Kathmandu Post`, `कान्तिपुरका अनुसार`, `… अनलाइनखबरले जनाएको छ`) for ~150 Nepali and international outlets and stock libraries, keeping the facts. Names it can't remove safely are listed in `remaining` so a validator can hold the post; `mentionsOutlet(text)` is the quick gate. Run it on the writer's input and again on the final copy.

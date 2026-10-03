@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/datacards",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatic data posts from official Nepal sources — Nepal Rastra Bank forex (with day-over-day deltas), FENEGOSIDA gold/silver, Nepal Oil Corporation fuel, DHM city weather forecasts + special-bulletin alerts, Department of Environment air quality (AQI from PM2.5), and injected NEPSE — each turned into a bilingual (English/Nepali, Bikram Sambat + AD dated) @lacspace/newscard table or alert card with caption, alt text, hashtags, an optional sparkline, a worth-posting gate, and a 10–15 s montage video plan. Deterministic, bring-your-own-fetch, no AI tokens.",
   "type": "module",
   "main": "./dist/index.cjs",

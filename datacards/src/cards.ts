@@ -17,6 +17,8 @@ export interface CardOptions {
   history?: number[];
   /** Extra hashtags (without #). */
   hashtags?: string[];
+  /** Print the "Source: …" line on the card. Default false — cards carry no third-party names. */
+  showSource?: boolean;
 }
 
 /** A finished, ready-to-render data post: newscard spec + copy + alt text + hashtags. */
@@ -65,7 +67,8 @@ function lakhNe(n: number): string {
   return ne(fmt(n, 0));
 }
 function base(o: CardOptions, kicker: Localized, headline: Localized, note: Localized): CardSpec {
-  return { theme: o.theme, size: o.size ?? "portrait", lang: o.lang ?? "both", type: "table", kicker, headline, note };
+  // No third-party names on published cards unless the caller opts in (house rule: no source/credit lines).
+  return { theme: o.theme, size: o.size ?? "portrait", lang: o.lang ?? "both", type: "table", kicker, headline, note: o.showSource ? note : undefined };
 }
 function tags(base: string[], extra?: string[]): string[] {
   return [...new Set([...base, ...(extra ?? [])])];

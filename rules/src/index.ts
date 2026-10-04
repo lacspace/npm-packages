@@ -28,9 +28,10 @@ export {
   type Rules,
 } from "./strategy.js";
 export { runBacktest, backtestRules, rulesStrategy, type StrategyDef, type BtOptions, type BtTrade, type BtResult } from "./backtest.js";
+export { parseRules, rulesToText, condToText, operandToText, type ParseResult, type ParseError } from "./text.js";
 export { screen, type ScreenSymbol, type ScreenOptions, type ScreenHit, type ScreenResult } from "./screen.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.2.0";
 
 /** describe() for agents/conductors. */
 export function describe() {
@@ -43,6 +44,8 @@ export function describe() {
       { name: "evaluate", input: { type: "object", properties: { rules: { type: "object" }, bars: { type: "array" } }, required: ["rules", "bars"] }, output: "{ entry: boolean[], exit: boolean[], atr, need }" },
       { name: "backtestRules", input: { type: "object", properties: { bars: { type: "array" }, rules: { type: "object" }, options: { type: "object", properties: { capital: { type: "number" }, costPct: { type: "number" }, direction: { enum: ["long", "both"] } } } }, required: ["bars", "rules"] }, output: "BtResult { trades, equity, netPct, winRate, profitFactor, maxDdPct, … }" },
       { name: "screen", input: { type: "object", properties: { universe: { type: "array", description: "{ symbol, bars, sector?, meta? }[]" }, options: { type: "object" } }, required: ["universe"] }, output: "{ hits: ScreenHit[], skipped }" },
+      { name: "parseRules", input: { type: "object", properties: { text: { type: "string", description: "e.g. \"buy when ema(20) crosses above ema(50) and rsi(14) > 50\\nsell when ema(20) crosses below ema(50)\\nstop 2 atr\"" } }, required: ["text"] }, output: "{ rules: Rules | null, errors: [{ line, col, message }] }" },
+      { name: "rulesToText", input: { type: "object", properties: { rules: { type: "object" } }, required: ["rules"] }, output: "string (canonical text form)" },
       { name: "describeRules", input: { type: "object", properties: { rules: { type: "object" } }, required: ["rules"] }, output: "string (plain English)" },
     ],
   };

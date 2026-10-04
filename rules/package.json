@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/rules",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Trading rules as data: a small, safe JSON rule language for \"buy when …, sell when …\" (price, SMA/EMA, RSI, MACD, ATR, Bollinger, Supertrend direction, N-candle high/low, average volume, % change; above / below / crosses above / crosses below; all/any groups; ATR stop and target), evaluated per candle on OHLCV arrays. Includes a validator that coerces AI-written JSON (no code execution), plain-English descriptions, a next-open backtester (stop-first, costs both sides) and a last-candle screener with sector/price/turnover filters and ranking — all on the same engine. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",

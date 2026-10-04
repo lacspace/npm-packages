@@ -23,6 +23,27 @@ evaluate(rules!, bars); // { entry: boolean[], exit: boolean[], atr, need }, rea
 **Ops:** `>`, `<`, `crossAbove`, `crossBelow`. `mul` scales the right-hand side (`volume > 1.5 × volAvg(20)`).
 `STRATEGY_TEMPLATES` holds five starting points; `OPERAND_KINDS` / `OPS` / `defaultOperand` power a builder UI.
 
+## Text form <sup>1.2.0</sup>
+
+You can also write rules as short text. The AI produces fewer tokens than with JSON (the five templates are 54% shorter as text), there's no JSON to break, and you can show users the same text.
+
+```ts
+import { parseRules, rulesToText } from "@lacspace/rules";
+
+const { rules, errors } = parseRules(`
+  name: EMA cross with RSI filter
+  buy when ema(20) crosses above ema(50) and rsi(14) > 50
+  sell when ema(20) crosses below ema(50)
+  stop 2 atr
+`); // rules → validated through cleanRules; errors → [{ line, col, message }]
+
+rulesToText(rules!); // the canonical text. parseRules(rulesToText(r)).rules equals cleanRules(r)
+```
+
+- **Values:** numbers, `close` `open` `high` `low` `volume`, `sma(n[, src])`, `ema(n[, src])`, `rsi(n)`, `macd(f, s, g)`, `macd_signal(…)`, `macd_hist(…)`, `atr(n)`, `bb_upper(n, m)`, `bb_mid(n, m)`, `bb_lower(n, m)`, `supertrend_dir(n, m)`, `highest(n)`, `lowest(n)`, `vol_avg(n)`, `change(n)`. Common aliases are accepted (`supertrend`, `signal`, `avg_volume`, `roc`, …).
+- **Comparisons:** `>`, `<`, `crosses above` / `crosses below` (also `is above`, `crossed under`, …). Put a multiplier on the right-hand side: `volume > 1.5 * vol_avg(20)`.
+- **Lines:** `buy when …` (or `entry:`), `sell when …` (or `exit:`), `stop N atr`, `target N atr`, `name: …`. Join conditions with only `and` or only `or` on a line. `;` also separates lines, and `#` starts a comment.
+
 ## Backtest
 
 ```ts

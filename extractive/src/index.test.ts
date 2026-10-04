@@ -98,7 +98,7 @@ describe("scrubSources (1.1.0)", async () => {
   });
   it("removes Nepali attributions and credits", () => {
     const r = scrubSources("कान्तिपुरका अनुसार पेट्रोलको मूल्य बढेको छ। मूल्य १० रुपैयाँले बढेको अनलाइनखबरले जनाएको छ।\nतस्बिर: रासस");
-    expect(r.text).toBe("पेट्रोलको मूल्य बढेको छ। मूल्य १० रुपैयाँले बढेको।");
+    expect(r.text).toBe("पेट्रोलको मूल्य बढेको छ। मूल्य १० रुपैयाँले बढेको छ।");
     expect(r.clean).toBe(true);
   });
   it("reports names it couldn't remove; keeps own brand and common words", () => {
@@ -107,5 +107,45 @@ describe("scrubSources (1.1.0)", async () => {
     expect(r.clean).toBe(false);
     expect(r.text).toContain("नागरिकले"); // common word "citizen", not the outlet
     expect(mentionsOutlet("Pexels photo")).toEqual(["Pexels"]);
+  });
+});
+
+describe("scrubSources (1.2.0) — Nepali case endings", async () => {
+  const { scrubSources, mentionsOutlet } = await import("./index.js");
+  it("WeNepal fixture: inflected attribution removed, sentence stays grammatical", () => {
+    const r = scrubSources("कान्तिपुरको रिपोर्ट अनुसार सरकारले नयाँ नियम ल्याएको छ।");
+    expect(r.text).toBe("सरकारले नयाँ नियम ल्याएको छ।");
+    expect(r.clean).toBe(true);
+  });
+  it("handles मा प्रकाशित, ले जनाएअनुसार, लाई बताए, का संवाददाता, द्वारा प्रसारित", () => {
+    const cases: Array<[string, string]> = [
+      ["रातोपाटीमा प्रकाशित समाचार अनुसार बजेट बढ्यो।", "बजेट बढ्यो।"],
+      ["अनलाइनखबरले जनाएअनुसार भाडा बढ्यो।", "भाडा बढ्यो।"],
+      ["उनले कान्तिपुरलाई बताए।", "उनले बताए।"],
+      ["सेतोपाटीका संवाददाताले बताए।", "संवाददाताले बताए।"],
+      ["सेतोपाटीद्वारा प्रसारित भिडियो अनुसार आगो लाग्यो।", "आगो लाग्यो।"],
+      ["कान्तिपुरसँगको कुराकानीमा मन्त्रीले भने।", "मन्त्रीले भने।"],
+      ["Kantipur ko report anusar sarkar le niyam lyayo.", "Sarkar le niyam lyayo."],
+      ["Setopati ma prakashit samachar anusar bajet badhyo.", "Bajet badhyo."],
+    ];
+    for (const [input, want] of cases) expect(scrubSources(input).text).toBe(want);
+  });
+  it("detects bare inflected mentions in both scripts", () => {
+    for (const t of ["कान्तिपुरको", "कान्तिपुरका", "सेतोपाटीका", "अनलाइनखबरले", "रातोपाटीमा", "कान्तिपुरलाई"]) {
+      expect(mentionsOutlet(`यो ${t} विषय हो।`).length).toBe(1);
+    }
+    expect(mentionsOutlet("as Kantipur ko team says")).toEqual(["Kantipur"]);
+    expect(mentionsOutlet("Setopatima chha")).toEqual(["Setopati"]);
+  });
+  it("keeps the common-word guard", () => {
+    expect(mentionsOutlet("नागरिकले सडकमा प्रदर्शन गरे। नागरिकको अधिकार।")).toEqual([]);
+    expect(mentionsOutlet("उज्यालोमा पढ्नुहोस्। शिलापत्र अनावरण।")).toEqual([]);
+    expect(mentionsOutlet("नागरिक दैनिकको समाचार")).toEqual(["नागरिक दैनिक"]);
+    expect(scrubSources("स्रोत: उज्यालो").text).toBe("");
+  });
+  it("neutralize swaps survivors for a neutral noun, keeping the case ending", () => {
+    const r = scrubSources("सेतोपाटीका कर्मचारीहरू र रातोपाटीमा काम गर्नेहरू आए। Staff at Kathmandu Post agreed.", { neutralize: true });
+    expect(r.text).toBe("सञ्चारमाध्यमका कर्मचारीहरू र सञ्चारमाध्यममा काम गर्नेहरू आए। Staff at local media agreed.");
+    expect(r.clean).toBe(true);
   });
 });

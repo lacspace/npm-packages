@@ -149,5 +149,5 @@ export function describe() {
 function round(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
-export { scrubSources, mentionsOutlet, OUTLETS } from "./scrub.js";
+export { scrubSources, mentionsOutlet, OUTLETS, AMBIGUOUS_OUTLETS, NE_CASE, ROMAN_CASE } from "./scrub.js";
 export type { ScrubOptions, ScrubResult } from "./scrub.js";

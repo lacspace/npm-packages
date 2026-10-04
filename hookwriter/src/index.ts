@@ -34,7 +34,14 @@ export interface GenerateOptions {
   styles?: Style[];
   /** Cap the number of variants returned. */
   max?: number;
+  /**
+   * Story urgency. "BREAKING:" / "Just in" style copy is only produced when this is
+   * "breaking" (or "breaking" is named explicitly in `styles`). Default "routine".
+   */
+  urgency?: Urgency;
 }
+
+export type Urgency = "routine" | "breaking";
 
 export interface Variant {
   style: Style;
@@ -81,6 +88,7 @@ export function generate(facts: Facts, options: GenerateOptions): Variant[] {
     for (const t of TEMPLATES[options.type]) {
       if (t.lang !== lang) continue;
       if (options.styles && !options.styles.includes(t.style)) continue;
+      if (t.style === "breaking" && options.urgency !== "breaking" && !options.styles?.includes("breaking")) continue;
       if (!fillable(t, facts)) continue;
       const filled = fill(t.text, facts);
       if (!filled || sensational(filled)) continue;
@@ -103,6 +111,8 @@ export interface ComposeOptions {
   cta?: boolean;
   /** Max hashtags to append (IG caps at 30). Default 8. */
   maxHashtags?: number;
+  /** "breaking" leads with breaking-news copy; anything else never says BREAKING. Default "routine". */
+  urgency?: Urgency;
 }
 
 export interface Composed {
@@ -116,9 +126,12 @@ export interface Composed {
 /** Assemble a complete post: a hook line, a caption body, a CTA, and hashtags. */
 export function compose(facts: Facts, options: ComposeOptions): Composed {
   const lang = options.lang ?? "en";
+  const urgency = options.urgency ?? "routine";
+  const preferred = options.style ?? (urgency === "breaking" ? "breaking" : undefined);
   const pick = (type: CopyType) => {
-    const v = generate(facts, { type, platform: options.platform, lang, styles: options.style ? [options.style] : undefined });
-    return v[0] ?? generate(facts, { type, platform: options.platform, lang })[0];
+    const base = { type, platform: options.platform, lang, urgency };
+    const v = generate(facts, { ...base, styles: preferred ? [preferred] : undefined });
+    return v[0] ?? generate(facts, base)[0];
   };
   const hook = pick("hook")?.text ?? facts.headline ?? "";
   const caption = pick("caption")?.text ?? facts.headline ?? "";
@@ -159,6 +172,7 @@ export function describe() {
             platform: { enum: Object.keys(PLATFORMS) },
             lang: { enum: ["en", "ne", "both"] },
             styles: { type: "array", items: { enum: styles } },
+            urgency: { enum: ["routine", "breaking"] },
             max: { type: "integer" },
           },
           required: ["facts", "type", "platform"],
@@ -167,7 +181,7 @@ export function describe() {
       },
       {
         name: "compose",
-        input: { type: "object", properties: { facts: { type: "object" }, platform: { enum: Object.keys(PLATFORMS) }, lang: { enum: ["en", "ne"] }, style: { enum: styles }, cta: { type: "boolean" }, maxHashtags: { type: "integer" } }, required: ["facts", "platform"] },
+        input: { type: "object", properties: { facts: { type: "object" }, platform: { enum: Object.keys(PLATFORMS) }, lang: { enum: ["en", "ne"] }, style: { enum: styles }, urgency: { enum: ["routine", "breaking"] }, cta: { type: "boolean" }, maxHashtags: { type: "integer" } }, required: ["facts", "platform"] },
         output: "{ hook, caption, hashtags, text }",
       },
     ],

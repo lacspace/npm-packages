@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/hookwriter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deterministic platform copy from facts — hooks, titles, captions, CTAs and descriptions in many styles (question, number-led, what-it-means, contrast, breaking, how-to, quote…), English and Nepali, trimmed to each platform's character limit (YouTube/IG/TikTok/FB/X/Threads/LinkedIn/Telegram). Fills ONLY the facts you pass (never invents claims) and drops sensational phrasing; AI optional, only to fill slots. Exposes a describe() command schema for an AI 'conductor'. Zero dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",

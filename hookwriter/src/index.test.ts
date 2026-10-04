@@ -22,7 +22,7 @@ describe("generate", () => {
   it("skips templates whose slots are missing (never fabricates)", () => {
     const sparse: Facts = { headline: "Budget tabled in parliament" };
     const v = generate(sparse, { type: "hook", platform: "x" });
-    // Only templates needing just {headline} (or none) survive — e.g. BREAKING: {headline}
+    // Only templates needing just {headline} (or none) survive — e.g. the plain {headline}
     expect(v.some((x) => x.text.includes("Budget tabled in parliament"))).toBe(true);
     expect(v.every((x) => !x.text.includes("{"))).toBe(true);
   });
@@ -83,5 +83,13 @@ describe("fitText", () => {
     const r = fitText("the quick brown fox jumps over", 15);
     expect(r.length).toBeLessThanOrEqual(15);
     expect(r.endsWith("…")).toBe(true);
+  });
+  it("never says BREAKING unless urgency is breaking", () => {
+    const routine = compose(facts, { platform: "facebook" });
+    expect(routine.hook).not.toMatch(/BREAKING|Just in/);
+    expect(generate(facts, { type: "hook", platform: "x" }).some((v) => v.style === "breaking")).toBe(false);
+    expect(compose(facts, { platform: "facebook", lang: "ne" }).hook).not.toMatch(/ताजा खबर|भर्खरै/);
+    const urgent = compose(facts, { platform: "facebook", urgency: "breaking" });
+    expect(urgent.hook.startsWith("BREAKING:") || urgent.hook.startsWith("Just in")).toBe(true);
   });
 });

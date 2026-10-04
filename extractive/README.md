@@ -45,3 +45,11 @@ All deterministic and Devanagari-aware. Reuses `@lacspace/keyphrase`, `@lacspace
 ## No third-party names (1.1.0)
 
 `scrubSources(text, { outlets?, keep? })` → `{ text, removed, remaining, clean }` strips credit lines (`Source:`, `Photo:`, `स्रोत:`, `तस्बिर:` …), datelines like `(Reuters) -`, and attribution phrases (`according to the Kathmandu Post`, `कान्तिपुरका अनुसार`, `… अनलाइनखबरले जनाएको छ`) for ~150 Nepali and international outlets and stock libraries, keeping the facts. Names it can't remove safely are listed in `remaining` so a validator can hold the post; `mentionsOutlet(text)` is the quick gate. Run it on the writer's input and again on the final copy.
+
+## Nepali case endings (1.2.0)
+
+Outlet names are now matched with Nepali case endings attached (`को/का/की/ले/मा/बाट/लाई/सँग/द्वारा/मार्फत` …) and in Romanised form (`Kantipur ko`, `Setopatima`). New attribution patterns: `कान्तिपुरको रिपोर्ट अनुसार`, `रातोपाटीमा प्रकाशित समाचार अनुसार`, `अनलाइनखबरले जनाएअनुसार`, `उनले कान्तिपुरलाई बताए` → `उनले बताए`, `सेतोपाटीका संवाददाता` → `संवाददाता`, `Kantipur ko report anusar`. A trailing `… बढेको अनलाइनखबरले जनाएको छ।` now keeps its `छ`.
+
+Outlet names that are also everyday words (`AMBIGUOUS_OUTLETS`: `उज्यालो`, `शिलापत्र`, `नयाँ पत्रिका`, `Dawn` …) are removed only inside credit lines, attributions and datelines. A bare word like `नागरिक` is never touched; only `नागरिक दैनिक` / `नागरिक न्यूज` count as outlets.
+
+`neutralize: true` (or `{ ne, en }`) swaps any mention that survives for a neutral noun and keeps the case ending: `सेतोपाटीका कर्मचारी` → `सञ्चारमाध्यमका कर्मचारी`. It is off by default, so survivors are reported in `remaining` instead.

@@ -17,6 +17,7 @@ export interface Template {
 // deliberately factual — no sensational superlatives.
 export const TEMPLATES: Record<CopyType, Template[]> = {
   hook: [
+    { style: "plain", lang: "en", text: "{headline}" },
     { style: "breaking", lang: "en", text: "BREAKING: {headline}" },
     { style: "breaking", lang: "en", text: "Just in — {topic}" },
     { style: "question", lang: "en", text: "{place}: what changes now?" },
@@ -28,6 +29,7 @@ export const TEMPLATES: Record<CopyType, Template[]> = {
     { style: "curiosity", lang: "en", text: "What {place} needs to know today" },
     { style: "contrast", lang: "en", text: "{topic}: before and after" },
 
+    { style: "plain", lang: "ne", text: "{headline}" },
     { style: "breaking", lang: "ne", text: "ताजा खबर: {headline}" },
     { style: "breaking", lang: "ne", text: "भर्खरै — {topic}" },
     { style: "question", lang: "ne", text: "{place}: अब के बदलिन्छ?" },

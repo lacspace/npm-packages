@@ -17,7 +17,7 @@ const facts = {
 };
 
 generate(facts, { type: "hook", platform: "instagram", lang: "both" });
-// → [{ style:"breaking", lang:"ne", text:"ताजा खबर: …" }, { style:"number", lang:"en", text:"4.5% …" }, …]
+// → [{ style:"plain", lang:"ne", text:"…" }, { style:"number", lang:"en", text:"4.5% …" }, …]  (no BREAKING unless urgency:"breaking")
 
 compose(facts, { platform: "instagram", lang: "en" }).text;
 // → hook + caption + CTA + #NRB #economy #Nepal, fitted to 2200 chars
@@ -30,10 +30,12 @@ A newsroom needs a caption/title for every post on every platform — doing that
 ## API
 
 - **`generate(facts, { type, platform, lang?, styles?, max? })`** → `Variant[]` — many variants of one copy `type` (`hook` | `title` | `caption` | `cta` | `description`), each `{ style, lang, text, length }`. A template whose slots aren't all present in `facts` is **skipped** — nothing is fabricated — and anything sensational is dropped. Output is trimmed to the platform's limit.
-- **`compose(facts, { platform, lang?, style?, cta?, maxHashtags? })`** → `{ hook, caption, hashtags, text }` — a full post assembled from the parts, hashtags capped per platform (30 on Instagram), fitted to the caption limit.
+- **`compose(facts, { platform, lang?, style?, urgency?, cta?, maxHashtags? })`** → `{ hook, caption, hashtags, text }` — a full post assembled from the parts, hashtags capped per platform (30 on Instagram), fitted to the caption limit.
 - **`slotTemplates(type, lang)`** → the raw templates with their `{slots}`, so an LLM can fill the slots itself (the only place AI is needed).
 - **`describe()`** → machine-readable capabilities + JSON-Schema commands + the lists of `types`, `styles` and `platforms`, so an AI "conductor" drives it by choosing options.
 - **`PLATFORMS` / `limitFor` / `fitText`** — the platform limits and the word-boundary trimmer, exported.
+
+**Urgency (1.1.0):** `"BREAKING:"` / `"Just in"` / `"ताजा खबर:"` copy appears only with `urgency: "breaking"` (or `styles: ["breaking"]`); routine stories (the default) never get it, in `generate` or `compose`.
 
 **Styles:** `plain`, `question`, `number`, `whatItMeans`, `contrast`, `curiosity`, `breaking`, `howto`, `quote`, `list`. **Platforms:** YouTube, Instagram, TikTok, Facebook, X, Threads, LinkedIn, Telegram. Pair it with `@lacspace/extractive` (facts/headlines) upstream.
 

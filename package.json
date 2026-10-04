@@ -135,6 +135,7 @@
     "iban",
     "tax-id",
     "patterns",
+    "rules",
     "phone",
     "postal-code",
     "session",

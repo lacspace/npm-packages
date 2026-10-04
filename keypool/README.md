@@ -84,6 +84,13 @@ The default `tweak` gives Gemini Flash (not Flash-Lite 3.x, which rejects it) `t
 
 Built-in providers: `gemini`, `groq`, `cerebras`, `openai`, `anthropic`, `deepseek`, `openrouter`. Add any OpenAI-compatible one through `providers`.
 
+**Shared state without Redis (1.3.0):** `mongoStore(db.collection("ai_pool"), "prefix:")` takes a plain MongoDB driver Collection (Mongoose: `mongoose.connection.db.collection("ai_pool")`), so keypool stays dependency-free.
+- **Expiry:** values are documents with an `expiresAt` field and a TTL index. Reads also check expiry, because Mongo sweeps only about once a minute.
+- **Counters:** atomic `$inc` upserts. The expiry is set on insert only, and an expired counter restarts at 1.
+- **Testing:** checked against a real MongoDB 8 server, including 20 concurrent increments.
+
+**Shrink floor (1.3.0):** a TPM/OTPM shrink never goes below the provider's `minTokens`. If it would have to, a 413 moves on to the next step instead of making a retry that is certain to fail.
+
 Panel helpers: `setOptions(patch)` (1.2.0) changes the route, caps or thresholds live without losing rests; `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
 
 ## Licence

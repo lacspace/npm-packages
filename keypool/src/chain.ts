@@ -115,6 +115,72 @@ export function redisStore(client: {
   };
 }
 
+/** The subset of a MongoDB driver `Collection` that `mongoStore` uses (driver v4–v6). */
+export interface MongoLikeCollection {
+  findOne(filter: Record<string, unknown>): Promise<Record<string, any> | null>;
+  updateOne(filter: Record<string, unknown>, update: Record<string, unknown>, opts?: { upsert?: boolean }): Promise<unknown>;
+  deleteOne(filter: Record<string, unknown>): Promise<unknown>;
+  deleteMany(filter: Record<string, unknown>): Promise<unknown>;
+  findOneAndUpdate(filter: Record<string, unknown>, update: Record<string, unknown>, opts: Record<string, unknown>): Promise<any>;
+  find(filter: Record<string, unknown>, opts?: Record<string, unknown>): { toArray(): Promise<Record<string, any>[]> };
+  createIndex?(spec: Record<string, unknown>, opts?: Record<string, unknown>): Promise<unknown>;
+}
+
+/**
+ * Store on a MongoDB collection (pass `mongoose.connection.db.collection("ai_pool")` or a
+ * driver Collection), so several processes share rests without Redis. Documents are
+ * `{ _id: key, v, n?, expiresAt? }`; a TTL index on `expiresAt` is created once (Mongo sweeps it
+ * about once a minute, so reads also check expiry). Counters use an atomic `$inc` upsert.
+ * @since 1.3.0
+ */
+export function mongoStore(collection: MongoLikeCollection, options: string | { prefix?: string; now?: () => number } = {}): ChainStore {
+  const o = typeof options === "string" ? { prefix: options } : options;
+  const prefix = o.prefix ?? "";
+  const now = o.now ?? Date.now;
+  let indexed: Promise<unknown> | null = null;
+  const ensureIndex = () => (indexed ??= Promise.resolve(collection.createIndex?.({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "keypool_ttl" })).catch(() => undefined));
+  const id = (k: string) => prefix + k;
+  const alive = (d: Record<string, any> | null) => !!d && !(d.expiresAt && new Date(d.expiresAt).getTime() <= now());
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return {
+    async get(k) {
+      await ensureIndex();
+      const d = await collection.findOne({ _id: id(k) });
+      if (!alive(d)) return null;
+      return d!.v != null ? String(d!.v) : d!.n != null ? String(d!.n) : null;
+    },
+    async set(k, v, ttl) {
+      await ensureIndex();
+      await collection.updateOne(
+        { _id: id(k) },
+        ttl ? { $set: { v, expiresAt: new Date(now() + ttl) }, $unset: { n: "" } } : { $set: { v }, $unset: { expiresAt: "", n: "" } },
+        { upsert: true },
+      );
+    },
+    async del(...ks) {
+      if (ks.length) await collection.deleteMany({ _id: { $in: ks.map(id) } });
+    },
+    async incr(k, ttl) {
+      await ensureIndex();
+      // An expired counter the TTL sweep hasn't removed yet must restart from 1.
+      await collection.deleteOne({ _id: id(k), expiresAt: { $lte: new Date(now()) } });
+      const res = await collection.findOneAndUpdate(
+        { _id: id(k) },
+        { $inc: { n: 1 }, $setOnInsert: { expiresAt: new Date(now() + ttl) } },
+        { upsert: true, returnDocument: "after" },
+      );
+      const doc = res && "value" in res && res.ok !== undefined ? res.value : res; // driver v4/v5 vs v6
+      return Number(doc?.n ?? 1);
+    },
+    async keys(p) {
+      const docs = await collection
+        .find({ _id: { $regex: "^" + esc(id(p)) }, $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date(now()) } }] }, { projection: { _id: 1 } })
+        .toArray();
+      return docs.map((d) => String(d._id).slice(prefix.length));
+    },
+  };
+}
+
 /* ── helpers ────────────────────────────────────────────────────────────── */
 
 /** ms until the next midnight in Los Angeles, when Gemini's daily quota resets (+30 s, min 1 min). */
@@ -396,7 +462,10 @@ export function createAiChain(initial: ChainOptions): AiChain {
               const m = /Limit\s+(\d+),\s*Requested\s+(\d+)/i.exec(text);
               const over = m ? Number(m[2]) - Number(m[1]) : maxTokens / 2;
               const next = Math.floor(maxTokens - over - 200);
-              if (next >= 400) { shrankOnce = true; maxTokens = next; continue; }
+              // Never shrink under the provider's floor (gpt-oss needs ~1600 to reason + answer):
+              // that retry is certain to fail. A 413 can't be served by this step at all.
+              if (next >= Math.max(400, def.minTokens ?? 0)) { shrankOnce = true; maxTokens = next; continue; }
+              if (status === 413) return "next-step";
             }
             if (status === 429 || status === 402 || kind === "quota" || kind === "rate_limit") {
               const perDay = PER_DAY.test(text);

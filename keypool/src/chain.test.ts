@@ -90,9 +90,16 @@ describe("createAiChain", () => {
 
   it("Groq 413 / TPM shrinks max_tokens to fit and retries once", async () => {
     const s = setup({ Q1: [err(413, "Request too large for model openai/gpt-oss-120b on tokens per minute (TPM): Limit 8000, Requested 9500"), ok("fits")] }, { keys: [KEYS[2]!], route: [ROUTE[1]!] });
-    const r = await s.chain.chat({ messages: msgs, maxTokens: 3000 });
+    const r = await s.chain.chat({ messages: msgs, maxTokens: 4000 });
     expect(r.text).toBe("fits");
-    expect(s.seen).toEqual(["Q1/openai/gpt-oss-120b/3000", "Q1/openai/gpt-oss-120b/1300"]);
+    expect(s.seen).toEqual(["Q1/openai/gpt-oss-120b/4000", "Q1/openai/gpt-oss-120b/2300"]);
+  });
+
+  it("TPM shrink never goes under the provider floor (OTPM): next step instead (1.3.0)", async () => {
+    const s = setup({ Q1: [err(413, "Request too large on output tokens per minute (OTPM): Limit 1000, Requested 6000")] , G1: [ok("gemini")] }, { route: [ROUTE[1]!, ROUTE[0]!] });
+    const r = await s.chain.chat({ messages: msgs, maxTokens: 2000 });
+    expect(r.keyId).toBe("g1");
+    expect(s.seen.filter((x) => x.startsWith("Q1"))).toEqual(["Q1/openai/gpt-oss-120b/2000"]);
   });
 
   it("gpt-oss empty reply → once with a bigger budget; minTokens floor applied", async () => {

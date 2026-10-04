@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/keypool",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "AI key pooling two ways. createAiChain: route-ordered multi-provider failover (Gemini, Groq, Cerebras, OpenAI, Anthropic, DeepSeek, OpenRouter, any OpenAI-compatible) that rests key+model pairs on 429 (Gemini daily quota until Pacific midnight), quarantines rejected keys (incl. Gemini's 400 'API key not valid'), cools down after N failures, shrinks Groq max_tokens to fit TPM, regrows empty reasoning replies, JSON mode with repair, per-purpose routes and caps, a call ledger hook, and a shared store (memory or Redis). createKeypool: RPM/RPD/TPM/TPD rotation and accounting. Built on @lacspace/ai.",
   "type": "module",
   "main": "./dist/index.cjs",

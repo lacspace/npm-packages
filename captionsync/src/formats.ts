@@ -100,9 +100,13 @@ export function toVtt(layout: Layout): string {
   return "WEBVTT\n\n" + layout.cues.map((c) => `${c.index}\n${vttTime(c.startMs)} --> ${vttTime(c.endMs)}${pos} align:center\n${c.text}\n`).join("\n");
 }
 
-/** Escape a path for use inside an ffmpeg filter option (colons, quotes, backslashes, brackets). */
+/**
+ * Escape a path for use INSIDE single quotes in an ffmpeg filter option: subtitles='…'.
+ * Option level escapes `\`, `'`, `:`; inside the graph-level quotes a literal quote has to
+ * close, be escaped and reopen ('\''). Brackets, commas and semicolons are literal in quotes.
+ */
 export function escapeFilterPath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/'/g, "'\\''").replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/,/g, "\\,");
+  return p.replace(/\\/g, "/").replace(/[\\':]/g, (c) => "\\" + c).replace(/'/g, "'\\''");
 }
 
 /** ffmpeg filter that burns an ASS file in with libass (pass a fontsdir containing Mukta/Noto Sans Devanagari). */

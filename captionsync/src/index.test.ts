@@ -79,3 +79,10 @@ describe("formats", () => {
     expect(describeApi().canvases).toContain("reels");
   });
 });
+
+describe("escapeFilterPath (1.0.1)", async () => {
+  const { escapeFilterPath } = await import("./formats.js");
+  it("survives quotes, colons and brackets inside subtitles='…'", () => {
+    expect(escapeFilterPath("/tmp/Font's: [dir], x/cap.ass")).toBe("/tmp/Font\\'\\''s\\: [dir], x/cap.ass");
+  });
+});

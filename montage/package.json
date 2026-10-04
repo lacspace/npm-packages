@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/montage",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Compile a list of clips and stills into a platform-ready social video: an ffmpeg timeline builder with per-platform presets and safe areas (Reels/TikTok/Shorts 9:16, FB 4:5 and 1:1, YouTube 16:9), Ken Burns on stills, xfade transitions (crossfade/slide/zoom-punch/whip), Devanagari-shaped kinetic captions, lower-thirds, logo bug and progress bar. Pure deterministic command builder plus an optional low-CPU runner (nice + thread cap + ulimit -c 0). Bring your own ffmpeg; zero third-party dependencies, isomorphic. 1.1 adds plan() — a render-time estimator with a cost breakdown and cheaper alternatives — a fast quality mode (ultrafast, 24 fps, lighter Ken Burns), 720p renditions reused across cuts, libass ASS captions (correct Devanagari shaping via @lacspace/captionsync), and one-process multi-cut: en/ne/square/reels outputs from a single decode.",
   "type": "module",
   "main": "./dist/index.cjs",

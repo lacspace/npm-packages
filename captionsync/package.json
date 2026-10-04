@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/captionsync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Platform-safe burn-in captions from word or sentence timings — Devanagari-safe line breaking (never inside a word, so conjuncts and matras stay intact), max 2 lines, per-platform safe areas (Reels/TikTok/Shorts/Facebook/YouTube), auto font-size fit, punctuation-aware breaks, orphan avoidance, cue duration bounds and gap merging, karaoke word highlight — emitted as ASS (libass shapes Devanagari with HarfBuzz, unlike drawtext), SRT, VTT, the ffmpeg subtitles filter string, and an @lacspace/montage drawtext fallback. Pairs with @lacspace/speakable word timings. Zero deps, deterministic.",
   "type": "module",
   "main": "./dist/index.cjs",

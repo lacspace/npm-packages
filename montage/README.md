@@ -69,3 +69,9 @@ Builds, then spawns ffmpeg under **`nice`** (default level 15) with **`ulimit -c
 - **`prepareRenditions(spec, { outDir, height: 720 })`** → `{ jobs:[{src,out,args}], renditions }` — pre-encode each distinct clip once to a 720p mezzanine (cacheable by source), then pass `renditions` to every later build.
 - **`buildMultiCut(spec, cuts, options)`** — one ffmpeg process, N outputs: the decode + Ken Burns + xfade graph runs once, then `split` feeds per-cut canvas (`recanvas` scale/crop), captions (en/ne), lower-thirds, ASS, logo, audio track. `{ preset, output, captions?, lowerThirds?, ass?, logo?, audio?, progressBar? }` per cut.
 - **`spec.ass = { file, fontsDir }`** — burn an ASS file from `@lacspace/captionsync` with libass (needs ffmpeg built with libass): correct Devanagari shaping, karaoke, 2-line safe-area captions.
+
+## Text escaping (1.1.1)
+
+`escapeDrawtext(text)` and `escapePath(path)` return values meant to sit **inside single quotes**: `text='…'` and `fontfile='…'`. They escape for all three levels ffmpeg parses: drawtext expansion (`\` and `%`), the option parser (`\`, `'` and `:`), and the filtergraph quotes. At the filtergraph level a literal `'` becomes `'\''`. Leading and trailing spaces are kept.
+
+Before 1.1.1, any apostrophe ("Nepal's") broke the whole filtergraph. A test round-trips `' " : % \ , ; [ ]`, padding and Devanagari with `।` through a simulation of ffmpeg's parser. With `FFMPEG_DRAWTEXT` and `FONT_FILE` set, it also renders against a real ffmpeg and checks the frame is pixel-identical to the same text drawn from `textfile=`.

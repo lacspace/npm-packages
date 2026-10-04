@@ -53,3 +53,5 @@ Outlet names are now matched with Nepali case endings attached (`को/का/�
 Outlet names that are also everyday words (`AMBIGUOUS_OUTLETS`: `उज्यालो`, `शिलापत्र`, `नयाँ पत्रिका`, `Dawn` …) are removed only inside credit lines, attributions and datelines. A bare word like `नागरिक` is never touched; only `नागरिक दैनिक` / `नागरिक न्यूज` count as outlets.
 
 `neutralize: true` (or `{ ne, en }`) swaps any mention that survives for a neutral noun and keeps the case ending: `सेतोपाटीका कर्मचारी` → `सञ्चारमाध्यमका कर्मचारी`. It is off by default, so survivors are reported in `remaining` instead.
+
+**1.2.1:** an inflected noun after the outlet keeps its case ending: `सेतोपाटीमा प्रकाशित लेखमा उल्लेख छ।` → `एक लेखमा उल्लेख छ।`. This also covers समाचारमा, रिपोर्टमा, भिडियोमा, कार्यक्रममा, `कान्तिपुरको रिपोर्टमा` and `…को समाचारले`.

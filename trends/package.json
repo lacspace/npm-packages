@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/trends",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Trending topics and hashtags for a region from official/public sources only — Google Trends daily RSS (geo), YouTube Data API mostPopular (optional key), and Wikipedia pageviews — merged across scripts and scored (multi-source terms rank up), with story-relevance gating so you never trend-jack unrelated topics, and per-platform hashtag sets with limits + a banned/shadow-ban filter. Bring-your-own-fetch, deterministic given inputs. Reuses @lacspace/keyphrase and @lacspace/translit.",
   "type": "module",
   "main": "./dist/index.cjs",

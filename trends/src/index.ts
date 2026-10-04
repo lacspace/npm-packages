@@ -1,10 +1,10 @@
-import { keyphrase } from "@lacspace/keyphrase";
+import { ENGLISH_STOPWORDS, keyphrase } from "@lacspace/keyphrase";
 import { transliterate, detectScript } from "@lacspace/translit";
 import { FetchLike, googleTrendsDaily, RawTrend, TrendSource, wikipediaTop, youtubeMostPopular } from "./sources.js";
 
 export * from "./sources.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 export interface Trend {
   /** Display term (original casing/script of the strongest source). */
@@ -61,18 +61,60 @@ export function mergeTrends(raws: RawTrend[]): Trend[] {
   return out.sort((a, b) => b.score - a.score);
 }
 
-/** Score each trend's relevance to a story (0–1) and attach it; optionally filter. */
+/**
+ * Everyday nouns/verbs that are too generic to make a trend relevant on their own
+ * ("river" must not pull in "River Phoenix"). Stop-words come from @lacspace/keyphrase.
+ */
+export const COMMON_TERMS: string[] = (
+  "river lake water rain flood floods storm fire earthquake road bridge city town village country nation state world people man woman men women " +
+  "child children family home house school college university hospital market price prices money bank job jobs work worker news report story video " +
+  "photo live today tomorrow yesterday week month year day night time new old big small high low first last top best good bad open close update " +
+  "government minister ministry police army court law election vote party leader president prime team match game cup league final season player " +
+  "fans film movie song music show star stars love life death dead killed kill dies died attack crash accident case cases test result results " +
+  "index share shares stock stocks gold oil fuel power energy weather heat cold snow wind air sky sun moon park forest mountain hill valley " +
+  "animal animals bird birds dog cat tiger rhino rhinos elephant phone app online internet data tech car bus train plane flight airport " +
+  "festival holiday day nepal india china usa america global international national local district province area region zone north south east west " +
+  "red blue black white green golden king queen prince lord saint new big"
+).split(/\s+/);
+const COMMON = new Set([...COMMON_TERMS, ...ENGLISH_STOPWORDS.map((w) => w.toLowerCase())]);
+
+/** Crude English stem so "floods"/"flooded"/"flooding" meet "flood". */
+function stem(w: string): string {
+  if (w.length <= 4) return w;
+  return w.replace(/(?:ing|ed|es|s)$/, "") || w;
+}
+const isCommon = (w: string) => COMMON.has(w) || COMMON.has(stem(w));
+/** Title-cased 2–3 Latin words, e.g. "River Phoenix" — treat as a possible person name. */
+const nameLike = (term: string) => /^\p{Lu}[\p{Ll}'.-]+(?:\s+\p{Lu}[\p{Ll}'.-]+){1,2}$/u.test(term.trim());
+
+/**
+ * Score each trend's relevance to a story (0–1) and attach it; optionally filter.
+ *
+ * A shared common word is never enough: a trend counts only when it matches the story on a
+ * distinctive term (a proper noun / entity / rare word) or as a whole phrase. Name-like trends
+ * ("River Phoenix") need every word of the name in the story. A single common-word trend
+ * ("Flood") is capped at 0.2.
+ */
 export function relevanceTo(trends: Trend[], story: string, options: { min?: number } = {}): Trend[] {
   const kp = keyphrase(story, { max: 20 } as any);
   const storyTokens = new Set<string>();
-  for (const p of kp.phrases ?? []) for (const t of tokens(p.phrase)) storyTokens.add(t);
-  for (const t of tokens(story)) storyTokens.add(t);
+  for (const p of kp.phrases ?? []) for (const t of tokens(p.phrase)) storyTokens.add(stem(t));
+  for (const t of tokens(story)) storyTokens.add(stem(t));
+  const storyKey = " " + tokens(story).map(stem).join(" ") + " ";
   const scored = trends.map((t) => {
     const tt = tokens(t.term);
     if (!tt.length || storyTokens.size === 0) return { ...t, relevance: 0 };
-    const hits = tt.filter((w) => storyTokens.has(w)).length;
-    const rel = round(hits / tt.length);
-    return { ...t, relevance: rel };
+    const has = (w: string) => storyTokens.has(stem(w));
+    const hits = tt.filter(has).length;
+    const phrase = tt.length > 1 && storyKey.includes(" " + tt.map(stem).join(" ") + " ");
+    const distinctive = tt.filter((w) => !isCommon(w));
+    let rel: number;
+    if (phrase) rel = 1;
+    else if (tt.length === 1) rel = hits ? (distinctive.length ? 1 : 0.2) : 0;
+    else if (nameLike(t.term)) rel = hits === tt.length ? 1 : 0;
+    else if (!distinctive.length) rel = Math.min(0.2, hits / tt.length);
+    else rel = distinctive.every(has) ? hits / tt.length : 0;
+    return { ...t, relevance: round(rel) };
   });
   return options.min !== undefined ? scored.filter((t) => (t.relevance ?? 0) >= options.min!) : scored;
 }

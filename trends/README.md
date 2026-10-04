@@ -36,7 +36,7 @@ Each source is bring-your-own-`fetch`; a failing source becomes a `warnings` ent
 
 - **`trends(options)`** → `{ trends, sources, warnings }`. Options: `geo`, `sources`, `youtubeApiKey`, `wikipediaProject`, `relevanceTo` (+ `minRelevance`), `fetch`, `signal`.
 - **`mergeTrends(raw[])`** → merges raw trends across scripts (Dashain ≡ दशैं) and boosts multi-source agreement.
-- **`relevanceTo(trends, story, { min? })`** → attaches a 0–1 `relevance` (token overlap via `@lacspace/keyphrase` + `@lacspace/translit`), optionally filtering.
+- **`relevanceTo(trends, story, { min? })`** → attaches a 0–1 `relevance` (token overlap via `@lacspace/keyphrase` + `@lacspace/translit`), optionally filtering. From 1.1.0 a shared common word is never enough. A trend must match on a distinctive term (proper noun, entity, rare word) or as a whole phrase. Name-like trends (`River Phoenix`) need the full name in the story, and single common-word trends are capped at 0.2. Plurals and -ed/-ing forms are stemmed, so `floods` matches `flood`. `COMMON_TERMS` is exported.
 - **`hashtagsFor(terms, platform, { banned?, max?, extra? })`** → camel-cased, de-duplicated hashtags within the platform limit (IG 30, X 3, TikTok 6…), dropping banned/shadow-ban-prone tags.
 - **Source fns** `googleTrendsDaily`, `youtubeMostPopular`, `wikipediaTop` and `parseGoogleTrendsRss` are exported.
 - **`describe()`** → machine-readable command schema for an AI "conductor".

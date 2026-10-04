@@ -149,3 +149,25 @@ describe("scrubSources (1.2.0) — Nepali case endings", async () => {
     expect(r.clean).toBe(true);
   });
 });
+
+describe("scrubSources (1.2.1) — inflected nouns after the outlet", async () => {
+  const { scrubSources } = await import("./index.js");
+  it("keeps the noun and its case ending instead of leaving a stray suffix", () => {
+    const cases: Array<[string, string]> = [
+      ["सेतोपाटीमा प्रकाशित लेखमा उल्लेख छ।", "एक लेखमा उल्लेख छ।"],
+      ["कान्तिपुरमा प्रकाशित समाचारमा भनिएको छ।", "एक समाचारमा भनिएको छ।"],
+      ["रातोपाटीमा प्रकाशित रिपोर्टमा तथ्यांक छ।", "एक रिपोर्टमा तथ्यांक छ।"],
+      ["अनलाइनखबरबाट प्रसारित भिडियोमा देखिन्छ।", "एक भिडियोमा देखिन्छ।"],
+      ["कान्तिपुर टेलिभिजनद्वारा प्रसारित कार्यक्रममा मन्त्री बोले।", "एक कार्यक्रममा मन्त्री बोले।"],
+      ["कान्तिपुरको रिपोर्टमा यस्तो लेखिएको छ।", "एक रिपोर्टमा यस्तो लेखिएको छ।"],
+      ["सेतोपाटीको समाचारले चर्चा पायो।", "एक समाचारले चर्चा पायो।"],
+      ["सेतोपाटीमा प्रकाशित लेख अनुसार कर बढ्यो।", "कर बढ्यो।"],
+    ];
+    for (const [input, want] of cases) {
+      const r = scrubSources(input);
+      expect(r.text).toBe(want);
+      expect(r.clean).toBe(true);
+    }
+  });
+});
+

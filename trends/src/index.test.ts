@@ -62,6 +62,22 @@ describe("relevanceTo", () => {
   });
 });
 
+describe("relevanceTo (1.1.0) — distinctive terms only", () => {
+  it("WeNepal fixture: a shared common word doesn't make a person trend relevant", () => {
+    const base = mergeTrends(["River Phoenix", "Chitwan flood", "Rapti"].map((term) => ({ term, source: "google" as const, weight: 1 })));
+    const kept = relevanceTo(base, "Rhinos stranded as Rapti river floods Chitwan", { min: 0.3 }).map((t) => t.term).sort();
+    expect(kept).toEqual(["Chitwan flood", "Rapti"]);
+  });
+  it("name-like trends need the full name; common single words are capped", () => {
+    const base = mergeTrends(["Ram Thapa", "Flood", "Gagan Thapa"].map((term) => ({ term, source: "google" as const, weight: 1 })));
+    const r = relevanceTo(base, "Gagan Thapa visited flood victims; Thapa promised relief.");
+    const rel = (x: string) => r.find((t) => t.term === x)!.relevance;
+    expect(rel("Gagan Thapa")).toBe(1);
+    expect(rel("Ram Thapa")).toBe(0);
+    expect(rel("Flood")).toBeLessThan(0.3);
+  });
+});
+
 describe("hashtagsFor", () => {
   it("builds platform-limited, de-duplicated, camel-cased hashtags", () => {
     const tags = hashtagsFor(["NEPSE index", "Dashain", "दशैं"], "x");

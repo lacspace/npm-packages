@@ -1,0 +1,27 @@
+{
+  "name": "@lacspace/packfix",
+  "version": "1.0.0",
+  "description": "Targeted repair of failed AI-written story packs, instead of whole-pack rewrites. From your validator's failures it clears name false positives (descriptive Title Case phrases, names found in other-script sources via transliteration), swaps near-misspellings for the source spelling, ranks the sentences behind an 8-gram plagiarism overlap and picks the smallest set to rewrite, and neutralises judgement words (explosive, massive, shocking…) with context guards. Whatever it can't fix comes back with sentence ids, so you re-ask the model for 1–2 sentences, not the whole pack.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "dependencies": { "@lacspace/translit": "^1.0.5" },
+  "keywords": ["llm", "ai", "newsroom", "validation", "repair", "plagiarism", "shingles", "named-entities", "tone", "token-saving", "nepali", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/packfix",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "packfix" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

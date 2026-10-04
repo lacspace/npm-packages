@@ -134,6 +134,7 @@
     "currency",
     "iban",
     "tax-id",
+    "packfix",
     "patterns",
     "portfolio",
     "rules",

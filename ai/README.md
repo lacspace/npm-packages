@@ -234,7 +234,7 @@ ai.status();  // which targets are resting and until when
 
 - It tries targets in order. A target that fails rests according to its failure kind: quota/billing **1 h**, a bad key **6 h**, anything else **2 min**. Override with `cooldownMs`.
 - If every target is resting, it tries them all once anyway, soonest-to-recover first.
-- `classifyError(err)` handles provider quirks. Gemini returns HTTP **400 "API key not valid"** for a bad key, which counts as `auth`. A 429 that mentions quota, billing, RESOURCE_EXHAUSTED or "tokens per day" counts as `quota`; any other 429 is `rate_limit`.
+- `classifyError(err)` accepts an `AiError` or any error with a numeric `status`/`statusCode` (1.2.1), and handles provider quirks. Gemini returns HTTP **400 "API key not valid"** for a bad key, which counts as `auth`. A 429 that mentions quota, billing, RESOURCE_EXHAUSTED or "tokens per day" counts as `quota`; any other 429 is `rate_limit`.
 - **Reasoning models:** `usage.reasoningTokens` is now reported (OpenAI/Groq `reasoning_tokens`, Gemini `thoughtsTokenCount`), and `res.reasoning` holds visible reasoning text. When a reply is empty with `finishReason: "length"` (the whole budget went on reasoning), the fallback client retries that target once with `maxTokens × 4` (min 256, max 8192; set via `growOnEmpty`). If it is still empty, it moves to the next target.
 - `ai.stream()` falls back only before the first chunk arrives.
 

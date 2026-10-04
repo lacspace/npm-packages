@@ -29,13 +29,19 @@ const QUOTA_RE = /quota|billing|insufficient[ _](?:quota|funds|balance|credits?)
  * "API key not valid", and quota exhaustion as 429 RESOURCE_EXHAUSTED with "quota".
  */
 export function classifyError(err: unknown): FailureKind {
-  if (!(err instanceof AiError)) return err instanceof EmptyResponseError ? "empty" : "other";
-  const msg = `${err.message} ${safeString(err.raw)}`;
-  if (err.status === 401 || err.status === 403 || AUTH_RE.test(msg)) return "auth";
-  if (err.status === 402 || QUOTA_RE.test(msg)) return "quota";
-  if (err.status === 429) return "rate_limit";
-  if (err.status === 0 || err.status === 408 || err.status >= 500) return "transient";
-  if (err.status === 400 || err.status === 404 || err.status === 422) return "bad_request";
+  if (err instanceof EmptyResponseError) return "empty";
+  // AiError, or any error-like object with a numeric HTTP `status` (fetch wrappers, other SDKs).
+  const e = err as { status?: unknown; statusCode?: unknown; message?: unknown; raw?: unknown; body?: unknown } | null;
+  const status = typeof e?.status === "number" ? e.status : typeof e?.statusCode === "number" ? e.statusCode : undefined;
+  if (!(err instanceof AiError) && status === undefined) return "other";
+  err = { status: status ?? 0, message: String(e?.message ?? ""), raw: e?.raw ?? e?.body };
+  const x = err as { status: number; message: string; raw: unknown };
+  const msg = `${x.message} ${safeString(x.raw)}`;
+  if (x.status === 401 || x.status === 403 || AUTH_RE.test(msg)) return "auth";
+  if (x.status === 402 || QUOTA_RE.test(msg)) return "quota";
+  if (x.status === 429) return "rate_limit";
+  if (x.status === 0 || x.status === 408 || x.status >= 500) return "transient";
+  if (x.status === 400 || x.status === 404 || x.status === 422) return "bad_request";
   return "other";
 }
 

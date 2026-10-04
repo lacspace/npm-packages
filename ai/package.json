@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/ai",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A tiny, zero-dependency, provider-agnostic LLM chat client over fetch — one chat()/stream() API for OpenAI, Anthropic, Google Gemini and any OpenAI-compatible endpoint (Groq, Together, OpenRouter, Ollama), plus typed message builders, retry/backoff + timeout, usage/cost accounting and JSON-output parsing. Bring your own key, no SDK, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

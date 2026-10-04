@@ -134,6 +134,7 @@
     "currency",
     "iban",
     "tax-id",
+    "patterns",
     "phone",
     "postal-code",
     "session",

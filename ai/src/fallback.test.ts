@@ -27,6 +27,11 @@ describe("classifyError", () => {
     expect(classifyError(e(0, "network"))).toBe("transient");
     expect(classifyError(e(400, "Invalid value at 'contents'"))).toBe("bad_request");
   });
+  it("also classifies plain errors that carry an HTTP status (1.2.1)", () => {
+    expect(classifyError(Object.assign(new Error("Too Many Requests"), { status: 429 }))).toBe("rate_limit");
+    expect(classifyError(Object.assign(new Error("x"), { statusCode: 401 }))).toBe("auth");
+    expect(classifyError(new Error("boom"))).toBe("other");
+  });
 });
 
 describe("createFallbackClient (1.2.0)", () => {

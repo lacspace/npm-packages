@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/patterns",
+  "version": "1.0.0",
+  "description": "Rule-based chart-pattern detection on OHLCV bars: ATR-sized swings (zigzag), harmonic XABCD patterns (Gartley, Bat, Butterfly, Crab, Cypher, AB=CD) with potential-reversal zones, an Elliott impulse count that obeys the three hard rules, classic chart patterns (double tops/bottoms, head & shoulders, triangles, wedges, channels, ranges) with necklines and measured moves, per-session TPO market profiles and volume profiles, and Kagi / Point & Figure transforms. Drawing-ready paths and zones plus plain data. Descriptive geometry, never a forecast. Zero-dependency.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["technical-analysis", "chart-patterns", "harmonic-patterns", "elliott-wave", "zigzag", "head-and-shoulders", "double-top", "market-profile", "tpo", "volume-profile", "kagi", "point-and-figure", "nepse", "trading", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/patterns",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "patterns" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

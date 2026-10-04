@@ -38,9 +38,6 @@ try {
 
 Secrets live only in memory on the `KeySpec`; the persisted state is counters and health, never the key. Exports `createKeypool`, `kvStore`, and the state types.
 
-## Licence
-[Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.
-
 ## AI key chain: route-ordered failover <sup>1.1.0</sup>
 
 `createAiChain` holds every key you have and tries them in a fixed route order, moving on only when one fails. It isn't a rotation. It is packaged from ShareRocketPro's production pool, built to WeNepal's rules, and calls go through [`@lacspace/ai`](https://www.npmjs.com/package/@lacspace/ai).
@@ -89,3 +86,5 @@ Built-in providers: `gemini`, `groq`, `cerebras`, `openai`, `anthropic`, `deepse
 
 Panel helpers: `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
 
+## Licence
+[Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.

@@ -32,6 +32,11 @@ export interface ScreenOptions {
   /** "desc" (default) or "asc". */
   order?: "asc" | "desc";
   limit?: number;
+  /**
+   * "conservative" (default): EMA needs 2n+1 candles, RSI 3n+1, so the seed has washed out.
+   * "minimal": every indicator just needs a value (n + 2 candles; MACD slow + signal + 1).
+   */
+  warmup?: "conservative" | "minimal";
 }
 
 export interface ScreenHit {
@@ -77,7 +82,7 @@ export function screen(universe: ScreenSymbol[], o: ScreenOptions = {}): ScreenR
     ) { skipped.push({ symbol: s.symbol, reason: "filtered" }); continue; }
 
     if (rules) {
-      const ev = evaluate(rules, b);
+      const ev = evaluate(rules, b, { warmup: o.warmup });
       if (b.length < ev.need) { skipped.push({ symbol: s.symbol, reason: "warming-up" }); continue; }
       if (!ev.entry[b.length - 1]) { skipped.push({ symbol: s.symbol, reason: "rules" }); continue; }
     }

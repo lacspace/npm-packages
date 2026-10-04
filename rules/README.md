@@ -60,6 +60,8 @@ screen(
 
 The screener evaluates each symbol's **last candle**, using the same engine as backtests and alerts. Ranking can use any operand, or `"change"`, `"turnover"` or `"volume"`.
 
+**Warm-up (1.1.0):** by default an EMA needs 2n+1 candles and RSI 3n+1, so the seed has washed out first. Pass `warmup: "minimal"` to `screen()` or `evaluate(rules, bars, { warmup })` when you only need each indicator to have a value (n + 2 candles; MACD slow + signal + 1). This is useful when you have little recorded history.
+
 `operandSeries(operand, bars)` returns the full series for any operand.
 
 Built by the ShareRocketPro team, where it runs their strategy builder, backtests and alerts. The tests pin their production backtester's trades on a real NABIL 15-minute snapshot.

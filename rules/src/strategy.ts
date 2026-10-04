@@ -259,10 +259,24 @@ function group(g: Group, b: RBar[], cache: Map<string, S>): boolean[] {
   return b.map((_, i) => (g.mode === "all" ? each.every((e) => e[i]) : each.some((e) => e[i])));
 }
 
+/**
+ * Warm-up when only "the indicator has a value" is required (@lacspace/rules addition):
+ * EMA/SMA/RSI/ATR/Bollinger/… need n + 1 candles, MACD slow + signal. Values are defined
+ * from there, but EMA/RSI/MACD still carry some seed influence for a while.
+ */
+const warmMinimal = (o: Operand): number => {
+  switch (o.k) {
+    case "num": case "price": return 0;
+    case "macd": case "macdSignal": case "macdHist": return (o.s ?? 26) + (o.g ?? 9);
+    default: return (o as { n: number }).n + 1;
+  }
+};
+
 /** Entry / exit truth per candle, plus the candles needed before it can be trusted. */
-export function evaluate(r: Rules, b: RBar[]) {
+export function evaluate(r: Rules, b: RBar[], opts: { warmup?: "conservative" | "minimal" } = {}) {
   const cache = new Map<string, S>();
-  const need = Math.max(2, ...[...r.entry.conds, ...r.exit.conds].flatMap((c) => [warm(c.a), warm(c.b)])) + 1;
+  const w = opts.warmup === "minimal" ? warmMinimal : warm;
+  const need = Math.max(2, ...[...r.entry.conds, ...r.exit.conds].flatMap((c) => [w(c.a), w(c.b)])) + 1;
   return { entry: group(r.entry, b, cache), exit: group(r.exit, b, cache), atr: series({ k: "atr", n: 14 }, b, cache), need };
 }
 

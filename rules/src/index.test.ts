@@ -75,6 +75,13 @@ describe("screen", () => {
       { symbol: "NEW", reason: "warming-up" },
     ]);
   });
+  it("warmup: 'minimal' screens short histories (EMA 50 needs 52 candles, not 101)", () => {
+    const short = [{ symbol: "UP60", sector: "Banking", bars: up.slice(0, 60) }];
+    const rules = { mode: "all" as const, conds: [{ a: { k: "price" as const, src: "close" as const }, op: ">" as const, b: { k: "ema" as const, n: 50 } }] };
+    expect(screen(short, { rules }).skipped).toEqual([{ symbol: "UP60", reason: "warming-up" }]);
+    expect(screen(short, { rules, warmup: "minimal" }).hits.map((h) => h.symbol)).toEqual(["UP60"]);
+    expect(evaluate({ name: "x", entry: rules, exit: { mode: "any", conds: [] } }, up, { warmup: "minimal" }).need).toBe(52);
+  });
   it("filters on price and turnover, ranks by change", () => {
     const r = screen(universe, { maxPrice: 200, minTurnover: 1, rankBy: "change", order: "asc" });
     expect(r.hits.map((h) => h.symbol)).toEqual(["DNBANK", "NEW"]); // DNBANK 181 (falling), NEW 109 (rising)

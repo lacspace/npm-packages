@@ -224,3 +224,15 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 
+
+## 1.6.0
+
+- **Fix:** `groupNepali` keeps decimals: `groupNepali(2587.25)` → `"2,587.25"`. It used to return `"2,58,725"`.
+- `formatCompactNPR(n, { style: "long", decimals: 2 })` gives `Rs 4.29 Arba` (Thousand/Lakh/Crore/Arba/Kharba). With `nepali: true, devanagari: true` it gives `रु ४.२९ अर्ब` (हजार/लाख/करोड/अर्ब/खर्ब). The default output is unchanged.
+- Nepal Standard Time (UTC+05:45):
+  - `toNpt(date)` returns wall-clock parts plus the weekday.
+  - `fromNpt(y, m, d, h, min)` returns the instant.
+  - `formatNpt(date, { time, hour12, devanagari, seconds })`.
+  - `toNptIso(date)` returns e.g. `2026-10-04T11:00:00+05:45`.
+  - `NPT_OFFSET_MINUTES` is 345.
+- For Bikram Sambat ↔ AD dates, use [`@lacspace/nepali-date`](https://www.npmjs.com/package/@lacspace/nepali-date) (`adToBs`, `bsToAd`, `formatBs`).

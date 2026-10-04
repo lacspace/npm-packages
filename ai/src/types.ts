@@ -61,6 +61,12 @@ export interface Tool {
 export interface Usage {
   inputTokens: number;
   outputTokens: number;
+  /**
+   * Output tokens spent on hidden reasoning (OpenAI/Groq `reasoning_tokens`, Gemini
+   * `thoughtsTokenCount`), when reported. Included in `outputTokens` by OpenAI-style
+   * providers. Large reasoning + empty text + `finishReason: "length"` = raise `maxTokens`.
+   */
+  reasoningTokens?: number;
 }
 
 /** Why the model stopped generating. Normalized across providers. */
@@ -106,6 +112,8 @@ export interface ChatResponse {
   model: string;
   /** The raw, un-normalized provider response body. */
   raw: unknown;
+  /** Visible reasoning text, when the provider returns it (Groq/DeepSeek `reasoning`, `reasoning_content`). */
+  reasoning?: string;
 }
 
 /** A unified streaming chunk. */

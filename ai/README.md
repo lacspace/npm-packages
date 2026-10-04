@@ -216,6 +216,28 @@ await chat({ ...opts, fetchImpl: myInstrumentedFetch });
 const ai = createClient({ provider: "openai", apiKey, defaultModel: "gpt-4o-mini", fetchImpl: myFetch });
 ```
 
+## Provider fallback with cooldowns <sup>1.2.0</sup>
+
+```ts
+import { createFallbackClient, user } from "@lacspace/ai";
+
+const ai = createFallbackClient([
+  { provider: "google", model: "gemini-3.1-flash-lite", apiKey: process.env.GEMINI_KEY },
+  { provider: "openai-compatible", model: "openai/gpt-oss-120b", apiKey: process.env.GROQ_KEY, baseUrl: "https://api.groq.com/openai/v1" },
+]);
+
+const res = await ai.chat({ messages: [user("Explain RSI in one line")] });
+res.target;   // "google:gemini-3.1-flash-lite" or the fallback that answered
+res.attempts; // [{ target, kind: "auth" | "quota" | "rate_limit" | "transient" | ... , error }]
+ai.status();  // which targets are resting and until when
+```
+
+- It tries targets in order. A target that fails rests according to its failure kind: quota/billing **1 h**, a bad key **6 h**, anything else **2 min**. Override with `cooldownMs`.
+- If every target is resting, it tries them all once anyway, soonest-to-recover first.
+- `classifyError(err)` handles provider quirks. Gemini returns HTTP **400 "API key not valid"** for a bad key, which counts as `auth`. A 429 that mentions quota, billing, RESOURCE_EXHAUSTED or "tokens per day" counts as `quota`; any other 429 is `rate_limit`.
+- **Reasoning models:** `usage.reasoningTokens` is now reported (OpenAI/Groq `reasoning_tokens`, Gemini `thoughtsTokenCount`), and `res.reasoning` holds visible reasoning text. When a reply is empty with `finishReason: "length"` (the whole budget went on reasoning), the fallback client retries that target once with `maxTokens × 4` (min 256, max 8192; set via `growOnEmpty`). If it is still empty, it moves to the next target.
+- `ai.stream()` falls back only before the first chunk arrives.
+
 ## API
 
 | Export | Signature | What it does |

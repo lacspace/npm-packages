@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/marketwrap",
+  "version": "1.0.0",
+  "description": "Deterministic, no-AI stock-market wrap writer in English and Nepali (Devanagari). From the index close/change, breadth, turnover, sector moves and top gainers/losers it writes a factual daily wrap such as \"NEPSE fell 11.90 points (−0.45%) to 2,587.25. Decliners led 238 to 95. Turnover Rs 4.29 arba.\" / \"नेप्से ११.९० अंक (−०.४५%) घटेर २,५८७.२५ मा बन्द भयो।\", with seeded phrasing variants so it doesn't read the same every day, South-Asian number formatting (lakh/crore/arba), a headline, and the computed facts. Every number comes from your input; no advice language. Zero-dependency.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["nepse", "stock-market", "market-wrap", "market-summary", "nepali", "devanagari", "nlg", "report-generation", "finance", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/marketwrap",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "marketwrap" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

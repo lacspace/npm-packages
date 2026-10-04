@@ -17,18 +17,20 @@ export function fromDevanagari(input: string): string {
 }
 
 /**
- * Group an integer with the South-Asian (Nepali) system: the last three digits,
- * then groups of two. `1234567` → `"12,34,567"`.
+ * Group a number with the South-Asian (Nepali) system: the last three digits,
+ * then groups of two. `1234567` → `"12,34,567"`; decimals are kept: `2587.25` → `"2,587.25"`.
  */
 export function groupNepali(value: number | string): string {
   const str = String(value).trim();
   const negative = str.startsWith("-");
   const sign = negative ? "-" : "";
-  const s = str.replace(/[^\d]/g, "");
-  if (s.length <= 3) return sign + s;
+  const [intRaw = "", ...decs] = str.split(".");
+  const s = intRaw.replace(/[^\d]/g, "");
+  const dec = decs.length ? "." + decs.join("").replace(/[^\d]/g, "") : "";
+  if (s.length <= 3) return sign + s + dec;
   const last3 = s.slice(-3);
   const rest = s.slice(0, -3);
-  return sign + rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3;
+  return sign + rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3 + dec;
 }
 
 export interface FormatNprOptions {
@@ -170,26 +172,35 @@ export interface CompactNprOptions {
   nepali?: boolean;
   /** Render digits in Devanagari. Default false. */
   devanagari?: boolean;
+  /**
+   * Word style. "short" (default): K/Lakh/Cr/Arab/Kharab, हजार/लाख/करोड/अरब/खरब.
+   * "long": Thousand/Lakh/Crore/Arba/Kharba, हजार/लाख/करोड/अर्ब/खर्ब (newsroom spelling).
+   */
+  style?: "short" | "long";
+  /** Fixed decimal places (e.g. 2 → "4.29"). Default: up to 2, trailing zeros trimmed. */
+  decimals?: number;
 }
 
 /** Compact NPR: `formatCompactNPR(1234567)` → `"Rs. 12.35 Lakh"`. */
 export function formatCompactNPR(amount: number, options: CompactNprOptions = {}): string {
-  const { symbol = "Rs. ", nepali = false, devanagari = false } = options;
+  const { symbol = "Rs. ", nepali = false, devanagari = false, style = "short", decimals } = options;
   const negative = amount < 0;
   const a = Math.abs(amount);
+  const long = style === "long";
   const units: [number, string, string][] = [
     [1e15, "Padma", "पद्म"],
     [1e13, "Neel", "नील"],
-    [1e11, "Kharab", "खरब"],
-    [1e9, "Arab", "अरब"],
-    [1e7, "Cr", "करोड"],
+    [1e11, long ? "Kharba" : "Kharab", long ? "खर्ब" : "खरब"],
+    [1e9, long ? "Arba" : "Arab", long ? "अर्ब" : "अरब"],
+    [1e7, long ? "Crore" : "Cr", "करोड"],
     [1e5, "Lakh", "लाख"],
-    [1e3, "K", "हजार"],
+    [1e3, long ? "Thousand" : "K", "हजार"],
   ];
+  const num = (n: number) => (decimals === undefined ? trimNum(n) : n.toFixed(decimals));
   let out: string;
   const u = units.find(([size]) => a >= size);
-  if (u) out = `${trimNum(a / u[0])} ${nepali ? u[2] : u[1]}`;
-  else out = trimNum(a);
+  if (u) out = `${num(a / u[0])} ${nepali ? u[2] : u[1]}`;
+  else out = num(a);
   if (devanagari) out = toDevanagari(out);
   return (negative ? "-" : "") + symbol + out;
 }
@@ -546,3 +557,6 @@ export function findDistrict(name: string): District | undefined {
  * province lookup helpers. See `./extras`.
  * ------------------------------------------------------------------------- */
 export * from "./extras";
+
+/* 1.6.0: Nepal Standard Time (UTC+05:45) helpers. */
+export * from "./time";

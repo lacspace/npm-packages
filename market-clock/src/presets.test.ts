@@ -12,7 +12,7 @@ import {
 } from "./index";
 
 test("PRESETS exposes all built-in exchanges as valid specs", () => {
-  const names = ["NSE", "BSE", "NYSE", "NASDAQ", "LSE", "TSE", "HKEX", "SGX"];
+  const names = ["NSE", "BSE", "NYSE", "NASDAQ", "LSE", "TSE", "HKEX", "SGX", "NEPSE"];
   expect(Object.keys(PRESETS).sort()).toEqual(names.slice().sort());
   for (const key of Object.keys(PRESETS)) {
     const spec = PRESETS[key as keyof typeof PRESETS];

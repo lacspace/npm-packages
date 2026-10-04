@@ -197,3 +197,15 @@ Not every Lacspace package is free. We also offer **Commercial** (paid), **Clien
 
 Free under the **[Lacspace Free Licence](https://developer.lacspace.com/licenses/lacspace-free-1.0)** — a permissive, free-to-use licence.
 
+
+## NEPSE <sup>1.2.0</sup>
+
+```ts
+import { MarketClock, NEPSE, withHolidays } from "@lacspace/market-clock";
+
+const nepse = new MarketClock(withHolidays(NEPSE, holidaysFromYourDb)); // ["2026-10-20", …]
+nepse.status();    // "pre-open" (10:30–10:45) | "open" (11:00–15:00) | "closed"
+nepse.nextOpen();  // the next Sun–Thu 11:00 NPT (UTC+05:45) that isn't a holiday
+```
+
+NEPSE trades Sunday to Thursday. Its holidays follow the Bikram Sambat / lunar calendar and are announced each year, so **no holidays are bundled**. Keep the list in your own data and pass it to `withHolidays(spec, dates, halfDays?)`, which works for any preset.

@@ -55,6 +55,22 @@ export {
   type Pricing,
 } from "./cost.js";
 export { extractJson, parseJson } from "./json.js";
+
+// New in 1.2.0 — provider fallback with cooldowns.
+export {
+  createFallbackClient,
+  classifyError,
+  FallbackError,
+  EmptyResponseError,
+  type FallbackClient,
+  type FallbackTarget,
+  type FallbackOptions,
+  type FallbackResponse,
+  type FallbackAttempt,
+  type FallbackCallOptions,
+  type FailureKind,
+  type TargetStatus,
+} from "./fallback.js";
 export { textStream } from "./text.js";
 
 export type {

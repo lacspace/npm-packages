@@ -155,3 +155,36 @@ export const SGX: ExchangeSpec = {
   weekend: [0, 6],
   holidays: SGX_HOLIDAYS,
 };
+
+/* --------------------------------------------------------------- Nepal ---- */
+
+/**
+ * Nepal Stock Exchange. Trades Sunday–Thursday (Friday and Saturday closed),
+ * pre-open 10:30–10:45, regular 11:00–15:00 NPT (UTC+05:45, no DST).
+ *
+ * Holidays: Nepal's public holidays follow the Bikram Sambat / lunar calendar and are
+ * announced by the government and NEPSE each year, so none are bundled. Add your
+ * own list (e.g. loaded from your DB) with `withHolidays(NEPSE, ["2026-10-20", …])`.
+ * @since 1.2.0
+ */
+export const NEPSE: ExchangeSpec = {
+  name: "NEPSE",
+  offsetMinutes: 345,
+  preOpen: { open: "10:30", close: "10:45" },
+  regular: { open: "11:00", close: "15:00" },
+  weekend: [5, 6],
+  holidays: [],
+};
+
+/**
+ * A copy of `spec` with extra holidays (and optional half-days) merged in — for
+ * exchanges whose calendar you maintain yourself. Dates are "YYYY-MM-DD" exchange-local.
+ * @since 1.2.0
+ */
+export function withHolidays(spec: ExchangeSpec, holidays: string[], halfDays?: ExchangeSpec["halfDays"]): ExchangeSpec {
+  return {
+    ...spec,
+    holidays: [...new Set([...spec.holidays, ...holidays])].sort(),
+    ...(halfDays || spec.halfDays ? { halfDays: { ...(spec.halfDays ?? {}), ...(halfDays ?? {}) } } : {}),
+  };
+}

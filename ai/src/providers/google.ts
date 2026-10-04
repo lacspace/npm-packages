@@ -134,6 +134,7 @@ function parseCandidate(json: unknown, model: string): ChatResponse {
     ? {
         inputTokens: um.promptTokenCount ?? 0,
         outputTokens: um.candidatesTokenCount ?? 0,
+        ...(um.thoughtsTokenCount ? { reasoningTokens: um.thoughtsTokenCount } : {}),
       }
     : undefined;
   return {

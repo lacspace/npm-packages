@@ -266,9 +266,9 @@ export const BSE: ExchangeSpec = {
  * 1.1.0 — additive public API: presets + session/segment functions & types.
  * ------------------------------------------------------------------------ */
 
-import { NYSE, NASDAQ, LSE, TSE, HKEX, SGX } from "./presets";
+import { NYSE, NASDAQ, LSE, TSE, HKEX, SGX, NEPSE } from "./presets";
 
-export { NYSE, NASDAQ, LSE, TSE, HKEX, SGX } from "./presets";
+export { NYSE, NASDAQ, LSE, TSE, HKEX, SGX, NEPSE, withHolidays } from "./presets";
 
 export {
   currentSegment,
@@ -297,6 +297,7 @@ export const PRESETS = {
   TSE,
   HKEX,
   SGX,
+  NEPSE,
 } as const;
 
 /** Union of built-in preset keys. @since 1.1.0 */

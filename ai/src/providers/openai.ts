@@ -7,6 +7,7 @@ import type {
   Part,
   Tool,
   ToolCall,
+  Usage,
 } from "../types.js";
 import type { SseEvent } from "../sse.js";
 import {
@@ -86,6 +87,21 @@ function toolsToOpenAi(tools: Tool[]): unknown[] {
   }));
 }
 
+/** Normalize an OpenAI-style usage block, including reasoning tokens when reported. */
+function openAiUsage(u: Record<string, any>): Usage {
+  const r = u.completion_tokens_details?.reasoning_tokens ?? u.reasoning_tokens;
+  return {
+    inputTokens: u.prompt_tokens ?? 0,
+    outputTokens: u.completion_tokens ?? 0,
+    ...(typeof r === "number" && r > 0 ? { reasoningTokens: r } : {}),
+  };
+}
+
+/** True when usage shows the output was (almost) entirely reasoning. */
+function reasoningFilledBudget(u?: Usage): boolean {
+  return !!u && !!u.reasoningTokens && u.reasoningTokens >= u.outputTokens - 1;
+}
+
 export function makeOpenAiAdapter(providerName: "openai" | "openai-compatible"): ProviderAdapter {
   return {
     buildRequest(opts: ChatOptions, stream: boolean): BuiltRequest {
@@ -126,19 +142,23 @@ export function makeOpenAiAdapter(providerName: "openai" | "openai-compatible"):
             };
           })
         : [];
-      const usage = j.usage
-        ? {
-            inputTokens: j.usage.prompt_tokens ?? 0,
-            outputTokens: j.usage.completion_tokens ?? 0,
-          }
+      const usage = j.usage ? openAiUsage(j.usage) : undefined;
+      const reasoning =
+        typeof msg.reasoning === "string" ? msg.reasoning
+        : typeof msg.reasoning_content === "string" ? msg.reasoning_content
         : undefined;
+      let finishReason = mapFinish(choice.finish_reason);
+      // Reasoning models can spend the whole budget thinking and return "" with
+      // finish "stop" on some hosts; report it as "length" so callers can retry bigger.
+      if (!text && !toolCalls.length && reasoning && finishReason === "stop" && reasoningFilledBudget(usage)) finishReason = "length";
       return {
         text,
         toolCalls,
-        finishReason: mapFinish(choice.finish_reason),
+        finishReason,
         usage,
         model: j.model ?? model,
         raw: json,
+        ...(reasoning ? { reasoning } : {}),
       };
     },
 
@@ -172,22 +192,14 @@ export function makeOpenAiAdapter(providerName: "openai" | "openai-compatible"):
             out.push({
               type: "done",
               finishReason: mapFinish(choice.finish_reason),
-              usage: j.usage
-                ? {
-                    inputTokens: j.usage.prompt_tokens ?? 0,
-                    outputTokens: j.usage.completion_tokens ?? 0,
-                  }
-                : undefined,
+              usage: j.usage ? openAiUsage(j.usage) : undefined,
             });
           }
         } else if (j.usage) {
           // Final usage-only chunk (stream_options.include_usage).
           out.push({
             type: "done",
-            usage: {
-              inputTokens: j.usage.prompt_tokens ?? 0,
-              outputTokens: j.usage.completion_tokens ?? 0,
-            },
+            usage: openAiUsage(j.usage),
           });
         }
         return out;

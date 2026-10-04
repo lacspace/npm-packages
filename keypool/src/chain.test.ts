@@ -123,6 +123,15 @@ describe("createAiChain", () => {
     expect(await s.chain.takePurpose("other")).toBe(true);
   });
 
+  it("setOptions swaps the route and caps without losing rests (1.2.0)", async () => {
+    const s = setup({ G1: [err(429, "try again in 60s")], G2: [ok("g2")], Q1: [ok("q1")] });
+    await s.chain.chat({ messages: msgs, maxTokens: 100 }); // g1 rests, g2 answers
+    s.chain.setOptions({ route: [ROUTE[1]!], purposeCaps: { ask: 1 } });
+    expect((await s.chain.chat({ messages: msgs, maxTokens: 100 })).keyId).toBe("q1");
+    expect((await s.chain.rests()).g1).toHaveLength(1);
+    expect([await s.chain.takePurpose("ask"), await s.chain.takePurpose("ask")]).toEqual([true, false]);
+  });
+
   it("clearRests re-enables an invalid key", async () => {
     const s = setup({ G1: [err(401, "Unauthorized"), ok("again")], G2: [ok("x")] });
     await s.chain.chat({ messages: msgs, maxTokens: 100 });

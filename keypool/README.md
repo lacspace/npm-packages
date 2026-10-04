@@ -84,7 +84,7 @@ The default `tweak` gives Gemini Flash (not Flash-Lite 3.x, which rejects it) `t
 
 Built-in providers: `gemini`, `groq`, `cerebras`, `openai`, `anthropic`, `deepseek`, `openrouter`. Add any OpenAI-compatible one through `providers`.
 
-Panel helpers: `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
+Panel helpers: `setOptions(patch)` (1.2.0) changes the route, caps or thresholds live without losing rests; `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
 
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.

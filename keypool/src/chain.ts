@@ -277,16 +277,22 @@ export interface AiChain {
   clearRests(keyId: string): Promise<void>;
   /** True if the key was marked invalid (rejected by its provider). */
   isInvalid(keyId: string): Promise<boolean>;
+  /**
+   * Change options without rebuilding the chain (e.g. after an admin edits the route).
+   * Rests, counts and invalid marks in the store are kept. `store`, `now` and `sleep` can't change. @since 1.2.0
+   */
+  setOptions(patch: Partial<Omit<ChainOptions, "store" | "now" | "sleep">>): void;
 }
 
 /** Create an AI key chain. */
-export function createAiChain(o: ChainOptions): AiChain {
+export function createAiChain(initial: ChainOptions): AiChain {
+  let o: ChainOptions = { ...initial };
   const store = o.store ?? memoryStore(o.now);
   const now = o.now ?? Date.now;
-  const providers = { ...PROVIDERS, ...(o.providers ?? {}) };
-  const failThreshold = o.failThreshold ?? 3;
-  const coolMs = (o.coolMinutes ?? 10) * 60_000;
-  const tweak = o.tweak ?? defaultTweak;
+  let providers = { ...PROVIDERS, ...(o.providers ?? {}) };
+  const failThreshold = () => o.failThreshold ?? 3;
+  const coolMs = () => (o.coolMinutes ?? 10) * 60_000;
+  const tweak = (p: string, m: string, b: Record<string, any>) => (o.tweak ?? defaultTweak)(p, m, b);
   const doChat = o.chat ?? aiChat;
   const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const dayKey = o.dayKey ?? ((t: number) => new Date(t + 5.75 * 3600_000).toISOString().slice(0, 10));
@@ -406,7 +412,7 @@ export function createAiChain(o: ChainOptions): AiChain {
             if (kind === "transient") {
               if (transientRetry && !OVERLOADED.test(text)) { transientRetry = false; await sleep(800); continue; }
               const fails = await store.incr(`ai:fails:${k.id}`, 30 * 60_000);
-              if (fails >= failThreshold) await rest(k.id, "*", coolMs, "failing", `${fails} failures in a row`);
+              if (fails >= failThreshold()) await rest(k.id, "*", coolMs(), "failing", `${fails} failures in a row`);
               // The model itself is overloaded: the other keys would hit the same wall.
               if (OVERLOADED.test(text)) { await rest(k.id, step.model, 60_000, "overloaded", "model overloaded"); return "next-step"; }
               return null;
@@ -414,7 +420,7 @@ export function createAiChain(o: ChainOptions): AiChain {
             // 400/404 (unknown model, bad request): this step can't serve it; other steps might.
             if (kind === "bad_request") return "next-step";
             const fails = await store.incr(`ai:fails:${k.id}`, 30 * 60_000);
-            if (fails >= failThreshold) await rest(k.id, "*", coolMs, "failing", `${fails} failures in a row`);
+            if (fails >= failThreshold()) await rest(k.id, "*", coolMs(), "failing", `${fails} failures in a row`);
             return null;
           }
         }
@@ -470,6 +476,11 @@ export function createAiChain(o: ChainOptions): AiChain {
 
     async isInvalid(keyId) {
       return !!(await store.get(`ai:bad:${keyId}`));
+    },
+
+    setOptions(patch) {
+      o = { ...o, ...patch };
+      if (patch.providers) providers = { ...PROVIDERS, ...(o.providers ?? {}) };
     },
   };
 }

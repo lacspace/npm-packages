@@ -71,6 +71,37 @@ describe("analyzePortfolio", () => {
   });
 });
 
+describe("history from purchase dates (1.1.0)", () => {
+  const lots = {
+    holdings: [{ symbol: "AAA", qty: 10, wacc: 100, date: "2026-09-28" }, { symbol: "BBB", qty: 20, wacc: 55, date: "2026-09-29 18:00" }],
+    prices: input.prices,
+    index: input.index,
+  };
+  const r = analyzePortfolio(lots, { history: "purchases" });
+
+  it("each lot counts from its purchase (next trading day if bought off-session)", () => {
+    expect(r.history).toEqual([
+      { date: "2026-09-28", value: 1000 },
+      { date: "2026-09-29", value: 1100 },
+      { date: "2026-09-30", value: 2090, flow: 1100 },
+      { date: "2026-10-01", value: 2200 },
+    ]);
+  });
+
+  it("returns are time-weighted, so the purchase isn't a gain", () => {
+    const rs = [0.1, 990 / 1100 - 1, 2200 / 2090 - 1];
+    expect(r.risk.periodReturn).toBeCloseTo(rs.reduce((g, x) => g * (1 + x), 1) - 1, 12);
+    expect(r.risk.maxDrawdown).toBeCloseTo(0.1, 12); // 1.1 → 0.99 on the growth index
+    expect(r.risk.days).toBe(3);
+  });
+
+  it("default stays 'current' and P/L is unchanged by the mode", () => {
+    const cur = analyzePortfolio(lots);
+    expect(cur.history.map((h) => h.value)).toEqual([2000, 2100, 2090, 2200]);
+    expect(cur.totals).toEqual(r.totals);
+  });
+});
+
 describe("helpers", () => {
   it("hhi / maxDrawdown / beta", () => {
     expect(hhi([1])).toBe(10000);

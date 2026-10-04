@@ -9,13 +9,15 @@
  * not a reconstruction of past trades.
  */
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 export interface Holding {
   symbol: string;
   qty: number;
   /** Weighted average cost per share. */
   wacc: number;
+  /** Purchase date of this lot (same format as price dates). Used when `history: "purchases"`. @since 1.1.0 */
+  date?: string | number;
 }
 
 /** A daily close. `date` is any sortable string ("2026-10-02") or a unix-seconds number. */
@@ -39,6 +41,12 @@ export interface PortfolioOptions {
   periodsPerYear?: number;
   /** Annual risk-free rate as a fraction (0.05 = 5%). Default 0. */
   riskFree?: number;
+  /**
+   * How `history` is built. "current" (default): today's holdings valued on past closes.
+   * "purchases": each lot counts from its `date` (lots without one count from the start);
+   * returns are time-weighted, so buying more is not mistaken for a gain. @since 1.1.0
+   */
+  history?: "current" | "purchases";
 }
 
 export interface HoldingRow {
@@ -65,8 +73,8 @@ export interface PortfolioReport {
   /** 10,000 / HHI: the number of equal-weight holdings with the same concentration. */
   effectiveHoldings: number;
   sectorWeights: { sector: string; value: number; weight: number }[];
-  /** Portfolio market value per date (current holdings on historical closes). */
-  history: { date: string | number; value: number }[];
+  /** Portfolio market value per date. `flow` = money added that day (purchases mode only). */
+  history: { date: string | number; value: number; flow?: number }[];
   risk: {
     /** Number of daily returns used. */
     days: number;
@@ -80,7 +88,7 @@ export interface PortfolioReport {
     sharpe: number | null;
     /** Annualised Sortino (downside deviation vs the daily risk-free rate). */
     sortino: number | null;
-    /** Period return of `history` (first → last), fraction. */
+    /** Period return of `history` (first → last; time-weighted in purchases mode), fraction. */
     periodReturn: number | null;
     /** Beta of daily simple returns vs the index, on dates both have a close. */
     beta: number | null;
@@ -186,50 +194,74 @@ export function analyzePortfolio(input: PortfolioInput, options: PortfolioOption
   for (const r of rows) bySector.set(r.sector ?? "Unknown", (bySector.get(r.sector ?? "Unknown") ?? 0) + r.value);
   const sectorWeights = [...bySector].map(([sector, value]) => ({ sector, value, weight: totalValue ? value / totalValue : 0 })).sort((a, b) => b.value - a.value);
 
-  // History: every date any holding traded, forward-filling each symbol's last close,
-  // starting once every holding has a price.
-  const dates = [...new Set(holds.flatMap((x) => series.get(x.symbol)!.map((c) => key(c.date))))];
+  // History. "current": today's holdings on every date (from when all have a price).
+  // "purchases": each lot from its purchase date; the lot's value on that day is a cash flow.
+  const byPurchase = options.history === "purchases";
+  const lots = input.holdings.filter((x) => x.qty > 0);
+  const syms = [...new Set(lots.map((x) => x.symbol))];
+  for (const sym of syms) if (!series.has(sym)) series.set(sym, sortCloses(input.prices[sym] ?? []));
   const rawDate = new Map<string, string | number>();
-  for (const x of holds) for (const c of series.get(x.symbol)!) rawDate.set(key(c.date), c.date);
-  dates.sort((a, b) => cmp(rawDate.get(a)!, rawDate.get(b)!));
-  const lookup = new Map(holds.map((x) => [x.symbol, new Map(series.get(x.symbol)!.map((c) => [key(c.date), c.close]))]));
+  for (const sym of syms) for (const c of series.get(sym)!) rawDate.set(key(c.date), c.date);
+  const dates = [...rawDate.keys()].sort((a, b) => cmp(rawDate.get(a)!, rawDate.get(b)!));
+  const lookup = new Map(syms.map((sym) => [sym, new Map(series.get(sym)!.map((c) => [key(c.date), c.close]))]));
   const lastSeen = new Map<string, number>();
   const history: PortfolioReport["history"] = [];
+  const active = new Set<Holding>();
   for (const d of dates) {
-    for (const x of holds) {
-      const c = lookup.get(x.symbol)!.get(d);
-      if (c != null) lastSeen.set(x.symbol, c);
+    for (const sym of syms) {
+      const c = lookup.get(sym)!.get(d);
+      if (c != null) lastSeen.set(sym, c);
     }
-    if (holds.length && holds.every((x) => lastSeen.has(x.symbol))) {
-      history.push({ date: rawDate.get(d)!, value: holds.reduce((s, x) => s + x.qty * lastSeen.get(x.symbol)!, 0) });
+    if (!byPurchase) {
+      if (holds.length && holds.every((x) => lastSeen.has(x.symbol))) {
+        history.push({ date: rawDate.get(d)!, value: holds.reduce((sum, x) => sum + x.qty * lastSeen.get(x.symbol)!, 0) });
+      }
+      continue;
     }
+    // A lot joins on the first trading date on/after its purchase date, once its stock has a price.
+    let flow = 0;
+    for (const lot of lots) {
+      if (active.has(lot) || !lastSeen.has(lot.symbol)) continue;
+      if (lot.date === undefined || cmp(lot.date, rawDate.get(d)!) <= 0) {
+        active.add(lot);
+        if (history.length) flow += lot.qty * lastSeen.get(lot.symbol)!;
+      }
+    }
+    if (!active.size) continue;
+    const value = [...active].reduce((sum, x) => sum + x.qty * lastSeen.get(x.symbol)!, 0);
+    history.push({ date: rawDate.get(d)!, value, ...(flow ? { flow } : {}) });
   }
 
-  const values = history.map((p) => p.value);
+  // Time-weighted daily returns: r = (V_t − flow_t) / V_{t−1} − 1, chained into a growth index.
+  const growth: number[] = [];
   const logR: number[] = [], simple: number[] = [];
-  for (let i = 1; i < values.length; i++) {
-    if (values[i - 1]! > 0 && values[i]! > 0) {
-      logR.push(Math.log(values[i]! / values[i - 1]!));
-      simple.push(values[i]! / values[i - 1]! - 1);
+  for (let i = 0; i < history.length; i++) {
+    if (i === 0) { growth.push(1); continue; }
+    const prev = history[i - 1]!.value, cur = history[i]!.value - (history[i]!.flow ?? 0);
+    const r = prev > 0 ? cur / prev - 1 : 0;
+    growth.push(growth[i - 1]! * (1 + r));
+    if (prev > 0 && cur > 0) {
+      logR.push(Math.log(1 + r));
+      simple.push(r);
     }
   }
   const volD = sd(logR);
   const sdS = sd(simple);
   const excess = simple.map((r) => r - rfDaily);
-  const downside = simple.length ? Math.sqrt(excess.reduce((s, r) => s + Math.min(0, r) ** 2, 0) / simple.length) : 0;
-  const mdd = maxDrawdown(values);
+  const downside = simple.length ? Math.sqrt(excess.reduce((sum, r) => sum + Math.min(0, r) ** 2, 0) / simple.length) : 0;
+  const mdd = maxDrawdown(growth);
 
   // Beta: simple returns on dates where both the portfolio and the index have a value,
-  // each return measured from the previous shared date.
+  // each return measured from the previous shared date (on the growth index).
   let b = { beta: null as number | null, correlation: null as number | null }, betaDays = 0, indexReturn: number | null = null;
   if (input.index?.length && history.length > 1) {
     const ix = new Map(sortCloses(input.index).map((c) => [key(c.date), c.close]));
-    const shared = history.filter((p) => ix.has(key(p.date)));
+    const shared = history.map((p, i) => ({ date: p.date, g: growth[i]! })).filter((p) => ix.has(key(p.date)));
     const pa: number[] = [], pb: number[] = [];
     for (let i = 1; i < shared.length; i++) {
       const i0 = ix.get(key(shared[i - 1]!.date))!, i1 = ix.get(key(shared[i]!.date))!;
-      if (shared[i - 1]!.value > 0 && i0 > 0) {
-        pa.push(shared[i]!.value / shared[i - 1]!.value - 1);
+      if (shared[i - 1]!.g > 0 && i0 > 0) {
+        pa.push(shared[i]!.g / shared[i - 1]!.g - 1);
         pb.push(i1 / i0 - 1);
       }
     }
@@ -252,7 +284,7 @@ export function analyzePortfolio(input: PortfolioInput, options: PortfolioOption
       ...(mdd && mdd.dd > 0 ? { drawdownPeak: history[mdd.peak]!.date, drawdownTrough: history[mdd.trough]!.date } : {}),
       sharpe: sdS ? ((mean(simple) - rfDaily) / sdS) * Math.sqrt(ppy) : null,
       sortino: downside ? ((mean(simple) - rfDaily) / downside) * Math.sqrt(ppy) : null,
-      periodReturn: values.length > 1 && values[0]! > 0 ? values[values.length - 1]! / values[0]! - 1 : null,
+      periodReturn: growth.length > 1 ? growth[growth.length - 1]! - 1 : null,
       beta: b.beta,
       correlation: b.correlation,
       indexReturn,

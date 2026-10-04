@@ -39,6 +39,20 @@ r.risk;          // { volatility, maxDrawdown, drawdownPeak, drawdownTrough, sha
 
 `history` values your **current** holdings on past closes. It shows how today's portfolio behaved, not a replay of past trades. Each symbol's missing closes are forward-filled, and the series starts once every holding has a price.
 
+### Purchase-date history <sup>1.1.0</sup>
+
+Give lots a `date` and pass `{ history: "purchases" }`:
+- **When a lot starts counting:** each lot counts from its purchase date, or the next trading day if it was bought off-session. Lots without a date count from the start.
+- **Purchases are flows, not gains:** the value a lot adds on its first day is recorded as a `flow`. Returns are **time-weighted**, (Vₜ − flowₜ) / Vₜ₋₁ − 1, so buying more never shows up as a gain.
+- **Which metrics follow it:** volatility, Sharpe, Sortino, beta, drawdown and `periodReturn` all use these returns.
+- **What doesn't change:** P/L, weights and HHI are the same in both modes.
+
+```ts
+analyzePortfolio({ holdings: [{ symbol: "NABIL", qty: 100, wacc: 540, date: "2026-03-12" }, …], prices, index }, { history: "purchases" });
+```
+
+The volatility convention is sample stdev (n − 1). Sortino uses the downside deviation over all days (the Sortino & Price form).
+
 Helpers `hhi(weights)`, `maxDrawdown(values)` and `beta(a, b)` are exported too.
 
 Specs from the ShareRocketPro team. See also [`@lacspace/rules`](https://www.npmjs.com/package/@lacspace/rules) (strategies, backtests, screener) and [`@lacspace/market`](https://www.npmjs.com/package/@lacspace/market) (returns, XIRR, corporate actions).

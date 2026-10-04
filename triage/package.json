@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/triage",
+  "version": "1.0.0",
+  "description": "Pre-write news triage: decide which story candidates to write before spending AI tokens. Ranks by freshness decay, independent source domains (registrable-domain dedupe), trend, novelty and trust; fills per-language publish slots with category quotas; a breaking fast lane (breaking flag, or ≥3 independent sources within an hour plus trend) that jumps full slots with an hourly cap; sensitive stories need two independent sources or an official one; routine notices (bonus/right share, court notice boards) are down-ranked and grouped into roundups; stale, duplicate and would-expire-before-next-slot items are dropped. write_now / queue / drop with reasons. Deterministic, no AI, zero-dependency.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["news", "newsroom", "triage", "editorial", "prioritization", "breaking-news", "publishing", "automation", "token-saving", "llm-cost", "nepal", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/triage",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "triage" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

@@ -40,3 +40,52 @@ Secrets live only in memory on the `KeySpec`; the persisted state is counters an
 
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.
+
+## AI key chain: route-ordered failover <sup>1.1.0</sup>
+
+`createAiChain` holds every key you have and tries them in a fixed route order, moving on only when one fails. It isn't a rotation. It is packaged from ShareRocketPro's production pool, built to WeNepal's rules, and calls go through [`@lacspace/ai`](https://www.npmjs.com/package/@lacspace/ai).
+
+```ts
+import { createAiChain, redisStore } from "@lacspace/keypool";
+
+const ai = createAiChain({
+  keys: [
+    { id: "gem-1", provider: "gemini", apiKey: process.env.GEMINI_KEY_1! },
+    { id: "gem-2", provider: "gemini", apiKey: process.env.GEMINI_KEY_2! },
+    { id: "groq-1", provider: "groq", apiKey: process.env.GROQ_KEY! },
+  ],                                                  // or an async loader (keys from your DB)
+  route: [
+    { provider: "gemini", model: "gemini-3.1-flash-lite" },
+    { provider: "groq", model: "openai/gpt-oss-120b" },
+  ],
+  routes: { wrap: [{ provider: "groq", model: "openai/gpt-oss-120b" }] }, // per purpose
+  purposeCaps: { wrap: 50 },                          // per day, via takePurpose()
+  store: redisStore(redisClient),                     // share rests across processes (default: memory)
+  onCall: (row) => ledger.insert(row),                // every attempt; never the key or text
+  onInvalid: (key, why) => markKeyInvalid(key.id, why),
+});
+
+const r = await ai.chat({ purpose: "wrap", messages, maxTokens: 600, json: true });
+r.text; r.json; r.provider; r.model; r.keyId; r.usage; r.attempts;
+```
+
+| Situation | What happens |
+|---|---|
+| 429 per-minute limit | That **key+model pair** rests for the delay the provider gives (Gemini `retryDelay`, Groq "try again in 2m3s"), minimum 20 s. Other models on the same key keep working. |
+| 429 daily quota (PerDay, RPD, TPD, "daily") | Gemini rests until **Pacific midnight**, when Google resets quotas. Other providers rest max(retry-after, 15 min). |
+| 402 billing | Rests 6 h. |
+| 401/403, or Gemini 400 "API key not valid" | The key is marked **invalid** and skipped until `clearRests(id)`. `onInvalid` fires. |
+| 5xx, timeout, network | One retry. After `failThreshold` (3) failures in a row, the key rests `coolMinutes` (10). A success resets the count. |
+| "overloaded" / UNAVAILABLE | That step's other keys are skipped, since they'd hit the same model. |
+| Groq 413 or TPM 429 | `max_tokens` shrinks to fit (from "Limit X, Requested Y") and retries once. |
+| Empty reply from a reasoning model | Retried once with a bigger budget (×2.5, 2000–8000). Providers get a `minTokens` floor (gpt-oss 1600). |
+| `json: true` | Adds `response_format: json_object` where supported. Groq's `json_validate_failed` retries without it. The reply is fence-stripped and repaired into `r.json`. |
+| Bad request / unknown model | That step is skipped; the next one may work. |
+| Everything resting | The soonest-to-recover pair is tried once before giving up. |
+
+The default `tweak` gives Gemini Flash (not Flash-Lite 3.x, which rejects it) `thinkingBudget: 0` and gives gpt-oss `reasoning_effort: "low"`.
+
+Built-in providers: `gemini`, `groq`, `cerebras`, `openai`, `anthropic`, `deepseek`, `openrouter`. Add any OpenAI-compatible one through `providers`.
+
+Panel helpers: `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
+

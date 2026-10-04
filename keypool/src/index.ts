@@ -243,3 +243,25 @@ export function kvStore(kv: { get(k: string): Promise<string | null> | string | 
     },
   };
 }
+
+/* 1.1.0 — AI key chain (route-ordered failover with WeNepal / ShareRocketPro rules). */
+export {
+  createAiChain,
+  memoryStore,
+  redisStore,
+  msToPacificMidnight,
+  retryAfterMs,
+  defaultTweak,
+  PROVIDERS,
+  AiChainError,
+  type AiChain,
+  type ChainOptions,
+  type ChainCall,
+  type ChainResult,
+  type ChainKey,
+  type ChainStore,
+  type RouteStep,
+  type ProviderDef,
+  type CallRow,
+  type Rest,
+} from "./chain.js";

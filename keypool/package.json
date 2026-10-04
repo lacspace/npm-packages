@@ -1,26 +1,74 @@
 {
   "name": "@lacspace/keypool",
-  "version": "1.0.0",
-  "description": "Provider-agnostic API-key rotation and rate-limit accounting — pool N free keys per provider, track RPM/RPD/TPM/TPD windows from response headers and 429 retry-after, round-robin among healthy keys, cool down on 429, quarantine invalid keys, and keep per-model buckets (Groq TPD is per model). pick(provider, model, estTokens) → key | null; report(key, result). Persist state via a tiny adapter so multiple processes share the pool. Zero-dependency, isomorphic, typed.",
+  "version": "1.1.0",
+  "description": "AI key pooling two ways. createAiChain: route-ordered multi-provider failover (Gemini, Groq, Cerebras, OpenAI, Anthropic, DeepSeek, OpenRouter, any OpenAI-compatible) that rests key+model pairs on 429 (Gemini daily quota until Pacific midnight), quarantines rejected keys (incl. Gemini's 400 'API key not valid'), cools down after N failures, shrinks Groq max_tokens to fit TPM, regrows empty reasoning replies, JSON mode with repair, per-purpose routes and caps, a call ledger hook, and a shared store (memory or Redis). createKeypool: RPM/RPD/TPM/TPD rotation and accounting. Built on @lacspace/ai.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
-  "keywords": ["api-key", "key-rotation", "rate-limit", "keypool", "round-robin", "429", "retry-after", "quota", "rpm", "tpm", "gemini", "groq", "openai", "free-tier", "zero-dependency", "isomorphic", "typescript"],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "429",
+    "ai-router",
+    "api-key",
+    "failover",
+    "fallback",
+    "free-tier",
+    "gemini",
+    "gemini-quota",
+    "groq",
+    "isomorphic",
+    "key-rotation",
+    "keypool",
+    "llm",
+    "openai",
+    "quota",
+    "rate-limit",
+    "retry-after",
+    "round-robin",
+    "rpm",
+    "tpm",
+    "typescript",
+    "zero-dependency"
+  ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://developer.lacspace.com/packages/keypool",
-  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "keypool" },
-  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "keypool"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@lacspace/ai": "^1.2.1",
+    "@lacspace/json-repair": "^1.1.0"
+  }
 }

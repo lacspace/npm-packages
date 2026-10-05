@@ -1,8 +1,9 @@
 /**
- * check(): a strict, word-boundary comment filter for news sites. @since 1.1.0
+ * check(): a strict, word-boundary comment filter for news sites. @since 1.1.0 (threats, spelled-out emails,
+ * any-grouping mobiles and syllable floods @since 1.2.0)
  *
  * Returns { ok, code, review, hits }:
- *   code "abuse"    profanity / slurs (English, Nepali Devanagari, romanised Nepali), with
+ *   code "abuse"    profanity / slurs / threats (English, Nepali Devanagari, romanised Nepali), with
  *                   leetspeak and masked spellings (f*ck, sh!t, m.u.j.i)
  *   code "personal" phone numbers (Nepal mobile/landline, +977), emails, citizenship / NID /
  *                   passport / account-like numbers
@@ -44,7 +45,7 @@ const devWord = (body: string) => `(?<!${DEV})(?:${body})(?:को|का|की
 /** English: masked letters (f*ck, f**k, sh!t) are covered by the [\W_]* gaps and leet map. */
 const EN_HIGH = [
   "f+u*c+k+(?:e[dr]|ing|in|s)?", "motherf+u*c+k+(?:e[rd]|ing|in)?", "f+[\\W_]*c+[\\W_]*k+", "f+[\\W_]+k+",
-  "sh+i+t+(?:s|ty|head)?", "sh[\\W_]+t", "b+i+t+c+h+(?:e?s)?", "bastards?", "ass ?holes?", "a[\\W_]+hole", "dick ?heads?", "cunts?",
+  "sh+i+t+(?:s|ty|head)?", "bull ?sh+i+t+", "horse ?sh+i+t+", "dumb ?ass(?:es)?", "jack ?ass(?:es)?", "sh[\\W_]+t", "b+i+t+c+h+(?:e?s)?", "bastards?", "ass ?holes?", "a[\\W_]+hole", "dick ?heads?", "cunts?",
   "whores?", "sluts?", "pricks?", "retard(?:ed|s)?", "n+i+g+g+(?:a|er)s?", "faggots?", "fags?",
 ];
 const EN_MILD = ["idiots?", "stupid", "morons?", "dumb", "fools?", "losers?", "shut up", "nonsense", "trash", "rubbish", "clowns?", "liars?", "crap", "damn"];
@@ -54,12 +55,29 @@ const ROM_HIGH = [
   "m+u+j+i+(?:ko|haru|harulai)?", "m+u+[\\W_]+j+i+", "mug+i", "m(?:a|u)chik+n(?:e+y?|y|a)", "machinne", "randi(?:ko|haru)?", "rand+i+ko",
   "lad+o+(?:ko)?", "lado", "put+i+(?:ko)?", "ged+a+", "jhat+u+", "jhatt+u+", "chik+ne+y?", "gand+u+", "chut+i+y+a+",
   "bh?osd(?:i|ike|ika)", "madar ?chod", "mader ?chod", "behen ?chod", "bhen ?chod", "bhenchod", "lamt+o+", "dall+a+(?:ko)?",
-  "har+a+m+i+", "kut+t+a+", "kut+i+y+a+", "sal+a+ ?kut+a+",
+  "har+a+m+i+", "har+a+m+ ?kh?or+(?:ko|haru)?", "kut+t+a+", "kut+i+y+a+", "sal+a+ ?kut+a+",
 ];
 const ROM_MILD = ["lund", "chik+n(?:a|i)", "khate", "pakhe", "jath+a+", "chor(?:haru|ko)?", "murkh(?:a|ha)?", "gadh(?:a|aa)", "bekar", "sala", "saala", "thukka", "bhando", "dhoti", "bhote", "madise", "chink(?:e|ey|i|y)?"];
 
-const NE_HIGH = ["मुजी", "मुजि", "मचिक्ने", "मचिक्न", "रण्डी", "रन्डी", "रांडी", "लाडो", "पुती", "गेडा", "झाटु", "झाँटु", "चिक्ने", "चिक्नी", "गान्डु", "चुतिया", "भोस्डी", "मादरचोद", "बहिनचोद", "हरामी", "कुत्ता", "कुकुर्नी", "दल्ला", "लम्टो"];
+const NE_HIGH = ["मुजी", "मुजि", "मचिक्ने", "मचिक्न", "रण्डी", "रन्डी", "रांडी", "लाडो", "पुती", "गेडा", "झाटु", "झाँटु", "चिक्ने", "चिक्नी", "गान्डु", "चुतिया", "भोस्डी", "मादरचोद", "बहिनचोद", "हरामी", "हरामखोर", "हरामखोरे", "कुत्ता", "कुकुर्नी", "दल्ला", "लम्टो"];
 const NE_MILD = ["खाते", "पाखे", "जाठा", "चोर", "मूर्ख", "मुर्ख", "गधा", "बेकार", "साला", "थुक्क", "भाँड", "धोती", "भोटे", "मधिसे"];
+
+/**
+ * Threats. Direct, first-person or second-person ones block; calls for violence against someone
+ * ("he should be hanged") are common in crime-story comments, so they go to review. @since 1.2.0
+ */
+const THREAT_HIGH = [
+  "i(?:'ll| will| am going to|'m going to|'m gonna| gonna) (?:kill|shoot|stab|murder|beat|burn|rape|behead|slap|finish) (?:you|u|him|her|them|your)",
+  "(?:kill|shoot|stab|murder|rape|behead) (?:you|u)", "you(?:'re| are| r) (?:dead|going to die|gonna die)", "you (?:will|should|must) die", "watch your back",
+  "i know where you live", "(?:will|gonna) find you",
+  "marid(?:inchu|inchhu|inxu|ida|ine)", "kaatid(?:inchu|inchhu|inxu)", "mard(?:inchu|inxu)", "thokd(?:inchu|inxu)", "goli han(?:dinchu|dinxu)",
+];
+const THREAT_MILD = [
+  "(?:should|must|deserves? to|ought to) (?:be )?(?:killed|shot|hanged|hung|burned|burnt|executed|beheaded|die)", "(?:hang|shoot|burn|kill) (?:him|her|them|these|those) (?:all|now|publicly)?",
+  "(?:fasi|phasi) (?:di(?:nu|nuparchha|nuparcha)|dinuparxa)", "marnu ?parchha", "marnuparcha",
+];
+const NE_THREAT_HIGH = ["मारिदिन्छु", "मारिदिन्छौं", "मारिदिनेछु", "काटिदिन्छु", "मार्दिन्छु", "ठोकिदिन्छु", "गोली हानिदिन्छु", "जलाइदिन्छु", "तँलाई मार्छु", "तिमीलाई मार्छु"];
+const NE_THREAT_MILD = ["मार्नुपर्छ", "मार्नु पर्छ", "फाँसी दिनुपर्छ", "फाँसी दिनु पर्छ", "झुण्ड्याउनुपर्छ", "जलाउनुपर्छ", "गोली हान्नुपर्छ", "काट्नुपर्छ"];
 
 const LEET: Record<string, string> = { "@": "a", "4": "a", "3": "e", "1": "i", "!": "i", "|": "i", "0": "o", "$": "s", "5": "s", "7": "t", "+": "t" };
 const deleet = (s: string) => s.replace(/[@4310!|$57+]/g, (c) => LEET[c] ?? c);
@@ -69,6 +87,7 @@ const compile = (list: string[], dev = false) => new RegExp(list.map((t) => (dev
 const RE = {
   enHigh: compile(EN_HIGH), enMild: compile(EN_MILD), romHigh: compile(ROM_HIGH), romMild: compile(ROM_MILD),
   neHigh: compile(NE_HIGH, true), neMild: compile(NE_MILD, true),
+  threatHigh: compile(THREAT_HIGH), threatMild: compile(THREAT_MILD), neThreatHigh: compile(NE_THREAT_HIGH, true), neThreatMild: compile(NE_THREAT_MILD, true),
 };
 
 const PERSONAL: { re: RegExp; term: string }[] = [
@@ -79,6 +98,9 @@ const PERSONAL: { re: RegExp; term: string }[] = [
   // other international numbers written as +CC ...
   { re: /(?<![\w+])\+(?!977)\d{1,3}[\s-]?\d{3,4}[\s-]?\d{3,4}[\s-]?\d{0,4}(?!\d)/g, term: "phone" },
   { re: /[\w.+-]+@[\w-]+\.[\w.-]+/g, term: "email" },
+  // spelled-out emails: "ram at gmail dot com", "ram[at]gmail[dot]com", "ram (at) yahoo.com"
+  { re: /[\w.+-]+\s*(?:\[at\]|\(at\)|\{at\}|\bat\b)\s*[\w-]+\s*(?:\[dot\]|\(dot\)|\{dot\}|\bdot\b)\s*(?:com|net|org|np|co|in|edu|gov|io|me)\b/gi, term: "email" },
+  { re: /[\w.+-]+\s*(?:\[at\]|\(at\)|\{at\}|\bat\b)\s*(?:gmail|yahoo|hotmail|outlook|icloud|proton(?:mail)?|ymail|live)\b/gi, term: "email" },
   // citizenship: district-ward/year-serial e.g. 27-01-71-12345, 123/456
   { re: /(?<!\d)\d{2}[-/]\d{2}[-/]\d{2}[-/]\d{3,6}(?!\d)/g, term: "citizenship-number" },
   { re: /(?:नागरिकता|citizenship|nagarikta)[^\d]{0,20}\d[\d\s/-]{4,}/giu, term: "citizenship-number" },
@@ -127,6 +149,10 @@ export function check(input: CheckInput, options: CheckOptions = {}): CheckResul
       re.lastIndex = 0;
       for (const m of v.matchAll(re)) push("abuse", m[0].trim(), sev);
     }
+    for (const [re, sev] of [[RE.threatHigh, "high"], [RE.neThreatHigh, "high"], [RE.threatMild, "mild"], [RE.neThreatMild, "mild"]] as const) {
+      re.lastIndex = 0;
+      for (const m of v.matchAll(re)) push("abuse", `threat: ${m[0].trim()}`, sev);
+    }
   }
   for (const t of options.extraAbuse ?? []) {
     const re = new RegExp(/[ऀ-ॿ]/.test(t) ? devWord(t) : word(t), "iu");
@@ -139,6 +165,10 @@ export function check(input: CheckInput, options: CheckOptions = {}): CheckResul
   for (const p of PERSONAL) {
     p.re.lastIndex = 0;
     if (p.re.test(digits)) push("personal", p.term, "high");
+  }
+  // A Nepal mobile written with any grouping: 98-41-23-45-67, 9 8 4 1 2 3 4 5 6 7, 984.123.4567
+  for (const m of digits.matchAll(/(?<!\d)(?:\+?\d[\s.\-_/]{0,2}){10,13}(?!\d)/g)) {
+    if (/^(?:977)?9[678]\d{8}$/.test(m[0].replace(/\D/g, ""))) push("personal", "phone", "high");
   }
 
   // spam
@@ -162,6 +192,11 @@ export function check(input: CheckInput, options: CheckOptions = {}): CheckResul
     for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
     const top = Math.max(...counts.values());
     if (top >= 6 && top / words.length >= 0.5) push("repeat", "word flood", "high");
+  }
+  // Syllable floods: "hahahahaha", "lololol", "हाहाहाहाहा". Most of the comment → block; a laugh inside a sentence → review.
+  const compact = raw.replace(/\s/g, "");
+  for (const m of compact.matchAll(/((?:\p{L}\p{M}*){1,3})\1{5,}/gu)) {
+    push("repeat", "syllable flood", m[0].length / Math.max(1, compact.length) >= 0.6 ? "high" : "mild");
   }
   const emoji = raw.match(/\p{Extended_Pictographic}/gu) ?? [];
   if (emoji.length >= 15 && emoji.length / Math.max(1, [...raw].length) > 0.5) push("repeat", "emoji flood", "high");

@@ -37,7 +37,7 @@ Hand-moderating a Nepali comment section — mixing Devanagari, romanized Nepali
 
 The bundled lexicons are compact starters — **extend `lexicons` for your community**; the engine, categories, PII detection and actions are the durable part. Normalization lowercases and collapses elongations ("sooo"→"soo") and matches Latin, romanized-Nepali and Devanagari.
 
-## `check()`: strict filter for live comments (1.1.0)
+## `check()`: strict filter for live comments (1.1.0, threats and more personal-data formats in 1.2.0)
 
 `moderate()` triages into allow / review / flag / hide. `check()` is the strict, whole-word gate a news site runs before a comment goes live:
 
@@ -54,16 +54,18 @@ check({ text: "these leaders are chor" });                  // { ok: true, revie
 ```
 
 - **`abuse`:** profanity and slurs in English, Nepali Devanagari (with case endings: मुजीको, हरामीहरू) and romanised Nepali. Leetspeak and masked spellings are caught too (f*ck, sh!t, F U C K, m.u.j.i). Matching is on whole words, so "class", "Putin", "Kami Rita", "चोरी", "गेडागुडी", "मुला" and "dal bhat" pass.
+  - **Threats (1.2.0):** a direct threat blocks, such as "I will kill you", "you are dead" or मारिदिन्छु / maridinchu. A call for punishment such as "he should be hanged" or फाँसी दिनुपर्छ only asks for review. News wording like "killed in the attack" passes.
 - **`personal`:** personal details:
   - Nepal mobiles (96x/97x/98x, with or without +977 and separators) and landlines (01-4XXXXXX), plus other +CC numbers;
   - emails;
   - citizenship numbers (27-01-71-12345, or "नागरिकता नं. …"), NID, passport and account numbers;
-  - Devanagari digits are read too.
+  - Devanagari digits are read too;
+  - (1.2.0) a mobile number in any grouping (98-41-23-45-67, 9 8 4 1 …) and spelled-out emails ("ram at gmail dot com", "ram[at]yahoo[dot]com").
 - **`spam`:**
   - chat invites and shorteners (t.me, wa.me, bit.ly…), or more than `maxLinks` links (your `ownDomains` never count);
   - promo phrasing ("earn Rs 5000 daily", "DM me", "join telegram");
   - crypto or betting words, which only block next to a link, a contact or promo. "Is crypto betting legal in Nepal?" just asks for review.
-- **`repeat`:** the same comment again from `userHistory` (≥ 0.9 similar), or character, word or emoji floods.
+- **`repeat`:** the same comment again from `userHistory` (≥ 0.9 similar), or character, word or emoji floods. Since 1.2.0, syllable floods are caught too ("hahahahaha", "हाहाहाहा"): they block when they make up most of the comment and only ask for review inside a sentence.
 
 Options:
 - **`strict`:** mild words block too.

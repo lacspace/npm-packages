@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/commentguard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Comment moderation for English, romanized Nepali and Devanagari — scores spam, abuse, hate, doxxing and link-spam and returns an allow / review / flag / hide action, with PII detection (Nepali phone, email, URLs/shorteners) and FAQ auto-reply suggestions. Deterministic rules + small, extendable lexicons; a borderline flag marks gray-zone comments for an optional AI second opinion. Exposes a describe() command schema. Zero dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -78,3 +78,40 @@ describe("options", () => {
     expect(check({ text: "you are a goonda" }, { extraAbuse: ["goonda"] }).code).toBe("abuse");
   });
 });
+
+describe("1.2.0: gaps from WeNepal's launch tests", () => {
+  it("blocks bullshit and हरामखोर", () => {
+    expect(check({ text: "this is bullshit" }).code).toBe("abuse");
+    expect(check({ text: "हरामखोर नेता" }).code).toBe("abuse");
+    expect(check({ text: "haramkhor neta" }).code).toBe("abuse");
+  });
+  it("direct threats block; calls for punishment go to review", () => {
+    expect(check({ text: "I will kill you" }).code).toBe("abuse");
+    expect(check({ text: "you are dead tomorrow" }).code).toBe("abuse");
+    expect(check({ text: "तँलाई मारिदिन्छु" }).code).toBe("abuse");
+    expect(check({ text: "timilai maridinchu" }).code).toBe("abuse");
+    const r = check({ text: "The culprit should be hanged" });
+    expect(r).toMatchObject({ ok: true, review: true });
+    expect(check({ text: "दोषीलाई फाँसी दिनुपर्छ" })).toMatchObject({ ok: true, review: true });
+  });
+  it("threat words in news language are fine", () => {
+    for (const t of ["Police said the man was killed in the attack", "The court sentenced him to life", "Earthquake killed 9 people", "You should vote", "He will die of old age, not this"])
+      expect(check({ text: t })).toMatchObject({ ok: true, review: false });
+  });
+  it("mobiles in any grouping and spelled-out emails", () => {
+    expect(check({ text: "call 98-41-23-45-67" }).code).toBe("personal");
+    expect(check({ text: "call 9 8 4 1 2 3 4 5 6 7" }).code).toBe("personal");
+    expect(check({ text: "call ९८४१.२३४.५६७" }).code).toBe("personal");
+    expect(check({ text: "mail ram at gmail dot com" }).code).toBe("personal");
+    expect(check({ text: "mail ram[at]yahoo[dot]com" }).code).toBe("personal");
+    expect(check({ text: "contact ram (at) gmail" }).code).toBe("personal");
+    expect(check({ text: "Met him at the Kathmandu office dot by dot" }).ok).toBe(true);
+    expect(check({ text: "Budget 2083-84: Rs 1,964 billion" }).ok).toBe(true);
+  });
+  it("syllable floods", () => {
+    expect(check({ text: "hahahahahahahaha" }).code).toBe("repeat");
+    expect(check({ text: "हाहाहाहाहाहाहा" }).code).toBe("repeat");
+    expect(check({ text: "hahahahahahaha this minister is funny but the story is serious and long enough" })).toMatchObject({ ok: true, review: true });
+    expect(check({ text: "haha good one" })).toMatchObject({ ok: true, review: false });
+  });
+});

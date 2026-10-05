@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/nepal-holidays",
+  "version": "1.0.0",
+  "description": "Nepal's official public holidays by Bikram Sambat year, transcribed from the Ministry of Home Affairs notice in Nepal Rajpatra (BS 2083: Khanda 75, Sankhya 67, Bhag 5). BS + AD dates, English/Nepali names, kind (public holiday / observance with offices open), scope (national, regional with districts, community, women, education, disability), multi-day Dashain and Tihar ranges, lunar holidays the notice leaves undated kept as null. holidays(), holidaysOn(), isHoliday(), upcoming(), bsToAD()/adToBS(). Every date checked against the weekday printed in the notice. Pure JS, zero dependencies, React Native safe.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nepal",
+    "holidays",
+    "public-holidays",
+    "bikram-sambat",
+    "nepali-calendar",
+    "dashain",
+    "tihar",
+    "festivals",
+    "calendar",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@lacspace/nepali-date": "^1.2.1"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/nepal-holidays",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "nepal-holidays"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

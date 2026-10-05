@@ -267,3 +267,17 @@ export {
   type CallRow,
   type Rest,
 } from "./chain.js";
+
+/* 1.4.0 — daily budgets with priority lanes on a shared quota pool. */
+export {
+  createBudget,
+  dailyLimitFrom,
+  dayOf,
+  type Budget,
+  type BudgetOptions,
+  type FamilyDef,
+  type LaneDef,
+  type AcquireResult,
+  type Remaining,
+  type Reset,
+} from "./budget.js";

@@ -93,5 +93,40 @@ Built-in providers: `gemini`, `groq`, `cerebras`, `openai`, `anthropic`, `deepse
 
 Panel helpers: `setOptions(patch)` (1.2.0) changes the route, caps or thresholds live without losing rests; `rests()` lists resting pairs, `clearRests(id)` resets a key after a re-test, `isInvalid(id)` checks a key. Utilities: `msToPacificMidnight()`, `retryAfterMs(text)`.
 
+## Daily budgets and priority lanes (1.4.0)
+
+Free tiers have small daily quotas that every feature competes for. A **family** is one quota pool, for example Gemini TTS: 4 models × 5 projects × 10 requests a day. A **lane** is a purpose with a priority and a reserve.
+
+```ts
+import { createBudget, createAiChain, mongoStore } from "@lacspace/keypool";
+
+const store = mongoStore(db.collection("ai_pool"));
+const budget = createBudget({
+  store,
+  families: {
+    "gemini-tts": { match: { provider: "gemini", models: [/tts/] }, limitPerPair: 10, pairs: () => keys.length * 4, reset: "pacific" },
+  },
+  lanes: { pulse: { priority: 1, reserve: 40 }, video: { priority: 3 }, promo: { priority: 4, cap: 20 } },
+});
+
+// non-chat calls (TTS): ask first, fall back for free when refused
+const a = await budget.acquire("video");
+if (!a.ok) return edgeTts(text);          // a.reason: "reserved" | "exhausted" | "lane-cap"
+
+// chat calls: let the chain do it
+const chain = createAiChain({ keys, route, store, budget });
+await chain.chat({ purpose: "explainer", lane: true, messages, maxTokens: 800 }); // AiChainError reason "reserved" when refused
+
+await chain.reportError("gemini", model, errorBody); // a TTS 429 "per day … limit: 10" teaches the per-pair limit
+await budget.remaining("video");   // { capacity, used, heldForHigher, available, lane }
+await budget.snapshot();           // every family × lane, for a dashboard
+```
+
+- **Reserves:** a lane can't take what more important lanes still have reserved, so video stops at 160 of 200 and Pulse keeps its 40. As Pulse uses its reserve, the hold shrinks. Important lanes can also use the shared pool.
+- **Reset:** usage resets at the family's quota reset: `"pacific"` (Google, the default), `"utc"`, `"npt"` or a function.
+- **Limits:** the per-pair limit comes from `limitPerPair`, or is learned from the provider's 429 body (`limit: 10` / `"quotaValue": "10"`). `limit` sets a whole-pool total.
+- **Other calls:** `refund()` returns a call that never reached the provider. `exhaust(family)` closes the pool for the day.
+- **Fix:** Gemini's `…per_model_per_day` 429s are now recognised as daily quota. Before, they were rested like per-minute limits.
+
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.

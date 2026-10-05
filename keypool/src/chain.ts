@@ -24,6 +24,7 @@
  */
 
 import { parseJson as repairParse } from "@lacspace/json-repair";
+import type { AcquireResult, Budget, Remaining } from "./budget.js";
 import { AiError, chat as aiChat, classifyError, type ChatOptions, type ChatResponse, type FetchLike, type Message } from "@lacspace/ai";
 
 /* ── providers ──────────────────────────────────────────────────────────── */
@@ -210,7 +211,7 @@ const errText = (e: unknown) => {
   try { body = typeof raw === "string" ? raw : raw ? JSON.stringify(raw) : ""; } catch { body = ""; }
   return `${(e as Error)?.message || String(e)} ${body}`;
 };
-const PER_DAY = /per ?day|PerDay|\bRPD\b|\bTPD\b|daily/i;
+const PER_DAY = /per[ _]?day|PerDay|\bRPD\b|\bTPD\b|daily/i;
 const TPM = /tokens per minute|\bTPM\b|Request too large/i;
 const OVERLOADED = /overloaded|UNAVAILABLE|high demand/i;
 const JSON_FAILED = /json_validate_failed|response_format|json mode/i;
@@ -274,6 +275,8 @@ export interface ChainOptions {
   failThreshold?: number;
   /** Rest after `failThreshold` failures, minutes (default 10). */
   coolMinutes?: number;
+  /** Daily budgets with priority lanes (`createBudget`). @since 1.4.0 */
+  budget?: Budget;
   /** Per-purpose daily caps for `takePurpose` (0/absent = unlimited). */
   purposeCaps?: Record<string, number>;
   /** Day bucket for caps (default: Nepal date, UTC+05:45). */
@@ -310,6 +313,8 @@ export interface ChainCall {
   onlyKey?: string;
   onlyStep?: { provider: string; model: string };
   timeoutMs?: number;
+  /** Draw on the `budget` lane for `purpose` first; throws AiChainError (reason "reserved"/"exhausted") when refused. @since 1.4.0 */
+  lane?: boolean;
 }
 
 export interface ChainResult {
@@ -325,6 +330,8 @@ export interface ChainResult {
 
 export class AiChainError extends Error {
   readonly name = "AiChainError";
+  /** Set when a budget lane refused the call (no provider was contacted). */
+  reason?: string;
   constructor(message: string, readonly attempts: { target: string; kind: string }[]) {
     super(message);
     Object.setPrototypeOf(this, AiChainError.prototype);
@@ -348,6 +355,12 @@ export interface AiChain {
    * Rests, counts and invalid marks in the store are kept. `store`, `now` and `sleep` can't change. @since 1.2.0
    */
   setOptions(patch: Partial<Omit<ChainOptions, "store" | "now" | "sleep">>): void;
+  /** Take one call from a purpose's lane (needs `budget`). For non-chat calls such as TTS. @since 1.4.0 */
+  acquire(purpose: string, family?: string): Promise<AcquireResult>;
+  /** What a purpose can still use today. @since 1.4.0 */
+  remaining(purpose: string, family?: string): Promise<Remaining>;
+  /** Report a provider error from a non-chat call (TTS) so a per-day 429 teaches the budget its limit. @since 1.4.0 */
+  reportError(provider: string, model: string, errorText: string): Promise<void>;
 }
 
 /** Create an AI key chain. */
@@ -393,6 +406,14 @@ export function createAiChain(initial: ChainOptions): AiChain {
 
   return {
     async chat(c) {
+      if (c.lane && c.purpose && o.budget) {
+        const a = await o.budget.acquire(c.purpose);
+        if (!a.ok) {
+          const err = new AiChainError(`Budget lane "${c.purpose}" refused: ${a.reason}`, []);
+          err.reason = a.reason;
+          throw err;
+        }
+      }
       const all = typeof o.keys === "function" ? await o.keys() : o.keys;
       const keys: ChainKey[] = [];
       for (const k of all) {
@@ -476,6 +497,7 @@ export function createAiChain(initial: ChainOptions): AiChain {
                   ? (step.provider === "gemini" ? msToPacificMidnight(new Date(now())) : Math.max(wait ?? 0, 15 * 60_000))
                   : Math.max(wait ?? 60_000, 20_000);
               await rest(k.id, step.model, restMs, perDay ? "daily quota" : status === 402 ? "billing" : "rate limit", String((e as Error)?.message || ""));
+              if (perDay && o.budget) { const fam = o.budget.familyOf(step.provider, step.model); if (fam) await o.budget.learn(fam, text); }
               return null;
             }
             if (kind === "transient") {
@@ -545,6 +567,21 @@ export function createAiChain(initial: ChainOptions): AiChain {
 
     async isInvalid(keyId) {
       return !!(await store.get(`ai:bad:${keyId}`));
+    },
+
+    async acquire(purpose, family) {
+      if (!o.budget) return { ok: true, family: family ?? "", remaining: Infinity };
+      return o.budget.acquire(purpose, family);
+    },
+
+    async remaining(purpose, family) {
+      if (!o.budget) throw new Error("keypool: no budget configured");
+      return o.budget.remaining(purpose, family);
+    },
+
+    async reportError(provider, model, errorText) {
+      const fam = o.budget?.familyOf(provider, model);
+      if (fam && PER_DAY.test(errorText)) await o.budget!.learn(fam, errorText);
     },
 
     setOptions(patch) {

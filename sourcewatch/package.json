@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/sourcewatch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Re-verify that official source pages still back the facts you published: fetch a URL (HTML, plain text or PDF), extract its visible text, normalise it (NFC, Devanagari digits to ASCII, zero-width and soft-hyphen removal, unified spaces and dashes) and check expected strings, whole numbers (\"1145\" never matches inside \"11450\") or RegExps. Pure-JS PDF text extraction (object streams, FlateDecode/LZW/ASCII85/ASCIIHex with PNG predictors, ToUnicode CMaps, Differences encodings, TJ kerning, page-tree order). Detects placeholder pages (\"this is test\", default server pages, coming soon, suspended accounts), classifies failures (timeout, tls with chain/expired/self_signed/hostname kind, dns, network, http_4xx, http_5xx, not_found_text, placeholder_page, too_large, unparseable), streams bodies with a byte cap, retries transient errors, hashes the normalised text for change detection, and runs batches with a concurrency limit and one-request-per-host politeness. check(), checkAll(), summarize(), pdfText(), extractText(), normalise(), isPlaceholder(). Injectable fetch, zero dependencies, isomorphic (Node 18+, browsers, edge).",
   "type": "module",
   "main": "./dist/index.cjs",

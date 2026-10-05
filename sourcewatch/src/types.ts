@@ -18,6 +18,8 @@ export interface WatchItem {
   prevHash?: string;
   /** For array expectations: `"all"` (default) must all match, `"any"` needs one. */
   match?: "all" | "any";
+  /** Per-item text rewrite (e.g. Preeti → Unicode for this PDF only). @since 1.1.0 */
+  textTransform?: TextTransform;
 }
 
 /** Failure classes. */
@@ -93,7 +95,17 @@ export interface CheckOptions {
   retryDelayMs?: number;
   /** HTML/text pages with less visible text than this are placeholders. Default 200. */
   minTextChars?: number;
+  /**
+   * Rewrite the extracted text before matching, e.g. Preeti → Unicode for legacy-font PDFs.
+   * Expectations then match the transformed text OR the raw text, so a converter that garbles
+   * English never hides an English or digit match. `contentHash` stays on the raw text.
+   * An item's own `textTransform` wins over this one. @since 1.1.0
+   */
+  textTransform?: TextTransform;
 }
+
+/** See {@link CheckOptions.textTransform}. */
+export type TextTransform = (text: string, ctx: { id: string; url: string; kind: "html" | "pdf" | "text" }) => string | Promise<string>;
 
 /** Totals from {@link summarize}. */
 export interface Summary {

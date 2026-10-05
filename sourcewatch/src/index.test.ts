@@ -502,3 +502,31 @@ describe("checkAll / summarize", () => {
     expect(await checkAll([])).toEqual([]);
   });
 });
+
+describe("textTransform", () => {
+  // Stand-in for preetiToUnicode: Preeti digits !@#$%^&*() → ०-९; garbles Latin letters.
+  const fakePreeti = (t: string) => t.replace(/[!@#$%^&*()]/g, (c) => "१२३४५६७८९०"["!@#$%^&*()".indexOf(c)]!).replace(/[a-z]/g, "क");
+  const page = `<p>${filler}</p><p>Notice @)*# Police 100</p>`;
+
+  it("matches converted text and still matches the raw text", async () => {
+    const f = fakeFetch(() => html(page));
+    const r = await check({ id: "x", url: "https://a.np/", expect: ["2083", "Police 100"], textTransform: fakePreeti }, { fetch: f });
+    expect(r.ok).toBe(true);
+    expect(r.matched).toEqual(["2083", "Police 100"]);
+    const plain = await check({ id: "x", url: "https://a.np/", expect: "2083" }, { fetch: f });
+    expect(plain.found).toBe(false);
+    expect(plain.contentHash).toBe(r.contentHash); // hash stays on the raw text
+  });
+
+  it("option-level hook gets context; item hook wins; a throwing hook is reported", async () => {
+    const f = fakeFetch(() => html(page));
+    const seen: string[] = [];
+    await check({ id: "a", url: "https://a.np/", expect: "x" }, { fetch: f, textTransform: (t, c) => (seen.push(`${c.id}:${c.kind}`), t) });
+    expect(seen).toEqual(["a:html"]);
+    const r = await check({ id: "b", url: "https://a.np/", expect: "2083", textTransform: fakePreeti }, { fetch: f, textTransform: () => "nothing" });
+    expect(r.found).toBe(true);
+    const bad = await check({ id: "c", url: "https://a.np/", expect: "x" }, { fetch: f, textTransform: () => { throw new Error("boom"); } });
+    expect(bad).toMatchObject({ ok: false, error: "unparseable" });
+    expect(bad.detail).toContain("boom");
+  });
+});

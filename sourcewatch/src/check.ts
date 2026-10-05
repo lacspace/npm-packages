@@ -291,7 +291,17 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
     });
   }
 
-  const m = matchExpect(norm, item.expect, item.match ?? "all");
+  let haystack = norm;
+  const transform = item.textTransform ?? opts.textTransform;
+  if (transform) {
+    try {
+      const t = normalise(await transform(text, { id: item.id, url: item.url, kind }));
+      if (t && t !== norm) haystack = `${t}\n\n${norm}`;
+    } catch (err) {
+      return fail({ ...meta, ...hashMeta, error: "unparseable", detail: `textTransform failed: ${String((err as Error)?.message ?? err).slice(0, 160)}` });
+    }
+  }
+  const m = matchExpect(haystack, item.expect, item.match ?? "all");
   const res: WatchResult = {
     ...base,
     ...meta,

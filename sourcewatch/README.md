@@ -161,6 +161,17 @@ You can also inject a fetch for proxies, caching or tests. Tests can return plai
 
 **Legacy Nepali fonts:** many Nepali government PDFs are typed in Preeti or similar legacy fonts, where Devanagari is stored as ASCII. Nepali text in legacy-font PDFs comes out in the font's ASCII (for example `g]kfn ;/sf/`). Digits and English text still match. Note that Preeti digits are typed as `!@#$%^&*()`, so a Devanagari number typed in Preeti will not match `"2083"`.
 
+To match those, pass a converter as `textTransform` (since 1.1.0), on the item or in the options:
+
+```ts
+import { preetiToUnicode } from "@lacspace/preeti";
+
+await check({ id: "neb-notice", url, expect: "२०८३", textTransform: preetiToUnicode });
+// or for every PDF: { textTransform: (t, { kind }) => (kind === "pdf" ? preetiToUnicode(t) : t) }
+```
+
+Expectations match the converted text **or** the raw text, so a converter that garbles English never hides an English or digit match. `contentHash` is always computed on the raw text, so turning the hook on doesn't mark pages as changed. If the hook throws, the result is `unparseable` with the message in `detail`.
+
 Encrypted PDFs and scanned (image-only) PDFs give `unparseable`. There is no OCR.
 
 ## Licence

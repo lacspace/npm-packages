@@ -36,17 +36,20 @@ normaliseNe("काठमाडौँ") === normaliseNe("काठमाडौ�
 6. Devanagari digits → ASCII.
 7. Whitespace collapses.
 
-`loose: true` also folds श/ष → स, व → ब and ण → न. Latin text is left as it is.
+`loose: true` also folds श/ष → स, व → ब and ण → न. `hyphenAsSpace: true` treats hyphens as spaces, so "Solu Khumbu" matches "Solu-Khumbu" and "Bardaghat-Susta". Latin text is left as it is.
 
 **Nepali terms** match as whole words:
 - Nothing may stand before the word except a space or punctuation.
 - After the word, a chain of up to three `POSTPOSITIONS` may follow: मा, को, का, की, ले, लाई, बाट, सँग, देखि, सम्म, तिर, भित्र, हरू, मै, बाटै, नै … Anything else after it means it's a different word.
-- Turn this off with `postpositions: false`. Add your own with `extraSuffixes`.
+- Turn the built-in list off with `postpositions: false`. Add your own with `extraSuffixes`; with `postpositions: false` they become the only suffixes allowed.
+- "Like" (जस्तो) is deliberately not in the list: "काठमाडौंजस्तो ठूलो सहर" is a comparison, not a location.
+- With `joinNepali: true`, any space in a multi-word Nepali term is optional, so "बर्दघाट सुस्ता पूर्व" also matches "बर्दघाट सुस्तापूर्व".
 
 **English terms** match as whole words, ignoring case. Exceptions:
 - Under the default `caseSensitive: "auto"` rule, an all-caps term of 2–5 letters (SEE, NEB, PSC) must match its case exactly.
 - Set `caseSensitive` per term or per matcher to change this.
-- An all-caps headline ("COME AND SEE") still matches SEE. Check the case of the surrounding text if your input has shouty headlines.
+- An exact-case term longer than 5 letters also matches in ALL CAPS, so "KATHMANDU" in a headline counts. Turn this off with `allCaps: false`.
+- Short acronyms can't tell a shouted headline apart: "COME AND SEE" still matches SEE. Check the case of the surrounding text if your input has shouty headlines.
 
 **Overlaps:** the longest match wins, so "Nawalparasi West" beats "Nawalparasi". Pass `overlaps: true` to keep both.
 
@@ -54,19 +57,26 @@ Every match carries `index`/`end` offsets into the original text (after NFC), so
 
 ## API
 
-- **`createMatcher(terms, options?)`** returns `{ find(text), test(text, id?), ids(text), size }`. Compile it once and reuse it.
+- **`createMatcher(terms, options?)`** returns `{ find(text), test(text, id?), ids(text), prepare(text), size }`. Compile it once and reuse it.
+- **`prepare(text, options?)`** / **`matcher.prepare(text)`** normalise text once. Every `find`, `test`, `ids`, `findTerms`, `contains` and `near` accepts the result in place of a string, so a rules loop over one article normalises it once, not once per rule. A prepared text made with different options is re-prepared automatically.
   - A term is either a string, or `{ id?, en?, ne?, aliases?, caseSensitive? }`. `en` and `ne` each take one spelling or an array.
 - **`findTerms(text, terms, options?)`** and **`contains(text, terms, options?)`** are one-off shortcuts.
 - **`near(text, a, b, maxChars | options, sameSentence?)`** returns the closest `{ a, b, gap }` pair of matches within `maxChars` (default 60), in either order, or null.
+  - `a` and `b` can be terms, a compiled `Matcher`, or a `Match[]` you already found in the same text.
   - By default both must sit in the same sentence. A sentence ends at । ॥ ? ! or a newline, or at "." before a space.
   - Dotted abbreviations such as ने.क.पा. and U.S. never end a sentence.
 - **`sentenceSpans(text)`** returns the sentence boundaries `near` uses.
 - **`splitSuffix(word)`**: for example, `"जिल्लाहरूमा"` → `{ stem: "जिल्ला", suffixes: ["हरु", "मा"] }`.
 - **`districtTerms()`** returns all 77 districts.
   - **Names and ids:** names come from `@lacspace/nepali-utils`. Ids are slugs such as `"nawalparasi-east"`, and `province` is a number.
-  - **Spellings:** each district carries the spellings seen in real copy: Kavre/काभ्रे, Rukum East/रुकुम पूर्व, Kapilbastu, मोरंग/मोरङ…
-  - **Case:** English district names are exact-case, so "dang it" is not Dang.
+  - **Spellings:** each district carries the spellings seen in real copy, plus every alias in `@lacspace/nepali-utils`: Kavre/काभ्रे, Rukum East/Rukum Purba/रुकुम पूर्व, Parasi/परासी, Bardaghat Susta West, Kapilbastu, मोरंग/मोरङ…
+  - **Case:** English district names are exact-case, so "dang it" is not Dang. Names over 5 letters also match in ALL CAPS.
+  - **Known edge:** a place that shares a district's name still matches it. For example, Nawalpur in Sarlahi matches the Nawalpur alias of Nawalparasi East.
   - **`ambiguous: true`:** marks Parbat, because पर्वत also means "mountain". Confirm it with `near()` or with district/area context before you tag a story.
+
+## Speed
+
+A ~1,500-character article checked against all 77 districts (258 spellings) takes about 0.16 ms once prepared, and about 0.3 ms from a raw string.
 
 ## Limits
 

@@ -10,13 +10,15 @@
  * Every match carries offsets into the ORIGINAL text, so callers can highlight or cut.
  */
 
-export const VERSION = "1.0.0";
+export const VERSION = "1.1.0";
 
 export interface NormaliseOptions {
   /** Also fold श/ष → स, व → ब and ण → न. Default false. */
   loose?: boolean;
   /** Devanagari digits ०-९ → 0-9. Default true. */
   digits?: boolean;
+  /** Treat hyphens (- ‐ ‑) as spaces, so "Solu Khumbu" matches "Solu-Khumbu". Default false. @since 1.1.0 */
+  hyphenAsSpace?: boolean;
 }
 
 /** Normalised text plus, for each output char, the index of the input char it came from. */
@@ -43,6 +45,9 @@ const LOOSE: Record<number, number> = {
   0x0923: 0x0928, // ण → न
 };
 
+const isSpace = (c: number): boolean =>
+  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000;
+const isHyphen = (c: number): boolean => c === 0x2d || c === 0x2010 || c === 0x2011;
 const isConsonant = (c: number): boolean => (c >= 0x0915 && c <= 0x0939) || (c >= 0x0958 && c <= 0x095f);
 
 function mapNormalise(input: string, opts: NormaliseOptions = {}): Mapped {
@@ -65,7 +70,7 @@ function mapNormalise(input: string, opts: NormaliseOptions = {}): Mapped {
   for (let i = 0; i < s.length; i++) {
     let c = s.charCodeAt(i);
     if (DROP.has(c)) continue;
-    if (/\s/.test(s[i]!)) {
+    if (isSpace(c) || (opts.hyphenAsSpace && isHyphen(c))) {
       if (!lastSpace) push(" ", i);
       lastSpace = true;
       continue;
@@ -117,7 +122,7 @@ export const POSTPOSITIONS: readonly string[] = [
   "मा", "मै", "को", "का", "की", "के", "कै", "ले", "लाई", "बाट", "बाटै", "सँग", "संग", "सित",
   "देखि", "देखिनै", "सम्म", "सम्मै", "तिर", "तर्फ", "भित्र", "बाहिर", "माथि", "मुनि", "नजिक", "पछि",
   "अघि", "अगाडि", "पारि", "वारि", "द्वारा", "हरू", "हरु", "नै", "भर", "भरि", "वासी", "बासी",
-  "स्थित", "निवासी",
+  "स्थित", "निवासी", "मार्फत", "बारे", "अन्तर्गत", "मात्र", "जस्ता",
 ];
 
 const isNeLetter = (c: number): boolean => (c >= 0x0900 && c <= 0x0963) || (c >= 0x0971 && c <= 0x097f);
@@ -140,10 +145,17 @@ export type TermInput =
 export interface MatchOptions extends NormaliseOptions {
   /** Default English case rule. Default "auto". */
   caseSensitive?: boolean | "auto";
-  /** Allow Nepali postpositions after a word. Default true. */
+  /** Allow the built-in {@link POSTPOSITIONS} after a Nepali word. Default true. */
   postpositions?: boolean;
-  /** Extra suffixes to allow on top of {@link POSTPOSITIONS}. */
+  /** Extra suffixes to allow. With `postpositions: false` these are the ONLY suffixes allowed. */
   extraSuffixes?: readonly string[];
+  /** Multi-word Nepali terms also match written without the space (सुस्तापूर्व). Default false. @since 1.1.0 */
+  joinNepali?: boolean;
+  /**
+   * An exact-case English term longer than 5 letters also matches in ALL CAPS ("KATHMANDU" in a
+   * headline). Short acronyms are never affected. Default true. @since 1.1.0
+   */
+  allCaps?: boolean;
   /** Keep overlapping matches; by default the longest wins. */
   overlaps?: boolean;
 }
@@ -177,22 +189,57 @@ function autoCase(term: string): boolean {
   return letters.length >= 2 && letters.length <= 5 && letters === letters.toUpperCase() && letters !== letters.toLowerCase();
 }
 
+/**
+ * Text normalised once, to run many matchers over without re-normalising it each time.
+ * Make it with {@link prepare} (or `matcher.prepare`) using the same normalise options as the matchers.
+ * @since 1.1.0
+ */
+export interface Prepared {
+  readonly kind: "prepared";
+  /** The NFC original; match offsets point into this. */
+  readonly original: string;
+  /** The normalised text. */
+  readonly text: string;
+  /** @internal normalised index → original index. */
+  readonly map: readonly number[];
+  /** @internal options key. */
+  readonly key: string;
+}
+
+const optsKey = (o: NormaliseOptions): string => `${o.loose ? 1 : 0}${o.digits === false ? 0 : 1}${o.hyphenAsSpace ? 1 : 0}`;
+
+/** Normalise `text` once for repeated matching. @since 1.1.0 */
+export function prepare(text: string, opts: NormaliseOptions = {}): Prepared {
+  const nfc = text.normalize("NFC");
+  const { text: n, map } = mapNormalise(nfc, opts);
+  return { kind: "prepared", original: nfc, text: n, map, key: optsKey(opts) };
+}
+
+const isPrepared = (x: unknown): x is Prepared => typeof x === "object" && x !== null && (x as Prepared).kind === "prepared";
+
+export type TextInput = string | Prepared;
+
 export interface Matcher {
-  /** Every match in `text`, in order of position. */
-  find(text: string): Match[];
+  /** Every match in `text`, in order of position. Pass a {@link Prepared} to skip normalising. */
+  find(text: TextInput): Match[];
   /** True when any term (or the term with this id) occurs. */
-  test(text: string, id?: string): boolean;
+  test(text: TextInput, id?: string): boolean;
   /** Distinct ids found, in order of first appearance. */
-  ids(text: string): string[];
+  ids(text: TextInput): string[];
+  /** Normalise text with this matcher's options, for reuse across calls. @since 1.1.0 */
+  prepare(text: string): Prepared;
   readonly size: number;
+  readonly kind: "matcher";
 }
 
 /** Compile a set of terms once; reuse the matcher across many texts. */
 export function createMatcher(terms: readonly TermInput[], opts: MatchOptions = {}): Matcher {
-  const nopts: NormaliseOptions = { loose: opts.loose, digits: opts.digits };
-  const suffixes = opts.postpositions === false
-    ? []
-    : [...new Set([...POSTPOSITIONS, ...(opts.extraSuffixes ?? [])].map((s) => normaliseNe(s, nopts)))].sort((a, b) => b.length - a.length);
+  const nopts: NormaliseOptions = { loose: opts.loose, digits: opts.digits, hyphenAsSpace: opts.hyphenAsSpace };
+  const key = optsKey(nopts);
+  const allCaps = opts.allCaps !== false;
+  const suffixes = [...new Set([...(opts.postpositions === false ? [] : POSTPOSITIONS), ...(opts.extraSuffixes ?? [])].map((s) => normaliseNe(s, nopts)))]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
   const variants: Variant[] = [];
   for (const t of terms) {
     const obj = typeof t === "string" ? { id: t, aliases: [t] } : t;
@@ -201,12 +248,27 @@ export function createMatcher(terms: readonly TermInput[], opts: MatchOptions = 
     const id = obj.id ?? spellings[0] ?? "";
     for (const sp of new Set(spellings)) {
       if (hasDevanagari(sp)) {
-        variants.push({ id, term: sp, lang: "ne", key: normaliseNe(sp, nopts) });
+        const k = normaliseNe(sp, nopts);
+        variants.push({ id, term: sp, lang: "ne", key: k });
+        if (opts.joinNepali && k.includes(" ")) {
+          // Every space optional: "बर्दघाट सुस्ता पूर्व" also matches "बर्दघाट सुस्तापूर्व" and "बर्दघाटसुस्तापूर्व".
+          const parts = k.split(" ");
+          const gaps = Math.min(parts.length - 1, 4);
+          for (let mask = 1; mask < 1 << gaps; mask++) {
+            let joined = parts[0]!;
+            for (let g = 1; g < parts.length; g++) joined += (g <= gaps && mask & (1 << (g - 1)) ? "" : " ") + parts[g];
+            variants.push({ id, term: sp, lang: "ne", key: joined });
+          }
+        }
       } else {
         const rule = obj.caseSensitive ?? opts.caseSensitive ?? "auto";
         const exact = rule === "auto" ? autoCase(sp) : rule;
-        const body = sp.split(/\s+/).map(escapeRe).join("\\s+");
-        variants.push({ id, term: sp, lang: "en", key: sp, re: new RegExp(body, exact ? "gu" : "giu") });
+        const words = normaliseNe(sp, nopts).split(" ").filter(Boolean);
+        const body = words.map(escapeRe).join(" ");
+        const letters = sp.replace(/[^\p{L}]/gu, "");
+        const shout = exact && allCaps && letters.length > 5 && sp !== sp.toUpperCase();
+        const alt = shout ? `|${words.map((w) => escapeRe(w.toUpperCase())).join(" ")}` : "";
+        variants.push({ id, term: sp, lang: "en", key: sp, re: new RegExp(`(?:${body}${alt})`, exact ? "gu" : "giu") });
       }
     }
   }
@@ -224,10 +286,11 @@ export function createMatcher(terms: readonly TermInput[], opts: MatchOptions = 
     return -1;
   };
 
-  const find = (text: string): Match[] => {
-    const { text: n, map } = mapNormalise(text, nopts);
-    const toOrig = (i: number): number => (i >= map.length ? text.normalize("NFC").length : map[i]!);
-    const nfc = text.normalize("NFC");
+  const prep = (text: string): Prepared => prepare(text, nopts);
+  const find = (input: TextInput): Match[] => {
+    const p = isPrepared(input) ? (input.key === key ? input : prep(input.original)) : prep(input);
+    const { text: n, map, original: nfc } = p;
+    const toOrig = (i: number): number => (i >= map.length ? nfc.length : map[i]!);
     const found: Match[] = [];
     for (const v of variants) {
       if (v.lang === "ne") {
@@ -276,17 +339,19 @@ export function createMatcher(terms: readonly TermInput[], opts: MatchOptions = 
     find,
     test: (text, id) => find(text).some((m) => id === undefined || m.id === id),
     ids: (text) => [...new Set(find(text).map((m) => m.id))],
+    prepare: prep,
     get size() { return variants.length; },
+    kind: "matcher",
   };
 }
 
 /** One-off: every match of `terms` in `text`. Compile with {@link createMatcher} for repeated use. */
-export function findTerms(text: string, terms: TermInput | readonly TermInput[], opts?: MatchOptions): Match[] {
+export function findTerms(text: TextInput, terms: TermInput | readonly TermInput[], opts?: MatchOptions): Match[] {
   return createMatcher(Array.isArray(terms) ? (terms as TermInput[]) : [terms as TermInput], opts).find(text);
 }
 
 /** One-off: does `term` occur in `text` as a whole word (Nepali postpositions allowed)? */
-export function contains(text: string, term: TermInput | readonly TermInput[], opts?: MatchOptions): boolean {
+export function contains(text: TextInput, term: TermInput | readonly TermInput[], opts?: MatchOptions): boolean {
   return findTerms(text, term, opts).length > 0;
 }
 
@@ -316,6 +381,16 @@ export interface NearOptions extends MatchOptions {
   /** Require both in the same sentence (। ॥ . ? ! or a newline ends one). Default true. */
   sameSentence?: boolean;
 }
+
+/**
+ * What `near` looks for: terms, a compiled {@link Matcher}, or matches you already found in the
+ * same text (offsets must come from that text). @since 1.1.0 for Matcher / Match[]
+ */
+export type TermSource = TermInput | readonly TermInput[] | Matcher | readonly Match[];
+
+const isMatcher = (x: unknown): x is Matcher => typeof x === "object" && x !== null && (x as Matcher).kind === "matcher";
+const isMatchList = (x: unknown): x is readonly Match[] =>
+  Array.isArray(x) && (x.length === 0 || (typeof x[0] === "object" && x[0] !== null && typeof (x[0] as Match).index === "number" && typeof (x[0] as Match).end === "number"));
 
 export interface NearResult {
   a: Match;
@@ -353,9 +428,9 @@ export function sentenceSpans(text: string): [number, number][] {
  * (in either order), or null. With `sameSentence` (default) the pair must share a sentence.
  */
 export function near(
-  text: string,
-  a: TermInput | readonly TermInput[],
-  b: TermInput | readonly TermInput[],
+  text: TextInput,
+  a: TermSource,
+  b: TermSource,
   maxCharsOrOpts: number | NearOptions = {},
   sameSentence?: boolean,
 ): NearResult | null {
@@ -363,10 +438,16 @@ export function near(
   if (sameSentence !== undefined) opts.sameSentence = sameSentence;
   const max = opts.maxChars ?? 60;
   const same = opts.sameSentence !== false;
-  const am = findTerms(text, a, opts);
-  const bm = findTerms(text, b, opts);
-  if (!am.length || !bm.length) return null;
-  const spans = same ? sentenceSpans(text) : [];
+  const resolve = (src: TermSource): readonly Match[] => {
+    if (isMatcher(src)) return src.find(text);
+    if (isMatchList(src)) return src;
+    return findTerms(text, src as TermInput | readonly TermInput[], opts);
+  };
+  const am = resolve(a);
+  if (!am.length) return null;
+  const bm = resolve(b);
+  if (!bm.length) return null;
+  const spans = same ? sentenceSpans(isPrepared(text) ? text.original : text) : [];
   const sentenceOf = (i: number): number => spans.findIndex(([s, e]) => i >= s && i < e);
   let best: NearResult | null = null;
   for (const x of am) {

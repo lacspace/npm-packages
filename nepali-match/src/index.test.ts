@@ -145,3 +145,76 @@ describe("districtTerms", async () => {
     expect(m.ids("Dang and Bara")).toEqual(["dang", "bara"]);
   });
 });
+
+describe("1.1.0 (WeNepal production feedback)", async () => {
+  const { districtTerms, prepare, POSTPOSITIONS } = await import("./index.js");
+  const D = districtTerms();
+
+  it("1. districtTerms carries nepali-utils aliases", () => {
+    expect(createMatcher(D).ids("Parasi, परासी, Rukum Purba")).toEqual(["nawalparasi-west", "eastern-rukum"]);
+    expect(createMatcher(D).ids("Nawalparasi Paschim र रुकुम पश्चिम")).toEqual(["nawalparasi-west", "western-rukum"]);
+  });
+
+  it("2. near() takes compiled matchers or match lists; prepare() normalises once", () => {
+    const place = createMatcher(D);
+    const exam = createMatcher(["परीक्षा", "नतिजा"]);
+    const text = "चितवनमा आज परीक्षाको नतिजा आयो";
+    const p = place.prepare(text);
+    expect(p.kind).toBe("prepared");
+    expect(near(p, place, exam, 30)).toMatchObject({ a: { id: "chitwan" }, b: { term: "परीक्षा" } });
+    expect(near(text, place.find(p), exam.find(p), 30)).not.toBeNull();
+    expect(near(text, [], exam, 30)).toBeNull();
+    // a Prepared made with other options is re-prepared rather than mis-read
+    expect(createMatcher(["Solu Khumbu"], { hyphenAsSpace: true }).ids(prepare("Solu-Khumbu"))).toEqual(["Solu Khumbu"]);
+  });
+
+  it("2b. prepared text is reused (fast path)", () => {
+    const place = createMatcher(D);
+    const text = "झापाको मेचीनगरमा बाढी, चितवनमा पहिरो। ".repeat(200);
+    const p = place.prepare(text);
+    const t0 = performance.now();
+    for (let i = 0; i < 20; i++) place.find(p);
+    const prepped = performance.now() - t0;
+    const t1 = performance.now();
+    for (let i = 0; i < 20; i++) place.find(text);
+    const raw = performance.now() - t1;
+    expect(prepped).toBeLessThanOrEqual(raw * 1.5);
+  });
+
+  it("3. hyphenAsSpace", () => {
+    const m = createMatcher(D, { hyphenAsSpace: true });
+    expect(m.ids("Solu-Khumbu and Bardaghat-Susta West")).toEqual(["solukhumbu", "nawalparasi-west"]);
+    expect(createMatcher(D).ids("Solu-Khumbu")).toEqual([]);
+  });
+
+  it("4. joinNepali makes each space optional", () => {
+    const m = createMatcher(D, { joinNepali: true });
+    expect(m.ids("बर्दघाट सुस्तापूर्वमा")).toEqual(["nawalparasi-east"]);
+    expect(m.ids("बर्दघाटसुस्ता पश्चिमको")).toEqual(["nawalparasi-west"]);
+    expect(createMatcher(D).ids("बर्दघाट सुस्तापूर्वमा")).toEqual([]);
+  });
+
+  it("5. postpositions:false keeps extraSuffixes as the only list", () => {
+    const only = { postpositions: false, extraSuffixes: ["मा"] } as const;
+    expect(contains("चितवनमा", CHITWAN, only)).toBe(true);
+    expect(contains("चितवनको", CHITWAN, only)).toBe(false);
+  });
+
+  it("6. new postpositions; जस्तो stays out", () => {
+    for (const p of ["मार्फत", "बारे", "अन्तर्गत", "मात्र", "जस्ता"]) expect(POSTPOSITIONS).toContain(p);
+    expect(contains("काठमाडौंबारे छलफल", KTM)).toBe(true);
+    expect(contains("काठमाडौंजस्तो ठूलो सहर", KTM)).toBe(false);
+  });
+
+  it("7. ALL-CAPS headlines match names over 5 letters, not short ones", () => {
+    const m = createMatcher(D);
+    expect(m.ids("FLOODS IN KATHMANDU AND CHITWAN")).toEqual(["kathmandu", "chitwan"]);
+    expect(m.ids("DANG IT")).toEqual([]);
+    expect(createMatcher(D, { allCaps: false }).ids("KATHMANDU")).toEqual([]);
+    expect(contains("COME AND SEE", SEE)).toBe(true); // documented: acronyms can't tell shouting apart
+  });
+
+  it("regressions from production stay fixed", () => {
+    expect(contains("INSEE data", SEE)).toBe(false);
+  });
+});

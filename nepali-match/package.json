@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/nepali-match",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Nepali and English matching for names and keywords in running text: normaliseNe() folds spelling variants (chandrabindu → anusvara, half nasal + consonant → anusvara, long/short vowels, nukta/ZWJ/ZWNJ, NFC, Devanagari digits); whole-word matching that lets Nepali postpositions follow a word (झापाको → Jhapa, जिल्लाहरूमा, काठमाडौंबाटै) but no other letters (पर्वतारोही ≠ Parbat); English whole words with short all-caps acronyms kept exact-case (\"Come and see\" ≠ SEE); near() for two terms within N characters in the same sentence (। . ? ! newline), dotted abbreviations kept together; offsets into the original text; splitSuffix(); and districtTerms() for all 77 districts with real-world spellings. Pure JS, zero dependencies, React Native safe.",
   "type": "module",
   "main": "./dist/index.cjs",

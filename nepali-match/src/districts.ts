@@ -19,8 +19,9 @@ const ALIASES: Record<string, { en?: string[]; ne?: string[] }> = {
   Kathmandu: { en: ["Katmandu"], ne: ["काठमाण्डौ", "काठमान्डु"] },
   Kavrepalanchok: { en: ["Kavre", "Kabhre", "Kabhrepalanchok", "Kavrepalanchowk"], ne: ["काभ्रे", "काभ्रेपलान्चोक"] },
   Sindhupalchok: { en: ["Sindhupalchowk"] },
-  "Nawalparasi East": { en: ["Nawalparasi (East)", "East Nawalparasi", "Nawalpur"], ne: ["नवलपरासी पूर्व", "पूर्वी नवलपरासी", "नवलपुर"] },
-  "Nawalparasi West": { en: ["Nawalparasi (West)", "West Nawalparasi"], ne: ["नवलपरासी पश्चिम", "पश्चिमी नवलपरासी"] },
+  Solukhumbu: { en: ["Solu Khumbu"], ne: ["सोलु खुम्बु"] },
+  "Nawalparasi East": { en: ["Nawalparasi (East)", "East Nawalparasi", "Nawalpur", "Bardaghat Susta East"], ne: ["नवलपरासी पूर्व", "पूर्वी नवलपरासी", "नवलपुर", "बर्दघाट सुस्ता पूर्व"] },
+  "Nawalparasi West": { en: ["Nawalparasi (West)", "West Nawalparasi", "Bardaghat Susta West"], ne: ["नवलपरासी पश्चिम", "पश्चिमी नवलपरासी", "बर्दघाट सुस्ता पश्चिम"] },
   "Eastern Rukum": { en: ["Rukum East", "East Rukum", "Rukum (East)"], ne: ["रुकुम पूर्व"] },
   "Western Rukum": { en: ["Rukum West", "West Rukum", "Rukum (West)"], ne: ["रुकुम पश्चिम"] },
   Tanahun: { en: ["Tanahu"], ne: ["तनहु"] },
@@ -50,11 +51,14 @@ const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").
 export function districtTerms(): DistrictTerm[] {
   return DISTRICTS.map((d) => {
     const extra = ALIASES[d.name] ?? {};
-    const ne = new Set<string>([d.nameNp, ...(extra.ne ?? [])]);
+    // nepali-utils' own aliases (Rukum Purba, Parasi/परासी, Bardaghat Susta …), split by script.
+    const own = d.aliases ?? [];
+    const isNe = (x: string): boolean => /[\u0900-\u097f]/.test(x);
+    const ne = new Set<string>([d.nameNp, ...(extra.ne ?? []), ...own.filter(isNe)]);
     for (const n of [...ne]) if (n.endsWith("ङ")) ne.add(n.slice(0, -1) + "ंग"); // मोरङ / मोरंग
     return {
       id: slug(d.name),
-      en: [d.name, ...(extra.en ?? [])],
+      en: [...new Set([d.name, ...(extra.en ?? []), ...own.filter((x) => !isNe(x))])],
       ne: [...ne],
       province: d.province,
       ...(AMBIGUOUS.has(d.name) ? { ambiguous: true } : {}),

@@ -17,6 +17,18 @@ describe("splitSentences", () => {
   it("does not split a decimal point", () => {
     expect(splitSentences("Inflation is 4.5 percent today.").length).toBe(1);
   });
+  it("does not split after रु. रू. नं. डा. Rs. No. Dr. or initials (1.2.2)", () => {
+    expect(splitSentences("प्रति पशुको मूल्य रु. २१,००० देखि रु. ४३,००० सम्म तोकिएको छ। दोस्रो वाक्य।")).toEqual(["प्रति पशुको मूल्य रु. २१,००० देखि रु. ४३,००० सम्म तोकिएको छ।", "दोस्रो वाक्य।"]);
+    expect(splitSentences("वडा नं. ५ मा डा. शर्मा र रू. ५०० को कुरा भयो।")).toHaveLength(1);
+    expect(splitSentences("ने.क.पा. (एमाले) ले वि.सं. २०८३ मा बैठक बोलायो।")).toHaveLength(1);
+    expect(splitSentences("Dr. Sharma paid Rs. 500 for room No. 12. B. P. Koirala Highway reopened. He said no. Then he left.")).toEqual(["Dr. Sharma paid Rs. 500 for room No. 12.", "B. P. Koirala Highway reopened.", "He said no.", "Then he left."]);
+    expect(splitSentences("It was set up by Nabil Bank Ltd. The board met today.")).toHaveLength(2);
+  });
+  it("a title line without final punctuation is its own sentence; hard wraps are joined (1.2.2)", () => {
+    expect(splitSentences("Dashain\nTraders have brought goats to Pokhara.")).toEqual(["Dashain", "Traders have brought goats to Pokhara."]);
+    expect(splitSentences("दशैंमा खसीबोका\nव्यापारीले बोका ल्याएका छन्।")).toHaveLength(2);
+    expect(splitSentences("Traders have brought goats\nfrom Dolpa to Pokhara, and\nsheep too.")).toHaveLength(1);
+  });
 });
 
 describe("textrank", () => {

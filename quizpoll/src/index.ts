@@ -1,6 +1,10 @@
 import { keyFacts, splitSentences, summarize } from "@lacspace/extractive";
+import { MEDIA, PLACE_POOL, typedEntities } from "./entities.js";
 
-const VERSION = "1.0.0";
+export { typedEntities } from "./entities.js";
+export type { EntityType, TypedEntity } from "./entities.js";
+
+const VERSION = "1.1.0";
 
 export type Lang = "en" | "ne";
 export type ItemKind = "number" | "entity" | "truefalse" | "opinion" | "didyouknow";
@@ -126,7 +130,12 @@ export function quizpoll(text: string, o: QuizPollOptions = {}): QuizPoll {
   if (!sents.length) throw new Error("quizpoll: empty text");
   const facts = keyFacts(text);
   const { ranked } = summarize(text, { maxSentences: sents.length });
-  const important = [...ranked].sort((a, b) => b.score - a.score).map((s) => s.text);
+  // Quiz items come only from full sentences: final punctuation, 5+ words, no outlet named.
+  const isItemSentence = (x: string) => /[।॥.!?]["”’)]?$/u.test(x) && x.split(/\s+/).length >= 5 && !MEDIA.test(x);
+  const ordered = [...ranked].sort((a, b) => b.score - a.score).map((s) => s.text);
+  const important = ordered.filter(isItemSentence);
+  // A wrong option must not be another figure that is in the article.
+  const notInText = (alts: string[]) => alts.filter((a) => !text.includes(a.replace(/^\D*?([0-9०-९][0-9०-९,.]*).*$/u, "$1")));
   const used = new Set<string>();
   const maxQuiz = o.maxQuiz ?? 4;
   const numberItems: Item[] = [], entityItems: Item[] = [], tfItems: Item[] = [];
@@ -144,23 +153,26 @@ export function quizpoll(text: string, o: QuizPollOptions = {}): QuizPoll {
     if (numberItems.length >= maxQuiz) break;
     const s = important.find((x) => x.includes(c.raw) && !used.has(x));
     if (!s) continue;
-    const d = numberDistractors(c.raw, 3);
+    const d = notInText(numberDistractors(c.raw, 6)).slice(0, 3);
     if (d.length < 2) continue;
     used.add(s);
     numberItems.push(mk("number", t.blank + s.replace(c.raw, "____"), [{ text: c.raw, correct: true }, ...d.map((x) => ({ text: x }))], s, t.answer + c.raw));
   }
-  // 2) Entity cloze — needs ≥3 entities so distractors come from the article itself.
-  const ents = facts.entities.filter((e) => e.length > 1);
-  if (ents.length >= 3) {
-    for (const e of ents) {
-      if (entityItems.length >= 2) break;
-      const s = important.find((x) => x.includes(e) && !used.has(x) && !ents.some((other) => other !== e && x.includes(other) && other.includes(e)));
-      if (!s) continue;
-      const others = ents.filter((x) => x !== e && !s.includes(x)).slice(0, 3);
-      if (others.length < 2) continue;
-      used.add(s);
-      entityItems.push(mk("entity", t.blank + s.replace(e, "____"), [{ text: e, correct: true }, ...others.map((x) => ({ text: x }))], s, t.answer + e));
-    }
+  // 2) Entity cloze — options are all the same kind as the answer (place↔place, person↔person, org↔org),
+  // taken from the article; a place answer may borrow other districts/countries the article doesn't mention.
+  const ents = typedEntities(text, sents, lang, facts.entities);
+  for (const e of ents) {
+    if (entityItems.length >= 2) break;
+    const s = important.find((x) => x.includes(e.text) && !used.has(x) && !ents.some((o) => o !== e && x.includes(o.text) && o.text.includes(e.text)));
+    if (!s) continue;
+    let others = ents.filter((x) => x.type === e.type && x !== e && !s.includes(x.text) && !x.text.includes(e.text) && !e.text.includes(x.text)).map((x) => x.text);
+    // A district or country answer gets districts/countries the article doesn't mention: a place the
+    // article does mention may be true as well ("from Jagadulla" when the goats came from Dolpa).
+    const pool = PLACE_POOL[lang].domestic.includes(e.text) ? PLACE_POOL[lang].domestic : PLACE_POOL[lang].abroad.includes(e.text) ? PLACE_POOL[lang].abroad : null;
+    if (e.type === "place" && pool) others = shuffle(pool.filter((p) => !text.includes(p)), r).slice(0, 3);
+    if (others.length < 2) continue;
+    used.add(s);
+    entityItems.push(mk("entity", t.blank + s.replace(e.text, "____"), [{ text: e.text, correct: true }, ...others.slice(0, 3).map((x) => ({ text: x }))], s, t.answer + e.text));
   }
   // 3) True/false — a true top sentence, and a false one made by perturbing a figure.
   // A true statement may share a sentence with a cloze (different item kind); prefer an unused one.
@@ -173,7 +185,7 @@ export function quizpoll(text: string, o: QuizPollOptions = {}): QuizPoll {
   const withNum = numClaims.find((c) => important.some((x) => x.includes(c.raw) && !used.has(x))) ?? numClaims.find((c) => important.some((x) => x.includes(c.raw)));
   if (withNum) {
     const s = important.find((x) => x.includes(withNum.raw) && !used.has(x)) ?? important.find((x) => x.includes(withNum.raw))!;
-    const alt = numberDistractors(withNum.raw, 1)[0];
+    const alt = notInText(numberDistractors(withNum.raw, 4))[0];
     if (alt) {
       used.add(s);
       const falseS = s.replace(withNum.raw, alt);
@@ -187,10 +199,10 @@ export function quizpoll(text: string, o: QuizPollOptions = {}): QuizPoll {
 
   // 4) Opinion polls — templates, no claims made.
   const templates = [...(o.opinionTemplates?.[lang] ?? []), ...t.opinion];
-  const polls: Item[] = templates.slice(0, o.maxPolls ?? 2).map((tp) => ({ kind: "opinion" as const, question: tp.q, options: tp.options.map((x) => ({ text: x })), explanation: "", source: important[0]!, fits: fits(tp.options.length) }));
+  const polls: Item[] = templates.slice(0, o.maxPolls ?? 2).map((tp) => ({ kind: "opinion" as const, question: tp.q, options: tp.options.map((x) => ({ text: x })), explanation: "", source: important[0] ?? ordered[0]!, fits: fits(tp.options.length) }));
 
   // 5) Did-you-know cards from the figure sentences.
-  const didYouKnow: Item[] = numClaims.slice(0, 3).map((c) => sents.find((x) => x.includes(c.raw))).filter((s): s is string => !!s).filter((s, i, a) => a.indexOf(s) === i).map((s) => ({ kind: "didyouknow" as const, question: t.dyk + s, options: [], explanation: "", source: s, fits: fits(0) }));
+  const didYouKnow: Item[] = numClaims.slice(0, 3).map((c) => sents.find((x) => x.includes(c.raw) && isItemSentence(x))).filter((s): s is string => !!s).filter((s, i, a) => a.indexOf(s) === i).map((s) => ({ kind: "didyouknow" as const, question: t.dyk + s, options: [], explanation: "", source: s, fits: fits(0) }));
 
   return { lang, quiz, polls, didYouKnow, warnings };
 }
@@ -200,7 +212,7 @@ export function describe() {
   return {
     name: "@lacspace/quizpoll",
     version: VERSION,
-    summary: "Quiz and poll items from an article (en/ne), no LLM: fill-in-the-blank on figures (distractors by scaling the number as written) and on entities (distractors from the article), true/false (incl. a perturbed figure), opinion polls from safe templates, did-you-know cards; deterministic seeded shuffle; per-platform fit (IG poll 2 / IG quiz 4 / YouTube 5 / X 4).",
+    summary: "Quiz and poll items from an article (en/ne), no LLM: fill-in-the-blank on figures (distractors by scaling the number as written) and on typed entities (same-type distractors: place/person/org), true/false (incl. a perturbed figure), opinion polls from safe templates, did-you-know cards; deterministic seeded shuffle; per-platform fit (IG poll 2 / IG quiz 4 / YouTube 5 / X 4).",
     commands: [
       { name: "quizpoll", input: { type: "object", properties: { text: { type: "string" }, lang: { enum: ["en", "ne", "auto"] }, maxQuiz: { type: "integer" }, maxPolls: { type: "integer" }, seed: { type: "integer" } }, required: ["text"] }, output: "{ lang, quiz:Item[], polls:Item[], didYouKnow:Item[], warnings }" },
       { name: "numberDistractors", input: { type: "object", properties: { raw: { type: "string" }, count: { type: "integer" } }, required: ["raw"] }, output: "string[]" },

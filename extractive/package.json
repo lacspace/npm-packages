@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/extractive",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Turn a full article into a compact brief for an AI writer — extractive TextRank summary, key-facts (numbers, money, percentages, dates, named entities), headline candidates and key phrases/hashtags, for English and Nepali (sentence splitting on the danda '।', decimal-safe). Deterministic, no LLM; reuses @lacspace/keyphrase and @lacspace/factcheck-lite. Exposes a describe() command schema so an AI 'conductor' can drive it.",
   "type": "module",
   "main": "./dist/index.cjs",

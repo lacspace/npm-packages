@@ -6,7 +6,7 @@ import { textrank } from "./textrank.js";
 export { splitSentences, tokenize } from "./sentences.js";
 export { textrank } from "./textrank.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.2.2";
 
 export type Lang = "en" | "ne" | "auto";
 

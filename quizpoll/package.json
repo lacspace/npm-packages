@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/quizpoll",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Quiz and poll items from a news article without an LLM — English or Nepali: fill-in-the-blank on figures (distractors by scaling the number exactly as written, keeping Devanagari digits, लाख/करोड scale words, decimals), fill-in-the-blank on names (distractors from the article itself), true/false (incl. a statement with a perturbed figure), opinion polls from safe templates, did-you-know cards; deterministic seeded shuffle with answer index; per-platform fit (Instagram poll 2 / quiz 4, YouTube 5, X 4, Facebook). Deterministic, no AI tokens.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -19,7 +19,8 @@
     "quiz", "poll", "engagement", "social-media", "instagram", "youtube", "nepali", "newsroom", "typescript"
   ],
   "dependencies": {
-    "@lacspace/extractive": "^1.0.0"
+    "@lacspace/extractive": "^1.2.2",
+    "@lacspace/nepali-utils": "^1.6.0"
   },
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

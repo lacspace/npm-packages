@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as describeApi, numberDistractors, quizpoll } from "./index.js";
+import { describe as describeApi, numberDistractors, quizpoll, typedEntities } from "./index.js";
 
 const NE = `नेपाल राष्ट्र बैंकले नयाँ मौद्रिक नीति सार्वजनिक गरेको छ। बैंकहरूले कर्जामा लिने ब्याजदर १२ प्रतिशतभन्दा माथि लैजान पाउने छैनन्। रु. ५० अर्बको पुनर्कर्जा कोष पनि घोषणा गरिएको छ। नयाँ व्यवस्था आगामी कात्तिक १ गतेदेखि लागू हुनेछ।`;
 const EN = `The Cricket Association of Nepal named a 15-member squad for the tri-series in Oman. Captain Rohit Paudel said batting depth is the main concern. Sandeep Lamichhane returns after a year and Asif Sheikh will keep wicket. Nepal lost the last series to Oman 2-1 in 2024.`;
@@ -59,5 +59,74 @@ describe("quizpoll", () => {
     expect(q.polls[0]!.question).toBe("Will Nepal win the series?");
     expect(q.polls[0]!.fits["instagram-poll"]).toBe(true);
     expect(describeApi().commands[0]!.name).toBe("quizpoll");
+  });
+});
+
+// Reported by WeNepal's app, 5 Oct 2026 (1.1.0).
+const GOATS_NE = `दशैंका लागि खसीबोका बजारमा
+डोल्पाबाट पोखरामा हिमाली भेडा र च्याङ्ग्रा ल्याइएको छ। प्रति पशुको मूल्य रु. २१,००० देखि रु. ४३,००० सम्म तोकिएको छ। व्यवसायी बुद्धिराम बोहराका अनुसार यस वर्ष १०,५०० वटा पशु बिक्रीको लक्ष्य छ।`;
+const GOATS_EN = `Dashain
+Traders have brought Himalayan sheep and mountain goats from Dolpa to Pokhara for the Dashain market. The animals came from Jagadulla Rural Municipality in Dolpa. According to businessman Buddhiram Bohara, about 10,500 animals will be sold this year. Prices range from Rs. 21,000 to Rs. 43,000 per animal.`;
+const IMF_EN = `The International Monetary Fund said Nepal's economy will grow by 4.5 percent this year. A Sri Lankan delegation met officials of Nepal Rastra Bank in Kathmandu on Sunday. The Washington Post reported that El Niño could cut rice output across South Asia. Finance Minister Bishnu Paudel welcomed the forecast.`;
+
+describe("WeNepal app reports (1.1.0)", () => {
+  const all = (q: ReturnType<typeof quizpoll>) => q.quiz.flatMap((i) => [i.question, ...i.options.map((o) => o.text)]);
+  it("never cuts a sentence after रु. — the item is the whole sentence", () => {
+    for (let seed = 0; seed < 10; seed++) {
+      const q = quizpoll(GOATS_NE, { seed });
+      for (const s of all(q)) expect(s).not.toMatch(/(?:रु|रू)\.$/);
+      const price = q.quiz.find((i) => i.source.includes("२१,०००") || i.source.includes("४३,०००"));
+      if (price) expect(price.source).toBe("प्रति पशुको मूल्य रु. २१,००० देखि रु. ४३,००० सम्म तोकिएको छ।");
+    }
+  });
+  it("entity options share the answer's type; no starters, outlets, truncations or newlines", () => {
+    for (const text of [GOATS_EN, IMF_EN]) for (let seed = 0; seed < 10; seed++) {
+      const q = quizpoll(text, { seed });
+      for (const s of all(q)) expect(s).not.toMatch(/\n/);
+      for (const it of q.quiz.filter((i) => i.kind === "entity")) {
+        const opts = it.options.map((o) => o.text);
+        for (const o of opts) {
+          expect(o).not.toMatch(/^(?:According|Traders|The|Businessman)\b/);
+          expect(o).not.toMatch(/Washington|Post|Sri Lankan|El Ni$/);
+        }
+      }
+    }
+    const ents = typedEntities(GOATS_EN, [], "en");
+    expect(ents).toEqual([]); // sentences are required for English
+  });
+  it("types the entities in the reported stories", () => {
+    const q = quizpoll(GOATS_EN, { seed: 1 });
+    expect(q.quiz.some((i) => i.question.startsWith("Fill in the blank: Dashain Traders"))).toBe(false);
+    const e = typedEntities(IMF_EN, ["The International Monetary Fund said Nepal's economy will grow.", "A Sri Lankan delegation met officials of Nepal Rastra Bank in Kathmandu on Sunday.", "The Washington Post reported that El Niño could cut rice output.", "Finance Minister Bishnu Paudel welcomed the forecast."], "en");
+    expect(e).toEqual([
+      { text: "International Monetary Fund", type: "org" },
+      { text: "Nepal Rastra Bank", type: "org" },
+      { text: "Kathmandu", type: "place" },
+      { text: "Bishnu Paudel", type: "person" },
+    ]);
+    const g = typedEntities(GOATS_EN, ["Traders have brought sheep from Dolpa to Pokhara.", "The animals came from Jagadulla Rural Municipality in Dolpa.", "According to businessman Buddhiram Bohara, about 10,500 animals will be sold."], "en");
+    expect(g).toEqual([
+      { text: "Dolpa", type: "place" },
+      { text: "Pokhara", type: "place" },
+      { text: "Jagadulla Rural Municipality", type: "place" },
+      { text: "Buddhiram Bohara", type: "person" },
+    ]);
+    const n = typedEntities(GOATS_NE, [], "ne");
+    expect(n).toContainEqual({ text: "डोल्पा", type: "place" });
+    expect(n).toContainEqual({ text: "पोखरा", type: "place" });
+    expect(n).toContainEqual({ text: "बुद्धिराम बोहरा", type: "person" });
+  });
+  it("a wrong figure is never another figure from the article, and title lines are not items", () => {
+    for (let seed = 0; seed < 10; seed++) {
+      const q = quizpoll(GOATS_EN, { seed, maxQuiz: 6 });
+      for (const it of q.quiz.filter((i) => i.kind === "number")) for (const o of it.options.filter((x) => !x.correct)) expect(GOATS_EN).not.toContain(o.text);
+      expect(q.quiz.some((i) => i.source === "Dashain")).toBe(false);
+    }
+  });
+  it("a place cloze gets same-type distractors", () => {
+    for (let seed = 0; seed < 5; seed++) {
+      const q = quizpoll(GOATS_EN, { seed, maxQuiz: 6 });
+      for (const it of q.quiz.filter((i) => i.kind === "entity")) expect(it.options.length).toBeGreaterThanOrEqual(3);
+    }
   });
 });

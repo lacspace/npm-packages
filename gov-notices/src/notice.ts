@@ -25,8 +25,12 @@ export interface Notice {
   url?: string;
   attachments: Attachment[];
   category?: string;
-  /** e.g. 'result', 'exam', 'vacancy', 'schedule', 'admit-card', 'syllabus'. */
+  /** e.g. 'result', 'exam', 'vacancy', 'schedule', 'admit-card', 'syllabus', 'recommendation'. */
   tags?: string[];
+  /** true when the list showed no date for this item (`date` is undefined). Detail fetching can fill it. */
+  undated?: true;
+  /** true when the title still ends with "…" / "..." (the site cut it). Detail fetching can complete it. */
+  truncated?: true;
 }
 
 /** What an adapter extracts before normalisation. */
@@ -42,6 +46,8 @@ export interface RawNotice {
   url?: string;
   attachments?: { url: string; label?: string; type?: AttachmentType }[];
   category?: string;
+  /** Tags the adapter knows from the feed itself (merged with the title-inferred ones). */
+  tags?: string[];
 }
 
 const FILE_EXT: Record<string, AttachmentType> = {
@@ -115,8 +121,10 @@ const TAG_RULES: [string, RegExp][] = [
   ["exam", /परीक्षा|परिक्षा|exam/i],
   ["schedule", /तालिका|routine|schedule|calendar|कार्यतालिका/i],
   ["admit-card", /प्रवेश\s?पत्र|admit\s?card/i],
-  ["vacancy", /विज्ञापन|vacancy|दरखास्त|vacancies/i],
+  // "विज्ञापन नं. १२०२०" is a reference number on PSC results, not a vacancy.
+  ["vacancy", /[वब]िज्ञापन(?!\s*(?:नं|नम्बर|न\.|no\b))|vacancy|दरखास्त|vacancies/i],
   ["syllabus", /पाठ्यक्रम|syllabus|curriculum/i],
+  ["recommendation", /सिफारिस|recommend/i],
 ];
 
 /** Tags inferred from the title (and category). */
@@ -143,6 +151,47 @@ export function hashId(s: string): string {
   return h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
 }
 
+const TRUNC = /\s*(?:…|\.{3,})\s*$/;
+
+/** Does the title end with an ellipsis ("…" or "...")? */
+export function isTruncated(title: string): boolean {
+  return TRUNC.test(title);
+}
+
+const collapse = (s: string) => s.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
+/**
+ * Complete a cut title from fuller candidates (a link's `title` attribute, a
+ * detail page's heading / og:title / <title>). A candidate counts only when it
+ * contains the visible stem; the text from the stem on is returned, minus a
+ * trailing " | Site name". Returns undefined when nothing completes it.
+ */
+export function completeTitle(truncated: string, candidates: (string | undefined)[]): string | undefined {
+  const stem = collapse(truncated.replace(TRUNC, ""));
+  if (stem.length < 3) return undefined;
+  const low = stem.toLowerCase();
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const c = collapse(raw);
+    const i = c.toLowerCase().indexOf(low);
+    if (i < 0) continue;
+    let full = c.slice(i);
+    // Drop a site-name suffix that sits after the stem ("… २०८२-८३ | Department of …").
+    const bar = full.indexOf(" | ", stem.length - 1);
+    if (bar >= 0) full = full.slice(0, bar);
+    full = cleanTitle(full);
+    if (full.length > stem.length && !TRUNC.test(full)) return full;
+  }
+  return undefined;
+}
+
+/** The fuller of a visible title and alternatives (e.g. a `title` attribute), when the visible one is cut. */
+export function fuller(text: string, ...alts: (string | undefined)[]): string {
+  if (!text) return alts.find((a) => a && a.trim())?.trim() ?? "";
+  if (!TRUNC.test(text)) return text;
+  return completeTitle(text, alts) ?? text;
+}
+
 export const normTitle = (s: string) => s.toLowerCase().replace(/[\s।|,.:;!?'"()\-–—_/]+/g, " ").trim();
 
 /** Turn an adapter's raw item into a {@link Notice}. Returns null when there is no title. */
@@ -167,6 +216,8 @@ export function finalize(r: RawNotice, sourceId: string, baseUrl: string): Notic
     pd = parseDate(r.dateText);
     if (pd) { n.date = pd.ad; if (pd.bs) n.dateBs = pd.bs; n.dateRaw = pd.raw.trim(); }
   }
+  if (!n.date) n.undated = true;
+  if (TRUNC.test(title)) n.truncated = true;
 
   const url = absUrl(r.url, baseUrl);
   if (url) n.url = url;
@@ -182,7 +233,7 @@ export function finalize(r: RawNotice, sourceId: string, baseUrl: string): Notic
   }
   if (!n.url && n.attachments[0]) n.url = n.attachments[0].url;
   if (r.category) n.category = r.category.replace(/\s+/g, " ").trim();
-  const tags = tag(n);
+  const tags = [...new Set([...tag(n), ...(r.tags ?? [])])];
   if (tags.length) n.tags = tags;
   n.id = hashId(n.url ? `${sourceId}|${n.url}` : `${sourceId}|${normTitle(title)}|${n.date ?? ""}`);
   return n;

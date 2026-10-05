@@ -1,0 +1,139 @@
+{
+ "data": {
+  "dataList": {
+   "current_page": 1,
+   "per_page": 10,
+   "total": 8042,
+   "last_page": 805,
+   "data": [
+    {
+     "id": 8321,
+     "notice_no": "488",
+     "shown_heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६९१/०८२-८३ (आ.ज.), संघीय संसद् सेवा, प्रशासन समूह, रा.प.द्वितीय श्रेणी, उपसचिव वा सो सरह पदमा उम्मेदवार सिफारिस सम्बन्धी सूचना।",
+     "heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६९१/०८२-८३ (आ.ज.), संघीय संसद् सेवा, प्रशासन समूह, रा.प.द्वितीय श्रेणी, उपसचिव वा सो सरह पदमा उम्मेदवार सिफारिस सम्बन्धी सूचना।",
+     "service_id": 2,
+     "open_type_id": 17,
+     "view_type": "सामान्य",
+     "date_upload": "2026-09-30",
+     "advertise_nos": [
+      "16691"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23353
+     ],
+     "date_upload_bs": "2083-06-14",
+     "files": [
+      {
+       "id": 33804,
+       "model_id": 8321,
+       "model_type": "App\\Models\\Recommendedheading\\Recommendedheading",
+       "location": "https://psc.gov.np/site_uploads/others/16691.82-8-1449654778.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "16691.82-83 संघीय संसद्_उपसचिव वा सो सरह_आ.ज..pdf",
+       "extension": "pdf",
+       "size": 283305,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/16691.82-8-1449654778.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    },
+    {
+     "id": 8320,
+     "notice_no": "485-487",
+     "shown_heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६८९-१६६९०/०८२-८३ (खुला र अपाङ्ग), नेपाल लेखापरीक्षण सेवा, रा.प.द्वितीय श्रेणी, निर्देशक पदमा उम्मेदवार सिफारिस तथा एकमुष्ठ योग्यताक्रम सम्बन्धी सूचना।",
+     "heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६८९-१६६९०/०८२-८३ (खुला र अपाङ्ग), नेपाल लेखापरीक्षण सेवा, रा.प.द्वितीय श्रेणी, निर्देशक पदमा उम्मेदवार सिफारिस तथा एकमुष्ठ योग्यताक्रम सम्बन्धी सूचना।",
+     "service_id": 10,
+     "open_type_id": 16,
+     "view_type": "सामान्य",
+     "date_upload": "2026-09-30",
+     "advertise_nos": [
+      "16689",
+      "16690"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23308,
+      23352
+     ],
+     "date_upload_bs": "2083-06-14",
+     "files": [
+      {
+       "id": 33803,
+       "model_id": 8320,
+       "model_type": "App\\Models\\Recommendedheading\\Recommendedheading",
+       "location": "https://psc.gov.np/site_uploads/others/16689-1669-1369344599.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "16689-16690.82-83 लेखापरीक्षण_उपसचिव_खुला र अपाङ्ग.pdf",
+       "extension": "pdf",
+       "size": 382766,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/16689-1669-1369344599.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    },
+    {
+     "id": 8319,
+     "notice_no": "462-467",
+     "shown_heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६७९-१६६८३/०८२-८३ (खुला तथा समावेशी), नेपाल प्रशासन सेवा, सामान्य प्रशासन समूह, रा.प.द्वितीय श्रेणी, उपसचिव वा सो सरह पदमा उम्मेदवार सिफारिस तथा एकमुष्ठ योग्यताक्रम सम्बन्धी सूचना।",
+     "heading": "लोक सेवा आयोग, केन्द्रीय कार्यालयको विज्ञापन नम्बर १६६७९-१६६८३/०८२-८३ (खुला तथा समावेशी), नेपाल प्रशासन सेवा, सामान्य प्रशासन समूह, रा.प.द्वितीय श्रेणी, उपसचिव वा सो सरह पदमा उम्मेदवार सिफारिस तथा एकमुष्ठ योग्यताक्रम सम्बन्धी सूचना।",
+     "service_id": 7,
+     "open_type_id": 16,
+     "view_type": "सामान्य",
+     "date_upload": "2026-09-24",
+     "advertise_nos": [
+      "16679",
+      "16680",
+      "16681",
+      "16682",
+      "16683"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23300,
+      23301,
+      23302,
+      23303,
+      23304
+     ],
+     "date_upload_bs": "2083-06-08",
+     "files": [
+      {
+       "id": 33782,
+       "model_id": 8319,
+       "model_type": "App\\Models\\Recommendedheading\\Recommendedheading",
+       "location": "https://psc.gov.np/site_uploads/others/16679-1668-1493212232.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "16679-16683.82-83 प्रशासन-सामान्य प्रशासन_उपसचिव_खुला तथा समावेशी.pdf",
+       "extension": "pdf",
+       "size": 469537,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/16679-1668-1493212232.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

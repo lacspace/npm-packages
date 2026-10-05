@@ -4,7 +4,7 @@
  */
 import { type ElNode, childElements, descendants, innerText } from "./html.js";
 import { parseDate } from "./dates.js";
-import { isFileUrl, type RawNotice } from "./notice.js";
+import { fuller, isFileUrl, type RawNotice } from "./notice.js";
 
 const SKIP_TAGS = new Set(["nav", "header", "footer", "aside", "script", "style", "noscript", "form", "select", "button"]);
 const SKIP_CLASS = /(?:^|[\s_-])(nav|navbar|menu|footer|header|breadcrumbs?|sidebar|dropdown|marquee|ticker|swiper|slider|carousel|social|pagination|copyright)(?:$|[\s_-])/i;
@@ -30,7 +30,7 @@ function links(row: ElNode): Link[] {
     if (a.tag !== "a") continue;
     const href = (a.attrs.href ?? "").trim();
     if (!href || href === "#" || /^(javascript|mailto|tel):/i.test(href)) continue;
-    out.push({ href, text: innerText(a) || (a.attrs.title ?? "").trim(), el: a });
+    out.push({ href, text: fuller(innerText(a), a.attrs.title, a.attrs["data-title"]), el: a });
   }
   return out;
 }

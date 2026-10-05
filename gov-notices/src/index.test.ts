@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  SOURCES, cleanTitle, conditional, dedupe, fetchNotices, isResult, newSince, parseBsDate, parseDate,
-  parseNotices, tag, titleLang, type Notice,
+  SOURCES, VERSION, cleanTitle, completeTitle, completeTitles, conditional, dedupe, fetchNotices, isResult, isTruncated,
+  needsDetail, newSince, parseBsDate, parseDate, parseDetail, parseNotices, tag, titleLang, type Notice,
 } from "./index.js";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -264,7 +264,7 @@ describe("conditional / fetchNotices", () => {
     expect(r).toMatchObject({ status: 304, notModified: true, notices: [], etag: '"v2"' });
     expect(seen["If-None-Match"]).toBe('"v1"');
     expect(seen["If-Modified-Since"]).toBe("Sun, 04 Oct 2026 00:00:00 GMT");
-    expect(seen["User-Agent"]).toMatch(/^lacspace-gov-notices\/1\.0 /);
+    expect(seen["User-Agent"]).toMatch(/^lacspace-gov-notices\/1\.1 /);
   });
 
   it("200 → parses with the source's adapter; feed URL + headers for JSON sources", async () => {
@@ -295,11 +295,215 @@ describe("conditional / fetchNotices", () => {
 });
 
 describe("SOURCES", () => {
-  it("lists the ten boards with absolute URLs", () => {
-    expect(SOURCES.map((s) => s.id).sort()).toEqual(["ctevt", "dotm", "mec", "neb", "nec", "nmc", "psc", "see", "tsc", "tuexam"]);
+  it("lists the boards and results lists with absolute URLs", () => {
+    expect(VERSION).toBe("1.1.0");
+    expect(SOURCES.map((s) => s.id).sort()).toEqual([
+      "ctevt", "dotm", "mec", "neb", "nec", "nmc", "psc", "psc-recommendations", "psc-results", "see", "see-results", "tsc", "tsc-results", "tuexam",
+    ]);
+    expect(new Set(SOURCES.map((s) => s.id)).size).toBe(SOURCES.length);
+    expect(SOURCES.find((s) => s.id === "dotm")!.url).toBe("https://dotm.gov.np/category/latest-news/");
+    expect(SOURCES.find((s) => s.id === "tsc-results")!.url).toBe("https://tsc.gov.np/category/73/");
     for (const s of SOURCES) {
       expect(s.url).toMatch(/^https:\/\//);
       expect(s.nameNe).toMatch(/[ऀ-ॿ]/);
     }
+  });
+});
+
+// ---------------------------------------------------------------- 1.1.0
+
+/** A fake fetch that serves fixtures by URL and records calls (and overlap). */
+function routes(map: Record<string, string | number>) {
+  const calls: string[] = [];
+  let active = 0;
+  let maxActive = 0;
+  const f = (async (u: string) => {
+    calls.push(u);
+    active++;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((r) => setTimeout(r, 2));
+    active--;
+    const v = map[u];
+    if (v === undefined) return new Response("not found", { status: 404 });
+    if (typeof v === "number") return new Response(null, { status: v });
+    return new Response(v, { status: 200, headers: { "content-type": "text/html" } });
+  }) as unknown as typeof fetch;
+  return { f, calls, get maxActive() { return maxActive; } };
+}
+
+const CTEVT_LIST = "https://ctevt.org.np/documents/list/notice-board";
+const CTEVT_DETAIL = "https://ctevt.org.np/documents/2083-5-22-research-call-for-papers-for-journal-of-technical-and-vocational-education-and-training";
+const DOTM_111 = "https://dotm.gov.np/content/111/-b--written-examination-questions-for-class-2082-83/";
+
+describe("truncated titles (issue 9)", () => {
+  it("flags list titles cut with '...' and keeps them as printed", () => {
+    const ns = parseNotices(fixture("ctevt.html"), { baseUrl: CTEVT_LIST });
+    const cut = ns.find((n) => n.url === CTEVT_DETAIL)!;
+    expect(cut).toMatchObject({ title: "Call for Papers for Journal of Technical and Vocational E...", truncated: true, category: "Research", date: "2026-09-07" });
+    expect(ns.filter((n) => n.truncated)).toHaveLength(1);
+    expect(isTruncated("नतिजा सम्बन्धी सूचना…")).toBe(true);
+    expect(isTruncated("Result notice")).toBe(false);
+  });
+
+  it("uses a title attribute when the list provides one", () => {
+    const html = `<div class="list-links"><ul>
+      <li><div class="notice-link"><a href="/documents/a" title="2083-5-22 - Research - Call for Papers for Journal of Technical and Vocational Education and Training">2083-5-22 - Research - Call for Papers for Journal of Technical and Vocational E...</a><p class="des">Sep 07, 2026</p></div></li>
+      <li><div class="notice-link"><a href="/documents/b">2083-5-20 - Exam - Short title</a><p class="des">Sep 05, 2026</p></div></li>
+    </ul></div>`;
+    const ns = parseNotices(html, { baseUrl: CTEVT_LIST });
+    expect(ns[0]).toMatchObject({ title: "Call for Papers for Journal of Technical and Vocational Education and Training", category: "Research" });
+    expect(ns[0]!.truncated).toBeUndefined();
+    const g = parseNotices(`<h2>Notices</h2><ul>
+      <li><a href="/n/1" title="कक्षा १२ को नतिजा प्रकाशन सम्बन्धी सूचना">कक्षा १२ को नतिजा प्रकाशन…</a> <span>२०८३-०६-१५</span></li>
+      <li><a href="/n/2">Exam routine</a> <span>२०८३-०६-१०</span></li>
+      <li><a href="/n/3">Admit card</a> <span>२०८३-०६-०१</span></li></ul>`, { baseUrl: "https://board.example.gov.np/" });
+    expect(g[0]).toMatchObject({ title: "कक्षा १२ को नतिजा प्रकाशन सम्बन्धी सूचना", tags: ["result"] });
+  });
+
+  it("completeTitle needs the visible stem and drops a site suffix", () => {
+    expect(completeTitle("Call for Papers for Journal of Technical and Vocational E...", [
+      "Something else entirely",
+      "2083-5-22 - Research - Call for Papers for Journal of Technical and Vocational Education and Training | CTEVT",
+    ])).toBe("Call for Papers for Journal of Technical and Vocational Education and Training");
+    expect(completeTitle("Exam notice for…", ["Unrelated heading"])).toBeUndefined();
+    expect(completeTitle("Exam notice for…", ["Exam notice for…"])).toBeUndefined();
+  });
+
+  it("parseDetail reads the full title, AD date and files from a CTEVT detail page", () => {
+    const d = parseDetail(fixture("ctevt-detail.html"), CTEVT_DETAIL);
+    expect(d).toMatchObject({ title: "Call for Papers for Journal of Technical and Vocational Education and Training", date: "2026-09-07", dateBs: "2083-05-22" });
+    expect(d.attachments.map((a) => a.url)).toEqual([
+      "https://ctevt.org.np/public/uploads/kcfinder/files/call_for_papers_vol_21.pdf",
+      "https://ctevt.org.np/public/uploads/kcfinder/files/author_declaration_form_jtvet.pdf",
+    ]);
+  });
+
+  it("completeTitles fetches only cut, unknown items; ids stay stable", async () => {
+    const ns = parseNotices(fixture("ctevt.html"), { baseUrl: CTEVT_LIST });
+    const before = ns.map((n) => n.id);
+    const r = routes({ [CTEVT_DETAIL]: fixture("ctevt-detail.html") });
+    const out = await completeTitles(ns, { fetch: r.f, delayMs: 0 });
+    expect(out).toBe(ns);
+    expect(r.calls).toEqual([CTEVT_DETAIL]);
+    const n = ns.find((x) => x.url === CTEVT_DETAIL)!;
+    expect(n.title).toBe("Call for Papers for Journal of Technical and Vocational Education and Training");
+    expect(n.truncated).toBeUndefined();
+    expect(n.titleLang).toBe("en");
+    expect(n.attachments.map((a) => a.type)).toEqual(["pdf", "pdf"]);
+    expect(ns.map((x) => x.id)).toEqual(before);
+
+    // Known ids are skipped entirely.
+    const again = parseNotices(fixture("ctevt.html"), { baseUrl: CTEVT_LIST });
+    const r2 = routes({ [CTEVT_DETAIL]: fixture("ctevt-detail.html") });
+    await completeTitles(again, { fetch: r2.f, delayMs: 0, knownIds: before });
+    expect(r2.calls).toEqual([]);
+    expect(again.find((x) => x.url === CTEVT_DETAIL)!.truncated).toBe(true);
+  });
+
+  it("is sequential, capped by maxDetails, and keeps truncated on failure", async () => {
+    const mk = (i: number): Notice => ({ id: `id${i}`, sourceId: "x", title: `Long notice number ${i} about something...`, titleLang: "en", truncated: true, date: "2026-10-01", url: `https://x.gov.np/n/${i}`, attachments: [] });
+    const ns = [1, 2, 3, 4, 5, 6, 7].map(mk);
+    const page = (i: number) => `<h1>Long notice number ${i} about something important</h1>`;
+    const r = routes({ "https://x.gov.np/n/1": page(1), "https://x.gov.np/n/2": 500, "https://x.gov.np/n/3": page(3) });
+    await completeTitles(ns, { fetch: r.f, delayMs: 1, maxDetails: 3 });
+    expect(r.calls).toEqual(["https://x.gov.np/n/1", "https://x.gov.np/n/2", "https://x.gov.np/n/3"]);
+    expect(r.maxActive).toBe(1);
+    expect(ns[0]).toMatchObject({ title: "Long notice number 1 about something important" });
+    expect(ns[0]!.truncated).toBeUndefined();
+    expect(ns[1]!.truncated).toBe(true);
+    expect(ns[3]!.truncated).toBe(true);
+    // Completed items drop out; file URLs are never candidates.
+    expect(needsDetail([...ns, { ...mk(9), url: "https://x.gov.np/f.pdf" }]).map((n) => n.id)).toEqual(["id2", "id4", "id5", "id6", "id7"]);
+  });
+});
+
+describe("undated items and dotm (issue 10)", () => {
+  it("flags list items with no date as undated", () => {
+    const ns = parseNotices(fixture("dotm.html"), { baseUrl: "https://dotm.gov.np/" });
+    const n = ns.find((x) => x.url === DOTM_111)!;
+    expect(n).toMatchObject({ undated: true, category: "ताजा समाचार" });
+    expect(n.date).toBeUndefined();
+    expect(ns.filter((x) => x.date).every((x) => !x.undated)).toBe(true);
+  });
+
+  it("dotm: the latest-news category lists dated items", () => {
+    const ns = parseNotices(fixture("dotm-latest.html"), { sourceId: "dotm", baseUrl: "https://dotm.gov.np/category/latest-news/" });
+    expect(ns).toHaveLength(5);
+    expect(ns.every((n) => n.date && !n.undated)).toBe(true);
+    expect(ns[0]).toMatchObject({ url: DOTM_111, date: "2026-10-05", dateBs: "2083-06-19", dateRaw: "१९ असोज, २०८३", tags: ["exam"] });
+  });
+
+  it("parseDetail reads the GIWMS detail date, not dates in the header slider", () => {
+    const d = parseDetail(fixture("dotm-detail.html"), DOTM_111);
+    expect(d).toMatchObject({ title: "(B) वर्गको सवारी चालक अनुमतिपत्रका लागि लिखित परीक्षाका प्रश्नहरू २०८२-८३", date: "2026-10-05", dateBs: "2083-06-19" });
+    expect(d.attachments[0]?.url).toMatch(/^https:\/\/giwmscdnone\.gov\.np\/media\/files\/.+\.pdf$/);
+  });
+
+  it("fetchNotices: one request by default; details: true fills the date from the detail page", async () => {
+    const plain = routes({ "https://dotm.gov.np/": fixture("dotm.html") });
+    const a = await fetchNotices("https://dotm.gov.np/", { fetch: plain.f });
+    expect(plain.calls).toHaveLength(1);
+    expect(a.detailsFetched).toBeUndefined();
+    expect(a.notices.find((n) => n.url === DOTM_111)!.undated).toBe(true);
+
+    const r = routes({ "https://dotm.gov.np/": fixture("dotm.html"), [DOTM_111]: fixture("dotm-detail.html") });
+    const b = await fetchNotices("https://dotm.gov.np/", { fetch: r.f, details: true, detailDelayMs: 0 });
+    expect(r.calls).toEqual(["https://dotm.gov.np/", DOTM_111]);
+    expect(b.detailsFetched).toBe(1);
+    const n = b.notices.find((x) => x.url === DOTM_111)!;
+    expect(n).toMatchObject({ date: "2026-10-05", dateBs: "2083-06-19", dateRaw: "१९ असोज, २०८३" });
+    expect(n.undated).toBeUndefined();
+    expect(n.id).toBe(a.notices.find((x) => x.url === DOTM_111)!.id);
+  });
+});
+
+describe("results sources (issue 11)", () => {
+  it("psc-results: written results JSON, linked to the site's detail route", () => {
+    const ns = parseNotices(fixture("psc-results.json"), { sourceId: "psc-results", baseUrl: "https://psc.gov.np/category/result/all" });
+    const n = checkFirst(ns, "psc.gov.np");
+    expect(ns).toHaveLength(3);
+    expect(n).toMatchObject({ sourceId: "psc-results", url: "https://psc.gov.np/category/written_result/5512", date: "2026-10-04", dateBs: "2083-06-18", category: "लिखित नतिजा", titleLang: "ne" });
+    expect(n.title).toMatch(/लिखित नतिजा$/);
+    expect(n.tags).toEqual(["result"]);
+    expect(n.attachments[0]).toMatchObject({ type: "pdf", url: expect.stringMatching(/^https:\/\/psc\.gov\.np\/site_uploads\/.+\.pdf$/) });
+    expect(ns.every(isResult)).toBe(true);
+  });
+
+  it("psc-recommendations: recommendation (final result) JSON", () => {
+    const ns = parseNotices(fixture("psc-recommendations.json"), { sourceId: "psc-recommendations", baseUrl: "https://psc.gov.np/category/recommended/all" });
+    const n = checkFirst(ns, "psc.gov.np");
+    expect(ns).toHaveLength(3);
+    expect(n).toMatchObject({ url: "https://psc.gov.np/category/recommendation/8321", date: "2026-09-30", dateBs: "2083-06-14", category: "सिफारिस" });
+    expect(n.tags).toEqual(["recommendation", "result"]);
+    expect(ns.every(isResult)).toBe(true);
+  });
+
+  it("fetchNotices('psc-results') reads the branch-details feed", async () => {
+    const r = routes({ "https://psc.gov.np/front/branch-details/all/written_result?page=1&pageNum=20": fixture("psc-results.json") });
+    const res = await fetchNotices("psc-results", { fetch: r.f });
+    expect(res.status).toBe(200);
+    expect(res.notices).toHaveLength(3);
+    expect(res.source?.id).toBe("psc-results");
+  });
+
+  it("tsc-results: GIWMS results table (category 73)", () => {
+    const ns = parseNotices(fixture("tsc-results.html"), { sourceId: "tsc-results", baseUrl: "https://tsc.gov.np/category/73/" });
+    const n = checkFirst(ns, "tsc.gov.np");
+    expect(ns).toHaveLength(4);
+    expect(n).toMatchObject({ sourceId: "tsc-results", category: "नतिजा", date: "2026-09-30", dateBs: "2083-06-14" });
+    expect(ns.every((x) => x.tags?.includes("result"))).toBe(true);
+  });
+
+  it("see-results: GIWMS publication category, where SEE posts results", () => {
+    const ns = parseNotices(fixture("see-results.html"), { sourceId: "see-results", baseUrl: "https://see.gov.np/category/publication/" });
+    const n = checkFirst(ns, "see.gov.np");
+    expect(ns).toHaveLength(4);
+    expect(n).toMatchObject({ sourceId: "see-results", category: "प्रकाशन", dateBs: "2083-04-22" });
+    expect(ns.filter(isResult).length).toBe(3);
+  });
+
+  it("does not read a PSC advertisement number as a vacancy", () => {
+    expect(tag({ title: "बिज्ञापन नं. १२०२०/०८२-८३ को लिखित नतिजा" })).toEqual(["result"]);
+    expect(tag({ title: "दरखास्त आह्वान सम्बन्धी विज्ञापन" })).toEqual(["vacancy"]);
   });
 });

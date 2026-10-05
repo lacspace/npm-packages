@@ -26,6 +26,18 @@ export const SOURCES: readonly Source[] = [
     headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
   },
   {
+    id: "psc-results", name: "Public Service Commission: written exam results", nameNe: "लोक सेवा आयोग: लिखित नतिजा", kind: "commission", adapter: "psc",
+    url: "https://psc.gov.np/category/result/all",
+    feedUrl: "https://psc.gov.np/front/branch-details/all/written_result?page=1&pageNum=20",
+    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+  },
+  {
+    id: "psc-recommendations", name: "Public Service Commission: recommendations (final results)", nameNe: "लोक सेवा आयोग: सिफारिस", kind: "commission", adapter: "psc",
+    url: "https://psc.gov.np/category/recommended/all",
+    feedUrl: "https://psc.gov.np/front/branch-details/all/recommendation?page=1&pageNum=20",
+    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+  },
+  {
     id: "neb", name: "National Examinations Board", nameNe: "राष्ट्रिय परीक्षा बोर्ड", kind: "exam", adapter: "neb",
     url: "https://neb.gov.np/",
   },
@@ -34,8 +46,16 @@ export const SOURCES: readonly Source[] = [
     url: "https://see.gov.np/category/notice/",
   },
   {
+    id: "see-results", name: "Office of the Controller of Examinations, Sanothimi (SEE): results and publications", nameNe: "परीक्षा नियन्त्रण कार्यालय, सानोठिमी: प्रकाशन", kind: "exam", adapter: "giwms",
+    url: "https://see.gov.np/category/publication/",
+  },
+  {
     id: "tsc", name: "Teacher Service Commission", nameNe: "शिक्षक सेवा आयोग", kind: "commission", adapter: "giwms",
     url: "https://tsc.gov.np/category/72/",
+  },
+  {
+    id: "tsc-results", name: "Teacher Service Commission: results and recommendations", nameNe: "शिक्षक सेवा आयोग: नतिजा", kind: "commission", adapter: "giwms",
+    url: "https://tsc.gov.np/category/73/",
   },
   {
     id: "mec", name: "Medical Education Commission", nameNe: "चिकित्सा शिक्षा आयोग", kind: "commission", adapter: "mec",
@@ -61,7 +81,7 @@ export const SOURCES: readonly Source[] = [
   },
   {
     id: "dotm", name: "Department of Transport Management", nameNe: "यातायात व्यवस्था विभाग", kind: "transport", adapter: "giwms",
-    url: "https://dotm.gov.np/",
+    url: "https://dotm.gov.np/category/latest-news/",
   },
 ];
 

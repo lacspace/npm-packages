@@ -6,17 +6,19 @@ import { parseHTML } from "./html.js";
 import { ADAPTERS, adapterFor, generic, type Adapter } from "./adapters.js";
 import { finalize, hashId, normTitle, type Notice, type RawNotice } from "./notice.js";
 import { getSource, sourceForHost, type Source } from "./sources.js";
+import { baseHeaders, getFetch, readCapped } from "./http.js";
+import { runDetails } from "./detail.js";
 
 export { parseBsDate, parseDate, toAsciiDigits, type BsParsed, type ParsedDate } from "./dates.js";
-export { cleanTitle, titleLang, tag, isResult, attachmentType, hashId, type Notice, type Attachment, type AttachmentType, type RawNotice } from "./notice.js";
+export { cleanTitle, titleLang, tag, isResult, attachmentType, hashId, isTruncated, completeTitle, type Notice, type Attachment, type AttachmentType, type RawNotice } from "./notice.js";
+export { parseDetail, completeTitles, needsDetail, applyDetail, type NoticeDetail, type DetailOptions } from "./detail.js";
 export { SOURCES, getSource, type Source, type SourceKind } from "./sources.js";
 export { ADAPTERS, adapterFor, type Adapter } from "./adapters.js";
 export { genericParse } from "./generic.js";
 export { parseHTML } from "./html.js";
 export { queryAll, queryOne } from "./select.js";
 
-export const VERSION = "1.0.0";
-export const DEFAULT_USER_AGENT = "lacspace-gov-notices/1.0 (+https://developer.lacspace.com/packages/gov-notices)";
+export { VERSION, DEFAULT_USER_AGENT } from "./http.js";
 
 export interface ParseOptions {
   /** A registered source id ("neb", "psc", …) or any label you want on the items. */
@@ -111,6 +113,18 @@ export interface FetchOptions {
   /** Extra request headers. */
   headers?: Record<string, string>;
   now?: Date;
+  /**
+   * Opt-in: after the list, fetch detail pages for items whose title was cut
+   * ("…"/"...") or that have no date, to complete them. Off by default, so a
+   * call stays one request. See {@link completeTitles}.
+   */
+  details?: boolean;
+  /** With `details`: at most this many detail pages per call (default 5). */
+  maxDetails?: number;
+  /** With `details`: ids you already hold; these are never fetched. */
+  knownIds?: Iterable<string>;
+  /** With `details`: pause between detail requests in ms (default 1000). */
+  detailDelayMs?: number;
 }
 
 export interface FetchResult {
@@ -128,51 +142,40 @@ export interface FetchResult {
    */
   contentHash?: string;
   source?: Source;
-}
-
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  if (!res.body || typeof (res.body as ReadableStream<Uint8Array>).getReader !== "function") {
-    const t = await res.text();
-    return t.length > maxBytes ? t.slice(0, maxBytes) : t;
-  }
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      total += value.byteLength;
-      if (total >= maxBytes) { try { await reader.cancel(); } catch { /* ignore */ } break; }
-    }
-  }
-  const buf = new Uint8Array(Math.min(total, maxBytes));
-  let off = 0;
-  for (const c of chunks) {
-    const take = Math.min(c.byteLength, buf.byteLength - off);
-    buf.set(c.subarray(0, take), off);
-    off += take;
-    if (off >= buf.byteLength) break;
-  }
-  return new TextDecoder("utf-8").decode(buf);
+  /** With `details: true`: how many detail pages were read. */
+  detailsFetched?: number;
 }
 
 /**
  * Fetch one notice board and parse it. One request per call, no pagination.
  * Pass the `etag`/`lastModified` from the previous result to make it a
  * conditional GET; a 304 comes back as `notModified: true` with no parsing.
+ * With `details: true` it then reads up to `maxDetails` detail pages, one at a
+ * time, to complete cut titles and missing dates (see {@link completeTitles}).
  */
 export async function fetchNotices(sourceIdOrUrl: string, opts: FetchOptions = {}): Promise<FetchResult> {
-  const doFetch = opts.fetch ?? globalThis.fetch;
-  if (typeof doFetch !== "function") throw new Error("@lacspace/gov-notices: no fetch available; pass opts.fetch");
+  const result = await fetchList(sourceIdOrUrl, opts);
+  if (opts.details && result.notices.length) {
+    const st = await runDetails(result.notices, {
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
+      ...(opts.userAgent ? { userAgent: opts.userAgent } : {}),
+      ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
+      ...(opts.maxDetails != null ? { maxDetails: opts.maxDetails } : {}),
+      ...(opts.knownIds ? { knownIds: opts.knownIds } : {}),
+      ...(opts.detailDelayMs != null ? { delayMs: opts.detailDelayMs } : {}),
+    });
+    result.detailsFetched = st.fetched;
+  }
+  return result;
+}
+
+async function fetchList(sourceIdOrUrl: string, opts: FetchOptions): Promise<FetchResult> {
+  const doFetch = getFetch(opts);
   const src = /^https?:\/\//i.test(sourceIdOrUrl) ? undefined : getSource(sourceIdOrUrl);
   if (!src && !/^https?:\/\//i.test(sourceIdOrUrl)) throw new Error(`@lacspace/gov-notices: unknown source "${sourceIdOrUrl}"`);
   const url = src ? src.feedUrl ?? src.url : sourceIdOrUrl;
   const headers: Record<string, string> = {
-    "User-Agent": opts.userAgent ?? DEFAULT_USER_AGENT,
-    Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-    "Accept-Language": "ne,en;q=0.8",
+    ...baseHeaders(opts),
     ...(src?.headers ?? {}),
     ...conditional(opts),
     ...(opts.headers ?? {}),

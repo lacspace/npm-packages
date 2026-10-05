@@ -1,0 +1,138 @@
+{
+ "data": {
+  "dataList": {
+   "current_page": 1,
+   "per_page": 10,
+   "total": 5406,
+   "last_page": 541,
+   "data": [
+    {
+     "id": 5512,
+     "notice_no": "५१५",
+     "shown_heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०२०/०८२-८३ (खुला), वन सेवा, हात्तिसार समूह, रा.प.अनं.प्रथम श्रेणी, नायब सुब्बा पदको लिखित नतिजा",
+     "heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०२०/०८२-८३ (खुला), वन सेवा, हात्तिसार समूह, रा.प.अनं.प्रथम श्रेणी, नायब सुब्बा पदको लिखित नतिजा",
+     "type": "अन्य",
+     "date_upload": "2026-10-04",
+     "interview_start": "2026-10-04",
+     "interview_end": "2026-10-04",
+     "fiscal_year_id": 18,
+     "date_upload_bs": "2083-06-18",
+     "interview_start_bs": "2083-06-18",
+     "interview_end_bs": "2083-06-18",
+     "advertise_nos": [
+      "12020"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23663
+     ],
+     "files": [
+      {
+       "id": 33848,
+       "model_id": 5512,
+       "model_type": "App\\Models\\Resultheading\\Resultheading",
+       "location": "https://psc.gov.np/site_uploads/others/10-12020-0-717090913.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "10 12020-082-83 - वन- हात्तिसार - KTM - 515.pdf",
+       "extension": "pdf",
+       "size": 188580,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/10-12020-0-717090913.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    },
+    {
+     "id": 5511,
+     "notice_no": "५१४",
+     "shown_heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०१८-१२०१९/०८२-८३ (खुला तथा समावेशी), वन सेवा, ने.पा. एण्ड वा.ला. समूह, रा.प.अनं.प्रथम श्रेणी, रेञ्जर पदको लिखित नतिजा",
+     "heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०१८-१२०१९/०८२-८३ (खुला तथा समावेशी), वन सेवा, ने.पा. एण्ड वा.ला. समूह, रा.प.अनं.प्रथम श्रेणी, रेञ्जर पदको लिखित नतिजा",
+     "type": "अन्य",
+     "date_upload": "2026-10-04",
+     "interview_start": "2026-10-29",
+     "interview_end": "2026-10-29",
+     "fiscal_year_id": 18,
+     "date_upload_bs": "2083-06-18",
+     "interview_start_bs": "2083-07-13",
+     "interview_end_bs": "2083-07-13",
+     "advertise_nos": [
+      "12018"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23665
+     ],
+     "files": [
+      {
+       "id": 33847,
+       "model_id": 5511,
+       "model_type": "App\\Models\\Resultheading\\Resultheading",
+       "location": "https://psc.gov.np/site_uploads/others/9-12018-12-1574846776.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "9 12018-12019-082-83 - वन- ने पा एण्ड वा ला - KTM - 514    .pdf",
+       "extension": "pdf",
+       "size": 210545,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/9-12018-12-1574846776.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    },
+    {
+     "id": 5510,
+     "notice_no": "५१३",
+     "shown_heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०१७/०८२-८३ (खुला), कृषि सेवा, खा.पो. तथा गु.नि. समूह, रा.प.अनं.प्रथम श्रेणी, प्राविधिक सहायक पदको लिखित नतिजा",
+     "heading": "लोक सेवा आयोग, काठमाडौं कार्यालयको बिज्ञापन नं. १२०१७/०८२-८३ (खुला), कृषि सेवा, खा.पो. तथा गु.नि. समूह, रा.प.अनं.प्रथम श्रेणी, प्राविधिक सहायक पदको लिखित नतिजा",
+     "type": "अन्य",
+     "date_upload": "2026-10-04",
+     "interview_start": "2026-10-29",
+     "interview_end": "2026-10-29",
+     "fiscal_year_id": 18,
+     "date_upload_bs": "2083-06-18",
+     "interview_start_bs": "2083-07-13",
+     "interview_end_bs": "2083-07-13",
+     "advertise_nos": [
+      "12017"
+     ],
+     "fiscal_year": {
+      "start_from": "2082",
+      "end_at": "2083",
+      "id": 18
+     },
+     "advertise_ids": [
+      23666
+     ],
+     "files": [
+      {
+       "id": 33846,
+       "model_id": 5510,
+       "model_type": "App\\Models\\Resultheading\\Resultheading",
+       "location": "https://psc.gov.np/site_uploads/others/8-12017-08-1563170709.pdf",
+       "type": "file",
+       "url": "url",
+       "name": "8 12017-082-83 - खा पो तथा गु नि - KTM -  513  .pdf",
+       "extension": "pdf",
+       "size": 202282,
+       "exam_date": null,
+       "document": "#",
+       "file_type": "https://psc.gov.np/site_uploads/others/8-12017-08-1563170709.pdf",
+       "exam_date_bs": null
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

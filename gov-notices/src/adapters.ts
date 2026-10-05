@@ -4,7 +4,7 @@
  */
 import { type ElNode, childElements, innerText } from "./html.js";
 import { queryAll, queryOne } from "./select.js";
-import { isFileUrl, type AttachmentType, type RawNotice } from "./notice.js";
+import { fuller, isFileUrl, type AttachmentType, type RawNotice } from "./notice.js";
 import { genericParse } from "./generic.js";
 
 export interface Adapter {
@@ -47,11 +47,10 @@ export const giwms: Adapter = {
     for (const tr of queryAll(doc, ".org-table-wrapper table tbody tr, table.table tbody tr")) {
       const tds = childElements(tr, "td");
       if (tds.length < 3) continue;
-      const title = text(tds[1]);
       const files = queryAll(tr, "a").map((a) => attr(a, "href")).filter((h) => h && isFileUrl(h));
       const view = queryOne(tr, "a.info__link");
       out.push({
-        title: title || attr(view, "data-title"),
+        title: fuller(text(tds[1]), attr(view, "data-title"), attr(view, "title")),
         dateText: text(tds[2]),
         url: attr(view, "href") || files[0],
         attachments: files.map((url) => ({ url })),
@@ -70,7 +69,7 @@ export const giwms: Adapter = {
       if (!/\/content\//.test(attr(link, "href")) && !files.length) continue;
       const dateEl = queryOne(card, ".post__date") ?? queryOne(card, ".post-meta") ?? queryOne(card, ".date");
       out.push({
-        title: text(titleEl),
+        title: fuller(text(titleEl), attr(link, "title"), attr(link, "data-title")),
         dateText: text(dateEl) || undefined,
         url: attr(link, "href") || files[0],
         attachments: files.map((url) => ({ url })),
@@ -104,7 +103,7 @@ export const neb: Adapter = {
         const href = attr(a, "href");
         const pdf = pdfs.get(href);
         out.push({
-          title: text(a) || attr(a, "title"),
+          title: fuller(text(a), attr(a, "title")),
           dateText: text(queryOne(box, ".date-section")),
           url: href,
           attachments: pdf ? [{ url: pdf, label: "डाउनलोड" }] : isFileUrl(href) ? [{ url: href }] : [],
@@ -147,6 +146,9 @@ export const mec: Adapter = {
   },
 };
 
+/** The "2083-5-30 - Admin - " prefix on CTEVT titles (group 1 = the section). */
+export const CTEVT_PREFIX = /^\s*[0-9०-९]{4}[-./][0-9०-९]{1,2}[-./][0-9०-९]{1,2}\s*-?\s*(?:([A-Za-z][A-Za-z &]{1,24}?)\s*-\s*)?/;
+
 /** CTEVT: `.list-links li` with the link text and an AD date in `p.des`. */
 export const ctevt: Adapter = {
   id: "ctevt",
@@ -157,10 +159,12 @@ export const ctevt: Adapter = {
       const a = queryOne(li, ".notice-link a") ?? queryOne(li, "a");
       if (!a) continue;
       const href = attr(a, "href");
+      // Long titles are cut with "..." on the list; use a title/data attribute when the site provides one.
+      const t = fuller(text(a), attr(a, "title"), attr(a, "data-title"), attr(a, "aria-label"));
       // Titles carry their own prefix: "2083-5-30 - Admin - …", "2083-05-26- Exam- …".
-      const m = /^\s*[0-9०-९]{4}[-./][0-9०-९]{1,2}[-./][0-9०-९]{1,2}\s*-?\s*(?:([A-Za-z][A-Za-z &]{1,24}?)\s*-\s*)?/.exec(text(a));
+      const m = CTEVT_PREFIX.exec(t);
       out.push({
-        title: m && text(a).length > m[0].length ? text(a).slice(m[0].length) : text(a),
+        title: m && t.length > m[0].length ? t.slice(m[0].length) : t,
         ...(m?.[1] ? { category: m[1].trim() } : {}),
         dateText: text(queryOne(li, ".des")) || m?.[0] || undefined,
         url: href,
@@ -172,6 +176,7 @@ export const ctevt: Adapter = {
 };
 
 interface PscFile { location?: string; file_type?: string; name?: string; extension?: string }
+interface PscBranchItem { id?: number; heading?: string; shown_heading?: string; date_upload?: string; date_upload_bs?: string; files?: (PscFile & { model_type?: string })[] }
 interface PscItem { title?: string; title_np?: string; upload_date?: string; upload_date_bs?: string; slug?: string; file_url?: string | null; files?: PscFile[] }
 
 const extType = (ext: string | undefined): AttachmentType | undefined => {
@@ -182,6 +187,37 @@ const extType = (ext: string | undefined): AttachmentType | undefined => {
   return undefined;
 };
 
+const PSC_KINDS = {
+  written_result: { category: "लिखित नतिजा", tags: ["result"] },
+  recommendation: { category: "सिफारिस", tags: ["result", "recommendation"] },
+} as const;
+
+/**
+ * PSC results lists (`/front/branch-details/all/<type>`): written results and
+ * final recommendations. Items link to the site's own detail route
+ * `/category/<type>/<id>`, which is stable, with the PDFs as attachments.
+ */
+function pscBranch(list: PscBranchItem[], baseUrl: string): RawNotice[] {
+  const origin = new URL(baseUrl).origin;
+  const pageKind: keyof typeof PSC_KINDS = /recommend/i.test(baseUrl) ? "recommendation" : "written_result";
+  return list.map((it) => {
+    const model = it.files?.[0]?.model_type ?? "";
+    const kind: keyof typeof PSC_KINDS = /Recommended/i.test(model) ? "recommendation" : /Resultheading/i.test(model) ? "written_result" : pageKind;
+    const files = (it.files ?? []).map((f) => ({ url: (f.location || f.file_type || "").trim(), label: f.name, type: extType(f.extension) })).filter((f) => f.url);
+    const title = (it.shown_heading || it.heading || "").replace(/<[^>]+>/g, " ").trim();
+    return {
+      title,
+      date: it.date_upload || undefined,
+      dateBs: it.date_upload_bs ? it.date_upload_bs.replace(/\b(\d)\b/g, "0$1") : undefined,
+      dateText: it.date_upload_bs || it.date_upload,
+      url: it.id != null ? `${origin}/category/${kind}/${it.id}` : files[0]?.url,
+      attachments: files,
+      category: PSC_KINDS[kind].category,
+      tags: [...PSC_KINDS[kind].tags],
+    } satisfies RawNotice;
+  });
+}
+
 /** Public Service Commission: the site is a Vue app; its list comes from `/front/category/<slug>` JSON. */
 export const psc: Adapter = {
   id: "psc",
@@ -189,7 +225,9 @@ export const psc: Adapter = {
   parse(doc) {
     return genericParse(doc);
   },
-  parseJson(data) {
+  parseJson(data, baseUrl) {
+    const branch = (data as { data?: { dataList?: { data?: PscBranchItem[] } | PscBranchItem[] } }).data?.dataList;
+    if (branch) return pscBranch(Array.isArray(branch) ? branch : branch.data ?? [], baseUrl);
     const d = (data as { data?: { category?: { name?: string; name_np?: string }; children?: { data?: PscItem[] } | PscItem[] } }).data;
     const list = Array.isArray(d?.children) ? d!.children : d?.children?.data ?? [];
     const category = d?.category?.name_np || d?.category?.name;

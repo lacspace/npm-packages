@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/sourcewatch",
+  "version": "1.0.0",
+  "description": "Re-verify that official source pages still back the facts you published: fetch a URL (HTML, plain text or PDF), extract its visible text, normalise it (NFC, Devanagari digits to ASCII, zero-width and soft-hyphen removal, unified spaces and dashes) and check expected strings, whole numbers (\"1145\" never matches inside \"11450\") or RegExps. Pure-JS PDF text extraction (object streams, FlateDecode/LZW/ASCII85/ASCIIHex with PNG predictors, ToUnicode CMaps, Differences encodings, TJ kerning, page-tree order). Detects placeholder pages (\"this is test\", default server pages, coming soon, suspended accounts), classifies failures (timeout, tls with chain/expired/self_signed/hostname kind, dns, network, http_4xx, http_5xx, not_found_text, placeholder_page, too_large, unparseable), streams bodies with a byte cap, retries transient errors, hashes the normalised text for change detection, and runs batches with a concurrency limit and one-request-per-host politeness. check(), checkAll(), summarize(), pdfText(), extractText(), normalise(), isPlaceholder(). Injectable fetch, zero dependencies, isomorphic (Node 18+, browsers, edge).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "source-verification",
+    "fact-check",
+    "link-checker",
+    "content-monitoring",
+    "change-detection",
+    "pdf",
+    "pdf-text",
+    "pdf-parser",
+    "html-to-text",
+    "devanagari",
+    "nepal",
+    "newsroom",
+    "government",
+    "uptime",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/sourcewatch",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "sourcewatch"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

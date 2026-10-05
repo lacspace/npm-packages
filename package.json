@@ -111,6 +111,7 @@
     "sitemap",
     "slugify",
     "snapshot",
+    "sourcewatch",
     "spy",
     "sse",
     "store",

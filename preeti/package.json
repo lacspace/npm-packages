@@ -1,0 +1,56 @@
+{
+  "name": "@lacspace/preeti",
+  "version": "1.0.0",
+  "description": "Preeti ⇄ Unicode for Nepali: convert legacy Preeti-font ASCII text (\"g]kfn\") to Unicode Devanagari (नेपाल) and back. Handles short-i and reph reordering, half letters, ra-kaar (| and «), conjunct keys (क्ष ज्ञ त्र श्र …), Preeti numerals, and looksLikePreeti() to detect pasted legacy text. Pure JS, zero dependencies, React Native safe.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "preeti",
+    "nepali",
+    "devanagari",
+    "unicode",
+    "font",
+    "converter",
+    "legacy-font",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/preeti",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "preeti"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

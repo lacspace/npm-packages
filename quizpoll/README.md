@@ -25,7 +25,16 @@ q.didYouKnow   // "थाहा छ? …" cards from the figure sentences
 - **entity**: a name blanked out. Every option has the **same type** as the answer (place↔place, person↔person, org↔org), using `typedEntities()`.
   - **People and organisations:** the other options come from the same article, so they are never invented.
   - **Districts and countries:** the other options are districts or countries that the article does *not* mention. A place the article does mention could also be true.
-  - **Never used as options:** sentence-opening words ("According", "Traders"), demonyms ("Sri Lankan"), news-outlet names, and anything that can't be typed.
+  - **Place level (1.2.0):** places also match on level. A district answer gets districts, a province gets provinces, a city gets cities and a country gets countries. A municipality only gets other municipalities from the article, or the question is skipped. See `placeLevel()` / `placePool()`.
+  - **Part of a longer name (1.2.0):** a name that is part of a longer one in the same article is dropped ("Chalise" / "Devraj Chalise", "Madhesh" / "Madhesh Province"), so the two never meet as answer and option.
+  - **Never used as options:**
+    - sentence-opening words ("According", "Traders");
+    - demonyms ("Sri Lankan");
+    - news-outlet names;
+    - plural groups ("Bagmati Provinces");
+    - capitalised common words posing as names ("General Convention", "Weather Forecasting Division", which is typed as an org);
+    - Nepali phrases after a role-like word (प्रमुख स्थान, सहरी केन्द्र, निर्णयहरू अनुमोदन);
+    - anything that can't be typed.
 - **truefalse** — a high-ranked true sentence, and a false statement made by perturbing one figure (answer: False, with the real figure in `explanation`).
 - **opinion** — polls from templates (yours via `opinionTemplates` first, then built-ins). No factual claim is made.
 - **didyouknow** — figure sentences as cards.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as describeApi, numberDistractors, quizpoll, typedEntities } from "./index.js";
+import { describe as describeApi, numberDistractors, placeLevel, placePool, quizpoll, typedEntities } from "./index.js";
 
 const NE = `नेपाल राष्ट्र बैंकले नयाँ मौद्रिक नीति सार्वजनिक गरेको छ। बैंकहरूले कर्जामा लिने ब्याजदर १२ प्रतिशतभन्दा माथि लैजान पाउने छैनन्। रु. ५० अर्बको पुनर्कर्जा कोष पनि घोषणा गरिएको छ। नयाँ व्यवस्था आगामी कात्तिक १ गतेदेखि लागू हुनेछ।`;
 const EN = `The Cricket Association of Nepal named a 15-member squad for the tri-series in Oman. Captain Rohit Paudel said batting depth is the main concern. Sandeep Lamichhane returns after a year and Asif Sheikh will keep wicket. Nepal lost the last series to Oman 2-1 in 2024.`;
@@ -101,19 +101,19 @@ describe("WeNepal app reports (1.1.0)", () => {
     expect(e).toEqual([
       { text: "International Monetary Fund", type: "org" },
       { text: "Nepal Rastra Bank", type: "org" },
-      { text: "Kathmandu", type: "place" },
+      { text: "Kathmandu", type: "place", level: "district" },
       { text: "Bishnu Paudel", type: "person" },
     ]);
     const g = typedEntities(GOATS_EN, ["Traders have brought sheep from Dolpa to Pokhara.", "The animals came from Jagadulla Rural Municipality in Dolpa.", "According to businessman Buddhiram Bohara, about 10,500 animals will be sold."], "en");
     expect(g).toEqual([
-      { text: "Dolpa", type: "place" },
-      { text: "Pokhara", type: "place" },
-      { text: "Jagadulla Rural Municipality", type: "place" },
+      { text: "Dolpa", type: "place", level: "district" },
+      { text: "Pokhara", type: "place", level: "city" },
+      { text: "Jagadulla Rural Municipality", type: "place", level: "local" },
       { text: "Buddhiram Bohara", type: "person" },
     ]);
     const n = typedEntities(GOATS_NE, [], "ne");
-    expect(n).toContainEqual({ text: "डोल्पा", type: "place" });
-    expect(n).toContainEqual({ text: "पोखरा", type: "place" });
+    expect(n).toContainEqual({ text: "डोल्पा", type: "place", level: "district" });
+    expect(n).toContainEqual({ text: "पोखरा", type: "place", level: "city" });
     expect(n).toContainEqual({ text: "बुद्धिराम बोहरा", type: "person" });
   });
   it("a wrong figure is never another figure from the article, and title lines are not items", () => {
@@ -128,5 +128,53 @@ describe("WeNepal app reports (1.1.0)", () => {
       const q = quizpoll(GOATS_EN, { seed, maxQuiz: 6 });
       for (const it of q.quiz.filter((i) => i.kind === "entity")) expect(it.options.length).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe("WeNepal app reports, round 2 (1.2.0)", () => {
+  const EN2 = [
+    "The Nepali Congress General Convention will be held in Kathmandu next month.",
+    "The Weather Forecasting Division said rain will continue in Koshi, Madhesh and Bagmati Provinces.",
+    "Heavy rain is expected in Madhesh Province on Sunday, the division said.",
+    "Spokesperson Devraj Chalise said the party had prepared well.",
+    "Chalise added that delegates from Dolpa would attend.",
+    "Traders brought goats from Jagadulla Rural Municipality to Pokhara.",
+  ];
+  const NE2 = "प्रमुख सहरी केन्द्र र प्रमुख स्थान दिइएको छ। बैठकले अध्यक्ष निर्णयहरू अनुमोदन गर्‍यो। प्रवक्ता देवराज चालिसेले भने। चालिसेका अनुसार डोल्पाबाट प्रतिनिधि आउनेछन्।";
+  const en = typedEntities(EN2.join(" "), EN2, "en");
+  const ne = typedEntities(NE2, [], "ne");
+  it("(a) common phrases are never people", () => {
+    const people = [...en, ...ne].filter((e) => e.type === "person").map((e) => e.text);
+    expect(people).not.toContain("Convention");
+    for (const bad of ["स्थान दिइए", "सहरी केन्द्र", "निर्णयहरू अनुमोदन", "स्थान", "सहरी"]) expect(people).not.toContain(bad);
+    expect(people).toContain("Devraj Chalise");
+    expect(people).toContain("देवराज चालिसे");
+  });
+  it("(b) a part of a longer name is dropped", () => {
+    const texts = [...en, ...ne].map((e) => e.text);
+    expect(texts).not.toContain("Chalise");
+    expect(texts).not.toContain("चालिसे");
+    expect(texts).not.toContain("Madhesh");
+    expect(texts).toContain("Madhesh Province");
+  });
+  it("(c) and (d) no plural groups; divisions are orgs; place levels", () => {
+    expect(en.find((e) => e.text === "Weather Forecasting Division")?.type).toBe("org");
+    expect(en.map((e) => e.text)).not.toContain("Bagmati Provinces");
+    expect(en.map((e) => e.text)).not.toContain("Provinces");
+    expect(en.find((e) => e.text === "Jagadulla Rural Municipality")?.level).toBe("local");
+  });
+  it("(c) options share the answer's place level", () => {
+    const text = EN2.join(" ");
+    for (let seed = 0; seed < 15; seed++) {
+      const q = quizpoll(text, { seed, maxQuiz: 8 });
+      for (const it of q.quiz.filter((i) => i.kind === "entity")) {
+        const ans = it.options[it.answerIndex!]!.text;
+        const level = placeLevel(ans);
+        if (["district", "province", "city", "country"].includes(level) && en.some((e) => e.text === ans && e.type === "place"))
+          for (const o of it.options) expect([ans, o.text, placeLevel(o.text)]).toEqual([ans, o.text, level]);
+        if (ans === "Jagadulla Rural Municipality") throw new Error("a local-level answer with no other municipality should be skipped");
+      }
+    }
+    expect(placePool("Madhesh Province", "en")).toContain("Koshi Province");
   });
 });

@@ -1,10 +1,10 @@
 import { keyFacts, splitSentences, summarize } from "@lacspace/extractive";
-import { MEDIA, PLACE_POOL, typedEntities } from "./entities.js";
+import { MEDIA, placePool, typedEntities } from "./entities.js";
 
-export { typedEntities } from "./entities.js";
-export type { EntityType, TypedEntity } from "./entities.js";
+export { placeLevel, placePool, typedEntities } from "./entities.js";
+export type { EntityType, PlaceLevel, TypedEntity } from "./entities.js";
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 
 export type Lang = "en" | "ne";
 export type ItemKind = "number" | "entity" | "truefalse" | "opinion" | "didyouknow";
@@ -165,11 +165,14 @@ export function quizpoll(text: string, o: QuizPollOptions = {}): QuizPoll {
     if (entityItems.length >= 2) break;
     const s = important.find((x) => x.includes(e.text) && !used.has(x) && !ents.some((o) => o !== e && x.includes(o.text) && o.text.includes(e.text)));
     if (!s) continue;
-    let others = ents.filter((x) => x.type === e.type && x !== e && !s.includes(x.text) && !x.text.includes(e.text) && !e.text.includes(x.text)).map((x) => x.text);
-    // A district or country answer gets districts/countries the article doesn't mention: a place the
-    // article does mention may be true as well ("from Jagadulla" when the goats came from Dolpa).
-    const pool = PLACE_POOL[lang].domestic.includes(e.text) ? PLACE_POOL[lang].domestic : PLACE_POOL[lang].abroad.includes(e.text) ? PLACE_POOL[lang].abroad : null;
-    if (e.type === "place" && pool) others = shuffle(pool.filter((p) => !text.includes(p)), r).slice(0, 3);
+    // Options share the answer's type, and for places its level (district, province, municipality…).
+    // A district/province/country/city answer takes ones the article doesn't name: a place the article
+    // does name may be true as well ("from Jagadulla" when the goats came from Dolpa).
+    let others = ents.filter((x) => x.type === e.type && x !== e && x.level === e.level && !s.includes(x.text) && !x.text.includes(e.text) && !e.text.includes(x.text)).map((x) => x.text);
+    if (e.type === "place") {
+      const pool = placePool(e.text, lang).filter((p) => !text.includes(p.split(" ")[0]!) && p !== e.text);
+      if (pool.length) others = shuffle(pool, r).slice(0, 3);
+    }
     if (others.length < 2) continue;
     used.add(s);
     entityItems.push(mk("entity", t.blank + s.replace(e.text, "____"), [{ text: e.text, correct: true }, ...others.slice(0, 3).map((x) => ({ text: x }))], s, t.answer + e.text));

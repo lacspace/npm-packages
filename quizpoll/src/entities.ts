@@ -5,9 +5,13 @@ import { DISTRICTS, PROVINCES } from "@lacspace/nepali-utils";
  * person↔person, org↔org). Conservative: anything we can't type is left out. @since 1.1.0
  */
 export type EntityType = "person" | "place" | "org";
+/** Level of a place, so a district answer only gets districts, a municipality only municipalities. @since 1.2.0 */
+export type PlaceLevel = "district" | "province" | "city" | "country" | "local" | "other";
 export interface TypedEntity {
   text: string;
   type: EntityType;
+  /** For places. */
+  level?: PlaceLevel;
 }
 
 const NE_CITIES = ["काठमाडौं", "काठमाडौँ", "ललितपुर", "भक्तपुर", "पोखरा", "विराटनगर", "वीरगञ्ज", "धरान", "बुटवल", "भैरहवा", "नेपालगञ्ज", "धनगढी", "हेटौंडा", "जनकपुर", "इटहरी", "भरतपुर", "बिरेन्द्रनगर", "दमक", "तुलसीपुर", "घोराही"];
@@ -28,10 +32,42 @@ export const PLACES = {
 };
 // Distractor pools when the article names too few places: districts (and countries for a country answer).
 export const PLACE_POOL = { en: { domestic: DISTRICTS.map((d) => d.name), abroad: EN_COUNTRIES }, ne: { domestic: DISTRICTS.map((d) => d.nameNp), abroad: NE_COUNTRIES } };
+const DISTRICT_SET = new Set([...DISTRICTS.flatMap((d) => [d.name, d.nameNp, ...(d.aliases ?? [])])]);
+const PROVINCE_SET = new Set(PROVINCES.flatMap((p) => [p.name, p.nameNp]));
+const CITY_SET = new Set([...EN_CITIES, ...NE_CITIES, ...EN_WORLD_CITIES]);
+const COUNTRY_SET = new Set([...EN_COUNTRIES, ...NE_COUNTRIES]);
+const LOCAL_RE = /(?:Rural Municipality|Municipality|Metropolitan City|गाउँपालिका|नगरपालिका|महानगरपालिका|उपमहानगरपालिका)$/u;
+/** The level of a place name. */
+export function placeLevel(text: string): PlaceLevel {
+  if (LOCAL_RE.test(text)) return "local";
+  if (/(?:Province|प्रदेश)$/u.test(text) || PROVINCE_SET.has(text)) return "province";
+  if (DISTRICT_SET.has(text) || /(?:District|जिल्ला)$/u.test(text)) return "district";
+  if (COUNTRY_SET.has(text)) return "country";
+  if (CITY_SET.has(text)) return "city";
+  return "other";
+}
+/** Distractors for a place answer that the article doesn't name: same level, same written form. */
+export function placePool(answer: string, lang: "en" | "ne"): string[] {
+  const level = placeLevel(answer);
+  const suffix = / Province$/.test(answer) ? " Province" : / प्रदेश$/u.test(answer) ? " प्रदेश" : / District$/.test(answer) ? " District" : / जिल्ला$/u.test(answer) ? " जिल्ला" : "";
+  const en = lang === "en";
+  const base = level === "district" ? DISTRICTS.map((d) => (en ? d.name : d.nameNp))
+    : level === "province" ? PROVINCES.map((p) => (en ? p.name : p.nameNp))
+    : level === "country" ? (en ? EN_COUNTRIES : NE_COUNTRIES)
+    : level === "city" ? (en ? EN_CITIES : NE_CITIES).filter((c) => !DISTRICT_SET.has(c))
+    : [];
+  return base.map((b) => b + suffix);
+}
 // "Nepal" is too easy as an answer and is mostly part of an org name.
 const TRIVIAL = new Set(["Nepal", "नेपाल"]);
 
-const EN_ORG = /\b(?:Fund|Bank|Association|Ministry|Council|Committee|Commission|Party|Company|Limited|Ltd|University|Authority|Office|Department|Court|Board|Federation|Organi[sz]ation|Union|Corporation|Institute|Agency|Police|Army|Assembly|Parliament|Government|Secretariat|Hospital|School|College|Club|Society|Foundation|Network|Chamber|Exchange|Airlines|Congress|Alliance|Front|Centre|Center|Trust|Bureau|Cabinet|Forum)\b/;
+const EN_ORG = /\b(?:Fund|Bank|Association|Ministry|Council|Committee|Commission|Party|Company|Limited|Ltd|University|Authority|Office|Department|Court|Board|Federation|Organi[sz]ation|Union|Corporation|Institute|Agency|Police|Army|Assembly|Parliament|Government|Secretariat|Hospital|School|College|Club|Society|Foundation|Network|Chamber|Exchange|Airlines|Congress|Alliance|Front|Centre|Center|Trust|Bureau|Cabinet|Forum|Division|Section|Unit|Branch|Directorate|Services?|Forces?|Corps|Cell|Desk|Laboratory|Lab|Station|Observatory|Network)\b/;
+// A plural head noun means a group, not one entity: "Bagmati Provinces", "Provinces".
+const PLURAL_HEAD = /\b(?:Provinces|Districts|Municipalities|Ministries|Committees|Banks|Parties|Courts|Offices|Countries|Cities|Villages|Divisions|Departments|Companies|Universities|Schools|Hospitals|Associations|Unions|Governments|Councils|Commissions|Agencies)$/;
+// Words that look like a name only because they are capitalised in a title or an org name.
+const NOT_NAME_SUFFIX = /(?:ing|tion|sion|ment|ness|ity|ance|ence|ism|ship|ure|ces|ies|ics|ology|ive|ous|ful|less|ary|ery|ory|ward|wards|ers|ors|ists)$/;
+const COMMON_CAPS = new Set(["Weather", "Forecasting", "Division", "Convention", "General", "Province", "Provinces", "District", "Districts", "Party", "Update", "Report", "Meeting", "Session", "Board", "Council", "Assembly", "Election", "Budget", "Policy", "Plan", "Act", "Bill", "Law", "Rule", "Court", "Case", "Office", "House", "Hall", "Road", "Street", "Highway", "Market", "Center", "Centre", "Park", "River", "Lake", "Temple", "Airport", "Station", "Hospital", "School", "College", "University", "Ministry", "Department", "Bank", "Fund", "Company", "Group", "Team", "Club", "Cup", "League", "Series", "Championship", "Tournament", "Festival", "Month", "Federal", "Central", "Regional", "Local", "Public", "Private", "Supreme", "High", "District", "Special", "Joint", "Standing", "Executive", "Annual", "Prime", "Chief", "Deputy", "Senior", "Former", "Acting", "Secretary", "Minister", "President", "Member", "Members", "State", "Nation", "Republic", "Kingdom", "Federation", "Council", "Medical", "Health", "Education", "Finance", "Home", "Foreign", "Affairs", "Energy", "Water", "Land", "Agriculture", "Tourism", "Culture", "Civil", "Aviation", "Industry", "Commerce", "Supplies", "Physical", "Infrastructure", "Transport", "Forest", "Environment", "Law", "Justice", "Labour", "Employment", "Social", "Security", "Women", "Children", "Youth", "Sports", "Communication", "Information", "Technology", "Science", "Urban", "Development", "Federal", "Affairs", "General", "Administration", "Defence", "Police", "Army", "Armed", "Force", "Sector", "Region", "Zone", "Area", "Rural", "Urban", "Mountain", "Hill", "Plains", "Breaking", "Live", "Latest", "Photo", "Video", "Watch"]);
+const isNameToken = (t: string) => /^\p{Lu}\p{Ll}+$/u.test(t) && !NOT_PERSON.has(t) && !COMMON_CAPS.has(t) && !NOT_NAME_SUFFIX.test(t);
 const EN_PLACE = /\b(?:Rural Municipality|Municipality|Metropolitan City|Sub-Metropolitan City|District|Province|Valley|Lake|River|Village|Airport|Highway|National Park|Himal)$/;
 const ROLE_WORDS = new Set(["Businessman", "Businesswoman", "Trader", "Farmer", "Minister", "President", "Vice-President", "Chairman", "Chairperson", "Chair", "Captain", "Coach", "Mayor", "Governor", "Secretary", "Spokesperson", "Spokesman", "Chief", "Inspector", "Superintendent", "Director", "Professor", "Prof", "Dr", "Mr", "Mrs", "Ms", "Leader", "Lawmaker", "MP", "Judge", "Justice", "General", "Gen", "Colonel", "Officer", "Principal", "Teacher", "Doctor", "Ambassador", "Lt", "Sgt", "SP", "DSP", "DIG", "IGP", "CEO", "Commissioner", "Speaker"]);
 const EN_ROLE_LC = /\b(?:businessman|businesswoman|trader|farmer|minister|president|chairman|chairperson|captain|coach|mayor|governor|secretary|spokesperson|spokesman|chief|inspector|superintendent|director|professor|leader|lawmaker|judge|officer|principal|teacher|doctor|ambassador|according to)\s+$/i;
@@ -48,14 +84,15 @@ const SPAN = new RegExp(String.raw`${CAP_TOKEN}(?:\s+(?:of|for|the|de)\s+${CAP_T
 const ACRONYM = /^\p{Lu}{2,6}$/u;
 
 function typeEn(text: string, rolePrefixed: boolean): EntityType | null {
-  if (TRIVIAL.has(text) || MEDIA.test(text)) return null;
+  if (TRIVIAL.has(text) || MEDIA.test(text) || PLURAL_HEAD.test(text)) return null;
   const tokens = text.split(/\s+/);
   if (DEMONYM.has(text) || DEMONYM.has(tokens[tokens.length - 1]!)) return null;
   if (PLACES.en.domestic.includes(text) || PLACES.en.abroad.includes(text) || EN_PLACE.test(text)) return "place";
   if (EN_ORG.test(text) || ACRONYM.test(text)) return "org";
+  // A person: after a role word, or two or three plain capitalised words, and every word must look like a name.
+  if (!tokens.every(isNameToken) || tokens.length > 3) return null;
   if (rolePrefixed) return "person";
-  // Two or three plain capitalised words, no connector: most likely a person's name.
-  if (tokens.length >= 2 && tokens.length <= 3 && tokens.every((t) => /^\p{Lu}\p{Ll}+$/u.test(t) && !NOT_PERSON.has(t))) return "person";
+  if (tokens.length >= 2) return "person";
   return null;
 }
 
@@ -87,12 +124,17 @@ function entitiesEn(sentences: string[]): TypedEntity[] {
 
 const NE_CASE = /(?:हरू)?(?:ले|लाई|को|का|की|मा|बाट|देखि|सम्म|सँग|द्वारा|तर्फ|भित्र|माथि|प्रति|ज्यू|स्थित|बीच)$/u;
 const NE_ORG_SUFFIX = /(?:बैंक|मन्त्रालय|समिति|महासंघ|संघ|पार्टी|कोष|आयोग|प्राधिकरण|विभाग|कार्यालय|अदालत|परिषद्|सभा|निगम|कम्पनी|विश्वविद्यालय|प्रतिष्ठान|संस्थान|बोर्ड|केन्द्र|मोर्चा|कांग्रेस)$/u;
-const NE_ROLES = ["प्रधानमन्त्री", "उपप्रधानमन्त्री", "मन्त्री", "राष्ट्रपति", "उपराष्ट्रपति", "अध्यक्ष", "उपाध्यक्ष", "महासचिव", "व्यवसायी", "व्यापारी", "किसान", "प्रवक्ता", "सांसद", "मेयर", "उपमेयर", "प्रमुख", "सचिव", "गभर्नर", "कप्तान", "प्रशिक्षक", "नेता", "न्यायाधीश", "प्राध्यापक", "शिक्षक", "डा.", "श्री", "निरीक्षक", "उपरीक्षक", "निर्देशक", "राजदूत"];
+const NE_ROLES = ["प्रधानमन्त्री", "उपप्रधानमन्त्री", "मन्त्री", "राष्ट्रपति", "उपराष्ट्रपति", "अध्यक्ष", "उपाध्यक्ष", "महासचिव", "व्यवसायी", "व्यापारी", "किसान", "प्रवक्ता", "सांसद", "मेयर", "उपमेयर", "सचिव", "गभर्नर", "कप्तान", "प्रशिक्षक", "नेता", "न्यायाधीश", "प्राध्यापक", "शिक्षक", "डा.", "श्री", "निरीक्षक", "उपरीक्षक", "निर्देशक", "राजदूत"];
 const NE_WORD = String.raw`[\u0900-\u0963\u0966-\u097F\u200C\u200D]+`;
 const NE_PERSON = new RegExp(String.raw`(?:^|[\s,(])(?:${NE_ROLES.map((r) => r.replace(".", "\\.")).join("|")})\s+(${NE_WORD}(?:\s+${NE_WORD})?)`, "gu");
 const strip = (w: string) => w.replace(NE_CASE, "");
 // Inside a person's name: no role or common words.
-const NE_NOT_NAME = new Set([...NE_ROLES, "नेपाल", "सरकार", "प्रदेश", "जिल्ला", "पनि", "र", "तथा", "यो", "त्यो", "उनी", "उनले", "हाल", "अहिले"]);
+const NE_NOT_NAME = new Set([...NE_ROLES, "नेपाल", "सरकार", "प्रदेश", "जिल्ला", "पनि", "र", "तथा", "यो", "त्यो", "उनी", "उनले", "हाल", "अहिले",
+  "स्थान", "सहरी", "ग्रामीण", "केन्द्र", "निर्णय", "अनुमोदन", "बैठक", "क्षेत्र", "विकास", "कार्यक्रम", "योजना", "प्रस्ताव", "निर्देशन", "आदेश", "प्रमुख", "मुख्य",
+  "सम्मेलन", "महाधिवेशन", "अधिवेशन", "चुनाव", "निर्वाचन", "सदस्य", "पद", "जिम्मेवारी", "भूमिका", "काम", "कुरा", "विषय", "समस्या", "माग", "नीति", "कानुन", "बजेट", "रकम", "संख्या",
+  "नयाँ", "पुरानो", "ठूलो", "सानो", "सबै", "धेरै", "केही", "अन्य", "विभिन्न", "प्रदेशको", "स्थानीय", "संघीय", "राष्ट्रिय"]);
+// Verb forms and plurals are never part of a name.
+const NE_NOT_NAME_END = /(?:हरू|हरु|िए|इए|एको|एका|ियो|्यो|न्छ|छन्|दै|एर|नु|ने|इन्|इयो)$/u;
 
 function entitiesNe(text: string, extracted: string[]): TypedEntity[] {
   const out: TypedEntity[] = [];
@@ -107,7 +149,7 @@ function entitiesNe(text: string, extracted: string[]): TypedEntity[] {
     const name: string[] = [];
     for (const w of words) {
       const bare = strip(w);
-      if (NE_NOT_NAME.has(bare) || bare.length < 2) break;
+      if (NE_NOT_NAME.has(bare) || NE_NOT_NAME_END.test(bare) || NE_ORG_SUFFIX.test(bare) || bare.length < 2) { name.length = 0; break; }
       name.push(bare);
       if (bare !== w) break; // a case ending closes the name
     }
@@ -122,7 +164,15 @@ function entitiesNe(text: string, extracted: string[]): TypedEntity[] {
   return out;
 }
 
-/** Typed entities in reading order of first appearance. */
+/**
+ * Typed entities in reading order of first appearance. A name that is part of a longer one in the same
+ * article ("चालिसे" / "देवराज चालिसे", "Madhesh" / "Madhesh Province") is dropped, so the two never
+ * meet as answer and option.
+ */
 export function typedEntities(text: string, sentences: string[], lang: "en" | "ne", extracted: string[] = []): TypedEntity[] {
-  return lang === "en" ? entitiesEn(sentences) : entitiesNe(text, extracted);
+  const all = lang === "en" ? entitiesEn(sentences) : entitiesNe(text, extracted);
+  const words = (t: string) => ` ${t} `;
+  return all
+    .filter((e) => !all.some((o) => o !== e && o.text.length > e.text.length && words(o.text).includes(words(e.text))))
+    .map((e) => (e.type === "place" ? { ...e, level: placeLevel(e.text) } : e));
 }

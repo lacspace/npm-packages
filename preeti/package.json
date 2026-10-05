@@ -34,7 +34,8 @@
     "font",
     "converter",
     "legacy-font",
-    "typescript"
+    "typescript",
+    "react-native"
   ],
   "author": "Lacspace <contact@lacspace.com>",
   "license": "SEE LICENSE IN LICENSE",

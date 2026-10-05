@@ -36,7 +36,8 @@
     "tihar",
     "festivals",
     "calendar",
-    "typescript"
+    "typescript",
+    "react-native"
   ],
   "devDependencies": {
     "@lacspace/nepali-date": "^1.2.1"

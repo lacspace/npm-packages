@@ -175,7 +175,8 @@
     "quizpoll",
     "conductor",
     "nepal-holidays",
-    "preeti"
+    "preeti",
+    "nepali-typing"
   ],
   "scripts": {
     "build": "npm -w @lacspace/api run build && npm -w @lacspace/auth run build && npm -w @lacspace/analytics run build && npm -w @lacspace/sdk run build",

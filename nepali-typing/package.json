@@ -1,0 +1,58 @@
+{
+  "name": "@lacspace/nepali-typing",
+  "version": "1.0.0",
+  "description": "Romanised Nepali → Devanagari typing with per-word candidates, like a phonetic input method: \"namaste\" → नमस्ते, \"mero desh\" → मेरो देश, \"kathmandu\" → काठमाडौं, \"netaharulai\" → नेताहरूलाई. A frequency lexicon matched by a loose key that forgives romanisation variance (aa/a, sh/s, w/v/b, ch/chh, dropped schwas, nasals), typed case endings, English loanwords (facebook → फेसबुक), a phonetic engine with ITRANS capitals (T D N Sh → ट ड ण ष), buildLexicon() from your own Nepali text and learn() to remember picks. Pure JS, zero dependencies, React Native safe.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nepali",
+    "devanagari",
+    "transliteration",
+    "input-method",
+    "ime",
+    "romanized",
+    "typing",
+    "keyboard",
+    "react-native",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/nepali-typing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "nepali-typing"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

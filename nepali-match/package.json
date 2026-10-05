@@ -1,0 +1,66 @@
+{
+  "name": "@lacspace/nepali-match",
+  "version": "1.0.0",
+  "description": "Nepali and English matching for names and keywords in running text: normaliseNe() folds spelling variants (chandrabindu → anusvara, half nasal + consonant → anusvara, long/short vowels, nukta/ZWJ/ZWNJ, NFC, Devanagari digits); whole-word matching that lets Nepali postpositions follow a word (झापाको → Jhapa, जिल्लाहरूमा, काठमाडौंबाटै) but no other letters (पर्वतारोही ≠ Parbat); English whole words with short all-caps acronyms kept exact-case (\"Come and see\" ≠ SEE); near() for two terms within N characters in the same sentence (। . ? ! newline), dotted abbreviations kept together; offsets into the original text; splitSuffix(); and districtTerms() for all 77 districts with real-world spellings. Pure JS, zero dependencies, React Native safe.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nepali",
+    "devanagari",
+    "nepal",
+    "text-matching",
+    "keyword-matching",
+    "whole-word",
+    "postpositions",
+    "normalization",
+    "unicode",
+    "districts",
+    "gazetteer",
+    "search",
+    "nlp",
+    "typescript",
+    "react-native"
+  ],
+  "devDependencies": {
+    "@lacspace/nepali-utils": "^1.6.0"
+  },
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/nepali-match",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "nepali-match"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

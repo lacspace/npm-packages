@@ -1,7 +1,7 @@
 import { decodeBytes, htmlTitle, htmlToText, sniffCharset } from "./html";
 import { fnv1a64, matchExpect, normalise } from "./normalise";
-import { isPdf, pdfText } from "./pdf";
-import type { CheckOptions, Kind, Summary, TlsKind, WatchError, WatchItem, WatchResult } from "./types";
+import { isPdf, pdfInfo, pdfText, type PdfInfo } from "./pdf";
+import type { CheckOptions, Kind, PdfQuality, Summary, TlsKind, WatchError, WatchItem, WatchResult } from "./types";
 
 /** Default User-Agent: a current desktop Chrome (some government sites block unknown agents). */
 export const DEFAULT_USER_AGENT =
@@ -113,6 +113,73 @@ export function isPlaceholder(text: string, bytes: number = text.length): boolea
   return placeholderReason(text, bytes) !== null;
 }
 
+// ---------------------------------------------------------------- JS app shells
+
+const APP_MARKERS: [RegExp, string][] = [
+  [/<div\b[^>]*\bid\s*=\s*["']?(?:app|root|__next|__nuxt|q-app|svelte|main-app|react-root|ember-app)\b["']?[^>]*>\s*<\/div>/i, "empty app mount point"],
+  [/<div\b[^>]*\bid\s*=\s*["']?[\w-]+["']?[^>]*>\s*<\/div>\s*(?:<link\b[^>]*>\s*)*<script\b[^>]*\btype\s*=\s*["']?module/i, "empty mount point before a module script"],
+  [/<noscript\b[^>]*>[^<]{0,300}?\b(?:enable|turn on|activate)\s+javascript/i, "<noscript> asks to enable JavaScript"],
+  [/<noscript\b[^>]*>[^<]{0,300}?\bjavascript\s+(?:is\s+)?(?:required|disabled|must be enabled)/i, "<noscript> says JavaScript is required"],
+  [/\b__NEXT_DATA__\b|\/_next\/static\//, "Next.js bundle"],
+  [/\bwindow\.__NUXT__|\/_nuxt\//, "Nuxt bundle"],
+  [/<script\b[^>]*\btype\s*=\s*["']?module["']?[^>]*\bsrc\s*=/i, "module script bundle"],
+  [/\/(?:assets|build|static\/js|js|dist)\/(?:index|app|main|bundle|vendor|runtime|chunk)[.-][\w.-]*\.js\b/i, "hashed JS bundle"],
+  [/\bchunk-vendors\b|\bapp\.[0-9a-f]{6,}\.js\b|\bmain\.[0-9a-f]{6,}\.js\b/i, "webpack bundle"],
+  [/\bng-app\b|\bng-version\s*=|<app-root\b/i, "Angular app"],
+  [/\bdata-reactroot\b|\bdata-server-rendered\b/i, "React/Vue root"],
+];
+
+/**
+ * Why an HTML page looks like a JavaScript app shell (content rendered client-side), or null.
+ * Needs both: less visible text than `minTextChars`, and a marker in the raw HTML such as an empty
+ * `<div id="app|root">`, `<noscript>…enable JavaScript…`, `__NEXT_DATA__`, module/hashed bundles, `ng-app`.
+ * @since 1.2.0
+ */
+export function jsAppReason(rawHtml: string, text: string, minTextChars = DEFAULTS.minTextChars): string | null {
+  if (normalise(text).length >= minTextChars) return null;
+  const hits: string[] = [];
+  for (const [re, label] of APP_MARKERS) if (re.test(rawHtml) && !hits.includes(label)) hits.push(label);
+  return hits.length ? hits.slice(0, 3).join(", ") : null;
+}
+
+// ---------------------------------------------------------------- bot protection
+
+const CHALLENGE_BODY: [RegExp, string][] = [
+  [/<title>\s*just a moment\.{0,3}\s*<\/title>/i, "Cloudflare challenge"],
+  [/attention required!?\s*\|\s*cloudflare/i, "Cloudflare block page"],
+  [/\bcf[-_]chl[-_]|\/cdn-cgi\/challenge-platform\/|\bchallenge-platform\b|\bcf-browser-verification\b/i, "Cloudflare challenge"],
+  [/sucuri website firewall|\bsucuri\b[\s\S]{0,200}access denied/i, "Sucuri firewall"],
+  [/incapsula incident id|_incapsula_resource|\bimperva\b/i, "Imperva/Incapsula"],
+  [/access denied[\s\S]{0,600}reference\s*#\s*[0-9a-f]+\.[0-9a-f.]+/i, "Akamai"],
+  [/captcha-delivery\.com|\bdatadome\b/i, "DataDome"],
+  [/\bddos-guard\b/i, "DDoS-Guard"],
+];
+
+/**
+ * Why a 403/429/503 response looks like a bot-protection challenge, or null. Looks at the
+ * `cf-mitigated` header, and at a `server: cloudflare` (or other WAF) response whose body is a
+ * challenge page ("Just a moment…", "Attention Required", `cf-chl`, `challenge-platform`), or a
+ * Sucuri / Imperva / Akamai ("Access Denied … Reference #") / DataDome block page. @since 1.2.0
+ */
+export function botBlockReason(status: number, headers: Headers | Record<string, string> | null | undefined, body = ""): string | null {
+  if (status !== 403 && status !== 429 && status !== 503) return null;
+  const h = (k: string): string | null => {
+    if (!headers) return null;
+    if (typeof (headers as Headers).get === "function") return (headers as Headers).get(k);
+    const rec = headers as Record<string, string>;
+    for (const key of Object.keys(rec)) if (key.toLowerCase() === k) return rec[key]!;
+    return null;
+  };
+  const mitigated = h("cf-mitigated");
+  if (mitigated) return `Cloudflare ${mitigated} (cf-mitigated)`;
+  const server = (h("server") ?? "").toLowerCase();
+  for (const [re, label] of CHALLENGE_BODY) if (re.test(body)) return `${label} (HTTP ${status}${server ? `, server: ${server}` : ""})`;
+  if (h("x-sucuri-id") || /sucuri|cloudproxy/.test(server)) return `Sucuri firewall (HTTP ${status})`;
+  if (h("x-iinfo") || /incapsula/i.test(h("x-cdn") ?? "")) return `Imperva/Incapsula (HTTP ${status})`;
+  if (h("x-datadome") || h("x-dd-b")) return `DataDome (HTTP ${status})`;
+  return null;
+}
+
 // ---------------------------------------------------------------- extraction
 
 function detectKind(declared: WatchItem["kind"], contentType: string | null, bytes: Uint8Array, url: string): Kind {
@@ -157,10 +224,12 @@ interface Fetched {
 }
 
 class HttpStatusError extends Error {
-  constructor(public status: number, public finalUrl: string) {
+  constructor(public status: number, public finalUrl: string, public blocked: string | null = null) {
     super(`HTTP ${status}`);
   }
 }
+
+const decoder = new TextDecoder("utf-8");
 
 async function readCapped(res: Response, maxBytes: number, abort: Promise<never>): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   if (!res.body) return { bytes: new Uint8Array(0), truncated: false };
@@ -219,8 +288,19 @@ async function fetchOnce(url: string, o: Required<Pick<CheckOptions, "timeoutMs"
     const res = await Promise.race([f(url, { redirect: "follow", headers, signal: ctrl.signal }), abort]);
     const finalUrl = res.url || url;
     if (res.status >= 400) {
-      res.body?.cancel().catch(() => undefined);
-      throw new HttpStatusError(res.status, finalUrl);
+      let blocked: string | null = null;
+      if (res.status === 403 || res.status === 429 || res.status === 503) {
+        // peek at (at most 64 KB of) the error page to tell a bot challenge from a plain refusal
+        let body = "";
+        try {
+          const { bytes } = await readCapped(res, 64 * 1024, abort);
+          body = decoder.decode(bytes);
+        } catch {
+          /* headers alone */
+        }
+        blocked = botBlockReason(res.status, res.headers, body);
+      } else res.body?.cancel().catch(() => undefined);
+      throw new HttpStatusError(res.status, finalUrl, blocked);
     }
     const { bytes, truncated } = await readCapped(res, o.maxBytes, abort);
     return { status: res.status, finalUrl, contentType: res.headers.get("content-type"), bytes, truncated };
@@ -247,7 +327,9 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
     } catch (err) {
       let r: Partial<WatchResult>;
       if (err instanceof HttpStatusError) {
-        r = { status: err.status, finalUrl: err.finalUrl, error: err.status >= 500 ? "http_5xx" : "http_4xx", detail: `HTTP ${err.status}` };
+        r = err.blocked
+          ? { status: err.status, finalUrl: err.finalUrl, error: "bot_blocked", detail: err.blocked }
+          : { status: err.status, finalUrl: err.finalUrl, error: err.status >= 500 ? "http_5xx" : "http_4xx", detail: `HTTP ${err.status}` };
       } else {
         const c = classifyError(err);
         r = { error: c.error, detail: c.detail, ...(c.tlsKind ? { tlsKind: c.tlsKind } : {}) };
@@ -267,11 +349,17 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
 
   let text = "";
   let title = "";
+  let raw = "";
+  let info: PdfInfo | undefined;
   try {
     if (kind === "html") {
-      const raw = decodeBytes(bytes, sniffCharset(bytes, contentType));
+      raw = decodeBytes(bytes, sniffCharset(bytes, contentType));
       title = htmlTitle(raw);
       text = htmlToText(raw);
+    } else if (kind === "pdf") {
+      info = await pdfInfo(bytes, { fixDevanagari: opts.pdf?.fixDevanagari !== false });
+      text = info.text;
+      meta.pdfQuality = qualityOf(info);
     } else text = await extractText(bytes, kind, contentType);
   } catch (err) {
     return fail({ ...meta, error: "unparseable", detail: String((err as Error)?.message ?? err).slice(0, 200) });
@@ -281,13 +369,16 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
   const hashMeta: Partial<WatchResult> = { contentHash, ...(item.prevHash !== undefined ? { changedSince: item.prevHash !== contentHash } : {}) };
 
   if (kind === "pdf" && norm.length === 0) {
+    if (truncated) return fail({ ...meta, ...hashMeta, error: "too_large", detail: `PDF cut at ${bytes.length} bytes and no text recovered` });
+    if (info?.imageOnly) {
+      const n = info.images;
+      return fail({ ...meta, ...hashMeta, error: "image_only", detail: `scanned/image-only PDF (${n} image${n === 1 ? "" : "s"}, no text) — needs OCR` });
+    }
     return fail({
       ...meta,
       ...hashMeta,
-      error: truncated ? "too_large" : "unparseable",
-      detail: truncated
-        ? `PDF cut at ${bytes.length} bytes and no text recovered`
-        : "no extractable text (scanned image, encrypted, or fonts without a Unicode map)",
+      error: "unparseable",
+      detail: info?.encrypted ? "encrypted PDF" : "no extractable text (encrypted, broken, or fonts without a Unicode map)",
     });
   }
 
@@ -295,7 +386,10 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
   const transform = item.textTransform ?? opts.textTransform;
   if (transform) {
     try {
-      const t = normalise(await transform(text, { id: item.id, url: item.url, kind }));
+      const ctx = info
+        ? { id: item.id, url: item.url, kind, fonts: info.fonts, ...(info.legacyFont ? { legacyFont: info.legacyFont } : {}) }
+        : { id: item.id, url: item.url, kind };
+      const t = normalise(await transform(text, ctx));
       if (t && t !== norm) haystack = `${t}\n\n${norm}`;
     } catch (err) {
       return fail({ ...meta, ...hashMeta, error: "unparseable", detail: `textTransform failed: ${String((err as Error)?.message ?? err).slice(0, 160)}` });
@@ -312,12 +406,29 @@ export async function check(item: WatchItem, opts: CheckOptions = {}): Promise<W
     ...(m.snippet ? { snippet: m.snippet } : {}),
   };
 
+  if (kind === "html") {
+    const app = jsAppReason(raw, text, o.minTextChars);
+    if (app) {
+      return { ...res, ok: false, error: "js_app", detail: `page renders with JavaScript; check its JSON API or use a headless browser (${app})`, ms: Date.now() - t0 };
+    }
+  }
   if (kind !== "pdf") {
     const why = placeholderReason(text, bytes.length, title, o.minTextChars);
     if (why) return { ...res, ok: false, error: "placeholder_page", detail: why, ms: Date.now() - t0 };
   }
   if (!m.found) return { ...res, ok: false, error: "not_found_text", detail: `missing: ${m.missing.join(", ")}`, ms: Date.now() - t0 };
   return { ...res, ok: true, ms: Date.now() - t0 };
+}
+
+function qualityOf(info: PdfInfo): PdfQuality {
+  return {
+    replacementChars: info.replacementChars,
+    ...(info.legacyFont ? { legacyFont: info.legacyFont } : {}),
+    fonts: info.fonts,
+    images: info.images,
+    ...(info.imageOnly ? { imageOnly: true } : {}),
+    ...(info.ocrLayer ? { ocrLayer: true } : {}),
+  };
 }
 
 function hostOf(url: string): string {

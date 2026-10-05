@@ -788,6 +788,9 @@ interface Range {
 }
 
 interface Font {
+  id: number;
+  /** BaseFont without the subset prefix ("ABCDEF+"). */
+  name: string;
   composite: boolean;
   /** code key -> unicode (from ToUnicode). Key = value + len * 2^32. */
   uni: Map<number, string> | null;
@@ -796,6 +799,205 @@ interface Font {
   simple: (string | undefined)[] | null;
   widths: (code: number) => number; // in 1/1000 em
   spaceCode: number; // byte value used for word spacing (simple fonts: 32)
+  /** Composite Identity-H/V fonts: CID (= code) -> glyph id. */
+  gid: ((code: number) => number) | null;
+  /** glyph id -> characters, from the embedded TrueType/OpenType `cmap` table (first entry preferred). */
+  glyphUni: Map<number, string[]> | null;
+  /** ToUnicode disagrees with the embedded font's own cmap on Devanagari glyphs (a known word-processor export bug). */
+  broken: boolean;
+  /** Advance width of a glyph that maps to ी, used to sanity-check recovered glyphs. */
+  iiWidth: number;
+  /** Advance width of the font's own i-matra glyph (from its cmap). */
+  iWidth: number;
+  cache: Map<number, string>;
+}
+
+// ---------------------------------------------------------------- embedded font cmap
+
+const u16 = (b: Uint8Array, o: number) => ((b[o]! << 8) | b[o + 1]!) >>> 0;
+const u32 = (b: Uint8Array, o: number) => ((b[o]! << 24) | (b[o + 1]! << 16) | (b[o + 2]! << 8) | b[o + 3]!) >>> 0;
+
+/**
+ * glyph id -> characters from a TrueType / OpenType font's `cmap` table (Unicode subtables only:
+ * platform 0, or platform 3 encodings 1 and 10; formats 4 and 12). Null when absent or malformed.
+ */
+export function sfntGlyphMap(b: Uint8Array): Map<number, string[]> | null {
+  try {
+    if (b.length < 12) return null;
+    const n = u16(b, 4);
+    let cmapOff = -1;
+    for (let i = 0; i < n && 12 + 16 * i + 16 <= b.length; i++) {
+      const p = 12 + 16 * i;
+      if (b[p] === 0x63 && b[p + 1] === 0x6d && b[p + 2] === 0x61 && b[p + 3] === 0x70) cmapOff = u32(b, p + 8);
+    }
+    if (cmapOff < 0 || cmapOff + 4 > b.length) return null;
+    const out = new Map<number, string[]>();
+    const add = (cp: number, g: number) => {
+      if (!g || cp < 0x20 || (cp >= 0xd800 && cp <= 0xdfff) || cp > 0x10ffff || (cp >= 0xe000 && cp <= 0xf8ff)) return;
+      const ch = String.fromCodePoint(cp);
+      const cur = out.get(g);
+      if (!cur) out.set(g, [ch]);
+      else if (!cur.includes(ch)) cur.push(ch);
+    };
+    const subs = u16(b, cmapOff + 2);
+    const seen = new Set<number>();
+    for (let i = 0; i < subs && i < 64; i++) {
+      const rec = cmapOff + 4 + 8 * i;
+      if (rec + 8 > b.length) break;
+      const pid = u16(b, rec);
+      const eid = u16(b, rec + 2);
+      if (!(pid === 0 || (pid === 3 && (eid === 1 || eid === 10)))) continue;
+      const sub = cmapOff + u32(b, rec + 4);
+      if (seen.has(sub) || sub + 4 > b.length) continue;
+      seen.add(sub);
+      const fmt = u16(b, sub);
+      if (fmt === 4) {
+        const segX2 = u16(b, sub + 6);
+        const ends = sub + 14;
+        const starts = ends + segX2 + 2;
+        const deltas = starts + segX2;
+        const roffs = deltas + segX2;
+        if (roffs + segX2 > b.length) continue;
+        for (let s = 0; s < segX2 / 2; s++) {
+          const end = u16(b, ends + 2 * s);
+          const start = u16(b, starts + 2 * s);
+          const delta = u16(b, deltas + 2 * s);
+          const ro = u16(b, roffs + 2 * s);
+          for (let c = start; c <= end && c !== 0xffff && c - start < 65536; c++) {
+            let g: number;
+            if (ro === 0) g = (c + delta) & 0xffff;
+            else {
+              const p = roffs + 2 * s + ro + 2 * (c - start);
+              if (p + 2 > b.length) break;
+              g = u16(b, p);
+              if (g) g = (g + delta) & 0xffff;
+            }
+            add(c, g);
+          }
+        }
+      } else if (fmt === 12) {
+        const groups = u32(b, sub + 12);
+        for (let k = 0; k < groups && k < 100000; k++) {
+          const p = sub + 16 + 12 * k;
+          if (p + 12 > b.length) break;
+          const sc = u32(b, p);
+          const ec = Math.min(u32(b, p + 4), sc + 65535);
+          const sg = u32(b, p + 8);
+          for (let c = sc; c <= ec; c++) add(c, sg + (c - sc));
+        }
+      }
+    }
+    return out.size ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------- Devanagari helpers
+
+/** Internal markers (Private Use Area), never left in the output. */
+const REPH = "\uE000"; // a reph glyph (र्) in visual position: after its cluster
+const PREI = "\uE001"; // a pre-base i-matra (ि) in visual position: before its cluster
+const HOLE = "\uE004"; // an unrecoverable glyph (usually a conjunct ligature), dropped at the end
+const VARI = "\uE002"; // broken export: next char labels a variant glyph as wide as the i-matra
+const VARH = "\uE003"; // broken export: next char labels another variant glyph (half form?)
+const UNK0 = 0xe100; // U+E100..U+F8FF: glyphs whose ToUnicode is U+FFFD, resolved after extraction
+const UNK_MAX = 0xf8ff - UNK0;
+
+const isDeva = (s: string) => /[\u0900-\u097F]/.test(s);
+const isCons = (c: string | undefined) => {
+  if (c === undefined) return false;
+  const o = c.charCodeAt(0);
+  return (o >= 0x915 && o <= 0x939) || (o >= 0x958 && o <= 0x95f) || (o >= 0x978 && o <= 0x97f);
+};
+/** Dependent vowel signs, nukta, virama and the marks that sit on a cluster. */
+const isSign = (c: string | undefined) => {
+  if (c === undefined) return false;
+  const o = c.charCodeAt(0);
+  return (o >= 0x900 && o <= 0x903) || (o >= 0x93a && o <= 0x94f) || (o >= 0x955 && o <= 0x957) || o === 0x962 || o === 0x963;
+};
+const SPACING_SIGNS = new Set(["\u093E", "\u093F", "\u0940", "\u0949", "\u094A", "\u094B", "\u094C"]);
+const isUnk = (c: string | undefined) => c !== undefined && c.charCodeAt(0) >= UNK0 && c.charCodeAt(0) <= 0xf8ff;
+
+/** Move each PREI marker after the consonant cluster that follows it (visual → logical). */
+function reorderPreI(a: string[]): void {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== PREI) continue;
+    let j = i + 1;
+    if (a[j] === HOLE) {
+      a.splice(i, 1); // the i-matra belongs to an unrecoverable conjunct: drop both
+      continue;
+    }
+    if (!isCons(a[j])) {
+      a[i] = "\u093F";
+      continue;
+    }
+    j++;
+    for (;;) {
+      if (a[j] === "\u093C") j++;
+      if (a[j] === "\u094D" && isCons(a[j + 1])) {
+        j += 2;
+        continue;
+      }
+      break;
+    }
+    a.splice(i, 1);
+    a.splice(j - 1, 0, "\u093F");
+    i = j - 1;
+  }
+}
+
+/** Move each REPH marker before the consonant cluster it was drawn on (visual → logical). */
+function reorderReph(a: string[]): void {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== REPH) continue;
+    let k = i - 1;
+    while (k >= 0 && (isSign(a[k]) || a[k] === PREI) && a[k] !== "\u094D") k--;
+    if (a[k] === HOLE) {
+      a.splice(i, 1);
+      a.splice(k, 0, "\u0930", "\u094D");
+      i++;
+      continue;
+    }
+    if (k < 0 || !isCons(a[k])) {
+      a.splice(i, 1, "\u0930", "\u094D");
+      i++;
+      continue;
+    }
+    while (k >= 2 && a[k - 1] === "\u094D" && isCons(a[k - 2])) k -= 2;
+    a.splice(i, 1);
+    a.splice(k, 0, "\u0930", "\u094D");
+    i++;
+  }
+}
+
+// ---------------------------------------------------------------- legacy fonts
+
+/** Legacy Nepali fonts that store Devanagari as ASCII/Latin-1 codes (need a converter, e.g. Preeti → Unicode). */
+const LEGACY_FONTS: [RegExp, string][] = [
+  [/^preeti/, "Preeti"],
+  [/^kantipur/, "Kantipur"],
+  [/^himalb/, "Himalb"],
+  [/^(fontasy)?himali/, "Fontasy Himali"],
+  [/^sagarmatha/, "Sagarmatha"],
+  [/^pcsnepali/, "PCS Nepali"],
+  [/^aakriti/, "Aakriti"],
+  [/^ganess?h?/, "Ganess"],
+  [/^shangrila/, "Shangrila Numeric"],
+  [/^navjeevan/, "Navjeevan"],
+  [/^kanchan/, "Kanchan"],
+  [/^nepalifont/, "Nepali"],
+];
+
+/** The legacy Nepali ASCII font family a font name belongs to (e.g. "ABCDEF+Preeti-Bold" → "Preeti"), or undefined. */
+export function legacyFontFamily(name: string): string | undefined {
+  const n = stripSubset(name).toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (const [re, label] of LEGACY_FONTS) if (re.test(n)) return label;
+  return undefined;
+}
+
+function stripSubset(name: string): string {
+  return name.replace(/^[A-Z]{6}\+/, "");
 }
 
 const key = (val: number, len: number) => val + len * 4294967296;
@@ -900,10 +1102,14 @@ function simpleEncoding(doc: Doc, fontDict: PDict): (string | undefined)[] {
   return base;
 }
 
+let fontSeq = 0;
+
 async function loadFont(doc: Doc, ref: PVal | undefined): Promise<Font> {
   const fd = doc.dict(ref) ?? new PDict();
   const subtype = (doc.get(fd.get("Subtype")) as PName | undefined)?.v;
   const composite = subtype === "Type0";
+  const baseName = doc.get(fd.get("BaseFont"));
+  const name = baseName instanceof PName ? stripSubset(baseName.v) : "";
   let uni: Map<number, string> | null = null;
   let ranges: Range[] = [];
   const tu = fd.get("ToUnicode");
@@ -916,9 +1122,30 @@ async function loadFont(doc: Doc, ref: PVal | undefined): Promise<Font> {
   }
   if (!ranges.length) ranges = [composite ? { len: 2, lo: [0, 0], hi: [255, 255] } : { len: 1, lo: [0], hi: [255] }];
   let widths: (code: number) => number = () => (composite ? 1000 : 500);
+  let gid: Font["gid"] = null;
+  let glyphUni: Font["glyphUni"] = null;
   if (composite) {
     const desc = doc.get(fd.get("DescendantFonts"));
     const cid = doc.dict(Array.isArray(desc) ? desc[0] : undefined);
+    const encName = doc.get(fd.get("Encoding"));
+    const identity = encName instanceof PName && (encName.v === "Identity-H" || encName.v === "Identity-V");
+    if (cid && identity) {
+      // glyph identities from the embedded font program (TrueType, or OpenType in FontFile3)
+      const fdesc = doc.dict(cid.get("FontDescriptor"));
+      let ff = doc.obj(fdesc?.get("FontFile2"));
+      if (!ff) {
+        const f3 = doc.obj(fdesc?.get("FontFile3"));
+        if (f3 && f3.val instanceof PDict && (doc.get(f3.val.get("Subtype")) as PName | undefined)?.v === "OpenType") ff = f3;
+      }
+      const prog = ff ? await doc.streamData(ff) : null;
+      if (prog) glyphUni = sfntGlyphMap(prog);
+      const map = doc.get(cid.get("CIDToGIDMap"));
+      if (map instanceof PName || map === undefined) gid = (c) => c;
+      else {
+        const data = await doc.streamData(doc.obj(cid.get("CIDToGIDMap")));
+        if (data) gid = (c) => (2 * c + 1 < data.length ? (data[2 * c]! << 8) | data[2 * c + 1]! : 0);
+      }
+    }
     if (cid) {
       const dw = num(doc.get(cid.get("DW")), 1000);
       const w = doc.get(cid.get("W"));
@@ -949,13 +1176,48 @@ async function loadFont(doc: Doc, ref: PVal | undefined): Promise<Font> {
       widths = (code) => ws[code - first] ?? missing;
     }
   }
+  // A word-processor export bug writes ToUnicode entries per glyph from the first cluster the glyph
+  // appeared in, pairing logical characters with visually ordered glyphs: the i-matra glyph becomes
+  // "\u092E", consonants become "\u093F", a reph becomes "\u0936". The font's own cmap still knows each glyph.
+  let broken = false;
+  let iiWidth = 0;
+  if (uni) {
+    let compared = 0;
+    let bad = 0;
+    for (const [k, u] of uni) {
+      const len = Math.floor(k / 4294967296);
+      const code = k - len * 4294967296;
+      if (u === "\u0940" && !iiWidth) iiWidth = widths(code);
+      if (!glyphUni || !gid || len !== 2) continue;
+      const cs = glyphUni.get(gid(code));
+      if (!cs || !isDeva(cs[0]!)) continue;
+      compared++;
+      if (!cs.includes(u)) bad++;
+    }
+    broken = bad >= 2 && bad >= compared * 0.05;
+  }
+  let iWidth = 0;
+  if (glyphUni && gid) {
+    for (const [g, cs] of glyphUni) {
+      if (!iiWidth && cs.includes("\u0940")) iiWidth = widths(g);
+      if (!iWidth && cs.includes("\u093F")) iWidth = widths(g);
+    }
+  }
   return {
+    id: ++fontSeq,
+    name,
     composite,
     uni,
     ranges,
     simple: composite ? null : simpleEncoding(doc, fd),
     widths,
     spaceCode: 32,
+    gid,
+    glyphUni,
+    broken,
+    iiWidth,
+    iWidth,
+    cache: new Map(),
   };
 }
 
@@ -1000,13 +1262,89 @@ function codes(font: Font, s: string): { code: number; len: number }[] {
   return out;
 }
 
-function decodeGlyph(font: Font, code: number, len: number): string {
+function decodePlain(font: Font, code: number, len: number): string {
   if (font.uni) {
     const u = font.uni.get(key(code, len));
     if (u !== undefined) return u;
   }
   if (font.simple && len === 1) return font.simple[code] ?? "";
-  return ""; // composite without mapping: undecodable, emit nothing
+  // composite without a ToUnicode entry: the embedded font's own cmap, else undecodable (emit nothing)
+  if (font.glyphUni && font.gid && len === 2) return font.glyphUni.get(font.gid(code))?.[0] ?? "";
+  return "";
+}
+
+/**
+ * Decode one glyph. With `fixDevanagari`, Devanagari glyphs may come back as internal markers
+ * (REPH, PREI, unknown-glyph placeholders) that {@link finishRuns} resolves once the whole document is read.
+ */
+function decodeGlyph(font: Font, code: number, len: number, out: Out): string {
+  const k = code + len * 65536;
+  const hit = font.cache.get(k);
+  if (hit !== undefined) return hit;
+  let s = decodePlain(font, code, len);
+  if (out.fix) s = decodeFix(font, code, len, s, out);
+  font.cache.set(k, s);
+  return s;
+}
+
+function decodeFix(font: Font, code: number, len: number, s: string, out: Out): string {
+  const g = font.gid && len === 2 ? font.gid(code) : -1;
+  const own = g >= 0 ? font.glyphUni?.get(g) : undefined;
+  const w = font.widths(code);
+  if (own && isDeva(own[0]!)) {
+    // the glyph is a plain character of the font: trust the font over a broken ToUnicode
+    if (font.broken || !s) s = own.includes(s) ? s : own[0]!;
+    return s === "\u093F" ? PREI : s;
+  }
+  if (s.includes("\uFFFD")) {
+    if (s !== "\uFFFD" || g < 0) {
+      out.replacement += (s.match(/\uFFFD/g) ?? []).length;
+      return s.replace(/\uFFFD/g, "");
+    }
+    // same font program (subsets keep glyph ids) → pool the evidence across subsets
+    const id = `${font.name || font.id}:${g}`;
+    let idx = out.unkIdx.get(id);
+    if (idx === undefined) {
+      if (out.unknowns.length > UNK_MAX) return s;
+      idx = out.unknowns.length;
+      out.unknowns.push({ font, width: w });
+      out.unkIdx.set(id, idx);
+    }
+    return String.fromCharCode(UNK0 + idx);
+  }
+  if (!isDeva(s)) return s;
+  const zero = w <= 1;
+  // a zero-width glyph is a mark: if it "is" र् or a spacing letter/sign, it is the reph drawn after its cluster
+  if (zero && s === "\u0930\u094D") return REPH;
+  if (zero && font.glyphUni && !own && s.length === 1 && (isCons(s) || SPACING_SIGNS.has(s))) return REPH;
+  // broken export: a zero-width variant of े / ै that the font maps elsewhere is the reph ligature
+  if (zero && font.broken && !own && (s === "\u0947" || s === "\u0948")) {
+    for (const cs of font.glyphUni!.values()) if (cs.includes(s)) return REPH + s;
+  }
+  if (s === "\u093F" && !(font.broken && font.glyphUni)) return PREI;
+  // broken export: a variant glyph (not in the font's cmap) labelled with a bare consonant is either an
+  // i-matra variant (as wide as ि, and followed by that same consonant) or a half form (needs ्)
+  if (font.broken && !own && s.length === 1 && isCons(s) && !zero) {
+    const iw = font.iWidth;
+    return (iw > 0 && Math.abs(w - iw) <= 0.2 * iw ? VARI : VARH) + s;
+  }
+  return s;
+}
+
+/**
+ * Resolve variant markers (broken exports only). "VARI C C": an i-matra variant labelled with the
+ * consonant it was first drawn before → PREI. "VARH C" (or VARI) before a consonant: a half form → "C्".
+ */
+function resolveVariants(a: string[]): void {
+  for (let i = 0; i < a.length; i++) {
+    const m = a[i];
+    if (m !== VARI && m !== VARH) continue;
+    const c = a[i + 1]!;
+    const nx = a[i + 2];
+    if (m === VARI && nx === c) a.splice(i, 2, PREI);
+    else if (isCons(nx)) a.splice(i, 2, c, "\u094D");
+    else a.splice(i, 1);
+  }
 }
 
 // ---------------------------------------------------------------- interpreter
@@ -1027,6 +1365,20 @@ interface Out {
   chars: number;
   last?: { x: number; y: number; size: number };
   ops: number;
+  /** Apply the Devanagari repairs (markers + post-pass). */
+  fix: boolean;
+  /** Text-showing operators: parts[from, to) were drawn with `font`. */
+  runs: { from: number; to: number; font: Font }[];
+  /** Glyphs whose ToUnicode is U+FFFD, by placeholder index. */
+  unknowns: { font: Font; width: number }[];
+  unkIdx: Map<string, number>;
+  /** U+FFFD characters dropped. */
+  replacement: number;
+  fontChars: Map<Font, number>;
+  /** Characters drawn with an invisible text render mode (3 or 7): typical of a scanner's OCR layer. */
+  invisible: number;
+  /** Image XObjects and inline images drawn. */
+  images: number;
 }
 
 const MAX_OPS = 5_000_000;
@@ -1053,10 +1405,10 @@ async function runContent(
   const lex = new Lexer(latin1(data));
   const stack: (PVal | POp)[] = [];
   let ctm = ctm0;
-  const gstack: { ctm: M; font: Font | null; size: number; tc: number; tw: number; th: number; tl: number; rise: number }[] = [];
+  const gstack: { ctm: M; font: Font | null; size: number; tc: number; tw: number; th: number; tl: number; rise: number; tr: number }[] = [];
   let font: Font | null = null;
   let size = 1;
-  let tc = 0, tw = 0, th = 1, tl = 0, rise = 0;
+  let tc = 0, tw = 0, th = 1, tl = 0, rise = 0, tr = 0;
   let tm: M = ID;
   let lm: M = ID;
   const fonts = doc.dict(res?.get("Font"));
@@ -1085,10 +1437,13 @@ async function runContent(
       else if (x - out.last.x > 0.2 * fsize || out.last.x - x > fsize * 1.5) emitBreak(out, " ");
     }
     let text = "";
+    let marksOnly = !!font && s.length > 0;
+    const prev = out.last;
     if (font) {
       for (const { code, len } of codes(font, s)) {
-        text += decodeGlyph(font, code, len);
+        text += decodeGlyph(font, code, len, out);
         const w = font.widths(code) / 1000;
+        if (w > 0.001) marksOnly = false;
         const adv = (w * size + tc + (len === 1 && code === font.spaceCode ? tw : 0)) * th;
         tm = mul([1, 0, 0, 1, adv, 0], tm);
       }
@@ -1096,9 +1451,23 @@ async function runContent(
     if (text) {
       out.parts.push(text.replace(/[\u0000-\u0008\u000B-\u001F]/g, ""));
       out.chars += text.length;
+      if (font) out.fontChars.set(font, (out.fontChars.get(font) ?? 0) + text.length);
+      if (tr === 3 || tr === 7) out.invisible += text.length;
     }
     const end = mul([size * th, 0, 0, size, 0, rise], mul(tm, ctm));
-    out.last = { x: end[4], y: end[5], size: fsize };
+    // a zero-width mark placed back over its base (each glyph positioned on its own) must not
+    // move the end of the word backwards, or the next glyph looks like a new word
+    if (marksOnly && prev && Math.abs(end[5] - prev.y) <= 0.5 * Math.min(fsize, prev.size)) out.last = { x: Math.max(prev.x, end[4]), y: prev.y, size: prev.size };
+    else out.last = { x: end[4], y: end[5], size: fsize };
+  };
+
+  // A run is a stretch of glyphs from one font with nothing else drawn in between. Consecutive
+  // show operators merge: some writers position every glyph with its own Tj.
+  const run = (from: number) => {
+    if (!font || out.parts.length <= from) return;
+    const prev = out.runs[out.runs.length - 1];
+    if (prev && prev.font === font && prev.to === from) prev.to = out.parts.length;
+    else out.runs.push({ from, to: out.parts.length, font });
   };
 
   const nl = () => {
@@ -1129,11 +1498,11 @@ async function runContent(
     try {
       switch (op) {
         case "q":
-          if (gstack.length < 256) gstack.push({ ctm, font, size, tc, tw, th, tl, rise });
+          if (gstack.length < 256) gstack.push({ ctm, font, size, tc, tw, th, tl, rise, tr });
           break;
         case "Q": {
           const g = gstack.pop();
-          if (g) ({ ctm, font, size, tc, tw, th, tl, rise } = g);
+          if (g) ({ ctm, font, size, tc, tw, th, tl, rise, tr } = g);
           break;
         }
         case "cm":
@@ -1156,6 +1525,7 @@ async function runContent(
         case "Tz": th = n(1) / 100; break;
         case "TL": tl = n(1); break;
         case "Ts": rise = n(1); break;
+        case "Tr": tr = n(1); break;
         case "Td":
           lm = mul([1, 0, 0, 1, n(2), n(1)], lm);
           tm = lm;
@@ -1174,13 +1544,17 @@ async function runContent(
           break;
         case "Tj": {
           const s = stack[stack.length - 1];
+          const from = out.parts.length;
           if (s instanceof PStr) show(s.v);
+          run(from);
           break;
         }
         case "'": {
           nl();
           const s = stack[stack.length - 1];
+          const from = out.parts.length;
           if (s instanceof PStr) show(s.v);
+          run(from);
           break;
         }
         case '"': {
@@ -1188,11 +1562,14 @@ async function runContent(
           tc = n(2);
           nl();
           const s = stack[stack.length - 1];
+          const from = out.parts.length;
           if (s instanceof PStr) show(s.v);
+          run(from);
           break;
         }
         case "TJ": {
           const arr = stack[stack.length - 1];
+          const from = out.parts.length;
           if (Array.isArray(arr)) {
             for (const e of arr) {
               if (e instanceof PStr) show(e.v);
@@ -1205,6 +1582,7 @@ async function runContent(
               }
             }
           }
+          run(from);
           break;
         }
         case "Do": {
@@ -1212,7 +1590,9 @@ async function runContent(
           if (!(nm instanceof PName) || depth > 12) break;
           const xo = doc.obj(xobjs?.get(nm.v));
           if (!xo || seenForms.has(xo) || !(xo.val instanceof PDict)) break;
-          if ((doc.get(xo.val.get("Subtype")) as PName | undefined)?.v !== "Form") break;
+          const st = (doc.get(xo.val.get("Subtype")) as PName | undefined)?.v;
+          if (st === "Image") out.images++;
+          if (st !== "Form") break;
           const data2 = await doc.streamData(xo);
           if (!data2) break;
           const mtx = doc.get(xo.val.get("Matrix"));
@@ -1224,6 +1604,7 @@ async function runContent(
         }
         case "BI": {
           // inline image: skip to ID, then binary data up to whitespace-delimited EI
+          out.images++;
           const s = lex.s;
           const idAt = s.indexOf("ID", lex.p);
           if (idAt < 0) {
@@ -1244,19 +1625,187 @@ async function runContent(
   }
 }
 
+// ---------------------------------------------------------------- post-pass
+
 /**
- * Extract the text of a PDF in page order. Pure JS; Flate via DecompressionStream.
- * Never throws: malformed or truncated input yields whatever text could be recovered (possibly "").
- * Encrypted PDFs, scanned (image-only) pages and composite fonts without a ToUnicode map yield no text.
+ * Resolve Devanagari markers once every run is known:
+ * 1. glyphs whose ToUnicode is U+FFFD: a glyph that is always followed by a consonant (never by a sign,
+ *    a space or the end of a run) is a pre-base i-matra variant; one that always follows a consonant,
+ *    is never followed by a sign and is as wide as the font's ी is an ी variant; anything else is dropped.
+ * 2. fonts whose text is in visual order (broken ToUnicode, or i-matras that mostly sit where logical
+ *    text never puts them) get their i-matras moved after the following cluster.
+ * 3. reph glyphs move before the cluster they were drawn on.
  */
-export async function pdfText(bytes: Uint8Array, opts: { maxPages?: number } = {}): Promise<string> {
+function finishRuns(out: Out): void {
+  const texts = out.runs.map((r) => out.parts.slice(r.from, r.to).join(""));
+  // 1. unknown glyphs
+  if (out.unknowns.length) {
+    type St = { n: number; nCons: number; nMark: number; nSign: number; nOther: number; pCons: number };
+    const st: St[] = out.unknowns.map(() => ({ n: 0, nCons: 0, nMark: 0, nSign: 0, nOther: 0, pCons: 0 }));
+    for (const t of texts) {
+      for (let i = 0; i < t.length; i++) {
+        if (!isUnk(t[i])) continue;
+        const s = st[t.charCodeAt(i) - UNK0]!;
+        const nx = t[i + 1];
+        const pv = t[i - 1];
+        s.n++;
+        if (isCons(nx)) s.nCons++;
+        else if (nx !== undefined && nx >= "\u0900" && nx <= "\u0903") s.nMark++;
+        else if (isSign(nx)) s.nSign++;
+        else if (!isUnk(nx) && nx !== PREI && nx !== REPH) s.nOther++;
+        if (isCons(pv) || pv === "\u093C") s.pCons++;
+      }
+    }
+    const repl = out.unknowns.map((u, i) => {
+      const s = st[i]!;
+      const ii = u.font.iiWidth;
+      const narrow = !ii || u.width <= 2.5 * ii;
+      // pre-base i-matra variant: (almost) always followed by a consonant, never by a sign or mark
+      const known = s.nCons + s.nMark + s.nSign + s.nOther; // neighbours that are not themselves unknown
+      if (s.nCons >= 3 && narrow && u.width > 0 && s.nSign + s.nMark === 0 && s.nOther <= Math.max(1, 0.03 * known) && s.nCons >= 0.9 * known) return PREI;
+      // ी variant: as wide as the font's ी, after a consonant, not followed by another vowel sign
+      if (s.n >= 3 && ii > 0 && Math.abs(u.width - ii) <= 0.2 * ii && s.pCons >= 0.95 * s.n && s.nSign <= 0.02 * s.n) return "\u0940";
+      return HOLE;
+    });
+    for (let r = 0; r < out.runs.length; r++) {
+      const t = texts[r]!;
+      if (!/[\uE100-\uF8FF]/.test(t)) continue;
+      texts[r] = t.replace(/[\uE100-\uF8FF]/g, (c) => {
+        const v = repl[c.charCodeAt(0) - UNK0] ?? HOLE;
+        if (v === HOLE) out.replacement++;
+        return v;
+      });
+    }
+  }
+  // 2. visual-order fonts
+  const iStats = new Map<Font, { all: number; bad: number }>();
+  texts.forEach((t, r) => {
+    const f = out.runs[r]!.font;
+    for (let i = 0; i < t.length; i++) {
+      if (t[i] !== PREI) continue;
+      const s = iStats.get(f) ?? { all: 0, bad: 0 };
+      s.all++;
+      const pv = t[i - 1];
+      if (!(isCons(pv) || pv === "\u093C")) s.bad++;
+      iStats.set(f, s);
+    }
+  });
+  const visual = (f: Font) => {
+    if (f.broken) return true;
+    const s = iStats.get(f);
+    return !!s && s.bad >= 2 && s.bad >= 0.2 * s.all;
+  };
+  // 3. rewrite the runs
+  out.runs.forEach((r, k) => {
+    const t = texts[k]!;
+    if (!/[\uE000-\uE004]/.test(t)) {
+      if (t !== out.parts.slice(r.from, r.to).join("")) setRun(out, r, t);
+      return;
+    }
+    const a = t.split("");
+    if (r.font.broken) resolveVariants(a);
+    if (visual(r.font)) reorderPreI(a);
+    reorderReph(a);
+    setRun(out, r, a.join("").replace(/\uE001/g, "\u093F").replace(/\uE004/g, ""));
+  });
+}
+
+function setRun(out: Out, r: { from: number; to: number }, t: string): void {
+  out.parts[r.from] = t;
+  for (let i = r.from + 1; i < r.to; i++) out.parts[i] = "";
+}
+
+// ---------------------------------------------------------------- public API
+
+/** Options for {@link pdfText} and {@link pdfInfo}. */
+export interface PdfOptions {
+  /** Stop after this many pages. Default 2000. */
+  maxPages?: number;
+  /**
+   * Repair Devanagari from word-processor exports: trust the embedded font's own cmap over a broken
+   * ToUnicode map, put visually ordered i-matras (ि) and rephs (र्) back in logical order, and recover
+   * i-matra / ी variants mapped to U+FFFD. Default true. @since 1.2.0
+   */
+  fixDevanagari?: boolean;
+}
+
+/** What {@link pdfInfo} returns. @since 1.2.0 */
+export interface PdfInfo {
+  /** Same text as {@link pdfText}. */
+  text: string;
+  /** Pages in the document. */
+  pages: number;
+  /** Font names (BaseFont, subset prefix removed), unique, in file order. */
+  fonts: string[];
+  /** The legacy Nepali ASCII font family that drew a real share of the text (≥ 5 % or ≥ 200 characters), if any. */
+  legacyFont?: string;
+  /** U+FFFD characters (unmapped glyphs) that could not be recovered and were dropped. */
+  replacementChars: number;
+  /** Images drawn on the pages. */
+  images: number;
+  /** No text but at least one image: a scan that needs OCR. */
+  imageOnly: boolean;
+  /** Most of the text is drawn invisibly over images: a scanner's OCR layer, often garbage for Devanagari. */
+  ocrLayer: boolean;
+  /** The file is encrypted (no text is extracted). */
+  encrypted: boolean;
+}
+
+async function openDoc(bytes: Uint8Array): Promise<Doc> {
+  const doc = new Doc(bytes);
+  doc.scan();
+  await doc.loadObjectStreams();
+  return doc;
+}
+
+function fontNames(doc: Doc): string[] {
+  const names: string[] = [];
+  const objs = [...doc.objs.values()].sort((a, b) => a.pos - b.pos);
+  for (const o of objs) {
+    const d = o.val;
+    if (!(d instanceof PDict)) continue;
+    if ((doc.get(d.get("Type")) as PName | undefined)?.v !== "Font") continue;
+    const st = (doc.get(d.get("Subtype")) as PName | undefined)?.v;
+    if (st === "CIDFontType0" || st === "CIDFontType2") continue;
+    const bf = doc.get(d.get("BaseFont"));
+    const n = bf instanceof PName ? stripSubset(bf.v) : "";
+    if (n && !names.includes(n) && names.length < 500) names.push(n);
+  }
+  return names;
+}
+
+/** Font names used by a PDF (BaseFont, subset prefix like "ABCDEF+" removed), unique, in file order. @since 1.2.0 */
+export async function pdfFonts(bytes: Uint8Array): Promise<string[]> {
   try {
-    const doc = new Doc(bytes);
-    doc.scan();
-    if (doc.encrypted) return "";
-    await doc.loadObjectStreams();
-    const pages = doc.pages().slice(0, opts.maxPages ?? 2000);
-    const out: Out = { parts: [], chars: 0, ops: 0 };
+    return fontNames(await openDoc(bytes));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Text plus quality signals: fonts, legacy-font family, dropped U+FFFD count, images and whether the
+ * PDF is image-only (needs OCR). Never throws. @since 1.2.0
+ */
+export async function pdfInfo(bytes: Uint8Array, opts: PdfOptions = {}): Promise<PdfInfo> {
+  const empty: PdfInfo = { text: "", pages: 0, fonts: [], replacementChars: 0, images: 0, imageOnly: false, ocrLayer: false, encrypted: false };
+  let doc: Doc;
+  try {
+    doc = await openDoc(bytes);
+  } catch {
+    return empty;
+  }
+  const fonts = fontNames(doc);
+  if (doc.encrypted) return { ...empty, fonts, encrypted: true, pages: safePages(doc) };
+  const out: Out = {
+    parts: [], chars: 0, ops: 0, fix: opts.fixDevanagari !== false, runs: [], unknowns: [], unkIdx: new Map(),
+    replacement: 0, fontChars: new Map(), invisible: 0, images: 0,
+  };
+  let pageCount = 0;
+  try {
+    const all = doc.pages();
+    pageCount = all.length;
+    const pages = all.slice(0, opts.maxPages ?? 2000);
     const fontCache = new Map<PDict | PVal, Font>();
     for (const { page, res } of pages) {
       if (out.chars > MAX_CHARS || out.ops > MAX_OPS) break;
@@ -1265,7 +1814,7 @@ export async function pdfText(bytes: Uint8Array, opts: { maxPages?: number } = {
       const refs = Array.isArray(cv) ? cv : [c];
       const datas: Uint8Array[] = [];
       for (const r of refs) {
-        const d = await doc.streamData(doc.obj(r) ?? (r instanceof PRef ? undefined : undefined));
+        const d = await doc.streamData(doc.obj(r));
         if (d) datas.push(d, Uint8Array.of(10));
       }
       if (!datas.length) continue;
@@ -1277,16 +1826,71 @@ export async function pdfText(bytes: Uint8Array, opts: { maxPages?: number } = {
       }
       out.parts.push("\n\n");
     }
-    return out.parts
-      .join("")
-      .split("\n")
-      .map((l) => l.replace(/[ \t]+/g, " ").trim())
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+    if (out.fix) finishRuns(out);
   } catch {
-    return "";
+    /* keep what we have */
   }
+  let text = out.parts
+    .join("")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (out.fix) {
+    text = text.replace(/[\uE000-\uF8FF]/g, "");
+    const fffd = (text.match(/\uFFFD/g) ?? []).length;
+    if (fffd) {
+      out.replacement += fffd;
+      text = text.replace(/\uFFFD/g, "");
+    }
+  } else out.replacement += (text.match(/\uFFFD/g) ?? []).length;
+  // legacy font that drew a real share of the text
+  let legacyFont: string | undefined;
+  let total = 0;
+  const byFamily = new Map<string, number>();
+  for (const [f, n] of out.fontChars) {
+    total += n;
+    const fam = legacyFontFamily(f.name);
+    if (fam) byFamily.set(fam, (byFamily.get(fam) ?? 0) + n);
+  }
+  let best = 0;
+  for (const [fam, n] of byFamily) {
+    if (n > best && (n >= 200 || n >= 0.05 * total)) {
+      best = n;
+      legacyFont = fam;
+    }
+  }
+  const visible = text.replace(/\s+/g, "").length;
+  return {
+    text,
+    pages: pageCount,
+    fonts,
+    ...(legacyFont ? { legacyFont } : {}),
+    replacementChars: out.replacement,
+    images: out.images,
+    imageOnly: visible === 0 && out.images > 0,
+    ocrLayer: out.images > 0 && out.chars > 0 && out.invisible >= 0.8 * out.chars,
+    encrypted: false,
+  };
+}
+
+function safePages(doc: Doc): number {
+  try {
+    return doc.pages().length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Extract the text of a PDF in page order. Pure JS; Flate via DecompressionStream.
+ * Never throws: malformed or truncated input yields whatever text could be recovered (possibly "").
+ * Encrypted PDFs, scanned (image-only) pages and composite fonts without a ToUnicode map or an
+ * embedded cmap yield no text. Unrecoverable U+FFFD glyphs are dropped (see {@link pdfInfo}).
+ */
+export async function pdfText(bytes: Uint8Array, opts: PdfOptions = {}): Promise<string> {
+  return (await pdfInfo(bytes, opts)).text;
 }
 
 /** True when the bytes start (within the first 1 KB) with the `%PDF-` signature. */

@@ -33,7 +33,13 @@ export type WatchError =
   | "not_found_text"
   | "placeholder_page"
   | "too_large"
-  | "unparseable";
+  | "unparseable"
+  /** The page is a JavaScript app shell (empty mount point, bundles, "enable JavaScript"). @since 1.2.0 */
+  | "js_app"
+  /** 403/429/503 with a bot-protection challenge (Cloudflare, Sucuri, Imperva, Akamai…). @since 1.2.0 */
+  | "bot_blocked"
+  /** A PDF with images but no text: a scan that needs OCR. @since 1.2.0 */
+  | "image_only";
 
 /** The sub-class of a `tls` failure. `chain` means the server sent an incomplete certificate chain. */
 export type TlsKind = "chain" | "expired" | "self_signed" | "hostname" | "other";
@@ -73,6 +79,24 @@ export interface WatchResult {
   tlsKind?: TlsKind;
   /** Raw error code or a human-readable reason. */
   detail?: string;
+  /** PDFs only: extraction quality signals. @since 1.2.0 */
+  pdfQuality?: PdfQuality;
+}
+
+/** Extraction quality signals for a PDF. @since 1.2.0 */
+export interface PdfQuality {
+  /** U+FFFD characters (glyphs without a usable Unicode mapping) that could not be recovered and were dropped. */
+  replacementChars: number;
+  /** The legacy Nepali ASCII font family that drew a real share of the text (pick a converter with it). */
+  legacyFont?: string;
+  /** Font names in the PDF, subset prefixes removed. */
+  fonts?: string[];
+  /** Images drawn on the pages. */
+  images?: number;
+  /** Images but no text: a scan that needs OCR. */
+  imageOnly?: boolean;
+  /** Most text is an invisible layer over images (a scanner's OCR), often unreliable for Devanagari. */
+  ocrLayer?: boolean;
 }
 
 /** Options for {@link check} and {@link checkAll}. */
@@ -102,10 +126,29 @@ export interface CheckOptions {
    * An item's own `textTransform` wins over this one. @since 1.1.0
    */
   textTransform?: TextTransform;
+  /** PDF extraction options. @since 1.2.0 */
+  pdf?: {
+    /**
+     * Repair Devanagari from word-processor exports (broken ToUnicode maps, visually ordered
+     * i-matras and rephs, U+FFFD i-matra variants). Default true.
+     */
+    fixDevanagari?: boolean;
+  };
+}
+
+/** Context passed to a {@link TextTransform}. */
+export interface TextTransformContext {
+  id: string;
+  url: string;
+  kind: "html" | "pdf" | "text";
+  /** PDFs: font names (subset prefixes removed). @since 1.2.0 */
+  fonts?: string[];
+  /** PDFs: the legacy Nepali ASCII font family used, e.g. to choose a converter. @since 1.2.0 */
+  legacyFont?: string;
 }
 
 /** See {@link CheckOptions.textTransform}. */
-export type TextTransform = (text: string, ctx: { id: string; url: string; kind: "html" | "pdf" | "text" }) => string | Promise<string>;
+export type TextTransform = (text: string, ctx: TextTransformContext) => string | Promise<string>;
 
 /** Totals from {@link summarize}. */
 export interface Summary {

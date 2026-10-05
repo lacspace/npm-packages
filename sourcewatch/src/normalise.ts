@@ -1,7 +1,7 @@
 import type { Expect } from "./types";
 
 const DEV_DIGITS = /[\u0966-\u096F]/g;
-const INVISIBLE = /[\u200B\u200C\u200D\u00AD\u2060\uFEFF]/g;
+const INVISIBLE = /[\u200B\u200C\u200D\u00AD\u2060\uFEFF\uFFFD]/g;
 const SPACES = /[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g;
 const DASHES = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g;
 

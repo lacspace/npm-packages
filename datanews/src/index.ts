@@ -224,7 +224,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
     body.push(metal("gold", g.perTola!, gd, g.prev, 1));
     if (isNum(gd) && gd !== 0 && g.prev) {
       const p = (gd / g.prev) * 100;
-      body.push(lang === "en" ? `That is a change of ${pct(p, "en", true)}.` : `यो ${pct(p, "ne", true)} को परिवर्तन हो।`);
+      body.push(lang === "en" ? `That is a ${pct(p, "en")} ${p > 0 ? "rise" : "fall"}.` : `यो ${formatNumber(Math.abs(p), "ne")} प्रतिशतको ${p > 0 ? "वृद्धि" : "गिरावट"} हो।`);
     }
     bullets.push(lang === "en" ? `Gold: ${rs(g.perTola!, "en")} ${ten ? "per 10 g" : "per tola"}${isNum(gd) && gd !== 0 ? ` (${gd > 0 ? "+" : MINUS}${formatNumber(Math.abs(gd), "en")})` : ""}` : `सुन: ${unitNe} ${rs(g.perTola!, "ne")}${isNum(gd) && gd !== 0 ? ` (${gd > 0 ? "+" : MINUS}${formatNumber(Math.abs(gd), "ne")})` : ""}`);
     numbers.push({ label: lang === "en" ? "Gold" : "सुन", value: rs(g.perTola!, lang) });
@@ -556,7 +556,7 @@ export function renderBoth<K extends Kind>(kind: K, data: DataFor<K>, options: O
 export function describe() {
   return {
     name: "@lacspace/datanews",
-    version: "1.1.0",
+    version: "1.1.1",
     summary: "Zero-AI bilingual (English/Nepali) news stories from structured data: gold/silver, NRB forex, NEPSE close, DHM weather, fuel prices.",
     commands: ["render(kind, data, { lang, date, dateLabel, seed, source })", "renderBoth(kind, data, options)", "formatNumber(n, lang)", "formatBigMoney(n, lang)", "toDevanagari(s)"],
     kinds: KINDS,

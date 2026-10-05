@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/datanews",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Zero-AI bilingual (English / Nepali) news stories from structured data: gold & silver prices, Nepal Rastra Bank forex rates, NEPSE market close, DHM weather forecasts and fuel prices. render(kind, data, { lang }) returns headline, deck, summary, 3-5 body paragraphs, 3 bullets, tags, category and the key numbers. Every number comes from your input, missing fields drop their sentence (never \"N/A\"), phrasing rotates by date, Nepali uses Devanagari numerals with lakh/crore grouping. Zero-dependency.",
   "type": "module",
   "main": "./dist/index.cjs",

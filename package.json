@@ -140,6 +140,7 @@
     "rules",
     "phone",
     "postal-code",
+    "sensitivity",
     "session",
     "oauth",
     "condense",

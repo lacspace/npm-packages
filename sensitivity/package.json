@@ -1,0 +1,26 @@
+{
+  "name": "@lacspace/sensitivity",
+  "version": "1.0.0",
+  "description": "Zero-AI first pass for a newsroom's sensitive-story gate, in Nepali and English. classify({ title, text, lang }) returns categories (election, court, death, communal, named_individual, minor, health_emergency), a confidence (certain → skip the model, unsure → ask it) and the matched terms. Bilingual lexicons with suffix-aware Devanagari matching, false-friend exclusions (death overs, climate justice, मुद्दा as 'issue', 'N वर्षका लागि'), headline/lead weighting that ignores scraped sidebar noise, harm context for minors, a person check for allegations, and policy-ruling detection for courts. On 200 real newsroom stories it settled 76% without the model. Zero-dependency.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": { "build": "tsup", "prepublishOnly": "npm run build" },
+  "keywords": ["newsroom", "content-moderation", "sensitivity", "classification", "nepali", "devanagari", "lexicon", "editorial", "llm", "token-saving", "typescript"],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/sensitivity",
+  "repository": { "type": "git", "url": "git+https://github.com/lacspace/npm-packages.git", "directory": "sensitivity" },
+  "bugs": { "url": "https://github.com/lacspace/npm-packages/issues" },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" }
+}

@@ -73,6 +73,10 @@ describe("gold_silver", () => {
     expect(render("gold_silver", GOLD, { lang: "ne", seed: 0 }).headline).toBe("सुनको भाउ तोलामा १,५०० रुपैयाँले बढेर २,९४,८०० रुपैयाँ पुग्यो, चाँदी ४,४२५");
     expect(render("gold_silver", GOLD, { lang: "ne", seed: 0, maxHeadline: 120 }).headline).toContain("चाँदी तोलाको ४,४२५ रुपैयाँ");
   });
+  it("percentage change uses a direction word, not a sign", () => {
+    expect(render("gold_silver", GOLD, { lang: "en" }).body).toContain("That is a 0.51% rise.");
+    expect(render("gold_silver", { gold: { perTola: 290000, prev: 292900 } }, { lang: "ne" }).body).toContain("यो ०.९९ प्रतिशतको गिरावट हो।");
+  });
   it("Nepali date gets its postposition from the template", () => {
     const ne = render("gold_silver", GOLD, { lang: "ne", dateLabel: { ne: "असोज १९" } });
     expect(ne.body[0]).toMatch(/^असोज १९मा सुन/);

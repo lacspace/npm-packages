@@ -12,7 +12,9 @@
  * are marked "(less common)" and only used in the Preeti → Unicode direction unless noted.
  */
 
-const VERSION = "1.0.0";
+import { ENGLISH } from "./english.js";
+
+const VERSION = "1.1.0";
 
 /** Single Preeti keys → Unicode. */
 const SINGLE: Record<string, string> = {
@@ -32,13 +34,28 @@ const SINGLE: Record<string, string> = {
   ".": "।", "?": "रु", "<": "?", ">": "श्र",
   // Extended (Alt) glyphs
   "¿": "रू", "«": "्र", "`": "ञ", "~": "ञ्", "ª": "ङ", "ç": "ॐ", "÷": "/",
+  // Latin-1 / Windows-1252 glyph slots (1.1.0). Cross-checked against the open-source Preeti tables in
+  // nepali-bhasa/ttf-to-unicode, Shuvayatra/preeti and casualsnek/npttf2utf (all three agree unless noted).
+  "Ë": "ङ्ग", "Í": "ङ्क", "Î": "ङ्ख", "‹": "ङ्घ", "å": "द्व", "ß": "द्म", "¢": "द्घ", "›": "द्र", "„": "ध्र",
+  "§": "ट्ट", "Ý": "ट्ठ", "¶": "ठ्ठ", "•": "ड्ड", "Ì": "न्न", "Å": "हृ", "Ø": "्य",
+  "¡": "ज्ञ्", "£": "घ्", "¤": "झ्", "‰": "झ्", "´": "झ", "ˆ": "फ्",
+  "¥": "र्\u200d", // eyelash ra र्‍ (npttf2utf reads it as ्र; the other two tables as र्‍)
+  "°": "ड्ढ", // the three tables say ङ्ढ, a cluster Nepali never uses; cimplesid/unicode-preeti-js reads ड्ढ (बुड्ढो)
+  "‘": "ॅ", "˜": "ऽ",
+  // Punctuation that Preeti draws from high slots
+  "Ö": "=", "Ù": ";", "Ú": "’", "Û": "!", "Ü": "%", "±": "+", "×": "×", "…": "‘", "æ": "“", "Æ": "”",
 };
+
+/** Windows-1252 slots 0x80–0x9F can come out of a PDF as raw C1 control codes instead; read those the same way. */
+const CP1252_C1: [number, string][] = [[0x84, "„"], [0x85, "…"], [0x88, "ˆ"], [0x89, "‰"], [0x8b, "‹"], [0x91, "‘"], [0x95, "•"], [0x98, "˜"], [0x9b, "›"]];
+for (const [cp, ch] of CP1252_C1) SINGLE[String.fromCharCode(cp)] = SINGLE[ch] as string;
 
 /** Multi-key Preeti sequences, matched longest first. `m` is the tail glyph that turns प→फ, भ→झ, उ→ऊ. */
 const MULTI: Record<string, string> = {
   "k|m": "फ्र",
   "cf}": "औ", "cf]": "ओ", cf: "आ", "O{": "ई", "P]": "ऐ", pm: "ऊ", km: "फ", em: "झ",
   qm: "क्र", Qm: "क्त", // (less common) ligature glyphs; Unicode → Preeti writes s| and St instead
+  "8Þ": "\u0921\u093C", "9Þ": "\u0922\u093C", // (less common) Þ is the nukta glyph; only read after ड/ढ (cimplesid/unicode-preeti-js)
 };
 const MULTI_MAX = 3;
 
@@ -58,8 +75,18 @@ const VOWEL_FIX: [RegExp, string][] = [
   [/अा/g, "आ"], [/आे/g, "ओ"], [/आै/g, "औ"], [/एे/g, "ऐ"], [/ाे|ेा/g, "ो"], [/ाै|ैा/g, "ौ"],
 ];
 
-/** Convert Preeti-encoded ASCII text to Unicode Devanagari. */
-export function preetiToUnicode(input: string): string {
+export interface PreetiOptions {
+  /** Leave real English words, acronyms, numbers, URLs and emails alone (see convertMixed). Default false. */
+  keepEnglish?: boolean;
+}
+
+/** Convert Preeti-encoded ASCII text to Unicode Devanagari. With `{ keepEnglish: true }` it behaves like convertMixed(). */
+export function preetiToUnicode(input: string, opts?: PreetiOptions): string {
+  if (opts?.keepEnglish) return convertMixed(input);
+  return convertAll(input);
+}
+
+function convertAll(input: string): string {
   let out = "";
   let i = 0;
   while (i < input.length) {
@@ -159,6 +186,7 @@ export function unicodeToPreeti(input: string): string {
 /**
  * Does this look like Preeti-encoded text (ASCII that should be Devanagari)? Useful for detecting pasted legacy text.
  * Heuristic: mostly ASCII, no Devanagari, and Preeti's tell-tale patterns (`f]`, `]g`, `l` before a consonant key, `{`).
+ * Since 1.1.0 it also returns false for text that breaks Preeti's key grammar, which is typical of other legacy fonts.
  */
 export function looksLikePreeti(text: string): boolean {
   const s = (text ?? "").trim();
@@ -168,7 +196,149 @@ export function looksLikePreeti(text: string): boolean {
   const tells = words.filter((w) => /f\]|f}|\]k|g\]|cf|l[a-z;:/]|[a-z]\{|[a-z]'|[a-z]"|^[;:/>][a-z]|kf|sf|df|gf/.test(w)).length;
   // English words rarely contain these; Preeti words almost always do.
   const englishish = words.filter((w) => /^[A-Za-z]+[.,!?]?$/.test(w) && /[aeiou]{1}[a-z]*[aeiou]?/i.test(w) && !/f\]|cf|sf|kf|df|gf/.test(w)).length;
+  // Other legacy ASCII fonts (Kantipur, Himali, PCS …) look Preeti-ish but break Preeti's grammar: the `m` tail only
+  // follows k e p q Q (or a vowel sign typed before it), and `<` (?) / `(` (९) never sit before a letter.
+  const anomalies = words.filter((w) => /[^kepqQ'"\]}F|\s]m/.test(w) || /[<(][A-Za-z]/.test(w)).length;
+  if (anomalies / words.length >= 0.25) return false;
   return tells / words.length >= 0.4 && tells > englishish;
+}
+
+// ---- Mixed English + Preeti -----------------------------------------------------------------------------------------
+
+type Kind = "en" | "preeti" | "keep";
+type Lean = "en" | "preeti";
+interface Tok { text: string; kind?: Kind; lean?: Lean }
+
+/** Characters that only make sense as Preeti glyphs when they sit inside a word. */
+const PREETI_INNER = /[\/;:'"()\[\]{}|\\`~<>?_=+«¿ª¡-ÿ„…ˆ‰‹‘•˜›\u0080-\u009f]/;
+const LEAD_PUNCT = /^[("'“‘\[]+/;
+const TRAIL_PUNCT = /[.,;:!?)"'”’-]+$/;
+const CONTRACTION = /^(s|t|d|m|ll|re|ve)$/;
+
+/** Known English word (all lower, Capitalised or ALL CAPS), allowing common inflections: notices, results, passed, applying … */
+function isEnglishWord(w: string): boolean {
+  if (!/^([a-z]+|[A-Z][a-z]+|[A-Z]+)$/.test(w)) return false;
+  const l = w.toLowerCase();
+  if (ENGLISH.has(l)) return true;
+  const stems = [/(.{3,})s$/, /(.{3,})es$/, /(.{3,})ed$/, /(.{3,})d$/, /(.{3,})ing$/, /(.{3,})ly$/, /(.{3,})er$/, /(.{3,})ers$/];
+  for (const re of stems) {
+    const m = re.exec(l);
+    if (m && (ENGLISH.has(m[1] as string) || ENGLISH.has(`${m[1]}e`))) return true;
+  }
+  const y = /(.{2,})(ies|ied)$/.exec(l);
+  return !!y && ENGLISH.has(`${y[1]}y`);
+}
+const isAcronym = (w: string) => /^[A-Z][A-Z0-9&]*[A-Z0-9]$/.test(w) && /[A-Z].*[A-Z]|[A-Z]\d/.test(w);
+
+/** Classify one whitespace-free token. Strong kinds decide; weak tokens lean one way and follow their neighbours. */
+function classify(tok: string): Tok {
+  if (/[ऀ-ॿ]/.test(tok)) return { text: tok, kind: "keep" };
+  if (/^(https?:\/\/|www\.)\S+$/i.test(tok) || /^[\w.+-]+@[\w-]+(\.[\w-]+)+[.,;:]?$/.test(tok)) return { text: tok, kind: "en" };
+  const core = tok.replace(LEAD_PUNCT, "").replace(TRAIL_PUNCT, "");
+  // Western numbers: dates, amounts, roll numbers. A lone digit is ambiguous (5 = छ, 1 = ज्ञ in Preeti).
+  if (/^\d{2,}([.,:\/-]\d+)*$/.test(core) || /^\d+([.,:\/-]\d+)+$/.test(core)) return { text: tok, kind: "en" };
+  if (/^\d$/.test(core) || core === "") {
+    // Lone digit or punctuation-only token: the Preeti numerals !@#$%^&*() lean Preeti, anything else is neutral.
+    return { text: tok, lean: /^[!@#$%^&*()]+$/.test(tok) && tok.length > 1 ? "preeti" : undefined };
+  }
+  // Preeti numerals typed with Shift (@)*@ = २०८२), possibly with Preeti punctuation around them.
+  if (/^[!@#$%^&*()=.,\-_]+$/.test(tok) && (/[@#$%^&*]/.test(tok) || /^[!()]{2,}[.,]?$/.test(tok) && !/^\(!+\)$/.test(tok))) return { text: tok, lean: "preeti" };
+  // Ordinals and units: 2nd, 10th, 5km, 4G, B2B, A4, COVID-19.
+  if (/^\d+(st|nd|rd|th|am|pm|km|kg|mm|cm|ml|mb|gb|kb|g|k|m|s|x)$/i.test(core) || /^[A-Z]+\d+[A-Z]*$/.test(core) || /^[A-Z]+-\d+$/.test(core)) return { text: tok, kind: "en" };
+  if (/^[A-Za-z]+$/.test(core) || /^[A-Za-z]+['’][a-z]{1,2}$/.test(core) || /^[A-Za-z]+\/[A-Za-z]+$/.test(core)) {
+    const parts = core.split(/['’\/]/);
+    const word = parts[0] as string;
+    const apostrophe = /['’]/.test(core);
+    if (isAcronym(core)) return { text: tok, kind: "en" };
+    const enPart = (p: string) => isEnglishWord(p) || isAcronym(p) || /^[A-Z]{1,3}[a-z]+$/.test(p) && /[aeiouy]/i.test(p);
+    if (!apostrophe && parts.length > 1 && parts.every(enPart)) return { text: tok, kind: "en" }; // BE/BArch, and/or
+    if (isEnglishWord(word) && parts.slice(1).every((p) => (apostrophe ? CONTRACTION.test(p) : isEnglishWord(p)))) {
+      // Short lower-case words (to, do, go …) are also plausible Preeti (तय, मय, नय), so they only lean English.
+      return word.length >= 4 || /^[A-Z]/.test(core) || parts.length > 1 ? { text: tok, kind: "en" } : { text: tok, lean: "en" };
+    }
+  }
+  // From here on the token is not a known English word: look for Preeti fingerprints. Only an English-looking word
+  // (letters with a vowel) gets its sentence punctuation stripped first; in Preeti ' " ; ? ) are glyphs (u'? = गुरु).
+  const bare = tok.replace(/[.,]+$/, "");
+  const m = /^[("“‘]*([A-Za-z]+)[)"”’!?:;']?$/.exec(bare);
+  const inner = m && /[aeiouy]/i.test(m[1] as string) ? (m[1] as string) : bare;
+  if (PREETI_INNER.test(inner)) return { text: tok, kind: "preeti" };
+  if (/[a-z][0-9]|[0-9][a-z]/.test(core)) return { text: tok, kind: "preeti" }; // digits are letters in Preeti (af]8{, fli6«o)
+  if (/^[A-Za-z]+$/.test(core)) {
+    // No vowel: Preeti capitals (I O U A E) are half letters, so only a leading capital vowel counts.
+    if (core.length >= 2 && !/[aeiouy]/.test(core.slice(1)) && !/^[AEIOUY][a-z]/.test(core)) return { text: tok, kind: "preeti" }; // glthf, lzIff
+    if (/[^aeioufrl]f$/.test(core)) return { text: tok, kind: "preeti" }; // …thf: ा after a consonant key
+    if (/^l[b-df-hj-km-np-tv-xzB-DF-HJ-KM-NP-TV-XZ]/.test(core)) return { text: tok, kind: "preeti" }; // ljefu: short i first
+    if (/q(?!u)/.test(core) && !/^[A-Z][a-z]*aq$/.test(core)) return { text: tok, kind: "preeti" }; // leq: q = त्र
+
+    if (/[a-z][A-Z]/.test(core) && !/^([A-Z]?[a-z]*[aeiouy][a-z]*)([A-Z][a-z]*[aeiouy][a-z]*)+$/.test(core)) return { text: tok, kind: "preeti" }; // cWoIf, not CamelCase
+    if (/[^aeiouAEIOU\W]f[^aeioufltrsy\W]/.test(core)) return { text: tok, lean: "preeti" }; // consonant-ा-consonant
+    return { text: tok, lean: /^[A-Z][a-z]+$/.test(core) ? "en" : undefined }; // unknown: follows its neighbours
+  }
+  return { text: tok, lean: "preeti" };
+}
+
+/** Split "Pre-/fli6«o" into an English head and a Preeti tail at the hyphen. */
+function splitHyphen(tok: string): Tok[] | null {
+  const m = /^([A-Za-z]+-)(.+)$/.exec(tok);
+  if (!m) return null;
+  const head = (m[1] as string).slice(0, -1);
+  if (!(isEnglishWord(head) || isAcronym(head))) return null;
+  const tail = classify(m[2] as string);
+  return tail.kind === "preeti" ? [{ text: m[1] as string, kind: "en" }, tail] : null;
+}
+
+/**
+ * Convert a line that mixes real English with Preeti ("Pre-/fli6«o k/LIff af]8{" → "Pre-राष्ट्रिय परीक्षा बोर्ड").
+ * Each whitespace-separated token is classified: English (common words, gov/exam terms, acronyms, numbers, URLs,
+ * emails) is kept; tokens with Preeti fingerprints are converted; ambiguous tokens (lone digits, short words, Preeti
+ * numerals) follow their neighbours. Consecutive Preeti tokens are converted together, so a line with no English in
+ * it converts exactly like preetiToUnicode(). Unicode Devanagari is left untouched.
+ */
+export function convertMixed(text: string): string {
+  const input = text ?? "";
+  return input.split(/(\r?\n)/).map((line) => (/^\r?\n$/.test(line) ? line : convertLine(line))).join("");
+}
+
+function convertLine(line: string): string {
+  const parts = line.split(/(\s+)/);
+  const toks: (Tok & { space?: boolean })[] = [];
+  for (const p of parts) {
+    if (p === "") continue;
+    if (/^\s+$/.test(p)) { toks.push({ text: p, space: true }); continue; }
+    const split = splitHyphen(p);
+    if (split) toks.push(...split);
+    else toks.push(classify(p));
+  }
+  const words = toks.filter((t) => !t.space);
+  const strong = (t: Tok): Lean | undefined => (t.kind === "en" ? "en" : t.kind === "preeti" || t.kind === "keep" ? "preeti" : undefined);
+  const lineDefault: Lean = words.some((t) => t.kind === "preeti") || looksLikePreeti(line) ? "preeti" : "en";
+  // Resolve weak tokens from the nearest strong neighbour on each side.
+  for (let i = 0; i < words.length; i++) {
+    const t = words[i] as Tok;
+    if (t.kind) continue;
+    let left: Lean | undefined;
+    let right: Lean | undefined;
+    for (let j = i - 1; j >= 0 && !left; j--) left = strong(words[j] as Tok);
+    for (let j = i + 1; j < words.length && !right; j++) right = strong(words[j] as Tok);
+    let pick: Lean;
+    if (left && right) pick = left === right ? left : t.lean ?? "preeti";
+    else pick = left ?? right ?? (t.lean === "preeti" ? "preeti" : lineDefault);
+    t.kind = pick;
+  }
+  let out = "";
+  let run = "";
+  let pendingSpace = "";
+  const flush = () => { if (run) out += convertAll(run); run = ""; };
+  for (const t of toks) {
+    if (t.space) { if (run) pendingSpace += t.text; else out += t.text; continue; }
+    if (t.kind === "preeti") { run += pendingSpace + t.text; pendingSpace = ""; continue; }
+    flush();
+    out += pendingSpace + t.text;
+    pendingSpace = "";
+  }
+  flush();
+  return out + pendingSpace;
 }
 
 /** Machine-readable descriptor for an AI "conductor". */
@@ -176,10 +346,11 @@ export function describe() {
   return {
     name: "@lacspace/preeti",
     version: VERSION,
-    summary: "Preeti (legacy ASCII Devanagari font) ⇄ Unicode, both directions, with short-i and reph reordering, half letters, ra-kaar, conjunct keys and Preeti numerals; plus looksLikePreeti() to detect pasted legacy text. Pure JS, zero dependencies.",
+    summary: "Preeti (legacy ASCII Devanagari font) ⇄ Unicode, both directions, with short-i and reph reordering, half letters, ra-kaar, conjunct keys and Preeti numerals; convertMixed() for lines mixing English and Preeti; plus looksLikePreeti() to detect pasted legacy text. Pure JS, zero dependencies.",
     commands: [
       { name: "preetiToUnicode", input: { type: "object", properties: { text: { type: "string" } }, required: ["text"] }, output: "string" },
       { name: "unicodeToPreeti", input: { type: "object", properties: { text: { type: "string" } }, required: ["text"] }, output: "string" },
+      { name: "convertMixed", input: { type: "object", properties: { text: { type: "string" } }, required: ["text"] }, output: "string" },
       { name: "looksLikePreeti", input: { type: "object", properties: { text: { type: "string" } }, required: ["text"] }, output: "boolean" },
     ],
   };

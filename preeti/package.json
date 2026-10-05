@@ -1,7 +1,7 @@
 {
   "name": "@lacspace/preeti",
-  "version": "1.0.0",
-  "description": "Preeti ⇄ Unicode for Nepali: convert legacy Preeti-font ASCII text (\"g]kfn\") to Unicode Devanagari (नेपाल) and back. Handles short-i and reph reordering, half letters, ra-kaar (| and «), conjunct keys (क्ष ज्ञ त्र श्र …), Preeti numerals, and looksLikePreeti() to detect pasted legacy text. Pure JS, zero dependencies, React Native safe.",
+  "version": "1.1.0",
+  "description": "Preeti ⇄ Unicode for Nepali: convert legacy Preeti-font ASCII text (\"g]kfn\") to Unicode Devanagari (नेपाल) and back. Handles short-i and reph reordering, half letters, ra-kaar (| and «), conjunct keys (क्ष ज्ञ त्र श्र …), Preeti numerals, the full Latin-1 glyph range (ङ्ग द्व द्म ट्ट …), convertMixed() for lines that mix English and Preeti, and looksLikePreeti() to detect pasted legacy text. Pure JS, zero dependencies, React Native safe.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -1,0 +1,70 @@
+{
+ "data": {
+  "category": {
+   "id": 17,
+   "name": "Notice",
+   "name_np": "सूचना",
+   "slug": "notice"
+  },
+  "children": {
+   "current_page": 1,
+   "data": [
+    {
+     "id": 8820,
+     "category_id": 17,
+     "title": "Invitation for Sealed Quotation",
+     "title_np": "लोक सेवा आयोग केन्द्रीय कार्यालयको शिलबन्दी दरभाउपत्र आह्वान सम्बन्धी सूचना",
+     "file_url": null,
+     "slug": "invitation-for-sealed-quotation",
+     "upload_date": "2026-10-01",
+     "upload_date_bs": "2083-06-15",
+     "files": [
+      {
+       "location": "https://psc.gov.np/site_uploads/files/083-6-15-186899955.pdf",
+       "name": "083-6-15.pdf",
+       "extension": "pdf",
+       "file_type": "https://psc.gov.np/site_uploads/files/083-6-15-186899955.pdf"
+      }
+     ]
+    },
+    {
+     "id": 8655,
+     "category_id": 17,
+     "title": "Letter of Intent",
+     "title_np": "लोक सेवा आयोग, केन्द्रीय कार्यालयको प्रस्ताव स्वीकृत गर्ने आशय सम्बन्धी सूचना ।",
+     "file_url": null,
+     "slug": "letter-of-intent",
+     "upload_date": "2026-08-19",
+     "upload_date_bs": "2083-05-03",
+     "files": [
+      {
+       "location": "https://psc.gov.np/site_uploads/files/-211115816.pdf",
+       "name": "आशयको सूचना (2).pdf",
+       "extension": "pdf",
+       "file_type": "https://psc.gov.np/site_uploads/files/-211115816.pdf"
+      }
+     ]
+    },
+    {
+     "id": 8625,
+     "category_id": 17,
+     "title": "मिति २०८३।०४।१६ गते देखि २०८३।०४।२१ गते सम्म आयोग अन्तर्गतका कार्यालयहरुबाट सञ्चालन हुने रा.प.अनं. द्वितीय श्रेणी (प्राविधिक), खरिदार पदको परीक्षा कार्यक्रम संशोधन गरिएको सूचना",
+     "title_np": "मिति २०८३।०४।१६ गते देखि २०८३।०४।२१ गते सम्म आयोग अन्तर्गतका कार्यालयहरुबाट सञ्चालन हुने रा.प.अनं. द्वितीय श्रेणी (प्राविधिक), खरिदार पदको परीक्षा कार्यक्रम संशोधन गरिएको सूचना",
+     "file_url": null,
+     "slug": "exam-schedule-kharidar",
+     "upload_date": "2026-07-31",
+     "upload_date_bs": "2083-04-15",
+     "files": [
+      {
+       "location": "https://psc.gov.np/site_uploads/files/-554010420.pdf",
+       "name": "प्राविधिक खरिदार पदको परीक्षा कार्यक्रम संशोधन मिति 2083-4-15.pdf",
+       "extension": "pdf",
+       "file_type": "https://psc.gov.np/site_uploads/files/-554010420.pdf"
+      }
+     ]
+    }
+   ],
+   "per_page": 10
+  }
+ }
+}

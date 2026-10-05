@@ -1,0 +1,71 @@
+[
+ {
+  "result": {
+   "data": {
+    "notices": [
+     {
+      "_id": "6ac38c0f5bf85ff3a02c8e23",
+      "title": "मिति २०८३-०६-१९ गतेको चौधौं साधारण दर्तावाला इन्जिनियरिङ व्यवसायी नाम दर्ता परीक्षा (पहिलो चरण) को परीक्षाफल प्रकाशित गरिएको सूचना !",
+      "coverMediaId": {
+       "fileName": "Result Notice kathmandu day 3_page-0001 (1).jpg.jpeg",
+       "image": "/uploads/Exam/1791200222816_Result Notice kathmandu day 3_page-0001 (1).jpg.jpeg",
+       "mediaType": "IMAGE"
+      },
+      "attachments": [
+       {
+        "fileName": "2083-06-19Result.pdf",
+        "image": "/uploads/Exam/1791200198830_2083-06-19Result.pdf",
+        "mediaType": "PDF"
+       }
+      ],
+      "categoryId": {
+       "name": "Notice"
+      },
+      "createdAt": "2026-10-05T11:37:51.845Z"
+     },
+     {
+      "_id": "6ac2376a582ee0362675abe3",
+      "title": "मिति २०८३-०६-१८ गतेको चौधौं साधारण दर्तावाला इन्जिनियरिङ व्यवसायी नाम दर्ता परीक्षा (पहिलो चरण) को परीक्षाफल प्रकाशित गरिएको सूचना !",
+      "coverMediaId": {
+       "fileName": "Result Notice kathmandu day 2_page-0001.jpg",
+       "image": "/uploads/Exam/1791110356069_Result Notice kathmandu day 2_page-0001.jpg",
+       "mediaType": "IMAGE"
+      },
+      "attachments": [
+       {
+        "fileName": "2083-06-18_Result.pdf",
+        "image": "/uploads/Exam/1791113005851_2083-06-18_Result.pdf",
+        "mediaType": "PDF"
+       }
+      ],
+      "categoryId": {
+       "name": "Notice"
+      },
+      "createdAt": "2026-10-04T11:24:26.856Z"
+     },
+     {
+      "_id": "6ac0e976582ee036266195a3",
+      "title": "मिति २०८३-०६-१७ गतेको चौधौं साधारण दर्तावाला इन्जिनियरिङ व्यवसायी नाम दर्ता परीक्षा (पहिलो चरण) को परीक्षाफल प्रकाशित गरिएको सूचना !",
+      "coverMediaId": {
+       "fileName": "2083-06-17Notice.jpeg",
+       "image": "/uploads/Exam/1791027492510_2083-06-17Notice.jpeg",
+       "mediaType": "IMAGE"
+      },
+      "attachments": [
+       {
+        "fileName": "2083-06-17_Result.pdf",
+        "image": "/uploads/Exam/1791027464186_2083-06-17_Result.pdf",
+        "mediaType": "PDF"
+       }
+      ],
+      "categoryId": {
+       "name": "Notice"
+      },
+      "createdAt": "2026-10-03T11:39:34.512Z"
+     }
+    ],
+    "total": 3
+   }
+  }
+ }
+]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as describeApi, fix, overlap, parseFailure, replaceSentence, sentences, type Pack } from "./index.js";
+import { article, describe as describeApi, fix, overlap, parseFailure, replaceSentence, sentences, type Pack } from "./index.js";
 import { existsSync, readFileSync } from "node:fs";
 
 // Real failing packs from WeNepal's logs quote third-party source text, so they stay out of this
@@ -114,6 +114,23 @@ describe("rules", () => {
     expect(r.pack.body.join(" ")).toContain("historic site");
     expect(r.pack.body.join(" ")).toContain("a major crowd");
     expect(r.remaining[0]).toBe("tone: banned phrases: explosive, historic");
+  });
+  it("a/an: only the article before a replaced word changes", () => {
+    const p: Pack = { language: "en", headline: "Nepal beat Japan in Group A encounter", body: [
+      "It was a shocking upset in a university town. An explosive rise in runs followed a one-day break.",
+      "Group A encounter: a huge crowd, an explosive knock and a massive cheer.",
+    ] };
+    const r = fix(p, ["tone: banned phrases: shocking, explosive, huge, massive"], []);
+    expect(r.pack.headline).toBe("Nepal beat Japan in Group A encounter");
+    expect(r.pack.body[0]).toBe("It was an unexpected upset in a university town. A rapid rise in runs followed a one-day break.");
+    expect(r.pack.body[1]).toBe("Group A encounter: a large crowd, an aggressive knock and a major cheer.");
+  });
+  it("article() handles sounds", () => {
+    expect(["aggressive", "university", "one-day", "hour", "unexpected", "European", "major"].map(article)).toEqual(["an", "a", "a", "an", "an", "a", "a"]);
+  });
+  it("whopping is removed with its article", () => {
+    const r = fix({ language: "en", headline: "h", body: ["Prices rose a whopping 40% this year."] }, ["tone: banned phrases: whopping"], []);
+    expect(r.pack.body[0]).toBe("Prices rose 40% this year.");
   });
   it("unknown banned phrase is left for the model", () => {
     expect(fix(PACK, ["tone: banned phrases: jaw-dropping"], SRC).remaining).toEqual(["tone: banned phrases: jaw-dropping"]);

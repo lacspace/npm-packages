@@ -21,6 +21,8 @@ export interface RenderOptions {
   /** Attribution override. Defaults per kind; gold_silver has none unless given. */
   source?: Text;
   category?: string;
+  /** Headline length budget in characters (default 80); optional parts are dropped to fit. */
+  maxHeadline?: number;
 }
 
 export interface DataStory {
@@ -120,7 +122,8 @@ function chooser(seed: number) {
 }
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 function dateText(opts: RenderOptions, lang: Lang): string | undefined {
-  const label = pickText(opts.dateLabel, lang);
+  const dl = opts.dateLabel;
+  const label = typeof dl === "string" ? dl.trim() || undefined : dl?.[lang]?.trim() || undefined;
   if (label) return label;
   if (lang === "ne" || !opts.date) return undefined;
   const d = typeof opts.date === "string" ? new Date(opts.date) : opts.date;
@@ -161,7 +164,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
   const per = lang === "en" ? (ten ? "per 10 grams" : "per tola") : ten ? "१० ग्राममा" : "तोलामा";
   const unitNe = ten ? "१० ग्रामको" : "तोलाको";
   const date = dateText(opts, lang);
-  const src = pickText(opts.source, lang);
+  const src = pickText(opts.source, lang) ?? (lang === "en" ? "the Federation of Nepal Gold and Silver Dealers' Association" : "नेपाल सुनचाँदी व्यवसायी महासंघ");
   const gd = g && isNum(g.prev) ? g.perTola! - g.prev : undefined;
   const sd = s && isNum(s.prev) ? s.perTola! - s.prev : undefined;
 
@@ -175,7 +178,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
       if (k === "flat") return `The price of ${en} was unchanged at ${rs(price, "en")} ${per}${date ? ` on ${date}` : ""}.`;
       return `The price of ${en} stood at ${rs(price, "en")} ${per}${date ? ` on ${date}` : ""}.`;
     }
-    const when = date ? `${date} ` : "";
+    const when = date ? `${date}मा ` : "";
     if (k === "up") return pick([`${when}${ne}को भाउ ${per} ${formatNumber(diff!, "ne")} रुपैयाँले बढेर ${rs(price, "ne")} पुगेको छ। यसअघि ${ne} ${unitNe} ${rs(prev!, "ne")} थियो।`, `${when}${ne} ${unitNe} ${formatNumber(diff!, "ne")} रुपैयाँले महँगिएर ${rs(price, "ne")} पुगेको छ। अघिल्लो भाउ ${rs(prev!, "ne")} थियो।`], slot);
     if (k === "down") return pick([`${when}${ne}को भाउ ${per} ${formatNumber(-diff!, "ne")} रुपैयाँले घटेर ${rs(price, "ne")} कायम भएको छ। यसअघि ${ne} ${unitNe} ${rs(prev!, "ne")} थियो।`, `${when}${ne} ${unitNe} ${formatNumber(-diff!, "ne")} रुपैयाँले सस्तिएर ${rs(price, "ne")} कायम भएको छ। अघिल्लो भाउ ${rs(prev!, "ne")} थियो।`], slot);
     if (k === "flat") return `${when}${ne}को भाउ ${unitNe} ${rs(price, "ne")} मा यथावत् छ।`;
@@ -184,7 +187,15 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
 
   // headline
   let headline: string;
-  const silverTail = (lang: Lang) => (s ? (lang === "en" ? `; silver at ${rs(s.perTola!, "en")}` : `, चाँदी ${unitNe} ${rs(s.perTola!, "ne")}`) : "");
+  const max = opts.maxHeadline ?? 80;
+  // longest silver tail that still fits the headline budget
+  const withSilver = (base: string) => {
+    if (!s) return base;
+    const tails = lang === "en"
+      ? [`; silver at ${rs(s.perTola!, "en")}`, `; silver ${rs(s.perTola!, "en")}`]
+      : [`, चाँदी ${unitNe} ${rs(s.perTola!, "ne")}`, `, चाँदी ${formatNumber(s.perTola!, "ne")}`];
+    return tails.map((t) => base + t).find((h) => h.length <= max) ?? base;
+  };
   if (g) {
     const k = dir(gd);
     if (lang === "en") {
@@ -201,7 +212,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
         : k === "flat" ? `सुनको भाउ ${unitNe} ${rs(g.perTola!, "ne")} मा स्थिर`
         : `सुनको भाउ ${unitNe} ${rs(g.perTola!, "ne")}`;
     }
-    headline += silverTail(lang);
+    headline = withSilver(headline);
   } else {
     headline = lang === "en" ? `Silver at ${rs(s!.perTola!, "en")} ${ten ? "per 10 grams" : "per tola"}` : `चाँदीको भाउ ${unitNe} ${rs(s!.perTola!, "ne")}`;
   }
@@ -209,7 +220,6 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
   const body: string[] = [];
   const bullets: string[] = [];
   const numbers: Built["numbers"] = [];
-  if (src) body.push(lang === "en" ? `According to ${src}, the following prices apply.` : `${src}का अनुसार बजार भाउ यस्तो छ।`);
   if (g) {
     body.push(metal("gold", g.perTola!, gd, g.prev, 1));
     if (isNum(gd) && gd !== 0 && g.prev) {
@@ -224,6 +234,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
     bullets.push(lang === "en" ? `Silver: ${rs(s.perTola!, "en")} ${ten ? "per 10 g" : "per tola"}${isNum(sd) && sd !== 0 ? ` (${sd > 0 ? "+" : MINUS}${formatNumber(Math.abs(sd), "en")})` : ""}` : `चाँदी: ${unitNe} ${rs(s.perTola!, "ne")}${isNum(sd) && sd !== 0 ? ` (${sd > 0 ? "+" : MINUS}${formatNumber(Math.abs(sd), "ne")})` : ""}`);
     numbers.push({ label: lang === "en" ? "Silver" : "चाँदी", value: rs(s.perTola!, lang) });
   }
+  body.push(lang === "en" ? `The prices are set by ${src}.` : `${src}ले यो भाउ तोकेको हो।`);
   if (g && isNum(g.prev)) {
     bullets.push(lang === "en" ? `Previous gold price: ${rs(g.prev, "en")}` : `सुनको अघिल्लो भाउ: ${rs(g.prev, "ne")}`);
     numbers.push({ label: lang === "en" ? "Gold (previous)" : "सुन (अघिल्लो)", value: rs(g.prev, lang) });
@@ -232,7 +243,7 @@ function goldSilver(d: GoldSilverData, lang: Lang, pick: ReturnType<typeof choos
     ? g && s ? `Gold and silver prices ${ten ? "per 10 grams" : "per tola"} in the domestic market.` : `Domestic ${g ? "gold" : "silver"} price ${ten ? "per 10 grams" : "per tola"}.`
     : g && s ? `स्वदेशी बजारमा सुन र चाँदीको ${ten ? "१० ग्राम" : "तोला"}को भाउ।` : `स्वदेशी बजारमा ${g ? "सुन" : "चाँदी"}को भाउ।`;
   return {
-    headline, deck, summary: body.filter((x) => !x.startsWith("According") && !x.includes("का अनुसार")).slice(0, 2).join(" "), body, bullets, numbers,
+    headline, deck, summary: body.filter((x) => !x.startsWith("The prices are set") && !x.endsWith("भाउ तोकेको हो।")).slice(0, 2).join(" "), body, bullets, numbers,
     tags: lang === "en" ? ["gold", "silver", "prices", "markets"] : ["सुन", "चाँदी", "भाउ", "बजार"], category: "markets",
   };
 }
@@ -314,6 +325,7 @@ function forex(d: ForexData, lang: Lang, pick: ReturnType<typeof chooser>, opts:
     headline =
       k === "up" ? pick([`${name} gains ${smallMoney(c!, "en")}, selling at Rs ${fixed2(h.sell!, "en")}`, `${name} up ${smallMoney(c!, "en")} at Rs ${fixed2(h.sell!, "en")} as NRB sets rates`], 0)
       : k === "down" ? pick([`${name} loses ${smallMoney(c!, "en")}, selling at Rs ${fixed2(h.sell!, "en")}`, `${name} down ${smallMoney(c!, "en")} at Rs ${fixed2(h.sell!, "en")} as NRB sets rates`], 0)
+      : k === "flat" ? `${name} steady at Rs ${fixed2(h.sell!, "en")} selling`
       : isNum(h.buy) && isNum(h.sell) ? `NRB sets ${curName(h, "en")} at Rs ${fixed2(h.buy, "en")} buying, Rs ${fixed2(h.sell, "en")} selling`
       : `NRB sets ${curName(h, "en")} at Rs ${fixed2((h.sell ?? h.buy)!, "en")}`;
   } else {
@@ -321,7 +333,9 @@ function forex(d: ForexData, lang: Lang, pick: ReturnType<typeof chooser>, opts:
     headline =
       k === "up" ? pick([`${name} ${smallMoney(c!, "ne")}ले बलियो, बिक्रीदर ${fixed2(h.sell!, "ne")} रुपैयाँ`, `${name}को बिक्रीदर ${smallMoney(c!, "ne")}ले बढेर ${fixed2(h.sell!, "ne")} रुपैयाँ`], 0)
       : k === "down" ? pick([`${name} ${smallMoney(c!, "ne")}ले कमजोर, बिक्रीदर ${fixed2(h.sell!, "ne")} रुपैयाँ`, `${name}को बिक्रीदर ${smallMoney(c!, "ne")}ले घटेर ${fixed2(h.sell!, "ne")} रुपैयाँ`], 0)
-      : `राष्ट्र बैंकद्वारा ${name}को ${rateNe(h)} तोकियो`;
+      : k === "flat" ? `${name}को बिक्रीदर ${fixed2(h.sell!, "ne")} रुपैयाँमा यथावत्`
+      : isNum(h.buy) && isNum(h.sell) ? `${name}: खरिद ${fixed2(h.buy, "ne")}, बिक्री ${fixed2(h.sell, "ne")} रुपैयाँ`
+      : `${name}को दर ${fixed2((h.sell ?? h.buy)!, "ne")} रुपैयाँ`;
   }
   return {
     headline,
@@ -360,7 +374,7 @@ function nepse(d: NepseData, lang: Lang, pick: ReturnType<typeof chooser>, opts:
       : k === "flat" ? `नेप्से ${idx} मा स्थिर${tc}` : `नेप्से ${idx} मा बन्द${tc}`;
   }
   const body: string[] = [];
-  const when = date ? (lang === "en" ? ` on ${date}` : `${date} `) : "";
+  const when = date ? (lang === "en" ? ` on ${date}` : `${date}मा `) : "";
   if (lang === "en") {
     body.push(
       k === "up" ? `The Nepal Stock Exchange (NEPSE) index rose ${pts} points${pc ? `, or ${pc}%,` : ""} to close at ${idx}${when}.`
@@ -542,7 +556,7 @@ export function renderBoth<K extends Kind>(kind: K, data: DataFor<K>, options: O
 export function describe() {
   return {
     name: "@lacspace/datanews",
-    version: "1.0.0",
+    version: "1.1.0",
     summary: "Zero-AI bilingual (English/Nepali) news stories from structured data: gold/silver, NRB forex, NEPSE close, DHM weather, fuel prices.",
     commands: ["render(kind, data, { lang, date, dateLabel, seed, source })", "renderBoth(kind, data, options)", "formatNumber(n, lang)", "formatBigMoney(n, lang)", "toDevanagari(s)"],
     kinds: KINDS,

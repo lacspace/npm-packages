@@ -27,7 +27,7 @@ en.body;     // ["The Nepal Stock Exchange (NEPSE) index fell 12.4 points, or 0.
 
 | Kind | Input | Attribution (default) |
 |---|---|---|
-| `gold_silver` | `{ gold: { perTola, prev? }, silver: { perTola, prev? }, unit?: "tola" \| "10g" }` | none; pass `source` |
+| `gold_silver` | `{ gold: { perTola, prev? }, silver: { perTola, prev? }, unit?: "tola" \| "10g" }` | the Federation of Nepal Gold and Silver Dealers' Association |
 | `forex_nrb` | `{ rates: [{ code, buy, sell, unit?, prevSell? }] }` | Nepal Rastra Bank |
 | `nepse_close` | `{ index, change?, changePct?, turnover?, volume?, transactions?, gainers?, losers? }` | none |
 | `weather_dhm` | `{ regions: [{ name, forecast }], warnings? }` (text as a string or `{ en, ne }`) | Department of Hydrology and Meteorology |
@@ -47,10 +47,11 @@ en.body;     // ["The Nepal Stock Exchange (NEPSE) index fell 12.4 points, or 0.
 
 - **`lang`:** `"en"` (the default) or `"ne"`.
 - **`date`:** an ISO date or `Date`. It seeds the phrasing and appears in English text as "4 October 2026".
-- **`dateLabel`:** a pre-formatted date per language, e.g. `{ ne: "असोज १८" }` for Bikram Sambat. Nepali text omits the date unless you pass one.
+- **`dateLabel`:** a pre-formatted date per language, e.g. `{ ne: "असोज १८" }` for Bikram Sambat. Nepali text omits the date unless you pass one. The template adds the postposition (असोज १९मा), and a Nepali-only label never appears in English text.
 - **`seed`:** fixes the phrasing.
-- **`source`:** overrides the attribution, as a string or `{ en, ne }`.
+- **`source`:** overrides the attribution, as a string or `{ en, ne }`. In English, start it with "the" where the name needs one.
 - **`category`:** overrides the category.
+- **`maxHeadline`:** the headline budget in characters, 80 by default. Optional parts, such as the silver price on a gold headline, are shortened or dropped to fit.
 
 ## Helpers
 

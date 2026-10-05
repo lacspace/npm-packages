@@ -46,7 +46,7 @@ describe("gold_silver", () => {
     expect(render("gold_silver", GOLD, { lang: "en", seed: 0 }).headline).toBe("Gold rises Rs 1,500 to Rs 294,800 per tola; silver at Rs 4,425");
   });
   it("WeNepal example headline (NE) with Devanagari and Nepali grouping", () => {
-    expect(render("gold_silver", GOLD, { lang: "ne", seed: 0 }).headline).toBe("सुनको भाउ तोलामा १,५०० रुपैयाँले बढेर २,९४,८०० रुपैयाँ पुग्यो, चाँदी तोलाको ४,४२५ रुपैयाँ");
+    expect(render("gold_silver", GOLD, { lang: "ne", seed: 0, maxHeadline: 120 }).headline).toBe("सुनको भाउ तोलामा १,५०० रुपैयाँले बढेर २,९४,८०० रुपैयाँ पुग्यो, चाँदी तोलाको ४,४२५ रुपैयाँ");
   });
   it("no-change day", () => {
     const s = render("gold_silver", { gold: { perTola: 294800, prev: 294800 }, silver: { perTola: 4425, prev: 4425 } }, { lang: "en" });
@@ -57,8 +57,30 @@ describe("gold_silver", () => {
   it("missing silver and missing prev drop their sentences", () => {
     const s = render("gold_silver", { gold: { perTola: 294800 } }, { lang: "en", date: DATE });
     expect(s.headline).toBe("Gold at Rs 294,800 per tola");
-    expect(all(s)).not.toMatch(/silver|previous/i);
+    expect(all(s)).not.toMatch(/silver at|price of silver|silver:|previous/i);
     expect(all(s)).not.toMatch(BAD);
+  });
+  it("defaults attribution to the gold dealers' federation (EN starts with 'the')", () => {
+    const en = render("gold_silver", GOLD, { lang: "en" });
+    expect(en.body).toContain("The prices are set by the Federation of Nepal Gold and Silver Dealers' Association.");
+    expect(render("gold_silver", GOLD, { lang: "ne" }).body.at(-1)).toBe("नेपाल सुनचाँदी व्यवसायी महासंघले यो भाउ तोकेको हो।");
+    expect(render("gold_silver", GOLD, { lang: "en", source: "the dealers" }).body.at(-1)).toBe("The prices are set by the dealers.");
+  });
+  it("headline fits the 80-char budget by shortening the silver part", () => {
+    for (let seed = 0; seed < 4; seed++) for (const lang of ["en", "ne"] as const) {
+      expect(render("gold_silver", GOLD, { lang, seed }).headline.length).toBeLessThanOrEqual(80);
+    }
+    expect(render("gold_silver", GOLD, { lang: "ne", seed: 0 }).headline).toBe("सुनको भाउ तोलामा १,५०० रुपैयाँले बढेर २,९४,८०० रुपैयाँ पुग्यो, चाँदी ४,४२५");
+    expect(render("gold_silver", GOLD, { lang: "ne", seed: 0, maxHeadline: 120 }).headline).toContain("चाँदी तोलाको ४,४२५ रुपैयाँ");
+  });
+  it("Nepali date gets its postposition from the template", () => {
+    const ne = render("gold_silver", GOLD, { lang: "ne", dateLabel: { ne: "असोज १९" } });
+    expect(ne.body[0]).toMatch(/^असोज १९मा सुन/);
+  });
+  it("a Nepali-only dateLabel never leaks into English", () => {
+    const en = render("gold_silver", GOLD, { lang: "en", date: "2026-10-05", dateLabel: { ne: "असोज १९" } });
+    expect(all(en)).not.toMatch(/[\u0900-\u097F]/);
+    expect(en.body[0]).toContain("5 October 2026");
   });
   it("throws when nothing is usable", () => {
     expect(() => render("gold_silver", {}, {})).toThrow(DataNewsError);
@@ -80,6 +102,15 @@ describe("forex_nrb", () => {
     const s = render("forex_nrb", FOREX, { lang: "ne" });
     expect(s.body[0]).toContain("नेपाल राष्ट्र बैंकले भारतीय रुपैयाँ (प्रति १००) को खरिददर १६०.०० रुपैयाँ र बिक्रीदर १६०.१५ रुपैयाँ तोकेको छ।");
     expect(s.body[1]).toMatch(/^अमेरिकी डलरको खरिददर/);
+  });
+  it("Nepali headlines fit 80 chars, including unchanged days", () => {
+    const flat = { rates: FOREX.rates.map((r) => ({ ...r, prevSell: r.sell })) };
+    const noPrev = { rates: FOREX.rates.map(({ prevSell, ...r }) => r) };
+    for (const d of [FOREX, flat, noPrev]) for (let seed = 0; seed < 6; seed++) {
+      expect(render("forex_nrb", d, { lang: "ne", seed }).headline.length).toBeLessThanOrEqual(80);
+    }
+    expect(render("forex_nrb", flat, { lang: "ne" }).headline).toBe("अमेरिकी डलरको बिक्रीदर १३८.१० रुपैयाँमा यथावत्");
+    expect(render("forex_nrb", flat, { lang: "en" }).headline).toBe("US dollar steady at Rs 138.10 selling");
   });
   it("no previous rates: majors order, no movement words", () => {
     const s = render("forex_nrb", { rates: FOREX.rates.map(({ prevSell, ...r }) => r) }, { lang: "en" });

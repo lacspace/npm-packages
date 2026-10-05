@@ -261,17 +261,41 @@ function applyCase(src: string, out: string): string {
   if (src === src.toUpperCase() && /[A-Z]/.test(src)) return out.toUpperCase();
   return /^[A-Z]/.test(src) ? out[0]!.toUpperCase() + out.slice(1) : out;
 }
+/** "an" before a vowel sound ("an aggressive"), "a" before "uni…", "one", "eu…" ("a university"). */
+export function article(word: string): "a" | "an" {
+  const w = word.toLowerCase();
+  if (/^(hour|honest|honou?r|heir)/.test(w)) return "an";
+  if (/^(uni|use|usu|ura|ure|uti|eu|ewe|one|once|ubi)/.test(w)) return "a";
+  if (/^[aeiou]/.test(w)) return "an";
+  if (/^[fhlmnrsx]$/.test(w)) return "an"; // spelled letters: "an F grade"
+  return "a";
+}
 function applyTone(text: string, rule: ToneRule): { text: string; n: number } {
   let n = 0;
-  const out = text.replace(rule.re, (m: string, ...args: unknown[]) => {
-    const offset = args[args.length - 2] as number;
-    const next = text.slice(offset + m.length).trimStart();
-    const to = rule.to(m, next);
-    if (to === null) return m;
+  let out = "";
+  let last = 0;
+  const re = new RegExp(rule.re.source, rule.re.flags.includes("g") ? rule.re.flags : rule.re.flags + "g");
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    const next = text.slice(m.index + m[0].length).trimStart();
+    const to = rule.to(m[0], next);
+    if (to === null) continue;
     n++;
-    return applyCase(m.trimStart(), to);
-  });
-  return { text: out.replace(/\s{2,}/g, " ").replace(/\ba ([aeiou])/gi, (m, v) => (m[0] === "A" ? "An " : "an ") + v), n };
+    let before = out + text.slice(last, m.index);
+    let rep = applyCase(m[0].trimStart(), to);
+    // the word now following a preceding "a"/"an" is the replacement, or (when the phrase was
+    // deleted) the next word; fix only that one article
+    const following = (rep || next).match(/^[\p{L}]+/u)?.[0];
+    const art = /\b(a|an|A|An|AN)(\s+)$/.exec(before);
+    if (art && following) {
+      const want = article(following);
+      const fixed = art[1]![0] === "A" ? want[0]!.toUpperCase() + want.slice(1) : want;
+      before = before.slice(0, art.index) + fixed + art[2];
+    }
+    out = before + rep;
+    last = m.index + m[0].length;
+    if (!rep && /\s$/.test(out)) while (text[last] === " ") last++;
+  }
+  return { text: out + text.slice(last), n };
 }
 
 // ---------- main ----------
@@ -352,7 +376,7 @@ export function fix(pack: Pack, failures: string[], sources: Source[], options: 
 export function describe() {
   return {
     name: "@lacspace/packfix",
-    version: "1.0.0",
+    version: "1.0.1",
     summary: "Targeted repair of failed story packs (names, plagiarism, tone) so only 1–2 sentences go back to the model instead of the whole pack.",
     commands: ["fix(pack, failures, sources, options)", "overlap(pack, sources, { shingle, limit })", "sentences(pack)", "replaceSentence(pack, id, text)", "parseFailure(raw)"],
   };

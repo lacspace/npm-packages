@@ -6,7 +6,7 @@
  */
 import { scrapeLeads } from "./scrape.js";
 import { composeQuery, expandQueries } from "./query.js";
-import { dedupeLeads } from "./filter.js";
+import { dedupeKey, dedupeLeads } from "./filter.js";
 import { sortLeads } from "./normalize.js";
 import type { Lead, SearchOptions } from "./types.js";
 
@@ -62,9 +62,25 @@ export async function searchLeadsBatch(
   void _t; void _c; void _a; void _q;
   let merged: Lead[] = seedLeads ? [...seedLeads] : [];
   const seenDedupe = shared.dedupe ?? "website";
+  // Finished leads stream out across every sub-search, each once; `total` stops the batch live.
+  const userOnResult = shared.onResult;
+  const userRemaining = shared.remaining;
+  const liveKeys = new Set<string>();
+  for (const l of merged) { const k = dedupeKey(l, seenDedupe); if (k !== undefined) liveKeys.add(k); }
+  let live = merged.length;
+  const onResult = (lead: Lead): void => {
+    const k = dedupeKey(lead, seenDedupe);
+    if (k !== undefined) {
+      if (liveKeys.has(k)) return;
+      liveKeys.add(k);
+    }
+    live++;
+    try { userOnResult?.(lead); } catch { /* never breaks the batch */ }
+  };
+  const remaining = (): number => Math.min(total !== undefined && total > 0 ? total - live : Infinity, userRemaining ? userRemaining() : Infinity);
 
   for (let i = 0; i < queries.length; i++) {
-    if (signal?.aborted) break;
+    if (signal?.aborted || remaining() <= 0) break;
     const q = queries[i]!;
     const label = (() => {
       try {
@@ -88,6 +104,8 @@ export async function searchLeadsBatch(
       ...(q.area ? { area: q.area } : {}),
     };
     delete (subOpts as { sort?: unknown }).sort;
+    subOpts.onResult = onResult;
+    if (userRemaining || (total !== undefined && total > 0)) subOpts.remaining = remaining;
     if (signal) subOpts.signal = signal;
     if (onProgress) subOpts.onProgress = (m) => onProgress(`  ${m}`);
 

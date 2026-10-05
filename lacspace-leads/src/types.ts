@@ -260,7 +260,8 @@ export interface SearchOptions {
   /**
    * Drop duplicate leads by this key. `"smart"` uses the strongest identity
    * available per lead (website → phone → name) and is best for accumulating
-   * across runs. Default "website".
+   * across runs. Default "smart" (since 1.8.0; was "website", which let two
+   * listings of a business without a website through).
    */
   dedupe?: "website" | "phone" | "name" | "smart" | "none";
   /** Sort the results by this key before returning. */
@@ -304,6 +305,20 @@ export interface SearchOptions {
    * or crash-safe incremental writing. Never throws into the run.
    */
   onLead?: (lead: Lead) => void;
+  /**
+   * Called with each FINISHED lead the moment it is ready: cleaned, enriched,
+   * verified, normalised, de-duplicated and past every filter, i.e. exactly a
+   * row of the final file. Leads arrive one by one while the search is still
+   * running, so a caller can write them to disk live. Never throws into the run.
+   * @since 1.8.0
+   */
+  onResult?: (lead: Lead) => void;
+  /**
+   * How many more finished leads the caller still wants. Checked before each
+   * listing is opened; the search stops opening listings once it reaches 0, so
+   * a target of 100 matching leads ends at 100. @since 1.8.0
+   */
+  remaining?: () => number;
   /** An AbortSignal to cancel a running search. */
   signal?: AbortSignal;
 }

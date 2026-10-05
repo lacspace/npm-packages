@@ -12,7 +12,7 @@
  */
 import { scrapeLeads } from "./scrape.js";
 import { expandQueries } from "./query.js";
-import { dedupeLeads } from "./filter.js";
+import { dedupeKey, dedupeLeads } from "./filter.js";
 import { sortLeads } from "./normalize.js";
 import type { LatLng } from "./geo.js";
 import type { Lead, SearchOptions } from "./types.js";
@@ -178,7 +178,25 @@ export async function sweepLeads(
     return collected.length - before;
   };
 
-  const enough = (): boolean => collected.length >= want;
+  // Live view of the same collection: each finished lead is counted (and handed to the
+  // caller's onResult) the moment it is ready, across every search and tile, once.
+  const userOnResult = shared.onResult;
+  const userRemaining = shared.remaining;
+  const userSkip = shared.skipListing;
+  const liveKeys = new Set<string>();
+  let live = 0;
+  const onResult = (lead: Lead): void => {
+    const k = dedupeKey(lead, dedupeBy);
+    if (k !== undefined) {
+      if (liveKeys.has(k)) return;
+      liveKeys.add(k);
+    }
+    live++;
+    try { userOnResult?.(lead); } catch { /* never breaks the sweep */ }
+  };
+  const remaining = (): number => Math.min(want - Math.max(live, collected.length), userRemaining ? userRemaining() : Infinity);
+
+  const enough = (): boolean => remaining() <= 0;
 
   /**
    * How many listings one step should pull. Never just "what's still missing" —
@@ -186,7 +204,7 @@ export async function sweepLeads(
    * nothing new and looks like the map is exhausted when it isn't.
    */
   const stepLimit = (): number =>
-    Math.min(cap, Math.max(MIN_PER_STEP, (want - collected.length) * 2));
+    Math.min(cap, Math.max(MIN_PER_STEP, Math.max(0, remaining()) * 2));
 
   // The map centre, learned from the first search that reports one. It is what
   // makes tiling possible without any geocoding API.
@@ -201,6 +219,8 @@ export async function sweepLeads(
       ...step,
       limit: stepLimit(),
       onCenter: captureCenter,
+      onResult,
+      remaining,
     };
     const found = await scrapeLeads(searchOpts);
     stats.searches++;
@@ -228,7 +248,9 @@ export async function sweepLeads(
           limit: stepLimit(),
           near: point,
           onCenter: captureCenter,
-          skipListing,
+          skipListing: (l) => skipListing(l) || (userSkip?.(l) ?? false),
+          onResult,
+          remaining,
         };
         // A tile IS the location, so every place word has to go: leaving
         // "in Kathmandu" in the query makes Google re-centre on the city and

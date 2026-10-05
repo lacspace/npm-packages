@@ -91,7 +91,8 @@ export {
   expandQueries,
   resolvePreset,
 } from "./query.js";
-export { filterLeads, dedupeLeads, subtractLeads } from "./filter.js";
+export { filterLeads, dedupeLeads, subtractLeads, dedupeKey } from "./filter.js";
+export { createLiveWriter, type LiveWriter, type LiveWriterOptions } from "./live.js";
 export {
   cleanWebsite,
   normalizePhone,

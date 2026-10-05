@@ -29,8 +29,8 @@ export function filterLeads(leads: Lead[], filters: LeadFilters = {}): Lead[] {
   });
 }
 
-/** The key used to detect a duplicate lead. */
-function dedupeKey(lead: Lead, by: NonNullable<SearchOptions["dedupe"]>): string | undefined {
+/** The key used to detect a duplicate lead (undefined = no identity, never a duplicate). */
+export function dedupeKey(lead: Lead, by: NonNullable<SearchOptions["dedupe"]>): string | undefined {
   if (by === "none") return undefined;
   if (by === "website") return normalizeHost(lead.website);
   if (by === "phone") return lead.phone?.replace(/[^0-9]/g, "") || undefined;

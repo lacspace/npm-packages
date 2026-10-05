@@ -10,6 +10,7 @@ That opens a browser, searches Maps for *"restaurants in Baneshwor, Kathmandu"*,
 
 ## Why it's different
 
+- **Live file, row by row** — every lead is written to your file the moment it's found: CSV/NDJSON rows are appended, JSON stays a valid array, Excel is rewritten each time. Open it mid-run and the rows are there; stop with Ctrl-C and nothing collected is lost. `--resume` carries on from the file.
 - **Free & keyless** — uses a real browser (via [Playwright](https://playwright.dev)), not a paid Places API.
 - **Ask for a number, get that number** — one Google search stops at ~120 results; `--target 500` keeps searching (every area you name, then tiles of the map) until it has 500 unique businesses.
 - **Sweep a whole city** — comma-separate areas and it runs each search, then **merges and de-duplicates** into one list: `--area "Thamel,Baneshwor,Patan"`.
@@ -151,6 +152,8 @@ npx lacspace-leads --config campaign.json
 | Far fewer leads than the target | The map ran out — that really is everything Google lists for that query | More areas or cities, related `--type`s, or a bigger `--step` |
 | About 114 back from `--limit 500` | Google's per-search ceiling | Use `--target 500` instead |
 | No leads at all | Usually a CAPTCHA or a page change | Drop `--headless` to watch it, raise `--delay`, try again shortly |
+| Empty "Reviews" column | Google currently hides review counts from signed-out visitors (the rating still shows) | Nothing to fix on our side; sort by `rating` instead |
+| Excel file "can't be written" warning | The file is open in Excel, which locks it | Rows are kept and written as soon as you close it |
 | Empty address / website columns | `--no-details` was on, so listings were never opened | Remove it (`--no-website` and `--split` turn details back on for you) |
 | Everything grouped under "other" with `--split` | Same cause — no addresses to match against | Same fix |
 
@@ -361,6 +364,23 @@ npx lacspace-leads --config campaign.json
 
 Every search is run, merged and de-duplicated; the shared options, filters and output settings apply across the whole campaign. Programmatically: `runConfig(config)`.
 
+## Live output: watch the file fill up
+
+Ask for 100 leads and the file gets row 1 as soon as the first business is read, row 2 a few seconds later, and so on. Each lead is finished before it is written: website cleaned, email and socials found (in the background, while the browser opens the next listing), email verified, phone normalised, de-duplicated and checked against every filter. Each row is a final row, and a `--target 100` with filters stops at 100 *matching* leads.
+
+```
+  ✚ 37/100 Himalayan Java Coffee — 01-4422519 · himalayanjava.com  (14.2/min, ~5 min left)
+```
+
+| Format | While it runs |
+| --- | --- |
+| `csv` | header first, then one appended line per lead |
+| `ndjson` | one appended line per lead (also streams live to stdout with `-o -`) |
+| `json` | always a valid JSON array: the closing `]` is moved after each lead |
+| `xlsx` | the workbook is rewritten safely (temp file + rename) after each lead |
+
+When the run ends the file is rewritten once more in its final order (`--sort`, `--append` merges). Press **Ctrl-C** and it stops cleanly, saving everything collected. Then run the same command with `--resume`: it keeps the rows in the file, skips those listings and fills up to the `--target`. `--no-live` turns this off and writes only at the end.
+
 ## Resume a long sweep (`--resume`)
 
 Sweeping a whole city one neighbourhood at a time can take a while, and Google may throw a CAPTCHA halfway through. Add `--resume` and every completed sub-search is checkpointed to `<out>.checkpoint.json` — the leads gathered so far plus which searches are done. Re-run the exact same command and it **skips the areas already collected** and picks up where it stopped; when the sweep finishes cleanly the checkpoint is deleted.
@@ -372,7 +392,7 @@ npx lacspace-leads cafes --city Kathmandu \
 # crashes after Patan? just run it again — Thamel/Baneshwor/Patan are skipped.
 ```
 
-`--resume` applies to multi-search sweeps and `--config` campaigns (it's a no-op for a single search). The checkpoint key normalises case/whitespace, so the same area sweep always lines up.
+For multi-search sweeps and `--config` campaigns, `--resume` uses the checkpoint. For a single search or a `--target` run (since 1.8.0), it continues from the rows already in the output file. The checkpoint key normalises case/whitespace, so the same area sweep always lines up.
 
 ## Run summary (`--summary`)
 
@@ -565,7 +585,8 @@ const leads = await searchLeadsBatch(
 | `enrichContacts(website)` / `extractEmails` / `extractSocials` | Website enrichment, on tap. |
 | `cleanWebsite` / `normalizePhone` / `sortLeads` | Pure data-cleaning helpers (unit-tested). |
 | `haversineMeters` / `parseLatLngPair` / `parseDistance` | Pure geo helpers for radius search. |
-| `filterLeads` / `dedupeLeads` / `subtractLeads` | Pure post-processing — filter, in-list dedupe, and cross-file dedupe. |
+| `filterLeads` / `dedupeLeads` / `subtractLeads` / `dedupeKey` | Pure post-processing — filter, in-list dedupe, and cross-file dedupe. |
+| `createLiveWriter(options)` | Write leads to csv / ndjson / json / xlsx (or stdout) one by one as they arrive. |
 | `summarize(leads)` / `formatSummary(s)` | Rating bands, contact coverage %, top categories — the `--summary` engine. |
 | `parsePriceLevel` / `priceLevelValue` / `parseBusinessStatus` / `parseClaimed` / `parseOpenNow` / `parseCategoryTags` | Pure field parsers (unit-tested against HTML/aria snippets). |
 | `pipeToEnrich(handler)` / `leadsToEnrichInput` / `leadDomains` / `leadDomain` | Bridge collected leads to `lacspace-enrich` (no hard dep). |
@@ -573,7 +594,21 @@ const leads = await searchLeadsBatch(
 | `expandQueries` / `resolvePreset` / `FIELD_PRESETS` | Batch expansion + field presets. |
 | `composeQuery` / `mapsSearchUrl` / `normalizeFields` / `defaultFilename` | Query + helper utilities. |
 
-The `onProgress` and `onLead` callbacks stream progress and each lead as it's found — handy for live UIs or crash-safe writing. Everything is fully typed (`Lead`, `LeadField`, `SearchOptions`, `LeadStats`, `EmailStatus`, `SortKey`, `OutputFormat`, `Contacts` …) and ships dual **ESM + CJS**.
+Write leads as they're found (1.8.0):
+
+```ts
+import { searchLeads, createLiveWriter, DEFAULT_FIELDS } from "lacspace-leads";
+
+const writer = createLiveWriter({ file: "cafes.csv", format: "csv", fields: [...DEFAULT_FIELDS] });
+const leads = await searchLeads({
+  type: "cafes", city: "Kathmandu", limit: 100, headless: true,
+  onResult: (lead) => writer.add(lead),          // a finished row, the moment it's ready
+  remaining: () => 100 - writer.added,           // stop opening listings once there are 100
+});
+writer.finish(leads);
+```
+
+`onResult` gets each lead once it is final (enriched, verified, normalised, de-duplicated, filtered). `onLead` still gets the raw listing straight off the page, and `onProgress` streams status messages. `searchLeadsBatch` and target sweeps forward `onResult` across every search and tile, each business once. Everything is fully typed (`Lead`, `LeadField`, `SearchOptions`, `LeadStats`, `EmailStatus`, `SortKey`, `OutputFormat`, `Contacts` …) and ships dual **ESM + CJS**.
 
 ## Please use it responsibly
 

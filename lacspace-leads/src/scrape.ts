@@ -1,7 +1,7 @@
 import { chromium, type Browser, type Page } from "playwright-core";
 import { composeQuery, mapsSearchUrl, normalizeFields } from "./query.js";
 import { enrichContacts, type Contacts } from "./enrich.js";
-import { dedupeLeads, filterLeads } from "./filter.js";
+import { dedupeKey, filterLeads } from "./filter.js";
 import { cleanWebsite, normalizePhone, sortLeads } from "./normalize.js";
 import { verifyEmails } from "./verify.js";
 import { haversineMeters, zoomForRadius } from "./geo.js";
@@ -86,10 +86,19 @@ export function parseLatLng(url: string): { latitude?: number; longitude?: numbe
   return {};
 }
 
+/** A stable identity for a Maps place URL: its feature id (0x…:0x…) or the URL without query/viewport. */
+export function placeKey(href: string): string {
+  const id = href.match(/!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i) ?? href.match(/[?&]cid=(\d+)/);
+  if (id) return id[1]!.toLowerCase();
+  return href.split("?")[0]!.replace(/\/@[^/]+/, "").toLowerCase();
+}
+
 /** Try to launch a browser: system Chrome, then Edge, then a bundled Chromium. */
 async function launchBrowser(headless: boolean, proxy?: string): Promise<Browser> {
   let lastErr: unknown;
-  const base: Parameters<typeof chromium.launch>[0] = { headless };
+  // The caller handles Ctrl-C (the CLI finishes the leads in hand and saves); Playwright's own
+  // handler would kill the browser and exit the process mid-write.
+  const base: Parameters<typeof chromium.launch>[0] = { headless, handleSIGINT: false };
   if (proxy) base.proxy = { server: proxy };
   for (const channel of ["chrome", "msedge"] as const) {
     try {
@@ -167,7 +176,7 @@ async function extractDetail(
   const text = async (sel: string): Promise<string | undefined> => {
     const loc = page.locator(sel).first();
     if (await loc.count()) {
-      const t = (await loc.innerText().catch(() => "")).trim();
+      const t = (await loc.innerText({ timeout: 2000 }).catch(() => "")).trim();
       return t || undefined;
     }
     return undefined;
@@ -175,7 +184,7 @@ async function extractDetail(
   const aria = async (sel: string): Promise<string | undefined> => {
     const loc = page.locator(sel).first();
     if (await loc.count()) {
-      return (await loc.getAttribute("aria-label").catch(() => null)) ?? undefined;
+      return (await loc.getAttribute("aria-label", { timeout: 2000 }).catch(() => null)) ?? undefined;
     }
     return undefined;
   };
@@ -201,10 +210,11 @@ async function extractDetail(
     const box = page.locator("div.F7nice").first();
     if (await box.count()) {
       if (fields.has("rating")) {
+        // Short timeouts: a missing element must not stall the run for Playwright's default 30 s.
         const rt = await box
           .locator('span[aria-hidden="true"]')
           .first()
-          .innerText()
+          .innerText({ timeout: 1500 })
           .catch(() => "");
         lead.rating = parseRating(rt);
       }
@@ -212,12 +222,12 @@ async function extractDetail(
         const rv = await box
           .locator('span[aria-label*="review"]')
           .first()
-          .getAttribute("aria-label")
+          .getAttribute("aria-label", { timeout: 1500 })
           .catch(() => null);
         let count = parseReviewCount(rv);
         if (count === undefined) {
           // Fallback: Maps sometimes shows the count only as "(1,810)" text.
-          const boxText = await box.innerText().catch(() => "");
+          const boxText = await box.innerText({ timeout: 1500 }).catch(() => "");
           const m = boxText.match(/\(([\d.,\s]+)\)/);
           if (m) count = parseReviewCount(m[1]);
         }
@@ -235,7 +245,7 @@ async function extractDetail(
   if (fields.has("website")) {
     const site = page.locator('a[data-item-id="authority"]').first();
     if (await site.count()) {
-      lead.website = (await site.getAttribute("href").catch(() => null)) ?? undefined;
+      lead.website = (await site.getAttribute("href", { timeout: 2000 }).catch(() => null)) ?? undefined;
     }
   }
   if (fields.has("priceLevel")) {
@@ -318,6 +328,8 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
   const near = opts.near;
   const collect = new Set<LeadField>(fields);
   if (wantEnrich) collect.add("website");
+  // Website filters need the website even when it isn't an output column.
+  if (opts.filters?.hasWebsite || opts.filters?.noWebsite || opts.filters?.hasContact) collect.add("website");
   // A radius search needs coordinates to measure distance, even if the user
   // didn't ask for the lat/long columns.
   if (near) { collect.add("latitude"); collect.add("longitude"); }
@@ -336,6 +348,8 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       locale,
     });
     const page = await context.newPage();
+    // Reads on an open listing are instant or absent; never wait 30 s for an element that isn't there.
+    page.setDefaultTimeout(5000);
     const urlOpts: { hl?: string; gl?: string; center?: { lat: number; lng: number; zoom?: number } } = { hl: locale };
     if (opts.region) urlOpts.gl = opts.region;
     if (near) urlOpts.center = { lat: near.lat, lng: near.lng, zoom: zoomForRadius(opts.radiusM ?? opts.zoomRadiusM ?? 2000, near.lat) };
@@ -369,6 +383,20 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       onProgress?.("no listings found (Google may have shown a CAPTCHA or an empty result).");
       return [];
     }
+    // The feed can list one place twice (an ad and the organic result): open each place once.
+    {
+      const seen = new Set<string>();
+      const uniq = (cards as { href: string; name?: string }[]).filter((card) => {
+        const k = placeKey(card.href);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      if (uniq.length !== cards.length) {
+        onProgress?.(`${cards.length - uniq.length} listing${cards.length - uniq.length === 1 ? "" : "s"} shown twice in the feed — opening each place once.`);
+        (cards as { href: string; name?: string }[]).splice(0, cards.length, ...uniq);
+      }
+    }
 
     // Drop anything the caller already has BEFORE opening listings — on an
     // overlapping map tile that is most of them, and each open costs a page load.
@@ -385,10 +413,88 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
       if (all.length === 0) return [];
     }
 
-    let leads: Lead[] = [];
+    // Each listing is finished on its own the moment it is read: cleaned, measured, de-duplicated,
+    // enriched from its website, verified, normalised and filtered. A finished lead goes straight
+    // to `onResult`, so the caller can write it to disk while the browser opens the next listing.
+    // Website enrichment runs in the background, `concurrency` at a time.
+    const dedupeBy = opts.dedupe ?? "smart";
+    const seenKeys = new Set<string>();
+    const accepted: Lead[] = [];
+    const order = new Map<Lead, number>();
+    const socialFields = ENRICHED_FIELDS.filter((f) => f !== "email");
+    const concurrency = Math.max(1, Math.trunc(opts.concurrency ?? 3));
+    let inflight = 0;
+    let enriched = 0;
+    const waiters: (() => void)[] = [];
+    const tasks: Promise<void>[] = [];
+    const settleOne = (): Promise<void> => new Promise<void>((res) => waiters.push(res));
+
+    const finish = async (lead: Lead): Promise<void> => {
+      if ((opts.cleanUrls ?? true) && lead.website) lead.website = cleanWebsite(lead.website);
+      if (near && typeof lead.latitude === "number" && typeof lead.longitude === "number") {
+        const m = haversineMeters(near, { lat: lead.latitude, lng: lead.longitude });
+        lead.distanceKm = Math.round((m / 1000) * 100) / 100;
+      }
+      if (near && opts.radiusM !== undefined && !(lead.distanceKm !== undefined && lead.distanceKm * 1000 <= opts.radiusM)) return;
+      // De-duplicate before the expensive website visit.
+      const key = dedupeKey(lead, dedupeBy);
+      if (key !== undefined) {
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+      }
+      if (wantEnrich && lead.website && !overBudget() && !signal?.aborted) {
+        onProgress?.(`enriching ${++enriched}: ${lead.name ?? lead.website}…`);
+        try {
+          const c = await enrichContacts(lead.website);
+          if (fields.has("email") && c.email) lead.email = c.email;
+          for (const f of socialFields) {
+            const v = c[f as keyof Contacts];
+            if (fields.has(f) && v) (lead as Record<string, unknown>)[f] = v;
+          }
+        } catch { /* an unreachable website just means no contacts */ }
+      }
+      if (wantVerify && lead.email && !signal?.aborted) {
+        try { await verifyEmails([lead], { concurrency: 1 }); } catch { /* unknown status */ }
+      }
+      if (opts.country && fields.has("phone") && lead.phone) lead.phone = normalizePhone(lead.phone, opts.country);
+      // Filters see the enriched, verified lead, before the helper columns go.
+      if (opts.filters && filterLeads([lead], opts.filters).length === 0) return;
+      if (!fields.has("website")) delete lead.website;
+      if (wantVerify && !fields.has("emailStatus")) delete lead.emailStatus;
+      if (near) {
+        if (!fields.has("latitude")) delete lead.latitude;
+        if (!fields.has("longitude")) delete lead.longitude;
+        if (!fields.has("distanceKm")) delete lead.distanceKm;
+      }
+      accepted.push(lead);
+      try { opts.onResult?.(lead); } catch { /* a bad onResult never breaks the run */ }
+    };
+
+    const schedule = async (lead: Lead, index: number): Promise<void> => {
+      order.set(lead, index);
+      while (inflight >= concurrency) await settleOne();
+      inflight++;
+      tasks.push(finish(lead).catch(() => {}).finally(() => { inflight--; waiters.shift()?.(); }));
+    };
+
+    // With `remaining`, stop opening listings once the leads still being finished would cover it.
+    const wantMore = async (): Promise<boolean> => {
+      if (!opts.remaining) return true;
+      for (;;) {
+        const left = opts.remaining();
+        if (left <= 0) return false;
+        if (left - inflight > 0) return true;
+        if (inflight === 0) return true;
+        await settleOne();
+      }
+    };
+
+    let read = 0;
     if (!wantDetails) {
       // Fast path: just the names + maps URLs from the feed.
-      leads = cards.map((c) => {
+      for (let i = 0; i < cards.length; i++) {
+        if (signal?.aborted || !(await wantMore())) break;
+        const c = cards[i]!;
         const lead: Lead = {};
         if (collect.has("name")) lead.name = c.name;
         if (collect.has("mapsUrl")) lead.mapsUrl = c.href;
@@ -397,14 +503,13 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
           if (collect.has("latitude")) lead.latitude = geo.latitude;
           if (collect.has("longitude")) lead.longitude = geo.longitude;
         }
-        return lead;
-      });
-      for (const lead of leads) {
+        read++;
         try { onLead?.(lead); } catch { /* ignore */ }
+        await schedule(lead, i);
       }
     } else {
       for (let i = 0; i < cards.length; i++) {
-        if (signal?.aborted || overBudget()) break;
+        if (signal?.aborted || overBudget() || !(await wantMore())) break;
         const card = cards[i]!;
         onProgress?.(`reading ${i + 1}/${cards.length}: ${card.name ?? "listing"}…`);
         let lead: Lead | undefined;
@@ -430,102 +535,19 @@ export async function scrapeLeads(opts: SearchOptions): Promise<Lead[]> {
           }
         }
         if (lead) {
-          leads.push(lead);
+          read++;
           try { onLead?.(lead); } catch { /* a bad onLead never breaks the run */ }
+          await schedule(lead, i);
         }
         if (delayMs) await page.waitForTimeout(pauseMs());
       }
     }
-    onProgress?.(`collected ${leads.length} listing${leads.length === 1 ? "" : "s"}.`);
+    await Promise.all(tasks);
+    onProgress?.(`read ${read} listing${read === 1 ? "" : "s"}.`);
 
-    // Tidy website URLs (unwrap redirects, strip tracking) — improves dedupe
-    // and enrichment fetches. On by default.
-    if (opts.cleanUrls ?? true) {
-      for (const lead of leads) {
-        if (lead.website) lead.website = cleanWebsite(lead.website);
-      }
-    }
-
-    // Radius search: measure each lead's distance from the centre, and drop
-    // anything beyond the radius before we spend time enriching.
-    if (near) {
-      for (const lead of leads) {
-        if (typeof lead.latitude === "number" && typeof lead.longitude === "number") {
-          const m = haversineMeters(near, { lat: lead.latitude, lng: lead.longitude });
-          lead.distanceKm = Math.round((m / 1000) * 100) / 100;
-        }
-      }
-      if (opts.radiusM !== undefined) {
-        const r = opts.radiusM;
-        leads = leads.filter((l) => l.distanceKm !== undefined && l.distanceKm * 1000 <= r);
-        onProgress?.(`within ${Math.round(r)} m: ${leads.length} listing${leads.length === 1 ? "" : "s"}.`);
-      }
-    }
-
-    // Dedupe before the expensive enrichment step.
-    leads = dedupeLeads(leads, opts.dedupe ?? "website");
-
-    // Enrich from each website (email + socials), a few in parallel.
-    if (wantEnrich) {
-      const socialFields = ENRICHED_FIELDS.filter((f) => f !== "email");
-      let done = 0;
-      await pool(
-        leads,
-        Math.max(1, Math.trunc(opts.concurrency ?? 3)),
-        async (lead) => {
-          if (overBudget()) return;
-          const site = lead.website;
-          if (site) {
-            onProgress?.(`enriching ${++done}/${leads.length}: ${lead.name ?? site}…`);
-            const c = await enrichContacts(site);
-            if (fields.has("email") && c.email) lead.email = c.email;
-            for (const f of socialFields) {
-              const v = c[f as keyof Contacts];
-              if (fields.has(f) && v) (lead as Record<string, unknown>)[f] = v;
-            }
-          }
-          // Drop the internal-only website when the user didn't ask for it.
-          if (!fields.has("website")) delete lead.website;
-        },
-        signal,
-      );
-    }
-
-    // Verify discovered emails (MX lookup) when asked.
-    if (wantVerify && !signal?.aborted) {
-      onProgress?.("verifying email domains…");
-      const vOpts: { concurrency: number; onProgress?: (m: string) => void } = {
-        concurrency: Math.max(1, Math.trunc(opts.concurrency ?? 5)),
-      };
-      if (onProgress) vOpts.onProgress = (m) => onProgress(m);
-      await verifyEmails(leads, vOpts);
-    }
-
-    // Normalise phone numbers to E.164 when a default country is given.
-    if (opts.country && fields.has("phone")) {
-      for (const lead of leads) {
-        if (lead.phone) lead.phone = normalizePhone(lead.phone, opts.country);
-      }
-    }
-
-    // Apply filters (so hasEmail/hasValidEmail see enriched+verified data), then sort.
-    if (opts.filters) leads = filterLeads(leads, opts.filters);
+    // Listing order, unless a sort was asked for.
+    let leads = accepted.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
     if (opts.sort) leads = sortLeads(leads, opts.sort, opts.sortDir);
-
-    // Drop the derived status column unless the user actually asked for it.
-    if (wantVerify && !fields.has("emailStatus")) for (const l of leads) delete l.emailStatus;
-
-    // Drop coordinate/distance helpers we only collected for the radius search.
-    if (near) {
-      const keepLat = fields.has("latitude");
-      const keepLng = fields.has("longitude");
-      const keepDist = fields.has("distanceKm");
-      for (const l of leads) {
-        if (!keepLat) delete l.latitude;
-        if (!keepLng) delete l.longitude;
-        if (!keepDist) delete l.distanceKm;
-      }
-    }
 
     onProgress?.(`collected ${leads.length} lead${leads.length === 1 ? "" : "s"}.`);
     return leads;

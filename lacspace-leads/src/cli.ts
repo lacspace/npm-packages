@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync, readFileSync } from "node:fs";
+import { writeFileSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve, extname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
@@ -19,6 +19,7 @@ import {
   type Checkpoint,
 } from "./checkpoint.js";
 import { summarize, formatSummary } from "./summary.js";
+import { createLiveWriter, type LiveWriter } from "./live.js";
 import { leadsToEnrichInput } from "./pipe.js";
 import type { BatchQuery } from "./batch.js";
 import { parseLatLngPair, parseDistance } from "./geo.js";
@@ -61,7 +62,7 @@ interface Args {
   country?: string; locale?: string; region?: string; concurrency?: number; cleanUrls: boolean;
   proxy?: string; retries?: number; jitter: boolean;
   sheet?: string; maxTime?: number;
-  resume: boolean; summary: boolean; dedupeAcross?: string; enrichOut?: string;
+  resume: boolean; summary: boolean; dedupeAcross?: string; enrichOut?: string; live: boolean;
   yes: boolean; help: boolean;
 }
 
@@ -71,7 +72,7 @@ function parseArgs(list: string[]): Args {
     emails: false, socials: false, verifyEmails: false,
     hasPhone: false, hasWebsite: false, noWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
     openNow: false,
-    cleanUrls: true, jitter: false, resume: false, summary: false, yes: false, help: false,
+    cleanUrls: true, jitter: false, resume: false, summary: false, live: true, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -117,6 +118,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--business-status") a.businessStatus = next();
     else if (arg === "--name-exclude" || arg === "--exclude-names") a.nameExclude = next();
     else if (arg === "--resume") a.resume = true;
+    else if (arg === "--no-live") a.live = false;
+    else if (arg === "--live") a.live = true;
     else if (arg === "--summary") a.summary = true;
     else if (arg === "--dedupe-across") a.dedupeAcross = next();
     else if (arg === "--enrich-out") a.enrichOut = next();
@@ -195,8 +198,8 @@ ${c("bold", "Filters & order")}
       --category <text> Keep only leads whose category/tags contain this text
       --business-status <s>  Keep only this status (operational | closed | temporarily-closed)
       --name-exclude <list>  Drop leads whose name contains any of these terms
-      --dedupe <key>    website | phone | name | smart | none   (default website;
-                        --append uses smart: website→phone→name)
+      --dedupe <key>    website | phone | name | smart | none   (default smart:
+                        same website, else same phone, else same name)
       --dedupe-across <file>  Drop leads already present in an existing master file
       --sort <key>      rating | reviews | name | priceLevel | distance
       --desc / --asc    Sort direction (distance defaults nearest-first)
@@ -212,7 +215,13 @@ ${c("bold", "Output")}
       --sheet <name>    Excel sheet name         (default "Leads")
       --summary         Print run stats (rating bands, % with contact, top categories)
       --enrich-out <f>  Also write { name, website, domain } NDJSON for lacspace-enrich
-      --resume          Resume an interrupted city sweep from its checkpoint file
+      --resume          Continue an interrupted run: keeps the rows already in the
+                        output file, skips those listings and fills up to --target
+                        (multi-area sweeps also use their checkpoint file)
+      --no-live         Write the file only at the end. By default every lead is
+                        added to the file the moment it is found (csv/ndjson rows
+                        append, json stays valid, xlsx is rewritten), so stopping
+                        early never loses what was collected
 
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
@@ -528,8 +537,71 @@ async function main(): Promise<void> {
   log("");
 
   const controller = new AbortController();
-  const onSig = (): void => { controller.abort(); };
-  process.once("SIGINT", onSig);
+  const onSig = (): void => {
+    if (controller.signal.aborted) {
+      writerRef.current?.flush();
+      log(c("yellow", "\n  ! Quit. Rows already written stay in the file; --resume continues from them.\n"));
+      exit(130);
+    }
+    controller.abort();
+    log(c("yellow", "\n  ! Stopping — finishing the leads in hand. Press Ctrl-C again to quit at once (rows already written stay in the file)."));
+  };
+  const writerRef: { current?: LiveWriter } = {};
+  process.on("SIGINT", onSig);
+
+  // Rows already in the output (append / resume) and in a master file, read BEFORE the run:
+  // the live writer rewrites the output as it goes.
+  let existing: Lead[] = [];
+  if ((args.append || args.resume) && !toStdout && existsSync(out)) {
+    try { existing = rowsToLeads(await readRows(out)); } catch (err) { log(c("yellow", `  ! couldn't read "${out}" (${(err as Error).message}); starting it fresh`)); }
+  }
+  let master: Lead[] | undefined;
+  if (args.dedupeAcross && existsSync(args.dedupeAcross)) {
+    try { master = rowsToLeads(await readRows(args.dedupeAcross)); } catch (err) { log(c("yellow", `  ! couldn't read --dedupe-across "${args.dedupeAcross}" (${(err as Error).message}); keeping all`)); }
+  }
+  const dedupeBy = args.dedupe ?? "smart";
+  const inMaster = master?.length ? (l: Lead): boolean => subtractLeads([l], master!, dedupeBy).length === 0 : undefined;
+  // --resume on a single search or a --target run continues from the rows in the file.
+  const resumeRows = args.resume && !isBatch ? existing : [];
+  if (resumeRows.length) log(`  ${c("cyan", "◷")} ${c("dim", `resuming — ${resumeRows.length} leads already in ${out}; skipping those listings`)}`);
+
+  // Live output: each finished lead goes into the file the moment it is ready.
+  const liveFormat = toStdout ? (args.format === "csv" || args.format === "ndjson") : true;
+  let writer: LiveWriter | undefined;
+  const outExisted = !toStdout && existsSync(out);
+  // Nothing found: don't leave behind a file this run created empty.
+  const dropEmpty = (): void => {
+    if (!writer || toStdout) return;
+    if (outExisted) writer.finish([...existing]);
+    else { writer.finish([]); try { unlinkSync(out); } catch { /* already gone */ } }
+  };
+  if (args.live && liveFormat && !(toStdout && args.split)) {
+    try {
+      writer = createLiveWriter({
+        file: out, format: args.format, fields, dedupe: dedupeBy, seed: existing,
+        ...(args.sheet ? { sheetName: args.sheet } : {}),
+        ...(toStdout ? { stdout } : {}),
+        onWriteError: (e) => log(c("yellow", `  ! couldn't write ${out} (${e.message}) — is it open in another app? Rows are kept and written as soon as it's free.`)),
+      });
+      writerRef.current = writer;
+      if (!toStdout) log(`  ${c("cyan", "◷")} ${c("dim", `writing live → ${out}`)}`);
+    } catch (err) { log(c("yellow", `  ! live output off: ${(err as Error).message}`)); }
+  }
+  const goal = args.target ?? (isBatch ? args.total : undefined) ?? (isBatch ? undefined : args.limit);
+  const startedAt = Date.now();
+  let fresh0 = 0;
+  const onResult = (lead: Lead): void => {
+    if (inMaster?.(lead)) return;
+    if (writer && !writer.add(lead)) return;
+    fresh0++;
+    const have = resumeRows.length + fresh0;
+    const mins = (Date.now() - startedAt) / 60000;
+    const rate = mins > 0.05 ? fresh0 / mins : 0;
+    const left = goal !== undefined ? Math.max(0, goal - have) : 0;
+    const eta = rate > 0 && left > 0 ? `, ~${Math.ceil(left / rate)} min left` : "";
+    const bits = [lead.phone, lead.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""), lead.email].filter(Boolean).join(" · ");
+    log(`  ${c("green", "✚")} ${c("bold", goal !== undefined ? `${have}/${goal}` : String(have))} ${lead.name ?? "(no name)"}${bits ? c("dim", ` — ${bits}`) : ""}${rate ? c("dim", `  (${rate.toFixed(1)}/min${eta})`) : ""}`);
+  };
 
   const opts: SearchOptions = {
     type: args.type ?? "",
@@ -547,9 +619,17 @@ async function main(): Promise<void> {
     jitter: args.jitter,
     signal: controller.signal,
     onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`),
+    onResult,
   };
+  if (resumeRows.length) {
+    const names = new Set(resumeRows.map((l) => l.name?.trim().toLowerCase()).filter(Boolean));
+    const urls = new Set(resumeRows.map((l) => l.mapsUrl).filter(Boolean));
+    opts.skipListing = (l) => urls.has(l.href) || (!!l.name && names.has(l.name.trim().toLowerCase()));
+  }
+  // Count only what really lands in the file toward a target (master duplicates don't).
+  if (args.target !== undefined && (resumeRows.length || inMaster)) opts.remaining = () => args.target! - resumeRows.length - fresh0;
   if (hasFilters) opts.filters = filters;
-  if (args.dedupe) opts.dedupe = args.dedupe;
+  opts.dedupe = dedupeBy;
   if (nearPoint) opts.near = { lat: nearPoint.lat, lng: nearPoint.lng };
   if (radiusM !== undefined) opts.radiusM = radiusM;
   // Nearest-first is the natural default for a radius search.
@@ -616,12 +696,20 @@ async function main(): Promise<void> {
       leads = await searchLeads(opts);
     }
   } catch (err) {
+    if (writer && writer.added) {
+      writer.flush();
+      log(c("yellow", `\n  ! ${(err as Error).message}`));
+      log(`  ${c("green", "✔")} ${c("bold", String(writer.count))} leads are saved in ${c("cyan", out)}. Run the same command with ${c("bold", "--resume")} to continue.\n`);
+      exit(controller.signal.aborted ? 130 : 1);
+      return;
+    }
     log(c("red", `\n✗ ${(err as Error).message}`));
     exit(1);
     return;
   } finally {
     process.removeListener("SIGINT", onSig);
   }
+  const stoppedEarly = controller.signal.aborted;
 
   if (sweptShort) {
     log(c("yellow", `\n  ! The map ran out of new results at ${leads.length} — that is everything Google lists here.`));
@@ -631,25 +719,22 @@ async function main(): Promise<void> {
     log(c("dim", `    To really get ${args.limit}, ask for a total: --target ${args.limit} — it sweeps every area you name, then tiles the map.\n`));
   }
 
-  if (leads.length === 0) {
+  if (leads.length === 0 && !resumeRows.length) {
     log(c("yellow", "\n  No leads collected. Try a broader area, looser filters, or a smaller --limit.\n"));
+    dropEmpty();
     if (cpFile) clearCheckpoint(cpFile);
     return;
   }
 
   // Cross-file dedupe: drop leads already present in an existing master file, so
   // this run only writes what's genuinely new.
-  if (args.dedupeAcross && existsSync(args.dedupeAcross)) {
-    try {
-      const master = rowsToLeads(await readRows(args.dedupeAcross));
-      const before = leads.length;
-      leads = subtractLeads(leads, master, args.dedupe ?? "smart");
-      log(`  ${c("cyan", "◷")} ${c("dim", `dropped ${before - leads.length} already in ${args.dedupeAcross} → ${leads.length} new`)}`);
-    } catch (err) {
-      log(c("yellow", `  ! couldn't read --dedupe-across "${args.dedupeAcross}" (${(err as Error).message}); keeping all`));
-    }
+  if (master) {
+    const before = leads.length;
+    leads = subtractLeads(leads, master, dedupeBy);
+    log(`  ${c("cyan", "◷")} ${c("dim", `dropped ${before - leads.length} already in ${args.dedupeAcross} → ${leads.length} new`)}`);
     if (leads.length === 0) {
       log(c("yellow", "\n  Nothing new — every lead was already in the master file.\n"));
+      dropEmpty();
       if (cpFile) clearCheckpoint(cpFile);
       return;
     }
@@ -658,17 +743,13 @@ async function main(): Promise<void> {
   // Append mode: merge the new leads onto whatever's already in the file, then
   // dedupe — so repeated runs accumulate one master list.
   let fresh = leads.length;
-  if (args.append && !toStdout && existsSync(out)) {
-    try {
-      const existing = rowsToLeads(await readRows(out));
-      const before = existing.length;
-      const merged: Lead[] = dedupeLeads([...existing, ...leads], args.dedupe ?? "smart");
-      fresh = merged.length - before;
-      log(`  ${c("cyan", "◷")} ${c("dim", `merged with ${before} existing → ${merged.length} total (${fresh} new)`)}`);
-      leads = merged;
-    } catch (err) {
-      log(c("yellow", `  ! couldn't read "${out}" to append (${(err as Error).message}); overwriting instead`));
-    }
+  if ((args.append || resumeRows.length) && !toStdout && existing.length) {
+    const before = existing.length;
+    const merged: Lead[] = dedupeLeads([...existing, ...leads], dedupeBy);
+    fresh = merged.length - before;
+    log(`  ${c("cyan", "◷")} ${c("dim", `merged with ${before} existing → ${merged.length} total (${fresh} new)`)}`);
+    leads = merged;
+    if (args.target !== undefined && resumeRows.length) leads = leads.slice(0, Math.max(args.target, before));
   }
 
   // Optional: write the enrich-pipeline input (name/website/domain) as NDJSON,
@@ -696,8 +777,11 @@ async function main(): Promise<void> {
 
   if (toStdout) {
     // Write the payload to real stdout so it can be piped; keep logs on stderr.
-    stdout.write(binary ? Buffer.from(data as Uint8Array) : (data as string));
-    if (!binary) stdout.write("\n");
+    // (Already streamed row by row when live.)
+    if (!writer) {
+      stdout.write(binary ? Buffer.from(data as Uint8Array) : (data as string));
+      if (!binary) stdout.write("\n");
+    }
     log(`\n  ${c("green", "✔")} ${c("bold", String(leads.length))} leads written to stdout ${c("dim", `(${args.format})`)}\n`);
     printSummary();
     return;
@@ -723,8 +807,10 @@ async function main(): Promise<void> {
     }
   }
 
-  writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
-  if (cpFile) clearCheckpoint(cpFile); // sweep finished cleanly — drop the checkpoint
+  // The final file: the same rows the live file grew, now sorted/merged as asked.
+  if (writer) writer.finish(leads);
+  else writeFileSync(out, binary ? Buffer.from(data as Uint8Array) : (data as string));
+  if (cpFile && !stoppedEarly) clearCheckpoint(cpFile); // sweep finished cleanly — drop the checkpoint
 
   const s = computeStats(leads);
   log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}${args.append && fresh !== leads.length ? c("dim", ` (${fresh} new)`) : ""}`);
@@ -734,6 +820,7 @@ async function main(): Promise<void> {
   if (args.socials) parts.push(`${s.withSocial} with a social link`);
   if (s.avgRating !== undefined) parts.push(`avg ★ ${s.avgRating}`);
   log(`    ${c("dim", parts.join(" · "))}`);
+  if (stoppedEarly) log(c("yellow", `  ! Stopped early. Run the same command with --resume to carry on from these ${leads.length}.`));
   printSummary();
   log("");
 }

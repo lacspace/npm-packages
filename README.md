@@ -8,7 +8,7 @@
 
 _Think · Innovate · Execute_
 
-[![packages](https://img.shields.io/badge/packages-200-4d9fff)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-203-4d9fff)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
 [![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
 [![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **200 published packages and CLIs** (171 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **203 published packages and CLIs** (174 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -28,7 +28,7 @@ One monorepo, **200 published packages and CLIs** (171 libraries + 29 tools). Mo
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 200 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 203 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -240,6 +240,7 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/nepal-holidays`](./nepal-holidays) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepal-holidays?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepal-holidays) | Official Nepal public holidays by BS year from the Home Ministry gazette — BS+AD dates, en/ne names, scope (national/regional/women/community), Dashain/Tihar ranges |
 | [`@lacspace/preeti`](./preeti) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpreeti?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/preeti) | Preeti ⇄ Unicode for Nepali legacy-font text, both directions, plus detection of pasted Preeti |
 | [`@lacspace/nepali-typing`](./nepali-typing) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-typing?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-typing) | Romanised Nepali → Devanagari typing with per-word candidates (namaste → नमस्ते), case endings, learns picks — React Native safe |
+| [`@lacspace/nepali-match`](./nepali-match) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-match?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-match) | Nepali/English whole-word matching: spelling-variant folding, postpositions allowed (झापाको → Jhapa, पर्वतारोही ≠ Parbat), exact-case acronyms, near() in-sentence, all 77 districts |
 
 ### AI Kit
 
@@ -332,6 +333,8 @@ Deterministic building blocks for an AI newsroom — do the grounding, extractio
 | [`@lacspace/datacards`](./datacards) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fdatacards?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/datacards) | Official data (NRB rates, gold, fuel, DHM, AQI, NEPSE) → bilingual card content |
 | [`@lacspace/hookwriter`](./hookwriter) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fhookwriter?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/hookwriter) | Platform-fitted hooks, captions and hashtags per network; BREAKING only when it is |
 | [`@lacspace/commentguard`](./commentguard) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcommentguard?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/commentguard) | Comment moderation for news sites — abuse, threats, personal data, spam and floods in English, Nepali and romanised Nepali |
+| [`@lacspace/sourcewatch`](./sourcewatch) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsourcewatch?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/sourcewatch) | Re-verify that official pages and PDFs still back your facts — streamed fetch, pure-JS PDF text, whole-number matching, placeholder and TLS-chain detection, change hashes |
+| [`@lacspace/gov-notices`](./gov-notices) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fgov-notices?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/gov-notices) | Nepali government & university notice boards (PSC, NEB, SEE, TSC, CTEVT, NEC…) → dated items with attachments, BS→AD dates, newSince() and results-out tags |
 | [`@lacspace/trends`](./trends) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrends?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/trends) | Official trending topics and hashtags, with relevance scoring against a story |
 | [`@lacspace/quizpoll`](./quizpoll) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fquizpoll?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/quizpoll) | Quizzes, polls and did-you-know cards from an article — typed, same-kind distractors, no LLM |
 | [`@lacspace/explainer`](./explainer) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fexplainer?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/explainer) | Explainer and Q&A structures from an article, grounded in its own sentences |
@@ -513,7 +516,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-200 packages and CLIs (171 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+203 packages and CLIs (174 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

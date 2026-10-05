@@ -2,8 +2,9 @@ import { Category, LEXICONS, PATTERNS } from "./lexicons.js";
 
 export type { Category } from "./lexicons.js";
 export { LEXICONS, PATTERNS } from "./lexicons.js";
+export { check, type CheckInput, type CheckOptions, type CheckResult, type CheckHit, type Code } from "./check.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 export type Action = "allow" | "review" | "flag" | "hide";
 

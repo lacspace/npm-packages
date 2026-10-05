@@ -37,5 +37,38 @@ Hand-moderating a Nepali comment section — mixing Devanagari, romanized Nepali
 
 The bundled lexicons are compact starters — **extend `lexicons` for your community**; the engine, categories, PII detection and actions are the durable part. Normalization lowercases and collapses elongations ("sooo"→"soo") and matches Latin, romanized-Nepali and Devanagari.
 
+## `check()`: strict filter for live comments (1.1.0)
+
+`moderate()` triages into allow / review / flag / hide. `check()` is the strict, whole-word gate a news site runs before a comment goes live:
+
+```ts
+import { check } from "@lacspace/commentguard";
+
+check({ text: "muji neta haru", lang: "ne" });
+// { ok: false, code: "abuse", review: false, hits: [{ code: "abuse", term: "muji", severity: "high" }] }
+
+check({ text: "call me 9841234567" });                     // { ok: false, code: "personal", … }
+check({ text: "join https://t.me/freesignals" });           // { ok: false, code: "spam", … }
+check({ text: "Government must resign now", userHistory }); // { ok: false, code: "repeat", … } if they said it already
+check({ text: "these leaders are chor" });                  // { ok: true, review: true, … }  mild words only ask for review
+```
+
+- **`abuse`:** profanity and slurs in English, Nepali Devanagari (with case endings: मुजीको, हरामीहरू) and romanised Nepali. Leetspeak and masked spellings are caught too (f*ck, sh!t, F U C K, m.u.j.i). Matching is on whole words, so "class", "Putin", "Kami Rita", "चोरी", "गेडागुडी", "मुला" and "dal bhat" pass.
+- **`personal`:** personal details:
+  - Nepal mobiles (96x/97x/98x, with or without +977 and separators) and landlines (01-4XXXXXX), plus other +CC numbers;
+  - emails;
+  - citizenship numbers (27-01-71-12345, or "नागरिकता नं. …"), NID, passport and account numbers;
+  - Devanagari digits are read too.
+- **`spam`:**
+  - chat invites and shorteners (t.me, wa.me, bit.ly…), or more than `maxLinks` links (your `ownDomains` never count);
+  - promo phrasing ("earn Rs 5000 daily", "DM me", "join telegram");
+  - crypto or betting words, which only block next to a link, a contact or promo. "Is crypto betting legal in Nepal?" just asks for review.
+- **`repeat`:** the same comment again from `userHistory` (≥ 0.9 similar), or character, word or emoji floods.
+
+Options:
+- **`strict`:** mild words block too.
+- **`extraAbuse` / `allow`:** your own word lists.
+- **`maxLinks`**, **`ownDomains`** and **`repeatSimilarity`**.
+
 ## Licence
 [Lacspace Free Licence v1.0](https://developer.lacspace.com/licenses/lacspace-free-1.0) — free for personal and commercial use.

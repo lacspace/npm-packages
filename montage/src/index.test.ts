@@ -89,13 +89,15 @@ describe("buildMontage — captions, lower-thirds, logo, audio", () => {
     expect(r.filter).toContain("overlay=");
   });
 
-  it("maps a provided audio track with aac + shortest", () => {
+  it("maps a provided audio track with aac, capped by -t at the timeline length, never -shortest (1.1.2)", () => {
     const r = buildMontage(base({ audio: "mix.m4a" }));
     expect(r.args.join(" ")).toContain("-i mix.m4a");
     const ai = r.args.indexOf("-map");
     expect(r.args.join(" ")).toContain(":a");
     expect(r.args).toContain("aac");
-    expect(r.args).toContain("-shortest");
+    expect(r.args).not.toContain("-shortest");
+    const t = r.args.lastIndexOf("-t");
+    expect(Number(r.args[t + 1])).toBe(r.duration);
     expect(ai).toBeGreaterThan(0);
   });
 

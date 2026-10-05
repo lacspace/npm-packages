@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/conductor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drive every describe()-capable @lacspace package through one interface — merge descriptors into a single command catalogue, render it token-light for an LLM prompt, validate an AI-written plan against the command schemas (unknown commands, required inputs, types/enums, forward references, duplicate ids), and execute it step by step with $steps.<id>.output references, parallel groups, per-step timeouts, a whole-plan budget, optional steps, when-conditions and a dry run. The AI decides; the packages do the work. Zero deps.",
   "type": "module",
   "main": "./dist/index.cjs",

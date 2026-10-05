@@ -3,7 +3,7 @@ import { Schema, SchemaError, validate } from "./schema.js";
 export { validate } from "./schema.js";
 export type { Schema, SchemaError } from "./schema.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 
 /** The shape every @lacspace newsroom package returns from describe(). */
 export interface Descriptor {

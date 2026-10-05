@@ -8,7 +8,7 @@
 
 _Think · Innovate · Execute_
 
-[![packages](https://img.shields.io/badge/packages-150%2B-4d9fff)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-200-4d9fff)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
 [![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
 [![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **150+ published packages and CLIs** (141 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **200 published packages and CLIs** (171 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -28,7 +28,7 @@ One monorepo, **150+ published packages and CLIs** (141 libraries + 29 tools). M
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 150+ packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 200 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -196,6 +196,10 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/market`](./market) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarket?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/market) | Stock-market money math |
 | [`@lacspace/market-clock`](./market-clock) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarket-clock?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/market-clock) | Holiday-aware, timezone-correct trading clock |
 | [`@lacspace/paper-trade`](./paper-trade) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpaper-trade?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine |
+| [`@lacspace/marketwrap`](./marketwrap) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarketwrap?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/marketwrap) | Deterministic daily market wrap in English and Nepali from index close, breadth, turnover, sectors and movers — no AI |
+| [`@lacspace/patterns`](./patterns) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpatterns?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/patterns) | Rule-based chart patterns on OHLCV: ATR swings, harmonic XABCD with reversal zones, Elliott impulse, classic patterns |
+| [`@lacspace/portfolio`](./portfolio) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fportfolio?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/portfolio) | Portfolio analytics from holdings + closes: P/L vs WACC, weights, HHI concentration, sector mix, volatility |
+| [`@lacspace/rules`](./rules) | [![v](https://img.shields.io/npm/v/%40lacspace%2Frules?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/rules) | Trading rules as safe JSON data — indicators, crosses, all/any groups — evaluated and backtested deterministically |
 
 ### Data Kit
 
@@ -233,6 +237,9 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/nepali-date`](./nepali-date) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-date?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-date) | Bikram Sambat (BS) ↔ Gregorian (AD) date conversion |
 | [`@lacspace/nepali-utils`](./nepali-utils) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-utils?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-utils) | Everyday Nepal helpers (NPR words, phone, PAN/VAT, provinces…) |
 | [`@lacspace/translit`](./translit) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftranslit?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/translit) | Nepali⇄English name transliteration + cross-script fuzzy name matching (Poudel/पौडेल), honorifics, script-ratio/language-mix analysis |
+| [`@lacspace/nepal-holidays`](./nepal-holidays) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepal-holidays?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepal-holidays) | Official Nepal public holidays by BS year from the Home Ministry gazette — BS+AD dates, en/ne names, scope (national/regional/women/community), Dashain/Tihar ranges |
+| [`@lacspace/preeti`](./preeti) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpreeti?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/preeti) | Preeti ⇄ Unicode for Nepali legacy-font text, both directions, plus detection of pasted Preeti |
+| [`@lacspace/nepali-typing`](./nepali-typing) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepali-typing?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepali-typing) | Romanised Nepali → Devanagari typing with per-word candidates (namaste → नमस्ते), case endings, learns picks — React Native safe |
 
 ### AI Kit
 
@@ -316,6 +323,20 @@ Deterministic building blocks for an AI newsroom — do the grounding, extractio
 | [`@lacspace/factcheck-lite`](./factcheck-lite) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffactcheck-lite?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/factcheck-lite) | Verify every number, amount, %, date (AD + Bikram Sambat) and named entity in a draft appears in the sources — catches fabricated figures without an LLM rewrite |
 | [`@lacspace/trend-detect`](./trend-detect) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrend-detect?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/trend-detect) | Burst/trending detection over your own items — z-score vs a rolling baseline, per category, en+ne; rank the writer queue by what's rising |
 | [`@lacspace/feed-reader`](./feed-reader) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ffeed-reader?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/feed-reader) | Read side of `@lacspace/rss` — parse fetched RSS/Atom/RDF/JSON Feed into one shape, autodiscover a page's feeds, and score each source's health (staleness, duplicate/poisoned, spikes, error rate) so a big source list prunes itself |
+| [`@lacspace/datecheck`](./datecheck) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fdatecheck?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/datecheck) | Article date extraction incl. Bikram Sambat — fresh / stale / upcoming verdicts, chrome-aware |
+| [`@lacspace/extractive`](./extractive) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fextractive?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/extractive) | TextRank briefs, key facts, headline candidates, Devanagari-aware sentence splitting and an outlet-name scrubber |
+| [`@lacspace/triage`](./triage) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftriage?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/triage) | Pre-write triage: rank story candidates by freshness, independent sources, trend and novelty before spending AI tokens |
+| [`@lacspace/sensitivity`](./sensitivity) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsensitivity?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/sensitivity) | Zero-AI first pass for the sensitive-story gate (courts, deaths, elections, minors, allegations) in en+ne, with a certainty level |
+| [`@lacspace/packfix`](./packfix) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpackfix?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/packfix) | Repair a failed fact-pack without a model rewrite — unbacked names, copied sentences, tone words |
+| [`@lacspace/datanews`](./datanews) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fdatanews?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/datanews) | Bilingual stories straight from data: gold/silver, NRB forex, NEPSE close, DHM weather, fuel prices — every number from your input |
+| [`@lacspace/datacards`](./datacards) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fdatacards?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/datacards) | Official data (NRB rates, gold, fuel, DHM, AQI, NEPSE) → bilingual card content |
+| [`@lacspace/hookwriter`](./hookwriter) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fhookwriter?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/hookwriter) | Platform-fitted hooks, captions and hashtags per network; BREAKING only when it is |
+| [`@lacspace/commentguard`](./commentguard) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcommentguard?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/commentguard) | Comment moderation for news sites — abuse, threats, personal data, spam and floods in English, Nepali and romanised Nepali |
+| [`@lacspace/trends`](./trends) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrends?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/trends) | Official trending topics and hashtags, with relevance scoring against a story |
+| [`@lacspace/quizpoll`](./quizpoll) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fquizpoll?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/quizpoll) | Quizzes, polls and did-you-know cards from an article — typed, same-kind distractors, no LLM |
+| [`@lacspace/explainer`](./explainer) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fexplainer?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/explainer) | Explainer and Q&A structures from an article, grounded in its own sentences |
+| [`@lacspace/postbandit`](./postbandit) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpostbandit?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/postbandit) | Thompson-sampling bandit to learn which post variants perform |
+| [`@lacspace/postplan`](./postplan) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpostplan?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/postplan) | Pick video / image / carousel / text per story and platform so a feed gets a natural mix |
 
 ### ⚡ LLM Efficiency Kit
 
@@ -328,6 +349,23 @@ Do the expensive model's cheap work with zero-dep tools, so a free-tier key goes
 | [`@lacspace/keyphrase`](./keyphrase) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fkeyphrase?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/keyphrase) | Extractive tags/hashtags/entities/category-votes (RAKE+TF-IDF), en+ne stopwords, Devanagari-aware — stop generating tags with the LLM |
 | [`@lacspace/llm-cache`](./llm-cache) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fllm-cache?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/llm-cache) | Content-hash cache for LLM calls (model family + prompt version + input); pluggable store, TTL, wrap(), stale-if-error — retries after a 429 never pay twice |
 | [`@lacspace/keypool`](./keypool) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fkeypool?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/keypool) | Provider-agnostic key rotation + RPM/RPD/TPM/TPD accounting (per model), 429 cooldown, invalid-key quarantine, shared state — N free keys act as one quota |
+| [`@lacspace/conductor`](./conductor) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fconductor?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/conductor) | One interface over every describe()-capable package: token-light command catalogue for an LLM, plan validation, safe execution |
+
+### 🎬 Creative Kit
+
+Turn a story into posts and short video without a design or video team — deterministic, local, free assets only.
+
+| Package | Version | What it does |
+| --- | --- | --- |
+| [`@lacspace/stockmedia`](./stockmedia) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fstockmedia?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/stockmedia) | Free stock photo / video finder (Pexels, Pixabay) with licence-safe metadata |
+| [`@lacspace/montage`](./montage) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmontage?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/montage) | ffmpeg video timelines — cuts, Ken Burns, overlays, multi-cut plans |
+| [`@lacspace/audiomix`](./audiomix) | [![v](https://img.shields.io/npm/v/%40lacspace%2Faudiomix?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/audiomix) | Music + voice mixing with ducking and loudness targets; free-music finder |
+| [`@lacspace/newscard`](./newscard) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnewscard?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/newscard) | Branded image posts and table cards rendered to PNG |
+| [`@lacspace/thumbgen`](./thumbgen) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fthumbgen?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/thumbgen) | Five video thumbnail layouts from a headline and image |
+| [`@lacspace/motiongfx`](./motiongfx) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmotiongfx?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/motiongfx) | Lower thirds, stingers, tickers and auto-shorts motion graphics |
+| [`@lacspace/captionsync`](./captionsync) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fcaptionsync?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/captionsync) | Word-timed karaoke captions (ASS) synced to speech |
+| [`@lacspace/speakable`](./speakable) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fspeakable?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/speakable) | Text → spoken form for TTS (numbers, dates, units) with timing alignment |
+| [`@lacspace/tts`](./tts) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftts?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/tts) | Text-to-speech runner (edge-tts / piper) that maps audio timings back to the original text |
 
 ### 🧠 AI App Kit
 
@@ -449,7 +487,7 @@ More answers — and rich, searchable versions — at **[developer.lacspace.com/
 ### Getting started
 
 **What is the Lacspace developer platform?**
-A free ecosystem for JavaScript and TypeScript developers: a library of 85+ zero-dependency `@lacspace` packages, a set of standalone command-line tools, and `create-lacspace-app` — a CLI that scaffolds a finished Next.js app. Everything is documented at developer.lacspace.com and published openly to npm.
+A free ecosystem for JavaScript and TypeScript developers: a library of 170+ `@lacspace` packages (most zero-dependency), a set of standalone command-line tools, and `create-lacspace-app` — a CLI that scaffolds a finished Next.js app. Everything is documented at developer.lacspace.com and published openly to npm.
 
 **Are the Lacspace packages and tools really free?**
 Yes. Every open package and tool is published under the permissive **Lacspace Free Licence v1.0** — free to use, ship, modify and use commercially, with no fees, seats or usage metering.
@@ -475,7 +513,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-150+ packages and CLIs (141 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+200 packages and CLIs (171 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

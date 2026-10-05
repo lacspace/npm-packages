@@ -25,7 +25,7 @@ toDevanagari("mero desh nepal ho.");          // "मेरो देश ने�
 3. **English loanwords:** these are written the Nepali way: facebook → फेसबुक, mobile → मोबाइल, budget → बजेट.
 4. **Phonetic engine:** handles words the lexicon doesn't know. ITRANS-style capitals give the retroflex letters: `T Th D Dh N Sh` → `ट ठ ड ढ ण ष` (`DhuNgaa` → ढुण्गा). Its spellings always appear as extra candidates.
 
-The bundled lexicon is small: about 900 frequent words, plus the districts and news vocabulary. **Feed it your own Nepali text** for real coverage:
+The bundled lexicon is small: about 750 entries: frequent words, the 77 districts and news vocabulary. **Feed it your own Nepali text** for real coverage:
 
 ```ts
 const typer = createTyper({ words: buildLexicon(myPublishedNepaliStories) });

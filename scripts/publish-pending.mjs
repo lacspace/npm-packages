@@ -98,17 +98,18 @@ if (!CI && !DRY) console.log("\nnote: not running in GitHub Actions, so these pu
 
 // A fresh checkout has no dist/ anywhere, so every in-repo workspace dependency
 // of a pending package must be built first (its types and entry live in dist/).
+// A pending package's workspace devDependencies count too: its tests import them.
 const pendingNames = new Set(pending.map((p) => p.name));
 const depClosure = new Map();
-const addDeps = (p) => {
-  for (const d of Object.keys({ ...p.json.dependencies, ...p.json.peerDependencies })) {
+const addDeps = (p, withDev = false) => {
+  for (const d of Object.keys({ ...p.json.dependencies, ...p.json.peerDependencies, ...(withDev ? p.json.devDependencies : {}) })) {
     const dep = byName.get(d);
     if (!dep || !dep.workspace || depClosure.has(d) || pendingNames.has(d)) continue;
     depClosure.set(d, dep);
     addDeps(dep);
   }
 };
-for (const p of pending) if (p.workspace) addDeps(p);
+for (const p of pending) if (p.workspace) addDeps(p, true);
 for (const dep of topo([...depClosure.values()])) {
   if (!dep.json.scripts?.build || existsSync(join(ROOT, dep.dir, "dist")) && !CI) continue;
   console.log(`\n== build dependency ${dep.name}`);

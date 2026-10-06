@@ -10,7 +10,9 @@ import { ALPHABETS } from "./alphabets";
  */
 
 // Seed the counter with real entropy so it is not predictable across processes.
-let counter = new DataView(getRandom(new Uint8Array(4)).buffer).getUint32(0);
+// Seeded lazily on first use so importing the package never touches Web Crypto
+// (environments without it, e.g. React Native/Hermes, can still import the module).
+let counter: number | undefined;
 
 /**
  * Generate a cuid2-style id. `length` is 4..32 (default 24). Lowercase, starts
@@ -21,6 +23,7 @@ export function cuid2(length = 24): string {
     throw new Error("cuid2: `length` must be an integer in [4, 32].");
   }
   const first = ALPHABETS.lowercase[unbiasedIndex(26)]!;
+  if (counter === undefined) counter = new DataView(getRandom(new Uint8Array(4)).buffer).getUint32(0);
   const count = (counter++ >>> 0).toString(36);
   const randLen = Math.max(1, length - 1 - count.length);
   const rand = customId({ alphabet: ALPHABETS.base36, size: randLen });

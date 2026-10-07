@@ -1,0 +1,65 @@
+{
+  "name": "@lacspace/mail-extract",
+  "version": "1.0.0",
+  "description": "Extract structured data from email bodies: schema.org JSON-LD and basic microdata (Order, Invoice, FlightReservation, LodgingReservation, FoodEstablishmentReservation, EventReservation, ParcelDelivery, Event) normalised to order numbers, totals with currency, merchants, items, flights, tracking numbers; plus heuristics for OTP codes (English and Nepali, with expiry), order/invoice numbers and totals (NPR/Rs./रु., INR ₹, $, €, £), parcel tracking numbers with carrier patterns and flight codes, ignoring quoted reply sections. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "extract",
+    "parser",
+    "schema.org",
+    "json-ld",
+    "microdata",
+    "otp",
+    "order",
+    "invoice",
+    "receipt",
+    "flight",
+    "tracking-number",
+    "shipment",
+    "reservation",
+    "webmail",
+    "nepal",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-extract",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-extract"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

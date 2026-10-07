@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/track",
+  "version": "1.0.0",
+  "description": "Privacy-respecting open and click tracking for email campaigns: compact HMAC-SHA256 signed base64url tokens (WebCrypto) carrying campaign, message, a hashed recipient and issue time with TTL expiry; signed click redirects with the destination URL inside the token so there is no open redirect; constant-time verification; HTML injection of a 1x1 pixel and link rewriting that skips mailto/tel/anchors/unsubscribe/data-no-track/template links; plus open and click classification heuristics for Apple Mail Privacy Protection, Gmail image proxy and security-scanner bots. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "tracking",
+    "open-tracking",
+    "click-tracking",
+    "pixel",
+    "campaign",
+    "hmac",
+    "signed-url",
+    "open-redirect",
+    "apple-mpp",
+    "mail-privacy-protection",
+    "bot-detection",
+    "newsletter",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/track",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "track"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

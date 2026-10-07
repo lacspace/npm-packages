@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/mail-classify",
+  "version": "1.0.0",
+  "description": "Fast, explainable email categoriser for webmail inboxes: tags a message with one of 10 categories (team, clients, personal, finance, calendar, newsletters, notifications, recruiting, social, promotions) and a high/normal/low priority from sender, recipients, subject, preview and optional List-*/Auto-Submitted/Precedence/Content-Type headers. No body fetch, no AI call, returns the reasons that fired. Every pattern and the category labels/colours are exported and overridable. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "mail",
+    "classify",
+    "classifier",
+    "categorize",
+    "categorise",
+    "inbox",
+    "priority",
+    "focused-inbox",
+    "webmail",
+    "newsletter",
+    "notifications",
+    "rules",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-classify",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-classify"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

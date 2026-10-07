@@ -1,0 +1,60 @@
+{
+  "name": "@lacspace/mail-search",
+  "version": "1.0.0",
+  "description": "Gmail-style mail search parser that returns a neutral AST instead of a database query: from:, to:, cc:, subject:, has:attachment, is:unread/read/starred/replied/suspicious/verified/list/important, in:, label:, category:, filename:, before:/after: (YYYY-MM-DD or YYYY/MM/DD), newer_than:/older_than: (d/w/m/y), larger:/smaller: (K/M/G), quoted phrases, - negation and OR groups. Unknown operators fall back to free text. Includes toQueryString() for round-trips and matchesAst() for in-memory filtering. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "mail",
+    "search",
+    "query",
+    "parser",
+    "gmail",
+    "search-operators",
+    "ast",
+    "filter",
+    "webmail",
+    "imap",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-search",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-search"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

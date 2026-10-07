@@ -1,0 +1,64 @@
+{
+  "name": "@lacspace/mail-providers",
+  "version": "1.0.0",
+  "description": "IMAP/SMTP server presets and MX-based provider detection for connecting mailboxes: Hostinger, Titan, GoDaddy, Google Workspace/Gmail, Microsoft 365/Outlook, Zoho, Yahoo and iCloud. providerFromMx() maps MX hosts to a provider, serverCandidates() returns ordered IMAP/SMTP settings to try (with imap./smtp./mail.<domain> fallbacks). Send limits are 'unknown' on purpose - apps set their own. No DNS calls, bring your own MX lookup. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "mail",
+    "imap",
+    "smtp",
+    "mx",
+    "provider",
+    "autoconfig",
+    "autodiscover",
+    "gmail",
+    "outlook",
+    "office365",
+    "hostinger",
+    "titan",
+    "zoho",
+    "webmail",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-providers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-providers"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

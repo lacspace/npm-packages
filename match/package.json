@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/match",
+  "version": "1.0.0",
+  "description": "Safe, generic condition evaluator for rules, filters and automations: evaluate a list of { field, op, value } conditions against any object with all/any matching, dotted paths, array fields (any element matches), case-insensitive strings, numbers and dates. 18 ops: equals, notEquals, is, isNot, contains, notContains, startsWith, endsWith, gt, gte, lt, lte, between, in, notIn, exists, notExists and a ReDoS-guarded regex (pattern length cap, nested quantifiers and backreferences rejected, input length cap). explain() gives per-condition pass/fail and validateConditions() reports errors. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "match",
+    "rules",
+    "conditions",
+    "filter",
+    "predicate",
+    "evaluate",
+    "rule-engine",
+    "automation",
+    "query",
+    "where",
+    "safe-regex",
+    "redos",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/match",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "match"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

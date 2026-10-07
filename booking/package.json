@@ -1,0 +1,65 @@
+{
+  "name": "@lacspace/booking",
+  "version": "1.0.0",
+  "description": "Meeting slot finder and calendar invites: free slots from busy intervals with working hours, IANA time zones via Intl (DST-correct, half/quarter-hour offsets like Asia/Kathmandu +05:45), buffers around busy times, minimum notice, holidays, custom work weeks (e.g. Nepal Sun-Fri); human-readable slot proposals in English or Nepali; and RFC 5545/5546 iTIP REQUEST invites (VEVENT with CRLF, 75-octet UTF-8-safe folding, escaping, DTSTAMP, UID). Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "booking",
+    "scheduling",
+    "calendar",
+    "meeting",
+    "free-busy",
+    "availability",
+    "slots",
+    "timezone",
+    "iana",
+    "dst",
+    "ics",
+    "icalendar",
+    "rfc5545",
+    "rfc5546",
+    "itip",
+    "nepal",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/booking",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "booking"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

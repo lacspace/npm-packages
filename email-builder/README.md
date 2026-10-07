@@ -48,7 +48,7 @@ const { html, text, warnings, size } = render(doc, { darkMode: "auto" });
   - It never throws on bad input. Problems such as unsafe URLs or invalid colours become warnings and fall back to safe values.
 - **`validate(doc)`** returns `{ ok, errors }`. Each error is `{ blockId, message }`; brand problems use `blockId: "brand"`.
 - **`blockSchema`**: the props for each block type (`type`, `options`, `default`, `label`, `required`) and `acceptsChildren`. Use it to generate editor forms.
-- **`starterTemplates`**: ready-made documents (see below). The brand is applied at render time.
+- **`starterTemplates`**: ready-made documents (see below). The brand is applied at render time. Each has `id`, `name`, `category`, a suggested `subject` (1.1.0; only uses {{vars}} the body also uses) and a one-line `description` for a gallery. Every prop in `blockSchema` has a `label`.
 - **`defaultBrand`**: a neutral brand for previews.
 - **Helpers:** `sanitizeRichText`, `htmlToText`, `escapeHtml`, `escapeAttr`, `isSafeUrl`, `contrastRatio`, `parseColor`, `isColor`, `toHex`, `luminance`, `blockToText`, `docToText`, plus the constants `VAR_RE`, `ALLOWED_TAGS`, `DEFAULT_FONT`, `DEFAULT_WIDTH` and `SIZE_WARN_BYTES`.
 

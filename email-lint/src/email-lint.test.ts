@@ -522,3 +522,14 @@ describe("tokenizer", () => {
     expect(analyzeHtml("<!--[if mso]><table><![endif]--><p>hi</p>").visibleText).toBe("hi");
   });
 });
+
+describe("font-size:0 reset by descendants (1.0.1)", () => {
+  it("does not flag inline-block columns whose wrapper is font-size:0", () => {
+    const html = '<table><tr><td style="font-size:0;line-height:0"><div style="display:inline-block;width:50%"><table><tr><td style="font-size:16px;color:#111">What\'s new this month in our product and why it matters to you</td></tr></table></div></td></tr></table><p>More visible text here for readers to enjoy and read.</p>';
+    expect(lintEmail({ html, subject: "Newsletter" }).issues.map((i) => i.id)).not.toContain("body.hidden_text");
+  });
+  it("still flags text that stays at font-size:0", () => {
+    const html = '<p>Hello there, this is the visible part of the email body.</p><div style="font-size:0">buy cheap pills now hidden keywords</div>';
+    expect(lintEmail({ html, subject: "Hi" }).issues.map((i) => i.id)).toContain("body.hidden_text");
+  });
+});

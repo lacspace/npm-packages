@@ -31,6 +31,9 @@ export function createTracker(secret: string, opts: TrackerOptions = {}): Tracke
   const core: TokenCore = {
     key: importKey(secret),
     ttlSeconds: Math.round(ttlDays * 86400),
+    unsubscribeTtlSeconds: Math.round(
+      (typeof opts.unsubscribeTtlDays === "number" && opts.unsubscribeTtlDays > 0 && Number.isFinite(opts.unsubscribeTtlDays) ? opts.unsubscribeTtlDays : 3650) * 86400,
+    ),
     now: typeof opts.now === "function" ? opts.now : () => Date.now(),
   };
   // Surface an unavailable WebCrypto on first use rather than as an unhandled rejection.
@@ -40,6 +43,11 @@ export function createTracker(secret: string, opts: TrackerOptions = {}): Tracke
     pixelToken: (ctx: TrackContext) => makeToken(core, 0, ctx),
     clickToken: (ctx: ClickContext) => makeToken(core, 1, ctx, ctx.url),
     verify: (token: string) => verifyToken(core, token),
+    unsubscribeToken: (ctx: TrackContext) => makeToken(core, 2, ctx),
+    async verifyUnsubscribe(token: string) {
+      const v = await verifyToken(core, token);
+      return v && v.kind === "unsubscribe" ? v : null;
+    },
     async resolveClick(token: string) {
       const v = await verifyToken(core, token);
       if (!v || v.kind !== "click" || typeof v.url !== "string" || !isHttpUrl(v.url)) return null;

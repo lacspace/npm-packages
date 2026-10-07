@@ -548,3 +548,19 @@ describe("starter templates", () => {
     }
   });
 });
+
+describe("1.1.0 gallery metadata and labels", () => {
+  it("every starter has a subject and description, using only variables its body uses", () => {
+    for (const st of starterTemplates) {
+      expect(st.subject.length).toBeGreaterThan(5);
+      expect(st.description.length).toBeGreaterThan(10);
+      const body = JSON.stringify(st.doc);
+      for (const m of st.subject.matchAll(/\{\{\s*([a-zA-Z]+)/g)) {
+        if (m[1] !== "firstName") expect(body).toContain(`{{${m[1]}`);
+      }
+    }
+  });
+  it("every prop in blockSchema has a label", () => {
+    for (const spec of Object.values(blockSchema)) for (const p of Object.values(spec.props)) expect(typeof p.label).toBe("string");
+  });
+});

@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-builder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Block-based email template builder: a JSON document of blocks (header, text, image, button, divider, spacer, columns, social, footer, html, quote, list, table) renders to bulletproof table-based responsive email HTML for Outlook desktop, Gmail, Apple Mail and mobile. Inline styles, MSO conditional wrapper, VML buttons, ghost-table columns that stack on mobile, hidden preheader, optional dark mode, brand theming, safe rich-text sanitizer, {{mail-merge}} variables passed through untouched, plain-text alternative, WCAG contrast and Gmail-clipping warnings, a validator, a block schema for editor forms and 9 starter templates. Zero dependencies, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

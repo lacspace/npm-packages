@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/email-lint",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pre-send email linter for webmail and campaign tools: tells you in plain English what will hurt deliverability or render badly before you hit send. 41 stable rules covering Gmail clipping (~102KB), risky and oversized attachments, image-only mail, missing alt text, link-text/href domain mismatch, URL shorteners, IP and javascript: links, spammy subjects and phrases (English + Nepali), ALL CAPS, hidden text, scripts, external stylesheets, Outlook-unsupported CSS, forms, embeds, inline SVG, base64 images, malformed HTML, and Gmail/Yahoo bulk-sender rules (List-Unsubscribe, RFC 8058 one-click). Returns a 0-100 score, good/fair/poor grade, issues with fixes, and stats. Nepali messages for the key rules. Heuristic; does not render. Zero dependencies, isomorphic, tolerant HTML tokenizer built in.",
   "type": "module",
   "main": "./dist/index.cjs",

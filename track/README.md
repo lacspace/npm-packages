@@ -105,6 +105,7 @@ A common pattern is to still redirect bots, but leave them out of reports.
   - `pixelToken(ctx)` and `clickToken({ ...ctx, url })` return `Promise<string>`.
   - `verify(token)` returns `Promise<{ kind, campaignId, messageId, recipient, issuedAt, expiresAt, url? } | null>`. It never throws on bad input.
   - `resolveClick(token)` returns `Promise<string | null>`: the destination of a valid click token, if it is http(s).
+  - `unsubscribeToken(ctx)` / `verifyUnsubscribe(token)` (1.1.0): signed unsubscribe tokens for `{base}/u/{token}` and List-Unsubscribe URLs. They only verify as kind `"unsubscribe"`, live `unsubscribeTtlDays` (default 3650) because unsubscribe links must keep working long after the send, and carry the recipient as a digest: store `recipientId(email)` with the send so you know which address to suppress.
   - `recipientId(email)` returns `Promise<string>`: the recipient digest.
   - `injectHtml(html, ctx, baseUrl, opts?)` returns `Promise<string>`.
 - `classifyOpen(event)` and `classifyClick(event)` are described above.

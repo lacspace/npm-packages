@@ -294,3 +294,56 @@ export function previewTimeline(
     return { stepId: step.id, at: new Date(base).toISOString() };
   });
 }
+
+/** Enrollment status for a stop reason (clicked, meeting_booked and manual count as done). */
+export const STOP_STATUS: Record<StopReason, EnrollmentStatus> = {
+  replied: "replied",
+  bounced: "bounced",
+  unsubscribed: "unsubscribed",
+  complained: "unsubscribed",
+  clicked: "done",
+  meeting_booked: "done",
+  manual: "done",
+  completed: "done",
+  failed: "failed",
+};
+
+export interface SettleResult {
+  enrollment: Enrollment;
+  /** Next send time (ISO), or null when stopped, paused or finished. */
+  nextAt: string | null;
+  stopReason?: StopReason;
+}
+
+/**
+ * After recording a send or event with `advance()`, work out the stored state in one call:
+ * the next send time and, when the enrollment should stop, its final status.
+ * Pure; skippable steps are looked past, as in `nextRun()`.
+ */
+export function settle(
+  sequence: Sequence,
+  enrollment: Enrollment,
+  now: TimeInput,
+  opts: NextActionOptions = {},
+): SettleResult {
+  const a = nextAction(sequence, enrollment, now, opts);
+  if (a.type === "stop") {
+    const status = STOP_STATUS[a.reason];
+    const next = enrollment.status === status ? enrollment : { ...enrollment, status };
+    return { enrollment: next, nextAt: null, stopReason: a.reason };
+  }
+  return { enrollment, nextAt: nextRun(sequence, enrollment, now, opts) };
+}
+
+/** `advance(enrollment, {type:"sent"})` then `settle()`, for the common after-send path. */
+export function afterSend(
+  sequence: Sequence,
+  enrollment: Enrollment,
+  sent: { stepId: string; messageId?: string; at: TimeInput },
+  now: TimeInput = sent.at,
+  opts: NextActionOptions = {},
+): SettleResult {
+  const ev: AdvanceEvent = { type: "sent", stepId: sent.stepId, at: toIso(sent.at) };
+  if (sent.messageId !== undefined) (ev as { messageId?: string }).messageId = sent.messageId;
+  return settle(sequence, advance(enrollment, ev), now, opts);
+}

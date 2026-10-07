@@ -2,7 +2,7 @@
  * Signed tracking tokens.
  *
  * Layout (before base64url):
- *   [version=1][kind: 0 pixel | 1 click][issuedAt: u32 seconds]
+ *   [version=1][kind: 0 pixel | 1 click | 2 unsubscribe][issuedAt: u32 seconds]
  *   [varint len][campaignId utf8][varint len][messageId utf8]
  *   [recipient digest: 12 bytes]
  *   (click only) [varint len][url utf8]
@@ -28,7 +28,7 @@ export interface ClickContext extends TrackContext {
 }
 
 export interface VerifiedToken {
-  kind: "open" | "click";
+  kind: "open" | "click" | "unsubscribe";
   campaignId: string;
   messageId: string;
   /**
@@ -47,6 +47,8 @@ export interface VerifiedToken {
 export interface TrackerOptions {
   /** Token lifetime in days. Default 180. */
   ttlDays?: number;
+  /** Lifetime of unsubscribe tokens in days. Default 3650: unsubscribe links must keep working long after the send. */
+  unsubscribeTtlDays?: number;
   /** Clock override (ms since epoch), mainly for tests. */
   now?: () => number;
 }
@@ -66,6 +68,10 @@ export interface Tracker {
   verify(token: string): Promise<VerifiedToken | null>;
   /** Verify a click token and return its destination (http/https only) or null. */
   resolveClick(token: string): Promise<string | null>;
+  /** Signed unsubscribe token for `{base}/u/{token}` links and List-Unsubscribe URLs. */
+  unsubscribeToken(ctx: TrackContext): Promise<string>;
+  /** Verify an unsubscribe token; returns its context (recipient as a digest) or null. */
+  verifyUnsubscribe(token: string): Promise<VerifiedToken | null>;
   /** The keyed recipient digest stored inside tokens. */
   recipientId(email: string): Promise<string>;
   injectHtml(html: string, ctx: TrackContext, baseUrl: string, opts?: InjectOptions): Promise<string>;
@@ -98,6 +104,7 @@ export function isHttpUrl(u: string): boolean {
 export interface TokenCore {
   key: Promise<CryptoKey>;
   ttlSeconds: number;
+  unsubscribeTtlSeconds: number;
   now: () => number;
 }
 
@@ -115,7 +122,7 @@ function str(s: unknown): Uint8Array {
   return concat([varint(b.length), b]);
 }
 
-export async function makeToken(core: TokenCore, kind: 0 | 1, ctx: TrackContext, url?: string): Promise<string> {
+export async function makeToken(core: TokenCore, kind: 0 | 1 | 2, ctx: TrackContext, url?: string): Promise<string> {
   const iat = Math.floor(core.now() / 1000);
   const parts = [
     new Uint8Array([VERSION, kind]),
@@ -142,7 +149,7 @@ export async function verifyToken(core: TokenCore, token: string): Promise<Verif
   const r = new Reader(body);
   if (r.byte() !== VERSION) return null;
   const kind = r.byte();
-  if (kind !== 0 && kind !== 1) return null;
+  if (kind !== 0 && kind !== 1 && kind !== 2) return null;
   const iat = r.u32();
   const campaignId = r.str();
   const messageId = r.str();
@@ -158,15 +165,16 @@ export async function verifyToken(core: TokenCore, token: string): Promise<Verif
 
   const nowS = Math.floor(core.now() / 1000);
   if (iat > nowS + MAX_FUTURE_SKEW_S) return null;
-  if (nowS - iat > core.ttlSeconds) return null;
+  const ttl = kind === 2 ? core.unsubscribeTtlSeconds : core.ttlSeconds;
+  if (nowS - iat > ttl) return null;
 
   const out: VerifiedToken = {
-    kind: kind === 1 ? "click" : "open",
+    kind: kind === 1 ? "click" : kind === 2 ? "unsubscribe" : "open",
     campaignId,
     messageId,
     recipient: toBase64Url(rcpt),
     issuedAt: new Date(iat * 1000),
-    expiresAt: new Date((iat + core.ttlSeconds) * 1000),
+    expiresAt: new Date((iat + ttl) * 1000),
   };
   if (url !== undefined) out.url = url;
   return out;

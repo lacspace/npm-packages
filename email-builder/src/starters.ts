@@ -15,6 +15,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "sales-outreach",
     name: "Sales outreach",
+    subject: "A quick idea for {{companyName|your team}}",
+    description: "First-touch sales email with three benefits and a call-booking button.",
     category: "sales",
     doc: {
       preheader: "A quick idea for {{companyName|your team}}, and a 20-minute call if it helps.",
@@ -45,6 +47,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "sales-follow-up",
     name: "Follow-up",
+    subject: "Following up, {{firstName|there}}",
+    description: "Short, polite follow-up that nudges a reply without pressure.",
     category: "sales",
     doc: {
       preheader: "Following up on my last note, with one short question.",
@@ -63,6 +67,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "quote-proposal",
     name: "Quote / proposal",
+    subject: "Your quote {{quoteNumber}}",
+    description: "Quote or proposal summary with the key figures and a button to view the full document.",
     category: "sales",
     doc: {
       preheader: "Your quote {{quoteNumber}} is ready to review.",
@@ -96,6 +102,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "invoice-notice",
     name: "Invoice notice",
+    subject: "Invoice {{invoiceNumber}}: {{amountDue}} due {{dueDate}}",
+    description: "Invoice notice with amount, due date and a pay or view button.",
     category: "finance",
     doc: {
       preheader: "Invoice {{invoiceNumber}} for {{amountDue}} is due on {{dueDate}}.",
@@ -128,6 +136,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "payment-receipt",
     name: "Payment receipt",
+    subject: "Payment received: {{amountPaid}}",
+    description: "Receipt confirming a payment with the amount, date and reference.",
     category: "finance",
     doc: {
       preheader: "We received your payment of {{amountPaid}}. Thank you.",
@@ -160,6 +170,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "support-reply",
     name: "Support ticket reply",
+    subject: "Update on request #{{ticketId}}",
+    description: "Support ticket update that quotes the customer's message and the next step.",
     category: "support",
     doc: {
       preheader: "An update on your request #{{ticketId}}.",
@@ -184,6 +196,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "welcome",
     name: "Welcome / onboarding",
+    subject: "Welcome aboard, {{firstName|there}}",
+    description: "Onboarding welcome with the first three steps to get started.",
     category: "onboarding",
     doc: {
       preheader: "Welcome aboard, {{firstName|there}}. Here is how to get started.",
@@ -212,6 +226,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "monthly-newsletter",
     name: "Monthly newsletter",
+    subject: "{{month|This month}}: what's new",
+    description: "Monthly newsletter with a lead story and two side-by-side columns.",
     category: "newsletter",
     doc: {
       preheader: "{{month}} highlights: what's new, what's next and one thing worth reading.",
@@ -260,6 +276,8 @@ export const starterTemplates: StarterTemplate[] = [
   {
     id: "festival-greeting",
     name: "Festival greeting",
+    subject: "Warm festival wishes from all of us",
+    description: "Warm, neutral festival greeting for customers and partners (e.g. Dashain/Tihar).",
     category: "newsletter",
     doc: {
       preheader: "Warm wishes to you and your family this festive season.",

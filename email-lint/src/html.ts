@@ -250,6 +250,8 @@ interface Frame {
   name: string;
   hidden: boolean;
   group: number;
+  /** Group of text sized to zero by an ancestor and not reset since; -1 if none. */
+  zeroGroup: number;
   color: string | undefined;
   bg: string | undefined;
   invisible: boolean;
@@ -286,7 +288,7 @@ export function analyzeHtml(html: string): HtmlAnalysis {
   const hiddenEarly: boolean[] = [];
   const linkText: string[][] = [];
   let sawVisible = false;
-  const root: Frame = { name: "#root", hidden: false, group: -1, color: undefined, bg: undefined, invisible: false, link: -1 };
+  const root: Frame = { name: "#root", hidden: false, group: -1, zeroGroup: -1, color: undefined, bg: undefined, invisible: false, link: -1 };
   const stack: Frame[] = [root];
   const top = () => stack[stack.length - 1] as Frame;
 
@@ -328,7 +330,6 @@ export function analyzeHtml(html: string): HtmlAnalysis {
       const selfHidden =
         st["display"] === "none" ||
         st["visibility"] === "hidden" ||
-        isZeroSize(st["font-size"]) ||
         (st["opacity"] !== undefined && parseFloat(st["opacity"]) === 0) ||
         "hidden" in attrs;
       const sameColor = color !== undefined && bg !== undefined && color === bg;
@@ -341,6 +342,18 @@ export function analyzeHtml(html: string): HtmlAnalysis {
         // only style-hidden text (not same-colour text) can be a preheader
         hiddenEarly.push(!sawVisible && selfHidden);
       }
+      // font-size:0 is inherited but a descendant's own font-size undoes it (the
+      // inline-block column trick: wrapper font-size:0, each column resets it).
+      let zeroGroup = parent.zeroGroup;
+      if (!isHidden) {
+        if (isZeroSize(st["font-size"])) {
+          if (zeroGroup < 0) {
+            zeroGroup = hidden.length;
+            hidden.push([]);
+            hiddenEarly.push(!sawVisible);
+          }
+        } else if (st["font-size"] !== undefined) zeroGroup = -1;
+      }
       const invisible = parent.invisible || name === "head" || name === "template";
       let link = -1;
       if (name === "a") {
@@ -349,7 +362,7 @@ export function analyzeHtml(html: string): HtmlAnalysis {
         linkText.push([]);
       }
       if (VOID.has(name) || t.selfClosing) continue;
-      stack.push({ name, hidden: isHidden, group, color, bg, invisible, link });
+      stack.push({ name, hidden: isHidden, group, zeroGroup, color, bg, invisible, link });
     } else if (t.type === "end") {
       const name = t.name;
       if (!INLINE.has(name)) visible.push(" ");
@@ -369,8 +382,8 @@ export function analyzeHtml(html: string): HtmlAnalysis {
     } else {
       const f = top();
       if (f.invisible) continue;
-      if (f.hidden) {
-        (hidden[f.group] as string[]).push(t.text);
+      if (f.hidden || f.zeroGroup >= 0) {
+        (hidden[f.hidden ? f.group : f.zeroGroup] as string[]).push(t.text);
         continue;
       }
       visible.push(t.text);

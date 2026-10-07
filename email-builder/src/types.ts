@@ -77,6 +77,10 @@ export type StarterCategory = "sales" | "support" | "finance" | "newsletter" | "
 export type StarterTemplate = {
   id: string;
   name: string;
+  /** Suggested subject line; may contain {{vars}}. */
+  subject: string;
+  /** One-line summary for a template gallery. */
+  description: string;
   category: StarterCategory;
   doc: { blocks: Block[]; preheader?: string };
 };

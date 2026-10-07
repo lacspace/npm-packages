@@ -23,6 +23,34 @@
 
 > **New in 1.2.0** — a fluent [`createMessage()`](#compose-with-the-message-builder) MIME builder (inline CID images, alternatives, custom headers), exported [address helpers](#address-utilities) (`parseAddress` / `formatAddress` / `isValidEmail` + RFC 2047 `encodeMimeWord`), non-network [`createMemoryTransport()` / `createJsonTransport()`](#test-friendly-transports) for tests, [`sendBatch()`](#batch-sending-with-retry) with a concurrency cap + injectable retry/backoff, and [`htmlToText()` / `previewText()`](#htmltext-helpers) helpers. All additive — every 1.1.x API is unchanged.
 
+## What's new in 1.3.0
+
+- **`signer` hook:** a function applied to every finished message right before it is sent. DKIM-signing everything you send is one line with [`@lacspace/dkim`](https://developer.lacspace.com/packages/dkim):
+
+```ts
+import { createMailer } from "@lacspace/mailer";
+import { signMessage } from "@lacspace/dkim";
+
+const mailer = createMailer({
+  host: "smtp.hostinger.com", port: 465, secure: true,
+  auth: { user: "hello@yourdomain.com", pass: process.env.SMTP_PASS! },
+  signer: (raw) => signMessage(raw, { domain: "yourdomain.com", selector: "mail", privateKey: process.env.DKIM_KEY! }),
+});
+```
+
+- **`sendRaw(raw, envelope, { sign? })`:** send a message you built yourself, for example with [`@lacspace/mime`](https://developer.lacspace.com/packages/mime)'s `buildMime`, exactly as written.
+  - The envelope decides who receives it, so Bcc recipients go in `envelope.to` and never appear in the headers.
+  - Line endings are normalised to CRLF and dots are escaped for you.
+  - The `signer` runs unless you pass `{ sign: false }`.
+  - The `messageId` in the result is read from the message's own `Message-ID` header.
+
+```ts
+const raw = buildMime({ from, to, subject, html, attachments });
+await mailer.sendRaw(raw, { from: "hello@yourdomain.com", to: ["a@x.com", "bcc@y.com"] });
+```
+
+Both are additive; nothing that worked in 1.2 changes.
+
 ## What's new in 1.2.1
 
 Every message now stays inside the RFC limits that strict mail servers and spam

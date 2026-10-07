@@ -69,6 +69,7 @@
     "logger",
     "logo",
     "machine",
+    "mail-dns",
     "mail-sanitize",
     "mailer",
     "markdown",

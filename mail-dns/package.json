@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/mail-dns",
+  "version": "1.0.0",
+  "description": "Generate and verify a domain's email DNS records: MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT and BIMI. generateRecords() gives the exact records to add; checkDomain() looks them up, scores the domain 0-100 and explains every failure in plain English. Recursive SPF lookup counting (10-lookup limit, void lookups, cycles), SPF evaluation for an IP, DKIM key size, DMARC report authorization, MTA-STS policy fetch and MX coverage, provider presets (Hostinger, Google Workspace, Microsoft 365, Zoho, GoDaddy, Amazon SES, SendGrid, Mailgun, Brevo). Injectable resolver, DNS-over-HTTPS for edge runtimes, zero dependencies.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "dns",
+    "spf",
+    "dkim",
+    "dmarc",
+    "mta-sts",
+    "tls-rpt",
+    "bimi",
+    "mx",
+    "deliverability",
+    "domain-verification",
+    "dns-over-https",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-dns",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-dns"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

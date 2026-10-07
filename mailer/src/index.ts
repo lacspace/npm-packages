@@ -14,7 +14,7 @@ import tls from "node:tls";
 import { randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 
-import { toAddress, toList } from "./address";
+import { assertNoCRLF, toAddress, toList } from "./address";
 import { buildMime, dotStuff } from "./mime";
 
 // New in 1.2.0 — additive public API (address helpers, MIME message builder,
@@ -72,6 +72,19 @@ export interface SmtpConfig {
   rateDelta?: number;
   /** Pool only: maximum number of messages started per `rateDelta` window. Undefined/0 = unlimited. */
   rateLimit?: number;
+  /**
+   * Transform the finished RFC 5322 message right before it is sent — e.g. DKIM-sign it:
+   * `signer: (raw) => signMessage(raw, { domain, selector, privateKey })` with `@lacspace/dkim`.
+   * Applied by `send`, `sendReusable`, pooled sends and (unless `{ sign: false }`) `sendRaw`.
+   * @since 1.3.0
+   */
+  signer?: (raw: string) => string | Promise<string>;
+}
+
+/** SMTP envelope for {@link Mailer.sendRaw}: who the server delivers to, independent of the headers. @since 1.3.0 */
+export interface RawEnvelope {
+  from: string;
+  to: string[];
 }
 
 export interface Address {
@@ -234,9 +247,45 @@ export class Mailer implements Transport {
         await this.command(`RCPT TO:<${r.address}>`, [250, 251]);
         accepted.push(r.address);
       }
+      const built = buildMime(mail, from, messageId);
+      const signed = this.config.signer ? await this.config.signer(built) : built;
       await this.command("DATA", 354);
-      const message = dotStuff(buildMime(mail, from, messageId));
+      const message = dotStuff(signed);
       const final = await this.command(`${message}\r\n.`, 250);
+      await this.quit();
+      return { messageId, accepted, response: final.text };
+    } catch (e) {
+      await this.close();
+      throw e;
+    }
+  }
+
+  /**
+   * Send an already-built RFC 5322 message (e.g. from `@lacspace/mime`'s `buildMime`) as-is.
+   * The envelope says who gets it, so Bcc recipients go in `envelope.to` and never in the headers.
+   * The configured `signer` runs first unless `{ sign: false }`. Opens a fresh connection and closes it.
+   * @since 1.3.0
+   */
+  async sendRaw(raw: string, envelope: RawEnvelope, opts: { sign?: boolean } = {}): Promise<SendResult> {
+    const from = toAddress(envelope.from);
+    if (!from.address) throw new SmtpError("missing envelope `from` address");
+    const recipients = envelope.to.map((r) => toAddress(r)).filter((r) => r.address);
+    if (!recipients.length) throw new SmtpError("no recipients");
+    for (const a of [from, ...recipients]) assertNoCRLF(a.address, "envelope address");
+    const normalized = raw.replace(/\r?\n/g, "\r\n").replace(/(?:\r\n)+$/, "");
+    const signed = this.config.signer && opts.sign !== false ? await this.config.signer(normalized) : normalized;
+    const idMatch = /^message-id:[ \t]*(<[^>\r\n]+>)/im.exec(signed.split(/\r\n\r\n/)[0] ?? "");
+    const messageId = idMatch?.[1] ?? "";
+    try {
+      await this.connect();
+      await this.command(`MAIL FROM:<${from.address}>`, 250);
+      const accepted: string[] = [];
+      for (const r of recipients) {
+        await this.command(`RCPT TO:<${r.address}>`, [250, 251]);
+        accepted.push(r.address);
+      }
+      await this.command("DATA", 354);
+      const final = await this.command(`${dotStuff(signed)}\r\n.`, 250);
       await this.quit();
       return { messageId, accepted, response: final.text };
     } catch (e) {
@@ -273,8 +322,10 @@ export class Mailer implements Transport {
         await this.command(`RCPT TO:<${r.address}>`, [250, 251]);
         accepted.push(r.address);
       }
+      const built = buildMime(mail, from, messageId);
+      const signed = this.config.signer ? await this.config.signer(built) : built;
       await this.command("DATA", 354);
-      const message = dotStuff(buildMime(mail, from, messageId));
+      const message = dotStuff(signed);
       const final = await this.command(`${message}\r\n.`, 250);
       // RSET keeps the connection open for the next message instead of QUIT.
       await this.command("RSET", 250);

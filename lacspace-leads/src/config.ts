@@ -17,6 +17,7 @@
  */
 import { searchLeadsBatch, type BatchQuery, type BatchResumeHooks } from "./batch.js";
 import type { Lead, LeadFilters, OutputFormat, SearchOptions } from "./types.js";
+import type { PushConfig } from "./push.js";
 
 /** A leads campaign config (the JSON file passed to `--config`). */
 export interface LeadsConfig
@@ -35,6 +36,12 @@ export interface LeadsConfig
   append?: boolean;
   /** Excel sheet name (used by the CLI). */
   sheet?: string;
+  /**
+   * Stream finished leads to an endpoint as well as the file (used by the CLI):
+   * `{ "url": "https://…", "token": "…" }`. `--push` / `--push-token` override it, and the
+   * token falls back to `LACSPACE_LEADS_PUSH_TOKEN`. Never passed to the search. @since 1.9.0
+   */
+  push?: PushConfig;
 }
 
 /**
@@ -44,15 +51,16 @@ export interface LeadsConfig
  */
 export async function runConfig(
   config: LeadsConfig,
-  hooks: { onProgress?: (m: string) => void; signal?: AbortSignal } & BatchResumeHooks = {},
+  hooks: { onProgress?: (m: string) => void; onResult?: (lead: Lead) => void; signal?: AbortSignal } & BatchResumeHooks = {},
 ): Promise<Lead[]> {
-  const { searches, filters, total, out, format, append, sheet, ...shared } = config;
-  void out; void format; void append; void sheet;
+  const { searches, filters, total, out, format, append, sheet, push, ...shared } = config;
+  void out; void format; void append; void sheet; void push;
   const opts = { ...shared } as SearchOptions & { total?: number } & BatchResumeHooks;
   if (filters) opts.filters = filters;
   if (total !== undefined) opts.total = total;
   if (hooks.onProgress) opts.onProgress = hooks.onProgress;
   if (hooks.signal) opts.signal = hooks.signal;
+  if (hooks.onResult) opts.onResult = hooks.onResult;
   if (hooks.skip) opts.skip = hooks.skip;
   if (hooks.seedLeads) opts.seedLeads = hooks.seedLeads;
   if (hooks.onQueryDone) opts.onQueryDone = hooks.onQueryDone;
@@ -65,5 +73,11 @@ export function assertConfig(value: unknown): asserts value is LeadsConfig {
   const searches = (value as LeadsConfig).searches;
   if (!Array.isArray(searches) || searches.length === 0) {
     throw new Error('Config needs a non-empty "searches" array, e.g. [{ "type": "cafes", "city": "Kathmandu" }].');
+  }
+  const push = (value as LeadsConfig).push;
+  if (push !== undefined) {
+    if (!push || typeof push !== "object" || Array.isArray(push)) throw new Error('Config "push" must be an object: { "url": "https://…", "token": "…" }.');
+    if (push.url !== undefined && typeof push.url !== "string") throw new Error('Config "push.url" must be a string.');
+    if (push.token !== undefined && typeof push.token !== "string") throw new Error('Config "push.token" must be a string.');
   }
 }

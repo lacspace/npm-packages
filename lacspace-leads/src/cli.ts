@@ -21,12 +21,13 @@ import {
 import { summarize, formatSummary } from "./summary.js";
 import { createLiveWriter, type LiveWriter } from "./live.js";
 import { leadsToEnrichInput } from "./pipe.js";
+import { createPusher, formatPushSummary, maskUrl, resolvePush, validatePushUrl, type Pusher } from "./push.js";
 import type { BatchQuery } from "./batch.js";
 import { parseLatLngPair, parseDistance } from "./geo.js";
 import { sweepLeads, MAX_PER_SEARCH } from "./sweep.js";
 import { groupLeads, groupSlug, SPLIT_KEYS, type SplitKey } from "./split.js";
 import { composeQuery, defaultFilename, expandQueries, normalizeFields, resolvePreset } from "./query.js";
-import type { Lead } from "./types.js";
+import type { Lead, LeadStats } from "./types.js";
 import {
   ALL_FIELDS,
   DEFAULT_FIELDS,
@@ -63,6 +64,7 @@ interface Args {
   proxy?: string; retries?: number; jitter: boolean;
   sheet?: string; maxTime?: number;
   resume: boolean; summary: boolean; dedupeAcross?: string; enrichOut?: string; live: boolean;
+  push?: string; pushToken?: string;
   yes: boolean; help: boolean;
 }
 
@@ -124,6 +126,8 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--dedupe-across") a.dedupeAcross = next();
     else if (arg === "--enrich-out") a.enrichOut = next();
     else if (arg === "--config") a.config = next();
+    else if (arg === "--push") a.push = next();
+    else if (arg === "--push-token") a.pushToken = next();
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
     else if (arg === "--sort") a.sort = next() as SortKey;
     else if (arg === "--desc") a.desc = true;
@@ -223,6 +227,12 @@ ${c("bold", "Output")}
                         append, json stays valid, xlsx is rewritten), so stopping
                         early never loses what was collected
 
+${c("bold", "Push to a CRM / Lacspace Mail")}
+      --push <url>      Also POST finished leads (batches of 10 / every 3s) to this
+                        https endpoint while the file is written as usual
+      --push-token <t>  Bearer token for --push. Prefer the env var
+                        LACSPACE_LEADS_PUSH_TOKEN (shell history can't see it)
+
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
       --jitter          Randomise the delay ±40% (more human)
@@ -249,6 +259,7 @@ ${c("bold", "Examples")}
   npx lacspace-leads gyms --city Lalitpur --dedupe-across master.csv -o new.csv --append
   npx lacspace-leads clinics --city Pokhara --enrich-out sites.ndjson   # feed lacspace-enrich
   npx lacspace-leads convert leads.json -f xlsx
+  LACSPACE_LEADS_PUSH_TOKEN=… npx lacspace-leads restaurants --city Kathmandu --target 300 --push https://api.lacspace.com/api/webmail/leads/import
 
 ${c("dim", "Please scrape responsibly: keep volumes small, respect Google's Terms of")}
 ${c("dim", "Service and local data-protection law, and use only public business data.")}
@@ -263,6 +274,44 @@ async function prompt(q: string, fallback = ""): Promise<string> {
     rl.close();
   }
 }
+
+/** Resolve + validate --push (flag → config → env). Exits on a bad URL, before any scraping. */
+function setupPush(args: Args, config?: { push?: { url?: string; token?: string } }): { url: string; token?: string } | undefined {
+  const p = resolvePush({ flagUrl: args.push, flagToken: args.pushToken, config: config?.push, env: process.env });
+  if (!p) {
+    if (args.pushToken) log(c("yellow", "  ! --push-token given without --push; ignoring it."));
+    return undefined;
+  }
+  try { validatePushUrl(p.url); } catch (err) {
+    log(c("red", `\n✗ ${(err as Error).message}\n`));
+    exit(1);
+  }
+  if (args.pushToken) log(c("yellow", "  ! --push-token is visible in shell history and the process list; prefer LACSPACE_LEADS_PUSH_TOKEN."));
+  return p;
+}
+
+function startPusher(p: { url: string; token?: string }, file: string, search: { type?: string; city?: string; area?: string; target?: number }): Pusher {
+  const s: { type?: string; city?: string; area?: string; target?: number } = {};
+  if (search.type) s.type = search.type;
+  if (search.city) s.city = search.city;
+  if (search.area) s.area = search.area;
+  if (search.target !== undefined) s.target = search.target;
+  return createPusher({
+    url: p.url,
+    ...(p.token ? { token: p.token } : {}),
+    search: s,
+    file,
+    onWarn: (m) => log(c("yellow", `  ! ${m}`)),
+  });
+}
+
+async function endPush(pusher: Pusher | undefined, stats: LeadStats, timeoutMs?: number): Promise<void> {
+  if (!pusher) return;
+  const st = await pusher.finish(stats, timeoutMs !== undefined ? { timeoutMs } : undefined);
+  log(`  ${st.rejected || st.failed || st.dropped ? c("yellow", "!") : c("green", "✔")} ${c("dim", formatPushSummary(st))}`);
+}
+
+const pushEcho = (p: { url: string; token?: string }): string => `${maskUrl(p.url)}${p.token ? c("dim", " (token ***)") : c("dim", " (no token)")}`;
 
 /** `lacspace-leads convert <file> [-f fmt] [-o out] [--sheet name]` */
 async function runConvert(rest: string[]): Promise<void> {
@@ -301,6 +350,8 @@ async function runConfigFile(args: Args): Promise<void> {
 
   const format = (config.format ?? args.format) as OutputFormat;
   if (!OUTPUT_FORMATS.includes(format)) { log(c("red", `\n✗ Unknown format "${format}".`)); exit(1); return; }
+  const pushCfg = setupPush(args, config);
+  if (pushCfg) log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)}`);
 
   log(`  ${c("dim", "searches")} ${config.searches.length}   ${c("dim", "format")} ${format}${config.append ? c("dim", "  (append)") : ""}${args.resume ? c("dim", "  (resume)") : ""}\n`);
 
@@ -325,18 +376,35 @@ async function runConfigFile(args: Args): Promise<void> {
     resumeHooks.onQueryDone = (q, found) => { recordQuery(cp, q, found); saveCheckpoint(file, cp); };
   }
 
+  const uniq = (xs: (string | undefined)[]): string | undefined => [...new Set(xs.map((x) => x?.trim()).filter((x): x is string => !!x))].join(", ") || undefined;
+  const pusher = pushCfg
+    ? startPusher(pushCfg, out, {
+        type: uniq(config.searches.map((q) => q.type ?? q.query)),
+        city: uniq(config.searches.map((q) => q.city)),
+        area: uniq(config.searches.map((q) => q.area)),
+        ...(config.total !== undefined ? { target: config.total } : {}),
+      })
+    : undefined;
+
   const controller = new AbortController();
   const onSig = (): void => controller.abort();
   process.once("SIGINT", onSig);
   let leads: Lead[];
   try {
-    leads = await runConfig(config, { signal: controller.signal, onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`), ...resumeHooks });
+    leads = await runConfig(config, {
+      signal: controller.signal,
+      onProgress: (m) => log(`  ${c("cyan", "◷")} ${c("dim", m)}`),
+      ...(pusher ? { onResult: (l: Lead) => pusher.push(l) } : {}),
+      ...resumeHooks,
+    });
   } catch (err) {
-    log(c("red", `\n✗ ${(err as Error).message}`)); exit(1); return;
+    log(c("red", `\n✗ ${(err as Error).message}`));
+    await endPush(pusher, computeStats([]), 3000);
+    exit(1); return;
   } finally {
     process.removeListener("SIGINT", onSig);
   }
-  if (!leads.length) { log(c("yellow", "\n  No leads collected.\n")); if (cpFile) clearCheckpoint(cpFile); return; }
+  if (!leads.length) { log(c("yellow", "\n  No leads collected.\n")); if (cpFile) clearCheckpoint(cpFile); await endPush(pusher, computeStats([])); return; }
 
   const fields = config.fields
     ? normalizeFields(config.fields as string[])
@@ -377,6 +445,7 @@ async function runConfigFile(args: Args): Promise<void> {
   const s = computeStats(leads);
   log(`\n  ${c("green", "✔")} Saved ${c("bold", String(leads.length))} leads → ${c("cyan", out)}`);
   log(`    ${c("dim", `${s.withPhone} with a phone · ${s.withWebsite} with a website · ${s.withEmail} with an email`)}`);
+  await endPush(pusher, s);
   if (args.summary) {
     log("");
     formatSummary(summarize(leads)).split("\n").forEach((line, i) => {
@@ -436,6 +505,7 @@ async function main(): Promise<void> {
     exit(1);
     return;
   }
+  const pushCfg = setupPush(args);
 
   // Radius search: parse the centre point and (optional) radius up front.
   const nearPoint = args.near ? parseLatLngPair(args.near) : undefined;
@@ -529,6 +599,7 @@ async function main(): Promise<void> {
   else if (nearPoint) log(`  ${c("dim", "sort")}    distance (nearest first)`);
   if (args.country) log(`  ${c("dim", "phones")}  E.164 for ${args.country}`);
   if (args.proxy) log(`  ${c("dim", "proxy")}   ${args.proxy.replace(/\/\/[^@]+@/, "//***@")}`);
+  if (pushCfg) log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)} ${c("dim", "(the file is written as well)")}`);
   log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}${args.append ? c("dim", " (append)") : ""}`);
   if (!args.yes) {
     const ok = await prompt(`\n${c("yellow", "!")} This opens a browser and searches Google Maps. Continue? ${c("dim", "[y/N]")} `);
@@ -541,12 +612,19 @@ async function main(): Promise<void> {
     if (controller.signal.aborted) {
       writerRef.current?.flush();
       log(c("yellow", "\n  ! Quit. Rows already written stay in the file; --resume continues from them.\n"));
+      if (pusherRef.current) {
+        const p = pusherRef.current;
+        pusherRef.current = undefined;
+        void endPush(p, computeStats([...(writerRef.current?.leads ?? [])]), 2000).finally(() => exit(130));
+        return;
+      }
       exit(130);
     }
     controller.abort();
     log(c("yellow", "\n  ! Stopping — finishing the leads in hand. Press Ctrl-C again to quit at once (rows already written stay in the file)."));
   };
   const writerRef: { current?: LiveWriter } = {};
+  const pusherRef: { current?: Pusher } = {};
   process.on("SIGINT", onSig);
 
   // Rows already in the output (append / resume) and in a master file, read BEFORE the run:
@@ -588,11 +666,27 @@ async function main(): Promise<void> {
     } catch (err) { log(c("yellow", `  ! live output off: ${(err as Error).message}`)); }
   }
   const goal = args.target ?? (isBatch ? args.total : undefined) ?? (isBatch ? undefined : args.limit);
+  // --push: finished leads also stream to an endpoint, in the background. The file is written as usual.
+  const pusher = pushCfg
+    ? startPusher(pushCfg, toStdout ? "stdout" : out, {
+        ...(args.type ? { type: args.type } : args.query ? { type: args.query } : {}),
+        ...(args.city ? { city: args.city } : {}),
+        ...(args.area ? { area: args.area } : {}),
+        ...(goal !== undefined ? { target: goal } : {}),
+      })
+    : undefined;
+  pusherRef.current = pusher;
+  const finishPush = async (list: Lead[], timeoutMs?: number): Promise<void> => {
+    const p = pusherRef.current;
+    pusherRef.current = undefined;
+    await endPush(p, computeStats(list), timeoutMs);
+  };
   const startedAt = Date.now();
   let fresh0 = 0;
   const onResult = (lead: Lead): void => {
     if (inMaster?.(lead)) return;
     if (writer && !writer.add(lead)) return;
+    pusher?.push(lead);
     fresh0++;
     const have = resumeRows.length + fresh0;
     const mins = (Date.now() - startedAt) / 60000;
@@ -700,10 +794,12 @@ async function main(): Promise<void> {
       writer.flush();
       log(c("yellow", `\n  ! ${(err as Error).message}`));
       log(`  ${c("green", "✔")} ${c("bold", String(writer.count))} leads are saved in ${c("cyan", out)}. Run the same command with ${c("bold", "--resume")} to continue.\n`);
+      await finishPush([...writer.leads], 3000);
       exit(controller.signal.aborted ? 130 : 1);
       return;
     }
     log(c("red", `\n✗ ${(err as Error).message}`));
+    await finishPush([], 3000);
     exit(1);
     return;
   } finally {
@@ -723,6 +819,7 @@ async function main(): Promise<void> {
     log(c("yellow", "\n  No leads collected. Try a broader area, looser filters, or a smaller --limit.\n"));
     dropEmpty();
     if (cpFile) clearCheckpoint(cpFile);
+    await finishPush([]);
     return;
   }
 
@@ -736,6 +833,7 @@ async function main(): Promise<void> {
       log(c("yellow", "\n  Nothing new — every lead was already in the master file.\n"));
       dropEmpty();
       if (cpFile) clearCheckpoint(cpFile);
+      await finishPush([]);
       return;
     }
   }
@@ -783,6 +881,7 @@ async function main(): Promise<void> {
       if (!binary) stdout.write("\n");
     }
     log(`\n  ${c("green", "✔")} ${c("bold", String(leads.length))} leads written to stdout ${c("dim", `(${args.format})`)}\n`);
+    await finishPush(leads);
     printSummary();
     return;
   }
@@ -821,6 +920,7 @@ async function main(): Promise<void> {
   if (s.avgRating !== undefined) parts.push(`avg ★ ${s.avgRating}`);
   log(`    ${c("dim", parts.join(" · "))}`);
   if (stoppedEarly) log(c("yellow", `  ! Stopped early. Run the same command with --resume to carry on from these ${leads.length}.`));
+  await finishPush(leads);
   printSummary();
   log("");
 }

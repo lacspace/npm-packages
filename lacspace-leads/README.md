@@ -208,6 +208,8 @@ npx lacspace-leads [type] [options]
 | `--region <cc>` | Region bias for results, e.g. `np`, `us` |
 | `--headless` | Run the browser without a visible window |
 | `-y, --yes` | Skip prompts and the browser-open confirmation |
+| `--push <url>` | Also stream finished leads to an https endpoint (CRM, Lacspace Mail) — the file is still written. See [Push leads](#push-leads-to-your-crm--lacspace-mail) |
+| `--push-token <t>` | Bearer token for `--push` (prefer the `LACSPACE_LEADS_PUSH_TOKEN` env var) |
 
 **Enrichment** (visits each business website — slower, opt-in):
 
@@ -380,6 +382,70 @@ Ask for 100 leads and the file gets row 1 as soon as the first business is read,
 | `xlsx` | the workbook is rewritten safely (temp file + rename) after each lead |
 
 When the run ends the file is rewritten once more in its final order (`--sort`, `--append` merges). Press **Ctrl-C** and it stops cleanly, saving everything collected. Then run the same command with `--resume`: it keeps the rows in the file, skips those listings and fills up to the `--target`. `--no-live` turns this off and writes only at the end.
+
+## Push leads to your CRM / Lacspace Mail
+
+Add `--push <url>` and every finished lead is also POSTed to that endpoint while the run goes on — for example straight into the **Leads board of [Lacspace Mail](https://mail.lacspace.com)**:
+
+```bash
+export LACSPACE_LEADS_PUSH_TOKEN="…your token…"
+npx lacspace-leads restaurants --city Kathmandu --target 300 --emails --verify-emails --push https://api.lacspace.com/api/webmail/leads/import
+```
+
+**The file is always written too.** `--push` is in addition to the normal output, never instead of it, so if the endpoint is down, slow or rejects the token you still have every lead on disk (and `--resume` works as usual).
+
+**Token.** Prefer the `LACSPACE_LEADS_PUSH_TOKEN` environment variable over `--push-token`, because a token on the command line can be seen in your shell history and in the process list (`ps`). Precedence is `--push-token`, then the config file, then the env var. The token is only ever sent in the `Authorization: Bearer …` header: it is never printed (echoes show `***`) and never written to the output or checkpoint files.
+
+**URL.** Only `https://` is accepted, except `http://localhost`, `http://127.0.0.1` and `http://[::1]` for local development. Anything else stops with a clear error before the browser opens.
+
+**In a campaign file** (`--config`), add a `push` block (CLI flags still win):
+
+```jsonc
+{
+  "searches": [{ "type": "cafes", "city": "Kathmandu" }],
+  "push": { "url": "https://api.lacspace.com/api/webmail/leads/import" }  // token: env var, or "token": "…"
+}
+```
+
+**How it sends.** Finished leads (after enrichment, verification and filters, the same rows the file gets) are batched and flushed **every 10 leads or every 3 seconds**, whichever comes first, in the background, with one request in flight at a time, so pushing never slows the scrape. If the endpoint is slow, waiting leads merge into the next request; at most 2,000 wait in memory, and any beyond that are skipped for the push (with one warning) but still saved to the file. Each request is a `POST` with `Content-Type: application/json`, `Authorization: Bearer <token>` (when a token is set), `User-Agent: lacspace-leads/<version>` and a 15-second timeout:
+
+```jsonc
+{
+  "leads": [ { "name": "Himalayan Java", "phone": "+97714422519", "website": "https://himalayanjava.com", … } ],
+  "search": { "type": "restaurants", "city": "Kathmandu", "area": null, "target": 300 },
+  "run": "6f1c…-…",   // one random UUID per run, the same on every request
+  "seq": 1,           // batch number, from 1
+  "done": false
+}
+```
+
+When the run ends (including a Ctrl-C), the rest is flushed and one final request is sent, bounded to a few seconds so Ctrl-C still exits quickly:
+
+```jsonc
+{ "leads": [], "search": { … }, "run": "6f1c…", "seq": 31, "done": true,
+  "stats": { "total": 300, "withPhone": 281, "withWebsite": 190, "withEmail": 122, "withValidEmail": 117, "withSocial": 0, "avgRating": 4.3 } }
+```
+
+**Failures never cost you the run:**
+
+| Endpoint answers | What happens |
+| --- | --- |
+| network error / timeout / `5xx` | retried 3 times, after 1s, 3s and 9s; then the batch is counted as failed and pushing carries on |
+| `429` | waits for `Retry-After` (seconds or an HTTP date, capped at 60s), still at most 3 retries |
+| `401` / `403` | one error, `push rejected: token invalid or expired, leads are still being saved to <file>`; pushing stops for the rest of the run, scraping and the file carry on |
+| any other `4xx` | one warning per status code, that batch is dropped, pushing carries on |
+
+The run ends with one line such as `push: sent 300 leads in 30 batches, failed 0, not rejected`.
+
+Programmatically, `createPusher({ url, token })` gives you `push(lead)`, `finish(stats)` and `stats()`. Wire it to `onResult`:
+
+```ts
+import { searchLeads, createPusher, computeStats, formatPushSummary } from "lacspace-leads";
+
+const pusher = createPusher({ url: "https://crm.example.com/leads", token: process.env.CRM_TOKEN, search: { type: "cafes", city: "Kathmandu" } });
+const leads = await searchLeads({ type: "cafes", city: "Kathmandu", onResult: (l) => pusher.push(l) });
+console.log(formatPushSummary(await pusher.finish(computeStats(leads))));
+```
 
 ## Resume a long sweep (`--resume`)
 
@@ -587,6 +653,7 @@ const leads = await searchLeadsBatch(
 | `haversineMeters` / `parseLatLngPair` / `parseDistance` | Pure geo helpers for radius search. |
 | `filterLeads` / `dedupeLeads` / `subtractLeads` / `dedupeKey` | Pure post-processing — filter, in-list dedupe, and cross-file dedupe. |
 | `createLiveWriter(options)` | Write leads to csv / ndjson / json / xlsx (or stdout) one by one as they arrive. |
+| `createPusher(options)` / `validatePushUrl` / `resolvePush` / `parseRetryAfter` / `formatPushSummary` | Stream finished leads to an HTTP endpoint in batches, with retries (1.9.0). |
 | `summarize(leads)` / `formatSummary(s)` | Rating bands, contact coverage %, top categories — the `--summary` engine. |
 | `parsePriceLevel` / `priceLevelValue` / `parseBusinessStatus` / `parseClaimed` / `parseOpenNow` / `parseCategoryTags` | Pure field parsers (unit-tested against HTML/aria snippets). |
 | `pipeToEnrich(handler)` / `leadsToEnrichInput` / `leadDomains` / `leadDomain` | Bridge collected leads to `lacspace-enrich` (no hard dep). |

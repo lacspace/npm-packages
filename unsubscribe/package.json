@@ -1,0 +1,60 @@
+{
+  "name": "@lacspace/unsubscribe",
+  "version": "1.0.0",
+  "description": "Mailing-list unsubscribe for webmail: RFC 2369 List-* header parsing (List-Unsubscribe, List-Help, List-Subscribe, List-Post, List-Owner, List-Archive), RFC 2919 List-Id, and RFC 8058 one-click unsubscribe POST with an SSRF guard (private/loopback/link-local/CGNAT/ULA IPs, localhost, .local/.internal/.lan, userinfo), no cookies, https-only redirects. Picks the best method for an Unsubscribe button: one-click > mailto > https > none. Zero dependencies, isomorphic (global fetch).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "unsubscribe",
+    "list-unsubscribe",
+    "one-click",
+    "rfc8058",
+    "rfc2369",
+    "rfc2919",
+    "list-id",
+    "email",
+    "webmail",
+    "mailing-list",
+    "ssrf",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/unsubscribe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "unsubscribe"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

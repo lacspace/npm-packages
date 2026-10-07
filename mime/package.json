@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/mime",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Isomorphic RFC 5322 / RFC 2045-2049 MIME parser and builder for webmail. parseMime() turns raw mail (string or bytes) into from/to/cc/subject/date/text/html/attachments/inline cid images/priority/List-Unsubscribe one-click and the part tree; handles nested multipart (mixed, alternative, related, report, signed), message/rfc822 forwards, base64 and quoted-printable (tolerant), RFC 2047 encoded words (split multibyte, adjacent whitespace), RFC 2231 parameters, 30+ charsets and malformed input without ever throwing. parseBodyStructure() parses IMAP BODYSTRUCTURE (literals, extension data) into the same tree with IMAP partIds, plus findTextParts / listAttachments / decodePart for lazy fetching. buildMime() writes CRLF messages with encoded-word headers, QP/base64 bodies, mixed/alternative/related nesting, Message-ID generation and header-injection guards; replyHeaders() / forwardSubject() for threading. Pairs with @lacspace/imap and @lacspace/mailer. Zero dependencies; Node 18+, edge runtimes and browsers.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -212,7 +212,9 @@ function parseListUnsubscribe(h: MailHeaders): ListUnsubscribe | undefined {
   const urls = items.filter((u) => /^https?:\/\//i.test(u));
   const mailto = items.find((u) => /^mailto:/i.test(u));
   const post = h.get("list-unsubscribe-post") ?? "";
-  const out: ListUnsubscribe = { urls, oneClick: /list-unsubscribe\s*=\s*one-click/i.test(post) && urls.length > 0 };
+  // RFC 8058: the Post header must be exactly "List-Unsubscribe=One-Click" and the URI must be https.
+  const oneClick = /^\s*list-unsubscribe\s*=\s*one-click\s*$/i.test(post) && urls.some((u) => /^https:/i.test(u));
+  const out: ListUnsubscribe = { urls, oneClick };
   if (mailto) out.mailto = mailto;
   if (!urls.length && !mailto) return undefined;
   return out;

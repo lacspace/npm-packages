@@ -816,3 +816,16 @@ describe("replyHeaders / forwardSubject", () => {
     expect(back.subject).toBe("Re: नमस्ते दुनिया");
   });
 });
+
+describe("1.0.1: strict RFC 8058 one-click", () => {
+  const mk = (post: string, url = "https://x.example/u") =>
+    parseMime(`From: a@x.com\r\nList-Unsubscribe: <${url}>, <mailto:u@x.com>\r\nList-Unsubscribe-Post: ${post}\r\nSubject: s\r\n\r\nb`).listUnsubscribe;
+  it("accepts the exact value, case/space tolerant", () => {
+    expect(mk("List-Unsubscribe=One-Click")?.oneClick).toBe(true);
+    expect(mk("  list-unsubscribe = one-click ")?.oneClick).toBe(true);
+  });
+  it("rejects near-misses and http-only URLs", () => {
+    expect(mk("List-Unsubscribe=One-Click-Maybe")?.oneClick).toBe(false);
+    expect(mk("List-Unsubscribe=One-Click", "http://x.example/u")?.oneClick).toBe(false);
+  });
+});

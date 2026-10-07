@@ -1,0 +1,64 @@
+{
+  "name": "@lacspace/ics",
+  "version": "1.0.0",
+  "description": "Small, correct iCalendar (RFC 5545) + iTIP (RFC 5546) parser and builder for webmail meeting invites. parseIcs() reads Google Calendar, Outlook/Exchange and Apple invites: line unfolding (byte-level, so folds that split UTF-8 characters survive), quoted parameters, text escaping, DATE vs DATE-TIME, UTC/floating/TZID times converted to UTC via Intl (IANA names, 60+ Windows zone names like \"Nepal Standard Time\", custom VTIMEZONE rules), DST gaps/overlaps per RFC 5545, DURATION, attendees, organizer, VALARM, RRULE/EXDATE/RDATE passthrough, RECURRENCE-ID overrides, Google Meet/Teams links. buildIcs() writes CRLF calendars folded at 75 octets (never splitting a multibyte character) with optional TZID + VTIMEZONE. buildReplyIcs() / replyEmail() produce RFC 5546 METHOD:REPLY RSVPs (Accept/Decline/Tentative); buildCancelIcs() cancels. Never throws on malformed input. Zero dependencies; Node 18+, edge runtimes and browsers.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ics",
+    "icalendar",
+    "ical",
+    "rfc5545",
+    "rfc5546",
+    "itip",
+    "imip",
+    "calendar",
+    "meeting-invite",
+    "rsvp",
+    "vevent",
+    "vtimezone",
+    "webmail",
+    "outlook",
+    "google-calendar",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/ics",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "ics"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

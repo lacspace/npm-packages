@@ -8,7 +8,7 @@
 
 _Think · Innovate · Execute_
 
-[![packages](https://img.shields.io/badge/packages-217-4d9fff)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-224-4d9fff)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
 [![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
 [![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **217 published packages and CLIs** (188 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **224 published packages and CLIs** (195 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -28,7 +28,7 @@ One monorepo, **217 published packages and CLIs** (188 libraries + 29 tools). Mo
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 217 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 224 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -197,6 +197,13 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/sequence`](./sequence) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fsequence?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/sequence) | Pure state machine for follow-up sequences: delays, business days, recipient-timezone send windows, holidays, stop on reply/bounce/unsubscribe, per-mailbox hourly/daily caps |
 | [`@lacspace/email-lint`](./email-lint) | [![v](https://img.shields.io/npm/v/%40lacspace%2Femail-lint?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/email-lint) | Pre-send email check: Gmail clipping, image/text ratio, risky links and attachments, hidden text, Outlook CSS, spam phrases (EN + NE), Gmail/Yahoo bulk-sender rules → 0-100 score with fixes |
 | [`@lacspace/email-builder`](./email-builder) | [![v](https://img.shields.io/npm/v/%40lacspace%2Femail-builder?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/email-builder) | Block JSON + brand → bulletproof table-based responsive email HTML (MSO wrapper, VML buttons, ghost columns, dark mode, contrast checks) with a prop schema and 9 starter templates |
+| [`@lacspace/track`](./track) | [![v](https://img.shields.io/npm/v/%40lacspace%2Ftrack?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/track) | HMAC-signed open/click tokens (no open redirect, hashed recipients), safe link rewriting that skips unsubscribe/mailto/{{vars}}, human vs Apple-MPP vs proxy vs bot open/click classification |
+| [`@lacspace/booking`](./booking) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fbooking?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/booking) | Free meeting slots from busy times (IANA tz, DST, buffers, notice, holidays, Nepal Sun–Fri), "Tue 13 Oct, 10:00–10:30 (NPT)" proposal text, RFC 5545 REQUEST invites |
+| [`@lacspace/mail-extract`](./mail-extract) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmail-extract?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/mail-extract) | Structured data from email bodies: schema.org JSON-LD/microdata plus heuristics for orders, invoices, receipts (NPR/₹/$), shipments, flights and OTPs (English + Nepali), ignoring quoted replies |
+| [`@lacspace/mail-classify`](./mail-classify) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmail-classify?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/mail-classify) | Pure inbox classifier: 10 categories (people, notifications, social, promotions, updates, calendar…) + priority with reasons, header-aware (List-Id, Auto-Submitted), overridable patterns |
+| [`@lacspace/mail-search`](./mail-search) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmail-search?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/mail-search) | Gmail-style search parser (from:, has:attachment, is:, before:/after:, newer_than:, larger:, OR, -negation, "phrases") → neutral AST, round-trip toQueryString and in-memory matcher |
+| [`@lacspace/mail-providers`](./mail-providers) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmail-providers?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/mail-providers) | MX → mail provider detection and IMAP/SMTP presets (Hostinger, Titan, GoDaddy, Gmail, Microsoft 365, Zoho, Yahoo, iCloud), ordered server candidates; send limits honestly "unknown" |
+| [`@lacspace/match`](./match) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmatch?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/match) | Generic all/any condition evaluator over any record (dotted paths, arrays, 18 ops incl. between/in/exists) with ReDoS-guarded regex, explain() and validation |
 | [`@lacspace/email-templates`](./email-templates) | [![v](https://img.shields.io/npm/v/%40lacspace%2Femail-templates?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/email-templates) | Compose bulletproof, responsive, dark-mode-aware HTML emails |
 | [`@lacspace/email-validate`](./email-validate) | [![v](https://img.shields.io/npm/v/%40lacspace%2Femail-validate?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/email-validate) | Smart email validation |
 | [`@lacspace/email-verify`](./email-verify) | [![v](https://img.shields.io/npm/v/%40lacspace%2Femail-verify?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/email-verify) | Best-effort email deliverability checks for Node |
@@ -530,7 +537,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-217 packages and CLIs (188 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+224 packages and CLIs (195 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

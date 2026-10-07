@@ -9,6 +9,8 @@
  * the parser reads only that header.
  */
 
+import { receivingServer } from "./receiving";
+
 export type Verdict =
   | "pass"
   | "fail"
@@ -52,8 +54,14 @@ export interface ParseAuthOptions {
    * these ids is used (a subdomain matches: "hostinger.com" trusts
    * "mx1.hostinger.com"). If none matches, SPF/DKIM/DMARC stay null.
    * Without this option the topmost header is used.
+   *
+   * "auto": pass the message's whole header block as input and the parser keeps
+   * only the headers the delivering provider wrote (see `receivingServer`).
+   * This also covers Microsoft 365, whose headers carry no authserv-id.
    */
-  trustedAuthservIds?: string[];
+  trustedAuthservIds?: string[] | "auto";
+  /** With "auto": the mailbox's IMAP/POP host, e.g. "imap.hostinger.com". */
+  mailboxHost?: string;
 }
 
 interface MethodResult {
@@ -372,10 +380,15 @@ export function parseAuthenticationResults(
   opts: ParseAuthOptions = {},
 ): AuthResults {
   try {
+    if (opts.trustedAuthservIds === "auto") {
+      const headers = typeof input === "string" || Array.isArray(input) ? input : [];
+      const rs = receivingServer(headers, opts.mailboxHost ? { mailboxHost: opts.mailboxHost } : {});
+      return parseAuthenticationResults(rs.input);
+    }
     const b = collect(input);
     const out = emptyResult();
     const parsed = b.ar.map((v) => parseHeaderValue(v));
-    const trusted = (opts.trustedAuthservIds ?? [])
+    const trusted = (Array.isArray(opts.trustedAuthservIds) ? opts.trustedAuthservIds : [])
       .filter((t) => typeof t === "string" && t.trim())
       .map((t) => t.trim().toLowerCase());
     const isTrusted = (id?: string) => !!id && trusted.some((t) => id === t || id.endsWith("." + t));

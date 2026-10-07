@@ -32,6 +32,11 @@ export interface RiskMessage {
   knownContacts?: MailAddress[];
   /** Links from the message body, e.g. from a mail sanitizer. */
   links?: { href: string; text: string }[];
+  /**
+   * The message came through a mailing list (it has List-Unsubscribe or List-Id).
+   * Lists set Reply-To to the list address, so a different-domain Reply-To counts only 5.
+   */
+  mailingList?: boolean;
 }
 
 export interface RiskOptions {
@@ -39,6 +44,13 @@ export interface RiskOptions {
   freeMailDomains?: string[];
   /** Extra brand / role names (added to the built-in list) that a free-mail sender should not claim. */
   brandNames?: string[];
+  /**
+   * How to treat a sender domain that differs from a known one only by its ending
+   * (lacspace.mail vs lacspace.com). "flag" (default) always warns. "context" warns
+   * only when authentication fails or the message asks for a payment or a sign-in,
+   * since brands that own several endings send from all of them.
+   */
+  tldVariants?: "flag" | "context";
 }
 
 export interface RiskSignal {
@@ -195,6 +207,36 @@ function isFailing(v: Verdict | undefined): boolean {
   return v === "fail" || v === "softfail" || v === "permerror" || v === "policy";
 }
 
+/** True when the auth verdicts would raise any auth.* failure signal. */
+function authFails(auth: RiskMessage["auth"]): boolean {
+  if (!auth) return false;
+  const { spf, dkim, dmarc } = auth;
+  if (isFailing(dmarc)) return true;
+  if (dmarc === "pass") return false;
+  return spf === "fail" || spf === "permerror" || spf === "softfail" || dkim === "fail" || dkim === "permerror" || dkim === "policy";
+}
+
+function contentText(msg: RiskMessage): string {
+  const subject = typeof msg.subject === "string" ? msg.subject.replace(EXTERNAL_TAG, "") : "";
+  return `${subject}\n${typeof msg.snippet === "string" ? msg.snippet : ""}`.toLowerCase();
+}
+
+/** Payment / sign-in request, or urgency together with money or account words. */
+function asksForPaymentOrSignIn(msg: RiskMessage): boolean {
+  const text = contentText(msg);
+  if (!text.trim()) return false;
+  if (PAYMENT_PHRASES.some((r) => r.test(text)) || CREDENTIAL_PHRASES.some((r) => r.test(text))) return true;
+  return URGENCY.some((r) => r.test(text)) && (MONEY_WORDS.some((r) => r.test(text)) || CRED_WORDS.some((r) => r.test(text)));
+}
+
+/** "lacspace.mail" vs "lacspace.com": same name, different ending. */
+function sameNameOtherEnding(fromReg: string, imitated: string): boolean {
+  const other = registrableDomain(toUnicodeDomain(imitated));
+  if (!fromReg || !other || fromReg === other) return false;
+  const name = (d: string) => d.split(".")[0] ?? "";
+  return name(fromReg) === name(other) && name(fromReg).length > 0;
+}
+
 const FILE_EXT = new Set(["pdf", "doc", "docx", "xls", "xlsx", "zip", "rar", "png", "jpg", "jpeg", "gif", "html", "htm", "php", "txt", "csv", "ppt", "pptx", "exe", "js", "svg"]);
 
 function domainInText(text: string): string | null {
@@ -266,7 +308,10 @@ export function assessRisk(msg: RiskMessage, opts: RiskOptions = {}): RiskAssess
     // ---- identity: lookalike domains -------------------------------------
     let spoofedIdentity = false;
     if (fromDomain && !fromFree) {
-      const imitated = lookalikeOf(fromDomain, candidates);
+      let imitated = lookalikeOf(fromDomain, candidates);
+      if (imitated && opts.tldVariants === "context" && sameNameOtherEnding(fromReg, imitated)) {
+        if (!authFails(msg.auth) && !asksForPaymentOrSignIn(msg)) imitated = null;
+      }
       if (imitated) {
         spoofedIdentity = true;
         add("lookalike.from", `The sender's address (${short(fromAddr)}) looks like ${short(imitated, 30)} but is a different domain.`, imitated);
@@ -331,7 +376,8 @@ export function assessRisk(msg: RiskMessage, opts: RiskOptions = {}): RiskAssess
       if (rFree && !fromFree) {
         add("reply_to.free_mail", `Replies would go to a personal email account (${short(rAddr)}), not the sender's (${short(fromAddr)}).`, rAddr);
       } else {
-        add("reply_to.different_domain", `Replies would go to a different address (${short(rAddr)}) than the sender's (${short(fromAddr)}).`, rAddr);
+        add("reply_to.different_domain", `Replies would go to a different address (${short(rAddr)}) than the sender's (${short(fromAddr)}).`, rAddr,
+          msg.mailingList === true ? 5 : undefined);
       }
       if (!rFree) {
         const imitated = lookalikeOf(rDom, candidates);
@@ -374,8 +420,7 @@ export function assessRisk(msg: RiskMessage, opts: RiskOptions = {}): RiskAssess
     if (exactContact && !authFailing && !spoofedIdentity) add("known_contact", "The sender is in your contacts.");
 
     // ---- content ---------------------------------------------------------
-    const subject = typeof msg.subject === "string" ? msg.subject.replace(EXTERNAL_TAG, "") : "";
-    const text = `${subject}\n${typeof msg.snippet === "string" ? msg.snippet : ""}`.toLowerCase();
+    const text = contentText(msg);
     if (text.trim()) {
       const urgent = URGENCY.some((r) => r.test(text));
       const payPhrase = PAYMENT_PHRASES.some((r) => r.test(text));

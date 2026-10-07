@@ -64,6 +64,12 @@ Any sender can put `Authentication-Results: mx.google.com; dkim=pass; dmarc=pass
 - Pass headers **top-down**, in the order they appear in the message. A string, a string array, a whole raw header block, or `{ authenticationResults, receivedSpf, arcAuthenticationResults }` all work.
 - Pass `trustedAuthservIds` with your server's authserv-id (the first word of its header, e.g. `mx1.hostinger.com`). A parent domain also matches: `hostinger.com` trusts `mx1.hostinger.com`. The parser then uses the **topmost** header with that id. It also merges the consecutive headers your server split its results into, and ignores everything else. If no trusted header is found, SPF/DKIM/DMARC stay `null`.
 - Without `trustedAuthservIds`, the topmost header is used. That is right when your mail server strips incoming `Authentication-Results` with its own id, as RFC 8601 requires. Microsoft 365 headers have no authserv-id, so don't pass the option for them.
+- **Don't know the authserv-id? Use `trustedAuthservIds: "auto"`** (new in 1.1.0) and pass the message's whole header block. This suits webmail with mailboxes on many hosts (Hostinger, Titan, GoDaddy, Microsoft 365, Gmail).
+  - The provider's own `Received` hops sit at the top. The topmost hop's domain is the provider's, and `mailboxHost` (e.g. `imap.hostinger.com`) adds another.
+  - An `Authentication-Results` header is trusted when its authserv-id belongs to the provider and it sits above the first hop run by anyone else.
+  - An id-less header (Microsoft 365 style) is trusted only above the provider's inbound hop, where a sender can't place headers.
+  - `receivingServer(headers, { mailboxHost? })` shows its working: `{ hosts, domains, authservIds, anonymous, input }`. `inferAuthservIds()` returns just the ids, so you can save one per mailbox and pin it.
+  - Limit: if a provider writes no `Authentication-Results` at all, a forged header carrying the provider's own id could still be picked. Pinning a known id closes that gap.
 - `Received-SPF` is used only when the selected header has no `spf=` result. The topmost one is read.
 - If the selected header has an `arc=` result, `arc` comes from it. Otherwise it comes from the newest `ARC-Authentication-Results` (highest `i=`), using that hop's `arc=` result, then its DMARC result, then its DKIM result.
 - Multiple DKIM signatures: any `pass` gives `pass`. Otherwise the strongest failure wins. Every signature is listed in `dkimDomains`.
@@ -117,10 +123,13 @@ A domain with the same registrable domain as a candidate never matches. Free-mai
 
 ## API
 
-- **`parseAuthenticationResults(input, { trustedAuthservIds? })`:** returns `{ spf, dkim, dmarc, arc?, dkimDomains, spfDomain?, dmarcPolicy?, headerFrom?, authservId?, raw }`.
+- **`parseAuthenticationResults(input, { trustedAuthservIds?: string[] | "auto", mailboxHost? })`:** returns `{ spf, dkim, dmarc, arc?, dkimDomains, spfDomain?, dmarcPolicy?, headerFrom?, authservId?, raw }`.
   - `Verdict` is `"pass" | "fail" | "softfail" | "neutral" | "none" | "temperror" | "permerror" | "policy" | null`.
-- **`assessRisk(msg, { freeMailDomains?, brandNames? })`:** returns `{ level, score, reasons, signals }`.
+- **`assessRisk(msg, { freeMailDomains?, brandNames?, tldVariants? })`:** returns `{ level, score, reasons, signals }`.
   - `msg.auth` can be a parse result or just `{ spf, dkim, dmarc }`.
+  - `msg.mailingList: true` (the message has `List-Unsubscribe` or `List-Id`): a different-domain Reply-To counts 5, not 20, because lists point Reply-To at the list. A free-mail or lookalike Reply-To is not discounted.
+  - `tldVariants: "context"`: a sender domain that differs from a known one only by its ending (`lacspace.mail` vs `lacspace.com`) is flagged only when authentication fails or the message asks for a payment or a sign-in. The default `"flag"` always warns.
+- **`receivingServer(headers, { mailboxHost? })`** and **`inferAuthservIds(headers, opts?)`:** see "auto" above.
 - **`lookalikeOf(domain, candidates)`:** returns the candidate being imitated, or `null`.
 - **`skeleton(s)`:** a confusable-collapsed form, for comparison only.
 - **`registrableDomain(host)`:** the last two labels, or three under known second-level suffixes such as `co.uk`, `com.np`, `org.np`, `edu.np`, `gov.np`, `com.au` and `co.in`.

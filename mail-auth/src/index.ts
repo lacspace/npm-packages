@@ -17,6 +17,12 @@ export {
   type RiskAssessment,
 } from "./risk";
 export {
+  receivingServer,
+  inferAuthservIds,
+  type ReceivingServer,
+  type ReceivingServerOptions,
+} from "./receiving";
+export {
   lookalikeOf,
   skeleton,
   registrableDomain,

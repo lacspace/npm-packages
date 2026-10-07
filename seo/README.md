@@ -113,6 +113,7 @@ breadcrumb([
 | `softwareApp(o)` | SoftwareApplication |
 | `localBusiness` `event` `person` `review` | LocalBusiness / Event / Person / Review |
 | `videoObject` `howTo` `jobPosting` `course` `recipe` | VideoObject / HowTo / JobPosting / Course / Recipe |
+| `isoDuration(seconds)` | Seconds → ISO 8601 duration (`245` → `"PT4M5S"`). `videoObject` also takes `durationSec` and `inLanguage` (1.10.0); pair it with `videoSitemap()` from `@lacspace/sitemap` for a video sitemap. |
 | `seoMetadata(input)` | Next.js `Metadata` |
 | `hreflang(map)` | `alternates.languages` for Next |
 

@@ -517,6 +517,18 @@ export interface VideoInput {
   duration?: string;
   contentUrl?: string;
   embedUrl?: string;
+  /** Length in seconds; converted to an ISO 8601 duration when `duration` is not given. */
+  durationSec?: number;
+  /** BCP 47 language of the video, e.g. "ne", "en", "hi". */
+  inLanguage?: string;
+}
+
+/** Seconds → ISO 8601 duration ("PT1H2M5S"); undefined for invalid input. */
+export function isoDuration(seconds: number): string | undefined {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) return undefined;
+  const t = Math.round(seconds);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return "PT" + (h ? h + "H" : "") + (m ? m + "M" : "") + (sec || (!h && !m) ? sec + "S" : "");
 }
 
 export function videoObject(o: VideoInput): Json {
@@ -527,9 +539,10 @@ export function videoObject(o: VideoInput): Json {
     description: o.description,
     thumbnailUrl: o.thumbnailUrl,
     uploadDate: o.uploadDate,
-    duration: o.duration,
+    duration: o.duration ?? (o.durationSec !== undefined ? isoDuration(o.durationSec) : undefined),
     contentUrl: o.contentUrl,
     embedUrl: o.embedUrl,
+    inLanguage: o.inLanguage,
   });
 }
 

@@ -1,0 +1,61 @@
+{
+  "name": "@lacspace/dkim",
+  "version": "1.0.0",
+  "description": "DKIM signing and verification for email: RFC 6376 (rsa-sha256, simple/relaxed canonicalization, l=, x=, t=, oversigned From), RFC 8463 Ed25519 (ed25519-sha256) and RFC 8301 (rsa-sha1 and keys under 1024 bits rejected). signMessage(), verifyMessage() with multiple signatures, From alignment, revoked/missing keys and injectable DNS. Key generation and ready-to-paste DNS TXT records split into 255-character strings. Pure WebCrypto, zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dkim",
+    "email",
+    "mail",
+    "smtp",
+    "rfc6376",
+    "rfc8463",
+    "ed25519",
+    "rsa-sha256",
+    "dkim-signature",
+    "email-authentication",
+    "dmarc",
+    "webcrypto",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/dkim",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "dkim"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

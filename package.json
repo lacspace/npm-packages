@@ -31,6 +31,7 @@
     "crypto",
     "csv",
     "datetime",
+    "dkim",
     "duration",
     "email-templates",
     "email-validate",

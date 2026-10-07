@@ -94,12 +94,14 @@ export function receivingServer(headers: string | string[], opts: ReceivingServe
     // Walk the provider's Received hops; `edge` = its inbound hop, `boundary` = first foreign hop.
     let edge = -1;
     let boundary = hs.length;
+    let first = true;
     for (let i = 0; i < hs.length; i++) {
       if (hs[i]!.name !== "received") continue;
       const host = byHost(hs[i]!.value);
       if (host) {
         const reg = registrableDomain(host);
-        if (!domains.size) domains.add(reg); // the topmost hop is always the provider's
+        if (first) domains.add(reg); // the topmost named hop is always the provider's
+        first = false;
         if (!domains.has(reg)) {
           boundary = i;
           break;

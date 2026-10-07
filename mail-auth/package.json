@@ -1,6 +1,6 @@
 {
   "name": "@lacspace/mail-auth",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Email authentication-result parsing and phishing/impersonation heuristics for webmail warning banners. RFC 8601 Authentication-Results parser (SPF, DKIM, DMARC, ARC, Received-SPF fallback, trusted authserv-id selection so forged lower headers are ignored) plus assessRisk(): DMARC/SPF/DKIM failures, reply-to mismatch, display-name address tricks, known-contact impersonation, lookalike domains (edit distance, homoglyph skeletons, punycode, mixed scripts, subdomain/hyphen/TLD tricks), free-mail brand claims, payment-change and credential-lure wording in English and Nepali, deceptive links. Plain-English reasons, 0-100 score, none/low/high level. Zero dependencies, isomorphic.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -62,6 +62,21 @@ describe("receivingServer / auto trust (1.1.0)", () => {
     expect(parseAuthenticationResults(h, { trustedAuthservIds: "auto" })).toMatchObject({ spf: null, dkim: null, dmarc: null });
   });
 
+  it("mailboxHost on another domain than the Received hops (M365 office365.com vs outlook.com) still trusts the id-less header", () => {
+    const h = [
+      "Received: from BL0PR02CA0001.namprd02.prod.outlook.com (2603:10b6:207:3c::14) by SJ0PR12MB5678.namprd12.prod.outlook.com with HTTPS; Wed, 7 Oct 2026 10:00:00 +0000",
+      "Authentication-Results: spf=pass (sender IP is 1.2.3.4) smtp.mailfrom=kavyatech.in; dkim=pass (signature was verified) header.d=kavyatech.in; dmarc=pass action=none header.from=kavyatech.in",
+      "Received: from mail.kavyatech.in (1.2.3.4) by BL0PR02CA0001.namprd02.prod.outlook.com with ESMTPS; Wed, 7 Oct 2026 09:59:59 +0000",
+      "",
+    ].join("\r\n");
+    const rs = receivingServer(h, { mailboxHost: "outlook.office365.com" });
+    expect(rs.domains.sort()).toEqual(["office365.com", "outlook.com"]);
+    expect(parseAuthenticationResults(h, { trustedAuthservIds: "auto", mailboxHost: "outlook.office365.com" }))
+      .toMatchObject({ spf: "pass", dkim: "pass", dmarc: "pass", headerFrom: "kavyatech.in" });
+    // Gmail with imap.gmail.com: gmail.com + google.com
+    expect(inferAuthservIds(gmail, { mailboxHost: "imap.gmail.com" })).toEqual(["mx.google.com"]);
+  });
+
   it("mailboxHost adds the provider domain; empty or junk input never throws", () => {
     const h = "Received: from x.example by smtp.titan.email; d\nAuthentication-Results: mx.titan.email; dmarc=pass header.from=a.com\n\n";
     expect(inferAuthservIds(h, { mailboxHost: "imap.titan.email" })).toEqual(["mx.titan.email"]);

@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/mail-sanitize",
+  "version": "1.0.0",
+  "description": "Isomorphic email-HTML sanitizer for webmail. Allowlist-based tags and attributes, URL scheme filtering (entity/tab/case tricks decoded), remote images blocked behind placeholders with data-lac-src for a \"Load images\" button, tracking pixels removed and listed, cid: images mapped to your attachment URLs, optional image proxy, <style> rules scoped under your container, class/id prefixing against DOM clobbering, linear-time hand-rolled tokenizer. Plus htmlToText, textToHtml (linkify + quote blocks) and snippet. Zero dependencies, no DOM; Node 18+, edge and browser.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "html",
+    "sanitize",
+    "sanitizer",
+    "xss",
+    "webmail",
+    "tracking-pixel",
+    "remote-images",
+    "cid",
+    "css-scope",
+    "html-to-text",
+    "linkify",
+    "isomorphic",
+    "edge",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-sanitize",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-sanitize"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

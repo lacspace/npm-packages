@@ -67,6 +67,7 @@
     "logger",
     "logo",
     "machine",
+    "mail-sanitize",
     "mailer",
     "markdown",
     "market",

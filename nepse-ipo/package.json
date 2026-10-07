@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/nepse-ipo",
+  "version": "1.0.0",
+  "description": "Pure parsers for Nepal (NEPSE) IPO data, with no fetching inside. Turns the nepalipaisa.com GetIpos JSON into clean Issue objects: ordinary/local/migrant-worker tranches mapped to general/locals/foreign_employment eligibility, mutual-fund detection by sector or name (Fund, Yojana, Scheme), one issue per symbol and opening date (ordinary tranche preferred), and open/close/extended-close times converted from Nepal Time (UTC+05:45) to UTC by hand. Also reads the latest row of the SEBON IPO pipeline page (title, date, absolute English PDF link) with a small tolerant HTML table reader, and has archive helpers (lastRelevant, isArchivable). Zero dependencies, Hermes/React Native safe (no Intl time zones, no DOM, no node: imports, no lookbehind regex).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nepse",
+    "ipo",
+    "nepal",
+    "sebon",
+    "nepalipaisa",
+    "share-market",
+    "stock-market",
+    "mutual-fund",
+    "npt",
+    "nepal-time",
+    "react-native",
+    "hermes",
+    "parser",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/nepse-ipo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "nepse-ipo"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

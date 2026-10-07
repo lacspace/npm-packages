@@ -8,7 +8,7 @@
 
 _Think · Innovate · Execute_
 
-[![packages](https://img.shields.io/badge/packages-216-4d9fff)](https://developer.lacspace.com/packages)
+[![packages](https://img.shields.io/badge/packages-217-4d9fff)](https://developer.lacspace.com/packages)
 [![types](https://img.shields.io/badge/types-included-4d9fff)](https://developer.lacspace.com/packages)
 [![zero deps](https://img.shields.io/badge/dependencies-0-16a34a)](https://developer.lacspace.com/packages)
 [![ESM + CJS](https://img.shields.io/badge/ESM%20%2B%20CJS-dual-7C3AED)](https://developer.lacspace.com/packages)
@@ -18,7 +18,7 @@ _Think · Innovate · Execute_
 
 </div>
 
-One monorepo, **216 published packages and CLIs** (187 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
+One monorepo, **217 published packages and CLIs** (188 libraries + 29 tools). Most are **zero-dependency**, **isomorphic** (the same code runs on Node, edge runtimes and browsers), ship **dual ESM + CJS** builds with **TypeScript types included**, and — wherever money is involved — use **integer minor units** (paisa/cents) so you never lose a penny to floating point. Nothing here needs an API key or phones home.
 
 - 🧩 **Tiny & focused** — one job per package, no framework lock-in
 - 🔒 **Correct by default** — real crypto over the Web Crypto API (never hand-rolled), injection-safe outputs, exhaustive tests
@@ -28,7 +28,7 @@ One monorepo, **216 published packages and CLIs** (187 libraries + 29 tools). Mo
 
 ## 🌐 The Developer Platform
 
-- 🗂️ **[All 216 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
+- 🗂️ **[All 217 packages](https://developer.lacspace.com/packages)** — searchable catalog with a docs page for every package
 - 📖 **[Developer handbook](https://developer.lacspace.com/handbook)** — runnable, task-oriented recipes
 - ⚡ **[create-lacspace-app](https://developer.lacspace.com/create-app)** — a gorgeous Next.js starter, batteries wired
 - 🖼️ **[Live template gallery](https://templates.lacspace.com)** — every starter template, deployed
@@ -209,6 +209,7 @@ Every package links to its own README with a full, explained example. Version ba
 | [`@lacspace/market`](./market) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarket?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/market) | Stock-market money math |
 | [`@lacspace/market-clock`](./market-clock) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarket-clock?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/market-clock) | Holiday-aware, timezone-correct trading clock |
 | [`@lacspace/paper-trade`](./paper-trade) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpaper-trade?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/paper-trade) | Headless paper-trading engine |
+| [`@lacspace/nepse-ipo`](./nepse-ipo) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fnepse-ipo?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/nepse-ipo) | Pure Nepal IPO helpers: NPT (UTC+5:45) wall-clock dates, open IPO/mutual-fund issues (eligibility, dates, extensions) from a public listing JSON, the latest SEBON IPO-pipeline PDF, archive checks. Hermes-safe |
 | [`@lacspace/marketwrap`](./marketwrap) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fmarketwrap?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/marketwrap) | Deterministic daily market wrap in English and Nepali from index close, breadth, turnover, sectors and movers — no AI |
 | [`@lacspace/patterns`](./patterns) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fpatterns?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/patterns) | Rule-based chart patterns on OHLCV: ATR swings, harmonic XABCD with reversal zones, Elliott impulse, classic patterns |
 | [`@lacspace/portfolio`](./portfolio) | [![v](https://img.shields.io/npm/v/%40lacspace%2Fportfolio?label=%20&color=blue)](https://www.npmjs.com/package/@lacspace/portfolio) | Portfolio analytics from holdings + closes: P/L vs WACC, weights, HHI concentration, sector mix, volatility |
@@ -529,7 +530,7 @@ Both — every library ships a dual ESM + CommonJS build with correct `exports` 
 ### The @lacspace packages
 
 **How many packages are there and what do they cover?**
-216 packages and CLIs (187 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
+217 packages and CLIs (188 libraries + 29 tools), grouped into kits: Core & Platform SDK, Core Runtime, Security, SEO, React, Components, Web, Web Engagement, App & Utils, Backend, Data, Sheets, Global Data, Commerce & Ledger, Stock, Mail, the AI Kit, the AI App Kit, the Testing Kit, the Dates & Time Kit, the Media Kit, the Newsroom, LLM Efficiency and Creative kits, the Nepal toolkit and regional payments — covering auth, JWTs, crypto, validation, forms, SEO, sitemaps, OG images, money, dates, CSV/Excel, countries/currencies/IBAN/VAT/phone, caching, rate-limiting, LLM chat & streaming, RAG, agents, evals and more.
 
 **How do I install a package?**
 `npm i @lacspace/seo` (or `pnpm add` / `yarn add`). Each package page on the site shows the exact command, API and examples.

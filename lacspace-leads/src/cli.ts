@@ -21,7 +21,7 @@ import {
 import { summarize, formatSummary } from "./summary.js";
 import { createLiveWriter, type LiveWriter } from "./live.js";
 import { leadsToEnrichInput } from "./pipe.js";
-import { createPusher, formatPushSummary, maskUrl, resolvePush, validatePushUrl, type Pusher } from "./push.js";
+import { createPusher, formatPreflight, formatPushSummary, maskUrl, preflightPush, resolvePush, validatePushUrl, type Pusher } from "./push.js";
 import type { BatchQuery } from "./batch.js";
 import { parseLatLngPair, parseDistance } from "./geo.js";
 import { sweepLeads, MAX_PER_SEARCH } from "./sweep.js";
@@ -64,7 +64,7 @@ interface Args {
   proxy?: string; retries?: number; jitter: boolean;
   sheet?: string; maxTime?: number;
   resume: boolean; summary: boolean; dedupeAcross?: string; enrichOut?: string; live: boolean;
-  push?: string; pushToken?: string;
+  push?: string; pushToken?: string; pushNoPreflight: boolean;
   yes: boolean; help: boolean;
 }
 
@@ -74,7 +74,7 @@ function parseArgs(list: string[]): Args {
     emails: false, socials: false, verifyEmails: false,
     hasPhone: false, hasWebsite: false, noWebsite: false, hasEmail: false, hasValidEmail: false, hasContact: false,
     openNow: false,
-    cleanUrls: true, jitter: false, resume: false, summary: false, live: true, yes: false, help: false,
+    cleanUrls: true, jitter: false, resume: false, summary: false, live: true, pushNoPreflight: false, yes: false, help: false,
   };
   for (let i = 0; i < list.length; i++) {
     const arg = list[i]!;
@@ -128,6 +128,7 @@ function parseArgs(list: string[]): Args {
     else if (arg === "--config") a.config = next();
     else if (arg === "--push") a.push = next();
     else if (arg === "--push-token") a.pushToken = next();
+    else if (arg === "--push-no-preflight") a.pushNoPreflight = true;
     else if (arg === "--dedupe") a.dedupe = next() as SearchOptions["dedupe"];
     else if (arg === "--sort") a.sort = next() as SortKey;
     else if (arg === "--desc") a.desc = true;
@@ -232,6 +233,7 @@ ${c("bold", "Push to a CRM / Lacspace Mail")}
                         https endpoint while the file is written as usual
       --push-token <t>  Bearer token for --push. Prefer the env var
                         LACSPACE_LEADS_PUSH_TOKEN (shell history can't see it)
+      --push-no-preflight  Skip the GET check of --push before the browser opens
 
 ${c("bold", "Runtime")}
       --delay <ms>      Pause between listings    (default 700)
@@ -276,7 +278,7 @@ async function prompt(q: string, fallback = ""): Promise<string> {
 }
 
 /** Resolve + validate --push (flag → config → env). Exits on a bad URL, before any scraping. */
-function setupPush(args: Args, config?: { push?: { url?: string; token?: string } }): { url: string; token?: string } | undefined {
+function setupPush(args: Args, config?: { push?: { url?: string; token?: string; preflight?: boolean } }): { url: string; token?: string; preflight: boolean } | undefined {
   const p = resolvePush({ flagUrl: args.push, flagToken: args.pushToken, config: config?.push, env: process.env });
   if (!p) {
     if (args.pushToken) log(c("yellow", "  ! --push-token given without --push; ignoring it."));
@@ -287,7 +289,19 @@ function setupPush(args: Args, config?: { push?: { url?: string; token?: string 
     exit(1);
   }
   if (args.pushToken) log(c("yellow", "  ! --push-token is visible in shell history and the process list; prefer LACSPACE_LEADS_PUSH_TOKEN."));
-  return p;
+  return { ...p, preflight: !args.pushNoPreflight && config?.push?.preflight !== false };
+}
+
+/** GET the push URL before the browser opens: show the connected search, stop on 401/403. */
+async function runPreflight(p: { url: string; token?: string; preflight: boolean }): Promise<void> {
+  if (!p.preflight) return;
+  const r = await preflightPush(p.token ? { url: p.url, token: p.token } : { url: p.url });
+  const f = formatPreflight(r);
+  if (f.fatal) {
+    log(c("red", `\n✗ ${f.line}\n`));
+    exit(1);
+  }
+  if (f.line) log(`  ${c("green", "✔")} ${f.line}`);
 }
 
 function startPusher(p: { url: string; token?: string }, file: string, search: { type?: string; city?: string; area?: string; target?: number }): Pusher {
@@ -351,7 +365,7 @@ async function runConfigFile(args: Args): Promise<void> {
   const format = (config.format ?? args.format) as OutputFormat;
   if (!OUTPUT_FORMATS.includes(format)) { log(c("red", `\n✗ Unknown format "${format}".`)); exit(1); return; }
   const pushCfg = setupPush(args, config);
-  if (pushCfg) log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)}`);
+  if (pushCfg) { log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)}`); await runPreflight(pushCfg); }
 
   log(`  ${c("dim", "searches")} ${config.searches.length}   ${c("dim", "format")} ${format}${config.append ? c("dim", "  (append)") : ""}${args.resume ? c("dim", "  (resume)") : ""}\n`);
 
@@ -599,7 +613,7 @@ async function main(): Promise<void> {
   else if (nearPoint) log(`  ${c("dim", "sort")}    distance (nearest first)`);
   if (args.country) log(`  ${c("dim", "phones")}  E.164 for ${args.country}`);
   if (args.proxy) log(`  ${c("dim", "proxy")}   ${args.proxy.replace(/\/\/[^@]+@/, "//***@")}`);
-  if (pushCfg) log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)} ${c("dim", "(the file is written as well)")}`);
+  if (pushCfg) { log(`  ${c("dim", "push")}    ${pushEcho(pushCfg)} ${c("dim", "(the file is written as well)")}`); await runPreflight(pushCfg); }
   log(`  ${c("dim", "limit")}   ${args.limit}${isBatch ? "/search" : ""}${args.total ? ` (cap ${args.total})` : ""}   ${c("dim", "format")} ${args.format}   ${c("dim", "→")} ${toStdout ? "stdout" : out}${args.append ? c("dim", " (append)") : ""}`);
   if (!args.yes) {
     const ok = await prompt(`\n${c("yellow", "!")} This opens a browser and searches Google Maps. Continue? ${c("dim", "[y/N]")} `);

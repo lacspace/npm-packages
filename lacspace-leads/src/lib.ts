@@ -100,6 +100,10 @@ export {
   parseRetryAfter,
   formatPushSummary,
   maskUrl,
+  preflightPush,
+  formatPreflight,
+  readPushError,
+  describePushError,
   VERSION,
   PUSH_TOKEN_ENV,
   type Pusher,
@@ -108,6 +112,8 @@ export {
   type PushPayload,
   type PushSearch,
   type PushConfig,
+  type PushError,
+  type PreflightResult,
 } from "./push.js";
 export {
   cleanWebsite,

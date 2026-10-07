@@ -215,7 +215,7 @@ describe("push: failures", () => {
     expect(hits).toHaveLength(1); // one rejected batch, nothing after (no done POST either)
     expect(st.rejected).toBe(true);
     expect(st.sent).toBe(0);
-    expect(logs.filter((m) => m.startsWith("push rejected"))).toEqual([`push rejected: token invalid or expired, leads are still being saved to ${file}`]);
+    expect(logs.filter((m) => m.startsWith("push rejected"))).toEqual([`push rejected (401): token invalid or expired, leads are still being saved to ${file}`]);
     expect(rowsToLeads(await readRows(file))).toHaveLength(30);
     const everything = [...logs, formatPushSummary(st), JSON.stringify(st)].join("\n");
     expect(everything).not.toContain(TOKEN);

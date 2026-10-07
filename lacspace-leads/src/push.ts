@@ -20,7 +20,7 @@
 import type { Lead, LeadStats } from "./types.js";
 
 /** This package's version, sent in the push `User-Agent`. */
-export const VERSION = "1.9.0";
+export const VERSION = "1.9.1";
 
 /** Env var the CLI reads the push token from (safer than `--push-token`). */
 export const PUSH_TOKEN_ENV = "LACSPACE_LEADS_PUSH_TOKEN";
@@ -63,6 +63,21 @@ export interface PushStats {
   doneSent: boolean;
   /** Leads still waiting to be sent. */
   pending: number;
+  /** The last batch that failed for good (retries exhausted or a 4xx drop). @since 1.9.1 */
+  lastError?: PushError;
+  /** The 401/403 that stopped pushing. @since 1.9.1 */
+  rejection?: PushError;
+}
+
+/**
+ * Why a request failed: the HTTP status (0 = network error / timeout) plus the server's
+ * `code` and error text, sanitised (no control chars, ≤120 chars, never headers or the token).
+ * @since 1.9.1
+ */
+export interface PushError {
+  status: number;
+  code?: string;
+  message?: string;
 }
 
 export interface PusherOptions {
@@ -138,6 +153,8 @@ export function maskUrl(raw: string): string {
 export interface PushConfig {
   url?: string;
   token?: string;
+  /** false skips the GET preflight (same as `--push-no-preflight`). @since 1.9.1 */
+  preflight?: boolean;
 }
 
 /**
@@ -175,12 +192,146 @@ export function parseRetryAfter(value: string | null | undefined, capMs = 60_000
   return Math.min(Math.max(0, ms), capMs);
 }
 
+const MAX_ERROR_TEXT = 120;
+
+/** Strip control chars, collapse whitespace, mask the token, cap the length. Pure. */
+function cleanText(raw: unknown, token?: string, max = MAX_ERROR_TEXT): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  let t = typeof raw === "string" ? raw : typeof raw === "number" || typeof raw === "boolean" ? String(raw) : "";
+  if (token) t = t.split(token).join("***");
+  // eslint-disable-next-line no-control-regex
+  t = t.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return undefined;
+  return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
+}
+
+/**
+ * Read a failed response's body into a {@link PushError}: a JSON body's `error` (string, or
+ * `{ message, code }`) plus `code`, else `message`; a non-JSON body's first ~120 chars.
+ * Never reads headers; the token is masked if the server echoes it. Pure. @since 1.9.1
+ */
+export function readPushError(status: number, body: string | undefined, token?: string): PushError {
+  const e: PushError = { status };
+  const text = (body ?? "").trim();
+  if (!text) return e;
+  let json: unknown;
+  try { json = JSON.parse(text); } catch { json = undefined; }
+  if (json && typeof json === "object" && !Array.isArray(json)) {
+    const o = json as Record<string, unknown>;
+    const err = o.error;
+    let message: unknown;
+    let code: unknown = o.code;
+    if (err && typeof err === "object" && !Array.isArray(err)) {
+      const eo = err as Record<string, unknown>;
+      message = eo.message;
+      code ??= eo.code;
+    } else message = err ?? o.message;
+    const m = cleanText(message, token);
+    const c = cleanText(code, token, 40);
+    if (c) e.code = c;
+    if (m) e.message = m;
+    return e;
+  }
+  const m = cleanText(text, token);
+  if (m) e.message = m;
+  return e;
+}
+
+/** `429 RATE_LIMITED "Too many requests"`, `network error (timed out)`… Pure. @since 1.9.1 */
+export function describePushError(e: PushError): string {
+  if (e.status === 0) return `network error${e.message ? ` (${e.message})` : ""}`;
+  return [String(e.status), e.code, e.message ? `"${e.message}"` : undefined].filter(Boolean).join(" ");
+}
+
+const statusAndCode = (e: PushError): string => (e.status === 0 ? "network error" : [String(e.status), e.code].filter(Boolean).join(" "));
+
 /** One-line summary of a push, e.g. for the CLI's last line. Pure. */
 export function formatPushSummary(s: PushStats): string {
-  const bits = [`sent ${s.sent} lead${s.sent === 1 ? "" : "s"} in ${s.batches} batch${s.batches === 1 ? "" : "es"}`, `failed ${s.failed}`];
+  const bits = [
+    `sent ${s.sent} lead${s.sent === 1 ? "" : "s"} in ${s.batches} batch${s.batches === 1 ? "" : "es"}`,
+    `failed ${s.failed}${s.failed && s.lastError ? ` (last: ${describePushError(s.lastError)})` : ""}`,
+  ];
   if (s.dropped) bits.push(`dropped ${s.dropped} (queue full)`);
-  bits.push(s.rejected ? "REJECTED (401/403)" : "not rejected");
+  bits.push(s.rejected ? `REJECTED (${s.rejection ? statusAndCode(s.rejection) : "401/403"})` : "not rejected");
   return `push: ${bits.join(", ")}`;
+}
+
+/** Result of {@link preflightPush}. @since 1.9.1 */
+export interface PreflightResult {
+  /** connected: 200 + JSON with `search.name`; rejected: 401/403; unknown: anything else (carry on). */
+  kind: "connected" | "rejected" | "unknown";
+  /** HTTP status, 0 for a network error / timeout. */
+  status: number;
+  searchName?: string;
+  expiresAt?: string;
+  code?: string;
+  message?: string;
+}
+
+/**
+ * Check a push endpoint before the run: `GET <url>` with the same headers as the pushes
+ * (Bearer token when set) and a 10s timeout. Never throws. @since 1.9.1
+ */
+export async function preflightPush(opts: { url: string; token?: string; timeoutMs?: number; fetch?: typeof fetch }): Promise<PreflightResult> {
+  const url = validatePushUrl(opts.url).toString();
+  const doFetch = opts.fetch ?? globalThis.fetch;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "User-Agent": `lacspace-leads/${VERSION}`,
+  };
+  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), opts.timeoutMs ?? 10_000);
+  try {
+    const res = await doFetch(url, { method: "GET", headers, signal: ac.signal });
+    let text = "";
+    try { text = await res.text(); } catch { /* unreadable body */ }
+    if (res.status === 401 || res.status === 403) {
+      const e = readPushError(res.status, text, opts.token);
+      const r: PreflightResult = { kind: "rejected", status: res.status };
+      if (e.code) r.code = e.code;
+      if (e.message) r.message = e.message;
+      return r;
+    }
+    if (res.status === 200) {
+      let json: unknown;
+      try { json = JSON.parse(text); } catch { json = undefined; }
+      const o = json && typeof json === "object" ? (json as Record<string, unknown>) : undefined;
+      const search = o?.search && typeof o.search === "object" ? (o.search as Record<string, unknown>) : undefined;
+      const name = cleanText(search?.name, opts.token);
+      if (name) {
+        const r: PreflightResult = { kind: "connected", status: 200, searchName: name };
+        const exp = cleanText(o?.expiresAt ?? search?.expiresAt, opts.token, 64);
+        if (exp) r.expiresAt = exp;
+        return r;
+      }
+    }
+    return { kind: "unknown", status: res.status };
+  } catch {
+    return { kind: "unknown", status: 0 };
+  } finally {
+    clearTimeout(to);
+  }
+}
+
+/**
+ * What the CLI prints for a preflight, and whether to stop before scraping (401/403). Pure.
+ * @since 1.9.1
+ */
+export function formatPreflight(r: PreflightResult): { line?: string; fatal: boolean } {
+  if (r.kind === "rejected") {
+    return { line: `push: token rejected (${[String(r.status), r.code].filter(Boolean).join(" ")}), copy a fresh command from your portal`, fatal: true };
+  }
+  if (r.kind === "connected") {
+    let line = `push: connected, search "${r.searchName}"`;
+    if (r.expiresAt) {
+      const t = Date.parse(r.expiresAt);
+      line += ` (token valid until ${Number.isNaN(t) ? r.expiresAt : new Date(t).toLocaleString()})`;
+    }
+    return { line, fatal: false };
+  }
+  return { fatal: false };
 }
 
 const randomId = (): string => {
@@ -219,7 +370,8 @@ export function createPusher(opts: PusherOptions): Pusher {
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
 
   const pending: Lead[] = [];
-  const st = { sent: 0, batches: 0, failed: 0, dropped: 0, rejected: false, doneSent: false };
+  const st: Omit<PushStats, "pending"> = { sent: 0, batches: 0, failed: 0, dropped: 0, rejected: false, doneSent: false };
+  let lastRejection: PushError | undefined;
   let seq = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let due = false;
@@ -248,29 +400,41 @@ export function createPusher(opts: PusherOptions): Pusher {
       const to = setTimeout(() => ac.abort(), timeoutMs);
       let status = 0;
       let retryAfter: string | null = null;
+      let text = "";
+      let netError: string | undefined;
       try {
         const res = await doFetch(url, { method: "POST", headers, body, signal: ac.signal });
         status = res.status;
         retryAfter = res.headers.get("retry-after");
-        try { await res.arrayBuffer(); } catch { /* body not needed */ }
-      } catch {
+        try { text = await res.text(); } catch { /* unreadable body */ }
+      } catch (err) {
         status = 0; // network error / timeout
+        const cause = (err as { cause?: { code?: unknown } }).cause;
+        netError = ac.signal.aborted ? "timed out" : typeof cause?.code === "string" ? cause.code : (err as Error)?.message;
       } finally {
         clearTimeout(to);
         stop.signal.removeEventListener("abort", onStop);
       }
       if (stop.signal.aborted) return status >= 200 && status < 300 ? "ok" : "stopped";
       if (status >= 200 && status < 300) return "ok";
-      if (status === 401 || status === 403) return "rejected";
+      const error = (): PushError => {
+        if (status !== 0) return readPushError(status, text, opts.token);
+        const e: PushError = { status: 0 };
+        const m = cleanText(netError, opts.token, 60);
+        if (m) e.message = m;
+        return e;
+      };
+      if (status === 401 || status === 403) { lastRejection = error(); return "rejected"; }
       const retryable = status === 0 || status === 429 || status >= 500;
       if (!retryable) {
+        st.lastError = error();
         if (!warned4xx.has(status)) {
           warned4xx.add(status);
-          warn(`push: endpoint answered HTTP ${status}; dropping that batch and carrying on`);
+          warn(`push: endpoint answered HTTP ${describePushError(st.lastError)}; dropping that batch and carrying on`);
         }
         return "dropped";
       }
-      if (attempt >= delays.length) return "failed";
+      if (attempt >= delays.length) { st.lastError = error(); return "failed"; }
       let wait = delays[attempt] ?? 1000;
       if (status === 429) wait = parseRetryAfter(retryAfter, maxRetryAfterMs) ?? wait;
       await sleep(wait);
@@ -279,10 +443,12 @@ export function createPusher(opts: PusherOptions): Pusher {
 
   const reject = (lost: number): void => {
     st.rejected = true;
+    if (lastRejection) st.rejection = lastRejection;
     st.failed += lost + pending.length;
     pending.length = 0;
     if (timer) { clearTimeout(timer); timer = undefined; }
-    warn(`push rejected: token invalid or expired, leads are still being saved to ${opts.file ?? "the output file"}`);
+    const why = lastRejection ? ` (${statusAndCode(lastRejection)})` : "";
+    warn(`push rejected${why}: token invalid or expired, leads are still being saved to ${opts.file ?? "the output file"}`);
   };
 
   const sendLeads = async (leads: Lead[]): Promise<void> => {
@@ -290,7 +456,7 @@ export function createPusher(opts: PusherOptions): Pusher {
     if (outcome === "ok") { st.sent += leads.length; st.batches++; return; }
     if (outcome === "rejected") { reject(leads.length); return; }
     st.failed += leads.length;
-    if (outcome === "failed") warn(`push: a batch of ${leads.length} lead${leads.length === 1 ? "" : "s"} could not be delivered after retries (still in the file)`);
+    if (outcome === "failed") warn(`push: a batch of ${leads.length} lead${leads.length === 1 ? "" : "s"} could not be delivered after retries${st.lastError ? ` (${describePushError(st.lastError)})` : ""}; still in the file`);
   };
 
   const schedule = (): void => {

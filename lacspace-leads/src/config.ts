@@ -79,5 +79,6 @@ export function assertConfig(value: unknown): asserts value is LeadsConfig {
     if (!push || typeof push !== "object" || Array.isArray(push)) throw new Error('Config "push" must be an object: { "url": "https://…", "token": "…" }.');
     if (push.url !== undefined && typeof push.url !== "string") throw new Error('Config "push.url" must be a string.');
     if (push.token !== undefined && typeof push.token !== "string") throw new Error('Config "push.token" must be a string.');
+    if (push.preflight !== undefined && typeof push.preflight !== "boolean") throw new Error('Config "push.preflight" must be true or false.');
   }
 }

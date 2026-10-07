@@ -210,6 +210,7 @@ npx lacspace-leads [type] [options]
 | `-y, --yes` | Skip prompts and the browser-open confirmation |
 | `--push <url>` | Also stream finished leads to an https endpoint (CRM, Lacspace Mail) — the file is still written. See [Push leads](#push-leads-to-your-crm--lacspace-mail) |
 | `--push-token <t>` | Bearer token for `--push` (prefer the `LACSPACE_LEADS_PUSH_TOKEN` env var) |
+| `--push-no-preflight` | Skip the `GET` check of the `--push` endpoint before the browser opens |
 
 **Enrichment** (visits each business website — slower, opt-in):
 
@@ -398,12 +399,22 @@ npx lacspace-leads restaurants --city Kathmandu --target 300 --emails --verify-e
 
 **URL.** Only `https://` is accepted, except `http://localhost`, `http://127.0.0.1` and `http://[::1]` for local development. Anything else stops with a clear error before the browser opens.
 
+**Preflight (1.9.1).** Before the browser opens, it sends one `GET <push url>` with the same headers (Bearer token included) and a 10-second timeout:
+
+| Endpoint answers | What happens |
+| --- | --- |
+| `200` with JSON containing `search.name` | prints `push: connected, search "<name>"`, plus `(token valid until <local time>)` when the JSON has `expiresAt` |
+| `401` / `403` | prints `push: token rejected (<status> <code>), copy a fresh command from your portal` and **exits 1 before scraping**, since you asked for a live import |
+| `404`, `405`, anything else, non-JSON, network error | nothing printed, the run carries on (many CRMs have no `GET` on their import URL) |
+
+Skip it with `--push-no-preflight`, or `"preflight": false` in the config's `push` block.
+
 **In a campaign file** (`--config`), add a `push` block (CLI flags still win):
 
 ```jsonc
 {
   "searches": [{ "type": "cafes", "city": "Kathmandu" }],
-  "push": { "url": "https://api.lacspace.com/api/webmail/leads/import" }  // token: env var, or "token": "…"
+  "push": { "url": "https://api.lacspace.com/api/webmail/leads/import" }  // token: env var, or "token": "…"; "preflight": false skips the GET
 }
 ```
 
@@ -435,7 +446,15 @@ When the run ends (including a Ctrl-C), the rest is flushed and one final reques
 | `401` / `403` | one error, `push rejected: token invalid or expired, leads are still being saved to <file>`; pushing stops for the rest of the run, scraping and the file carry on |
 | any other `4xx` | one warning per status code, that batch is dropped, pushing carries on |
 
-The run ends with one line such as `push: sent 300 leads in 30 batches, failed 0, not rejected`.
+The run ends with one line such as `push: sent 300 leads in 30 batches, failed 0, not rejected`. When batches fail for good (since 1.9.1), it names the last HTTP status and the server's error, taken from a JSON body's `error` (and `code`) or the first ~120 characters of a text body, with control characters stripped and never any headers or the token:
+
+```
+push: sent 1 lead in 1 batch, failed 2 (last: 429 RATE_LIMITED "Too many requests"), not rejected
+```
+
+The per-status warnings carry the same detail, and a rejection reads `push rejected (401 BAD_TOKEN): token invalid or expired, leads are still being saved to <file>`.
+
+"Batches" counts the lead batches the endpoint accepted. It does not include the final `done: true` request, but a receiver may count that one as a batch too, so its own tally can be one higher.
 
 Programmatically, `createPusher({ url, token })` gives you `push(lead)`, `finish(stats)` and `stats()`. Wire it to `onResult`:
 
@@ -654,6 +673,7 @@ const leads = await searchLeadsBatch(
 | `filterLeads` / `dedupeLeads` / `subtractLeads` / `dedupeKey` | Pure post-processing — filter, in-list dedupe, and cross-file dedupe. |
 | `createLiveWriter(options)` | Write leads to csv / ndjson / json / xlsx (or stdout) one by one as they arrive. |
 | `createPusher(options)` / `validatePushUrl` / `resolvePush` / `parseRetryAfter` / `formatPushSummary` | Stream finished leads to an HTTP endpoint in batches, with retries (1.9.0). |
+| `preflightPush(options)` / `formatPreflight` / `readPushError` / `describePushError` | Check a push endpoint (GET) before a run, and read a failed response's status/code/error text (1.9.1). |
 | `summarize(leads)` / `formatSummary(s)` | Rating bands, contact coverage %, top categories — the `--summary` engine. |
 | `parsePriceLevel` / `priceLevelValue` / `parseBusinessStatus` / `parseClaimed` / `parseOpenNow` / `parseCategoryTags` | Pure field parsers (unit-tested against HTML/aria snippets). |
 | `pipeToEnrich(handler)` / `leadsToEnrichInput` / `leadDomains` / `leadDomain` | Bridge collected leads to `lacspace-enrich` (no hard dep). |

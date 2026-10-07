@@ -54,6 +54,7 @@
     "id",
     "idempotency",
     "image",
+    "imap",
     "indicators",
     "interval",
     "inventory",

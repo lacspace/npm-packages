@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/imap",
+  "version": "1.0.0",
+  "description": "Zero-dependency IMAP4rev1 client for Node (RFC 3501 + IDLE, MOVE, UIDPLUS, CONDSTORE, SPECIAL-USE, LIST-EXTENDED, LITERAL+, SASL-IR, QUOTA, ID). Implicit TLS and STARTTLS with verification on, LOGIN / PLAIN / XOAUTH2 / OAUTHBEARER, streaming byte-accurate parser, async-iterable FETCH, envelopes with RFC 2047 decoding, BODYSTRUCTURE trees shared with @lacspace/mime, modified UTF-7 mailbox names, special-use detection (incl. Gmail XLIST and localised names), IDLE with NOOP fallback. Works with Hostinger (Dovecot), Gmail, Outlook/Exchange, GoDaddy.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "imap",
+    "imap-client",
+    "email",
+    "mail",
+    "webmail",
+    "idle",
+    "xoauth2",
+    "gmail",
+    "outlook",
+    "dovecot",
+    "hostinger",
+    "bodystructure",
+    "zero-dependency",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/imap",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "imap"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "name": "@lacspace/bounce",
+  "version": "1.0.0",
+  "description": "Bounce, complaint and auto-reply classifier for email campaigns and webmail: parses RFC 3464 delivery status notifications (Reporting-MTA, Final-Recipient, Action, Status, Diagnostic-Code, Remote-MTA), RFC 5965 ARF spam complaints and RFC 3834 auto-replies (Auto-Submitted, X-Autoreply, Precedence, out-of-office subjects). Also reads plain-text vendor bounces with no DSN part (Gmail, Outlook/Microsoft 365, Zoho, Hostinger/Titan, Postfix, Exim, qmail). Maps RFC 3463 enhanced codes, SMTP reply codes and diagnostic text to hard/soft plus a category (mailbox_unknown, mailbox_full, domain_unknown, blocked_spam, blocked_policy, auth_failed, message_too_large, rate_limited, temporary, challenge) with a confidence score and a plain-English reason. Includes a small built-in MIME splitter for raw messages. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "bounce",
+    "bounces",
+    "dsn",
+    "rfc3464",
+    "rfc3463",
+    "rfc5965",
+    "arf",
+    "feedback-loop",
+    "complaint",
+    "auto-reply",
+    "out-of-office",
+    "rfc3834",
+    "ndr",
+    "email",
+    "deliverability",
+    "suppression",
+    "campaign",
+    "webmail",
+    "mailer-daemon",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/bounce",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "bounce"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

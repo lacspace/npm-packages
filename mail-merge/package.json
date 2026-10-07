@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/mail-merge",
+  "version": "1.0.0",
+  "description": "Mail merge for webmail and email campaigns: turn a CSV or spreadsheet of recipients plus a subject/HTML/text template into one personalised message per recipient, with a validation report before anything is sent. Own RFC 4180 CSV parser (quotes, embedded newlines, BOM, comma/semicolon/tab auto-detect for Excel), built-in column aliases (First Name, e-mail, surname...), {{var|fallback}}, filters (upper, lower, title, capitalize, trim, first), {{#if}}/{{else}}/{{#unless}} blocks with no code execution, HTML escaping, email validation, case-insensitive dedupe, suppression by address or @domain, missing-variable counts, role-address warnings and a max cap. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mail-merge",
+    "mailmerge",
+    "email",
+    "csv",
+    "csv-parser",
+    "template",
+    "personalisation",
+    "personalization",
+    "campaign",
+    "newsletter",
+    "bulk-email",
+    "webmail",
+    "excel",
+    "spreadsheet",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/mail-merge",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "mail-merge"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

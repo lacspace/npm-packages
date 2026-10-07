@@ -1,0 +1,63 @@
+{
+  "name": "@lacspace/email-builder",
+  "version": "1.0.0",
+  "description": "Block-based email template builder: a JSON document of blocks (header, text, image, button, divider, spacer, columns, social, footer, html, quote, list, table) renders to bulletproof table-based responsive email HTML for Outlook desktop, Gmail, Apple Mail and mobile. Inline styles, MSO conditional wrapper, VML buttons, ghost-table columns that stack on mobile, hidden preheader, optional dark mode, brand theming, safe rich-text sanitizer, {{mail-merge}} variables passed through untouched, plain-text alternative, WCAG contrast and Gmail-clipping warnings, a validator, a block schema for editor forms and 9 starter templates. Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "email-builder",
+    "email-template",
+    "html-email",
+    "responsive-email",
+    "outlook",
+    "vml",
+    "mso",
+    "bulletproof-button",
+    "newsletter",
+    "mail-merge",
+    "dark-mode",
+    "wcag",
+    "templates",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/email-builder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "email-builder"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

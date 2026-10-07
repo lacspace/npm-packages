@@ -1,0 +1,62 @@
+{
+  "name": "@lacspace/sequence",
+  "version": "1.0.0",
+  "description": "Multi-step follow-up email sequences as a pure state machine: no I/O, no timers, no storage. Given a sequence, a plain-JSON enrollment and `now`, nextAction() says send / wait (with the exact next time) / skip / stop / paused. Delays in days, hours, minutes and business days; send windows (days of week, HH:MM or fractional hours, holidays) in the recipient's IANA timezone, DST-correct via Intl (Asia/Kathmandu +05:45 included); stop on reply, bounce, unsubscribe, complaint, click, meeting booked or manual stop; step conditions (no_reply, opened, no_open, clicked, no_click); pause/resume; 3-strike failure stop with retry delay; reply threading; seeded deterministic jitter; due() scheduler tick with per-hour and per-day send budgets; previewTimeline() and validateSequence(). Zero dependencies, isomorphic.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "sequence",
+    "drip",
+    "follow-up",
+    "cadence",
+    "outreach",
+    "campaign",
+    "state-machine",
+    "scheduler",
+    "send-window",
+    "business-days",
+    "timezone",
+    "webmail",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/sequence",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "sequence"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

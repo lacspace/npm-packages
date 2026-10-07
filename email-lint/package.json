@@ -1,0 +1,66 @@
+{
+  "name": "@lacspace/email-lint",
+  "version": "1.0.0",
+  "description": "Pre-send email linter for webmail and campaign tools: tells you in plain English what will hurt deliverability or render badly before you hit send. 41 stable rules covering Gmail clipping (~102KB), risky and oversized attachments, image-only mail, missing alt text, link-text/href domain mismatch, URL shorteners, IP and javascript: links, spammy subjects and phrases (English + Nepali), ALL CAPS, hidden text, scripts, external stylesheets, Outlook-unsupported CSS, forms, embeds, inline SVG, base64 images, malformed HTML, and Gmail/Yahoo bulk-sender rules (List-Unsubscribe, RFC 8058 one-click). Returns a 0-100 score, good/fair/poor grade, issues with fixes, and stats. Nepali messages for the key rules. Heuristic; does not render. Zero dependencies, isomorphic, tolerant HTML tokenizer built in.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "email",
+    "email-lint",
+    "deliverability",
+    "spam",
+    "spam-score",
+    "pre-send",
+    "gmail-clipping",
+    "list-unsubscribe",
+    "one-click",
+    "rfc8058",
+    "bulk-sender",
+    "email-html",
+    "outlook",
+    "newsletter",
+    "campaign",
+    "webmail",
+    "nepali",
+    "typescript"
+  ],
+  "author": "Lacspace <contact@lacspace.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://developer.lacspace.com/packages/email-lint",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lacspace/npm-packages.git",
+    "directory": "email-lint"
+  },
+  "bugs": {
+    "url": "https://github.com/lacspace/npm-packages/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
